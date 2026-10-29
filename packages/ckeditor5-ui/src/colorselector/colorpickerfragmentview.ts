@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/colorselector/colorpickerfragmentview
  */
 
-import View from '../view';
-import ButtonView from '../button/buttonview';
-import type ViewCollection from '../viewcollection';
+import { View } from '../view.js';
+import { ButtonView } from '../button/buttonview.js';
+import { type ViewCollection } from '../viewcollection.js';
+import type { FocusableView } from '../focuscycler.js';
+import { type LabeledFieldView } from '../labeledfield/labeledfieldview.js';
+import { type InputTextView } from '../inputtext/inputtextview.js';
 import {
-	default as ColorPickerView,
+	ColorPickerView,
 	type ColorPickerColorSelectedEvent
-} from '../colorpicker/colorpickerview';
+} from '../colorpicker/colorpickerview.js';
 
 import type { FocusTracker, KeystrokeHandler, Locale } from '@ckeditor/ckeditor5-utils';
-import type { ColorPickerViewConfig } from '../colorpicker/utils';
-import type { ColorSelectorColorPickerCancelEvent, ColorSelectorExecuteEvent } from './colorselectorview';
-
-import checkButtonIcon from '@ckeditor/ckeditor5-core/theme/icons/check.svg';
-import cancelButtonIcon from '@ckeditor/ckeditor5-core/theme/icons/cancel.svg';
+import type { ColorPickerViewConfig } from '../colorpicker/utils.js';
+import type { ColorSelectorColorPickerCancelEvent, ColorSelectorExecuteEvent } from './colorselectorview.js';
+import { IconCancel, IconCheck } from '@ckeditor/ckeditor5-icons';
 
 /**
  * One of the fragments of {@link module:ui/colorselector/colorselectorview~ColorSelectorView}.
@@ -33,7 +34,7 @@ import cancelButtonIcon from '@ckeditor/ckeditor5-core/theme/icons/cancel.svg';
  * * A text input accepting colors in HEX format,
  * * "Save" and "Cancel" action buttons.
  */
-export default class ColorPickerFragmentView extends View {
+export class ColorPickerFragmentView extends View {
 	/**
 	 * A collection of component's children.
 	 */
@@ -84,7 +85,7 @@ export default class ColorPickerFragmentView extends View {
 	 *
 	 * @readonly
 	 */
-	protected _focusables: ViewCollection;
+	protected _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * A reference to the configuration of {@link #colorPickerView}. `false` when the view was
@@ -98,10 +99,11 @@ export default class ColorPickerFragmentView extends View {
 	 * Creates an instance of the view.
 	 *
 	 * @param locale The localization services instance.
-	 * @param focusTracker Tracks information about the DOM focus in the list.
-	 * @param focusables A collection of views that can be focused in the view..
-	 * @param keystrokes An instance of the {@link module:utils/keystrokehandler~KeystrokeHandler}.
-	 * @param colorPickerViewConfig The configuration of color picker feature. If set to `false`, the color picker
+	 * @param options Constructor options.
+	 * @param options.focusTracker Tracks information about the DOM focus in the list.
+	 * @param options.focusables A collection of views that can be focused in the view.
+	 * @param options.keystrokes An instance of the {@link module:utils/keystrokehandler~KeystrokeHandler}.
+	 * @param options.colorPickerViewConfig The configuration of color picker feature. If set to `false`, the color picker
 	 * will not be rendered.
 	 */
 	constructor(
@@ -114,7 +116,7 @@ export default class ColorPickerFragmentView extends View {
 		}:
 		{
 			focusTracker: FocusTracker;
-			focusables: ViewCollection;
+			focusables: ViewCollection<FocusableView>;
 			keystrokes: KeystrokeHandler;
 			colorPickerViewConfig: ColorPickerViewConfig | false;
 		}
@@ -195,11 +197,18 @@ export default class ColorPickerFragmentView extends View {
 	}
 
 	/**
+	 * Reset validation messages.
+	 */
+	public resetValidationStatus(): void {
+		this.colorPickerView!.resetValidationStatus();
+	}
+
+	/**
 	 * When color picker is focused and "enter" is pressed it executes command.
 	 */
 	private _executeOnEnterPress(): void {
 		this.keystrokes.set( 'enter', evt => {
-			if ( this.isVisible && this.focusTracker.focusedElement !== this.cancelButtonView.element ) {
+			if ( this.isVisible && this.focusTracker.focusedElement !== this.cancelButtonView.element && this.colorPickerView!.isValid() ) {
 				this.fire( 'execute', {
 					value: this.selectedColor!
 				} );
@@ -231,7 +240,7 @@ export default class ColorPickerFragmentView extends View {
 			this._focusables.add( slider );
 		}
 
-		const input = this.colorPickerView!.hexInputRow.children.get( 1 )!;
+		const input = this.colorPickerView!.hexInputRow.children.get( 1 ) as LabeledFieldView<InputTextView>;
 
 		if ( input.element! ) {
 			this.focusTracker.add( input.element );
@@ -282,7 +291,7 @@ export default class ColorPickerFragmentView extends View {
 		const cancelButtonView = new ButtonView( locale );
 
 		saveButtonView.set( {
-			icon: checkButtonIcon,
+			icon: IconCheck,
 			class: 'ck-button-save',
 			type: 'button',
 			withText: false,
@@ -290,7 +299,7 @@ export default class ColorPickerFragmentView extends View {
 		} );
 
 		cancelButtonView.set( {
-			icon: cancelButtonIcon,
+			icon: IconCancel,
 			class: 'ck-button-cancel',
 			type: 'button',
 			withText: false,
@@ -298,10 +307,12 @@ export default class ColorPickerFragmentView extends View {
 		} );
 
 		saveButtonView.on( 'execute', () => {
-			this.fire<ColorSelectorExecuteEvent>( 'execute', {
-				source: 'colorPickerSaveButton',
-				value: this.selectedColor!
-			} );
+			if ( this.colorPickerView!.isValid() ) {
+				this.fire<ColorSelectorExecuteEvent>( 'execute', {
+					source: 'colorPickerSaveButton',
+					value: this.selectedColor!
+				} );
+			}
 		} );
 
 		cancelButtonView.on( 'execute', () => {

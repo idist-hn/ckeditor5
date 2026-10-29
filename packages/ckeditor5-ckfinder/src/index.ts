@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ckfinder
  */
 
-export { default as CKFinder } from './ckfinder';
-export { default as CKFinderEditing } from './ckfinderediting';
-export { default as CKFinderUI } from './ckfinderui';
-export type { CKFinderConfig } from './ckfinderconfig';
-export type { default as CKFinderCommand } from './ckfindercommand';
+export { CKFinder } from './ckfinder.js';
+export { CKFinderEditing } from './ckfinderediting.js';
+export { CKFinderUI } from './ckfinderui.js';
+export { CKFinderCommand } from './ckfindercommand.js';
+export type { CKFinderConfig, CKFinderOptions } from './ckfinderconfig.js';
 
-import './augmentation';
+import './augmentation.js';

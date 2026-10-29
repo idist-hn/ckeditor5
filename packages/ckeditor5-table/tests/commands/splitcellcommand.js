@@ -1,17 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import TableEditing from '../../src/tableediting';
-import TableSelection from '../../src/tableselection';
-import { modelTable } from '../_utils/utils';
+import { TableEditing } from '../../src/tableediting.js';
+import { TableSelection } from '../../src/tableselection.js';
+import { modelTable, assertSelectedCells } from '../_utils/utils.js';
 
-import SplitCellCommand from '../../src/commands/splitcellcommand';
+import { SplitCellCommand } from '../../src/commands/splitcellcommand.js';
 
 describe( 'SplitCellCommand', () => {
 	let editor, model, command;
@@ -39,15 +40,15 @@ describe( 'SplitCellCommand', () => {
 
 		describe( 'isEnabled', () => {
 			it( 'should be true if in a table cell', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00[]' ]
 				] ) );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true if in an entire cell is selected', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ]
 				] ) );
 
@@ -58,11 +59,11 @@ describe( 'SplitCellCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 0, 0 ] )
 				);
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
-			it( 'should be false if multiple cells are selected', () => {
-				setData( model, modelTable( [
+			it( 'should be true if multiple cells are selected', () => {
+				_setModelData( model, modelTable( [
 					[ '00', '01' ]
 				] ) );
 
@@ -73,19 +74,19 @@ describe( 'SplitCellCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
 				);
 
-				expect( command.isEnabled ).to.be.false;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be false if not in cell', () => {
-				setData( model, '<paragraph>11[]</paragraph>' );
+				_setModelData( model, '<paragraph>11[]</paragraph>' );
 
-				expect( command.isEnabled ).to.be.false;
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		describe( 'execute()', () => {
 			it( 'should split table cell for two table cells', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02' ],
 					[ '10', '[]11', '12' ],
 					[ '20', { colspan: 2, contents: '21' } ],
@@ -94,7 +95,7 @@ describe( 'SplitCellCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', { colspan: 2, contents: '01' }, '02' ],
 					[ '10', '[]11', '', '12' ],
 					[ '20', { colspan: 3, contents: '21' } ],
@@ -103,7 +104,7 @@ describe( 'SplitCellCommand', () => {
 			} );
 
 			it( 'should unsplit table cell if split is equal to colspan', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02' ],
 					[ '10', '11', '12' ],
 					[ '20', { colspan: 2, contents: '21[]' } ],
@@ -112,7 +113,7 @@ describe( 'SplitCellCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01', '02' ],
 					[ '10', '11', '12' ],
 					[ '20', '21[]', '' ],
@@ -121,35 +122,35 @@ describe( 'SplitCellCommand', () => {
 			} );
 
 			it( 'should properly unsplit table cell if split is uneven', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02' ],
 					[ { colspan: 3, contents: '10[]' } ]
 				] ) );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01', '02' ],
 					[ { colspan: 2, contents: '10[]' }, '' ]
 				] ) );
 			} );
 
 			it( 'should properly set colspan of inserted cells', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02', '03' ],
 					[ { colspan: 4, contents: '10[]' } ]
 				] ) );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01', '02', '03' ],
 					[ { colspan: 2, contents: '10[]' }, { colspan: 2, contents: '' } ]
 				] ) );
 			} );
 
 			it( 'should keep rowspan attribute for newly inserted cells', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02', '03', '04', '05' ],
 					[ { colspan: 5, rowspan: 2, contents: '10[]' }, '15' ],
 					[ '25' ]
@@ -157,11 +158,159 @@ describe( 'SplitCellCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01', '02', '03', '04', '05' ],
 					[ { colspan: 3, rowspan: 2, contents: '10[]' }, { colspan: 2, rowspan: 2, contents: '' }, '15' ],
 					[ '25' ]
 				] ) );
+			} );
+
+			it( 'should split all selected cells in the same row', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', '', '01', '' ],
+					[ { colspan: 2, contents: '10' }, { colspan: 2, contents: '11' } ]
+				] ) );
+			} );
+
+			it( 'should split all selected cells in the same column inserting one column', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', '', '01' ],
+					[ '10', '', '11' ]
+				] ) );
+			} );
+
+			it( 'should split all cells in a selection rectangle', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 1 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', '', '01', '' ],
+					[ '10', '', '11', '' ]
+				] ) );
+			} );
+
+			it( 'should split cells with a colspan within the selection', () => {
+				_setModelData( model, modelTable( [
+					[ { colspan: 2, contents: '00' } ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ { colspan: 2, contents: '00' }, '' ],
+					[ '10', '', '11' ]
+				] ) );
+			} );
+
+			it( 'should update headingColumns attribute when splitting multiple heading cells', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01', '02' ]
+				], { headingColumns: 2 } ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', '', '01', '', '02' ]
+				], { headingColumns: 4 } ) );
+			} );
+
+			it( 'should split all selected cells in a single batch', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 1 ] )
+				);
+
+				const initialVersion = model.document.version;
+
+				command.execute();
+
+				const operations = Array.from( model.document.history.getOperations( initialVersion ) );
+				const batches = new Set( operations.map( operation => operation.batch ) );
+
+				expect( operations.length ).to.be.greaterThan( 1 );
+				expect( batches.size ).toEqual( 1 );
+			} );
+
+			it( 'should keep the originally selected cells selected', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
+				);
+
+				command.execute();
+
+				assertSelectedCells( model, [
+					[ 1, 0, 1, 0 ],
+					[ 0, 0 ]
+				] );
 			} );
 		} );
 	} );
@@ -173,23 +322,38 @@ describe( 'SplitCellCommand', () => {
 
 		describe( 'isEnabled', () => {
 			it( 'should be true if in a table cell', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00[]' ]
 				] ) );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true if multiple cells are selected', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
+				);
+
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be false if not in cell', () => {
-				setData( model, '<paragraph>11[]</paragraph>' );
+				_setModelData( model, '<paragraph>11[]</paragraph>' );
 
-				expect( command.isEnabled ).to.be.false;
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		describe( 'execute()', () => {
 			it( 'should split table cell for two table cells', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02' ],
 					[ '10', '[]11', '12' ],
 					[ '20', '21', '22' ]
@@ -197,12 +361,105 @@ describe( 'SplitCellCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01', '02' ],
 					[ { rowspan: 2, contents: '10' }, '[]11', { rowspan: 2, contents: '12' } ],
 					[ '' ],
 					[ '20', '21', '22' ]
 				] ) );
+			} );
+
+			it( 'should split all selected cells in the same row inserting one row', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', '01' ],
+					[ '', '' ],
+					[ '10', '11' ]
+				] ) );
+			} );
+
+			it( 'should split all selected cells in the same column', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', { rowspan: 2, contents: '01' } ],
+					[ '' ],
+					[ '10', { rowspan: 2, contents: '11' } ],
+					[ '' ]
+				] ) );
+			} );
+
+			it( 'should split all cells in a selection rectangle', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ]
+				] ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 1 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00', '01' ],
+					[ '', '' ],
+					[ '10', '11' ],
+					[ '', '' ]
+				] ) );
+			} );
+
+			it( 'should update headingRows attribute when splitting multiple heading cells', () => {
+				_setModelData( model, modelTable( [
+					[ '00' ],
+					[ '10' ],
+					[ '20' ]
+				], { headingRows: 2 } ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
+					[ '00' ],
+					[ '' ],
+					[ '10' ],
+					[ '' ],
+					[ '20' ]
+				], { headingRows: 4 } ) );
 			} );
 		} );
 	} );

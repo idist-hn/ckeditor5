@@ -1,11 +1,23 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
+
+
+:root,
+:host {
+	/* Unset by default, so consumers fall back to their own radii. Set to a radius value to force uniform corners. */
+	--ck-sticky-panel-uniform-border-radius: initial;
+}
 
 .ck.ck-sticky-panel {
 	& .ck-sticky-panel__content_sticky {
-		z-index: var(--ck-z-modal); /* #315 */
+		/* Backward compatibility: falls back to legacy --ck-drop-shadow if overridden. */
+		box-shadow: var(--ck-drop-shadow, var(--ck-shadow-surface-floating)), 0 0;
+
+		border-width: 0 var(--ck-border-width-surface) var(--ck-border-width-surface);
+		border-radius: var(--ck-sticky-panel-uniform-border-radius, var(--ck-border-radius-surface-attached-top));
+		z-index: var(--ck-layer-panel); /* https://github.com/ckeditor/ckeditor5/issues/315 */
 		position: fixed;
 		top: 0;
 	}

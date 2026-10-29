@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,20 +12,25 @@ import {
 	Rect,
 	ObservableMixin,
 	compareArrays,
+	getParentElement,
+	containsNode,
 	type ObservableChangeEvent,
-	type DecoratedMethodEvent
+	type DecoratedMethodEvent,
+	type ObservableMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
-import ResizeState from './resizerstate';
-import SizeView from './sizeview';
+import { WidgetResizeState } from './resizerstate.js';
+import { SizeView } from './sizeview.js';
 
-import type { ResizerOptions } from '../widgetresize';
+import type { WidgetResizerOptions } from '../widgetresize.js';
 import type { ViewElement } from '@ckeditor/ckeditor5-engine';
+
+const WidgetResizerBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * Represents a resizer for a single resizable object.
  */
-export default class Resizer extends ObservableMixin() {
+export class WidgetResizer extends WidgetResizerBase {
 	/**
 	 * Flag that indicates whether resizer can be used.
 	 *
@@ -53,7 +58,7 @@ export default class Resizer extends ObservableMixin() {
 	 *
 	 * Note that a new state is created for each resize transaction.
 	 */
-	private _state!: ResizeState;
+	private _state!: WidgetResizeState;
 
 	/**
 	 * A view displaying the proposed new element size during the resizing.
@@ -63,7 +68,7 @@ export default class Resizer extends ObservableMixin() {
 	/**
 	 * Options passed to the {@link #constructor}.
 	 */
-	private _options: ResizerOptions;
+	private _options: WidgetResizerOptions;
 
 	/**
 	 * A wrapper that is controlled by the resizer. This is usually a widget element.
@@ -71,14 +76,14 @@ export default class Resizer extends ObservableMixin() {
 	private _viewResizerWrapper: ViewElement | null = null;
 
 	/**
-	 * The width of the resized {@link module:widget/widgetresize~ResizerOptions#viewElement viewElement} before the resizing started.
+	 * The width of the resized {@link module:widget/widgetresize~WidgetResizerOptions#viewElement viewElement} before the resizing started.
 	 */
 	private _initialViewWidth: string | undefined;
 
 	/**
 	 * @param options Resizer options.
 	 */
-	constructor( options: ResizerOptions ) {
+	constructor( options: WidgetResizerOptions ) {
 		super();
 
 		this._options = options;
@@ -95,7 +100,7 @@ export default class Resizer extends ObservableMixin() {
 
 		this.on( 'commit', event => {
 			// State might not be initialized yet. In this case, prevent further handling and make sure that the resizer is
-			// cleaned up (#5195).
+			// cleaned up (https://github.com/ckeditor/ckeditor5/issues/5195).
 			if ( !this.state.proposedWidth && !this.state.proposedWidthPercents ) {
 				this._cleanup();
 				event.stop();
@@ -108,7 +113,7 @@ export default class Resizer extends ObservableMixin() {
 	 *
 	 * Note that a new state is created for each resize transaction.
 	 */
-	public get state(): ResizeState {
+	public get state(): WidgetResizeState {
 		return this._state;
 	}
 
@@ -185,7 +190,7 @@ export default class Resizer extends ObservableMixin() {
 	 * @param domResizeHandle Clicked handle.
 	 */
 	public begin( domResizeHandle: HTMLElement ): void {
-		this._state = new ResizeState( this._options );
+		this._state = new WidgetResizeState( this._options );
 
 		this._sizeView._bindToState( this._options, this.state );
 
@@ -275,11 +280,11 @@ export default class Resizer extends ObservableMixin() {
 		const domWrapper = this._domResizerWrapper;
 
 		// Refresh only if resizer exists in the DOM.
-		if ( !existsInDom( domWrapper ) ) {
+		if ( !domWrapper?.isConnected ) {
 			return;
 		}
 
-		const widgetWrapper = domWrapper!.parentElement;
+		const widgetWrapper = getParentElement( domWrapper ) as HTMLElement | null;
 		const handleHost = this._getHandleHost();
 		const resizerWrapper = this._viewResizerWrapper!;
 		const currentDimensions = [
@@ -331,7 +336,7 @@ export default class Resizer extends ObservableMixin() {
 	}
 
 	public containsHandle( domElement: HTMLElement ): boolean {
-		return this._domResizerWrapper!.contains( domElement );
+		return containsNode( this._domResizerWrapper!, domElement );
 	}
 
 	public static isResizeHandle( domElement: HTMLElement ): boolean {
@@ -416,7 +421,7 @@ export default class Resizer extends ObservableMixin() {
 	 * Resize host is an object that receives dimensions which are the result of resizing.
 	 */
 	private _getResizeHost(): HTMLElement {
-		const widgetWrapper = this._domResizerWrapper!.parentElement;
+		const widgetWrapper = getParentElement( this._domResizerWrapper! ) as HTMLElement | null;
 
 		return this._options.getResizeHost( widgetWrapper! );
 	}
@@ -430,7 +435,7 @@ export default class Resizer extends ObservableMixin() {
 	 * contains an image and a caption. Only the image should be surrounded with handles.
 	 */
 	private _getHandleHost(): HTMLElement {
-		const widgetWrapper = this._domResizerWrapper!.parentElement;
+		const widgetWrapper = getParentElement( this._domResizerWrapper! ) as HTMLElement | null;
 
 		return this._options.getHandleHost( widgetWrapper! );
 	}
@@ -477,24 +482,24 @@ export default class Resizer extends ObservableMixin() {
 }
 
 /**
- * @eventName ~Resizer#begin
+ * @eventName ~WidgetResizer#begin
  */
-export type ResizerBeginEvent = DecoratedMethodEvent<Resizer, 'begin'>;
+export type WidgetResizerBeginEvent = DecoratedMethodEvent<WidgetResizer, 'begin'>;
 
 /**
- * @eventName ~Resizer#cancel
+ * @eventName ~WidgetResizer#cancel
  */
-export type ResizerCancelEvent = DecoratedMethodEvent<Resizer, 'cancel'>;
+export type WidgetResizerCancelEvent = DecoratedMethodEvent<WidgetResizer, 'cancel'>;
 
 /**
- * @eventName ~Resizer#commit
+ * @eventName ~WidgetResizer#commit
  */
-export type ResizerCommitEvent = DecoratedMethodEvent<Resizer, 'commit'>;
+export type WidgetResizerCommitEvent = DecoratedMethodEvent<WidgetResizer, 'commit'>;
 
 /**
- * @eventName ~Resizer#updateSize
+ * @eventName ~WidgetResizer#updateSize
  */
-export type ResizerUpdateSizeEvent = DecoratedMethodEvent<Resizer, 'updateSize'>;
+export type WidgetResizerUpdateSizeEvent = DecoratedMethodEvent<WidgetResizer, 'updateSize'>;
 
 /**
  * @param resizerPosition Expected resizer position like `"top-left"`, `"bottom-right"`.
@@ -509,8 +514,4 @@ function extractCoordinates( event: MouseEvent ) {
 		x: event.pageX,
 		y: event.pageY
 	};
-}
-
-function existsInDom( element: Node | DocumentFragment | undefined | null ) {
-	return element && element.ownerDocument && element.ownerDocument.contains( element );
 }

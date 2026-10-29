@@ -1,18 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import HorizontalLineEditing from '@ckeditor/ckeditor5-horizontal-line/src/horizontallineediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import TableEditing from '../../src/tableediting';
-import TableSelection from '../../src/tableselection';
-import { assertSelectedCells, modelTable } from '../_utils/utils';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { HorizontalLineEditing } from '@ckeditor/ckeditor5-horizontal-line';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import InsertRowCommand from '../../src/commands/insertrowcommand';
+import { TableEditing } from '../../src/tableediting.js';
+import { TableSelection } from '../../src/tableselection.js';
+import { assertSelectedCells, modelTable } from '../_utils/utils.js';
+
+import { InsertRowCommand } from '../../src/commands/insertrowcommand.js';
 
 describe( 'InsertRowCommand', () => {
 	let editor, model, command;
@@ -39,26 +41,26 @@ describe( 'InsertRowCommand', () => {
 
 		describe( 'isEnabled', () => {
 			it( 'should be false if wrong node', () => {
-				setData( model, '<paragraph>foo[]</paragraph>' );
-				expect( command.isEnabled ).to.be.false;
+				_setModelData( model, '<paragraph>foo[]</paragraph>' );
+				expect( command.isEnabled ).toBe( false );
 			} );
 
 			it( 'should be true if in table', () => {
-				setData( model, modelTable( [ [ '[]' ] ] ) );
-				expect( command.isEnabled ).to.be.true;
+				_setModelData( model, modelTable( [ [ '[]' ] ] ) );
+				expect( command.isEnabled ).toBe( true );
 			} );
 		} );
 
 		describe( 'execute()', () => {
 			it( 'should insert row after current position', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00[]', '01' ],
 					[ '10', '11' ]
 				] ) );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00[]', '01' ],
 					[ '', '' ],
 					[ '10', '11' ]
@@ -66,7 +68,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert row after current position (selection in block content)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00' ],
 					[ '<paragraph>[]10</paragraph>' ],
 					[ '20' ]
@@ -74,7 +76,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00' ],
 					[ '<paragraph>[]10</paragraph>' ],
 					[ '' ],
@@ -83,7 +85,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should update table heading rows attribute when inserting row in headings section', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00[]', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ]
@@ -91,7 +93,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00[]', '01' ],
 					[ '', '' ],
 					[ '10', '11' ],
@@ -100,7 +102,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should not update table heading rows attribute when inserting row after headings section', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10[]', '11' ],
 					[ '20', '21' ]
@@ -108,7 +110,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '10[]', '11' ],
 					[ '', '' ],
@@ -125,7 +127,7 @@ describe( 'InsertRowCommand', () => {
 				// |         | 22 | 23 |
 				// +----+----+----+----+
 				//                     ^-- heading columns
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ { contents: '00', colspan: 2 }, '02', '03' ],
 					[ { contents: '10[]', colspan: 2, rowspan: 2 }, '12', '13' ],
 					[ '22', '23' ]
@@ -143,7 +145,7 @@ describe( 'InsertRowCommand', () => {
 				// |         | 22 | 23 |
 				// +----+----+----+----+
 				//                     ^-- heading columns
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ { contents: '00', colspan: 2 }, '02', '03' ],
 					[ { contents: '10[]', colspan: 2, rowspan: 3 }, '12', '13' ],
 					[ '', '' ],
@@ -159,7 +161,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+ <-- heading rows
 				// | 20 | 21 | 22 |
 				// +----+----+----+
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ { contents: '00', rowspan: 2 }, '01', '02' ],
 					[ '11[]', '12' ],
 					[ '20', '21', '22' ]
@@ -176,7 +178,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+
 				// | 20 | 21 | 22 |
 				// +----+----+----+
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ { contents: '00', rowspan: 2 }, '01', '02' ],
 					[ '11[]', '12' ],
 					[ '', '', '' ],
@@ -192,7 +194,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+ <-- heading rows
 				// | 20           |
 				// +----+----+----+
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ { contents: '00', rowspan: 2 }, '01', '02' ],
 					[ '11[]', '12' ],
 					[ { contents: '20', colspan: 3 } ]
@@ -209,7 +211,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+
 				// | 20           |
 				// +----+----+----+
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ { contents: '00', rowspan: 2 }, '01', '02' ],
 					[ '11[]', '12' ],
 					[ '', '', '' ],
@@ -218,14 +220,14 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert rows at the end of a table', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10[]', '11' ]
 				] ) );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '10[]', '11' ],
 					[ '', '' ]
@@ -233,7 +235,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert a row when multiple rows are selected', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '11', '12' ],
 					[ '21', '22' ],
 					[ '31', '32' ]
@@ -249,7 +251,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 					[ '11', '12' ],
 					[ '21', '22' ],
 					[ '', '' ],
@@ -265,7 +267,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert a row when a widget in the table cell is selected', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '11', '12' ],
 					[ '21', '22' ],
 					[ '31', '[<horizontalLine></horizontalLine>]' ]
@@ -273,7 +275,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 					[ '11', '12' ],
 					[ '21', '22' ],
 					[ '31', '<horizontalLine></horizontalLine>' ],
@@ -287,7 +289,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+
 				// | 10 | 11 | 12 |
 				// +----+----+----+
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '[]00', { contents: '01', colspan: 2 } ],
 					[ '10', '11', '12' ]
 				] ) );
@@ -301,7 +303,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+
 				// | 10 | 11 | 12 |
 				// +----+----+----+
-				expect( getData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 					[ '00', { contents: '01', colspan: 2 } ],
 					[ '', { contents: '', colspan: 2 } ],
 					[ '10', '11', '12' ]
@@ -319,7 +321,7 @@ describe( 'InsertRowCommand', () => {
 				view: 'foo'
 			} );
 
-			setData( model,
+			_setModelData( model,
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell></tableCell>' +
@@ -327,7 +329,7 @@ describe( 'InsertRowCommand', () => {
 					'<foo>bar[]</foo>' +
 				'</table>'
 			);
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 
@@ -338,19 +340,19 @@ describe( 'InsertRowCommand', () => {
 
 		describe( 'isEnabled', () => {
 			it( 'should be false if wrong node', () => {
-				setData( model, '<paragraph>foo[]</paragraph>' );
-				expect( command.isEnabled ).to.be.false;
+				_setModelData( model, '<paragraph>foo[]</paragraph>' );
+				expect( command.isEnabled ).toBe( false );
 			} );
 
 			it( 'should be true if in table', () => {
-				setData( model, modelTable( [ [ '[]' ] ] ) );
-				expect( command.isEnabled ).to.be.true;
+				_setModelData( model, modelTable( [ [ '[]' ] ] ) );
+				expect( command.isEnabled ).toBe( true );
 			} );
 		} );
 
 		describe( 'execute()', () => {
 			it( 'should insert row before current position (selection in block content)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00' ],
 					[ '<paragraph>[]10</paragraph>' ],
 					[ '20' ]
@@ -358,7 +360,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00' ],
 					[ '' ],
 					[ '<paragraph>[]10</paragraph>' ],
@@ -367,14 +369,14 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert row at the beginning of a table', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00[]', '01' ],
 					[ '10', '11' ]
 				] ) );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '', '' ],
 					[ '00[]', '01' ],
 					[ '10', '11' ]
@@ -382,7 +384,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert row at the end of a table', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20[]', '21' ]
@@ -390,7 +392,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '', '' ],
@@ -399,7 +401,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should update table heading rows attribute when inserting row in headings section', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00[]', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ]
@@ -407,7 +409,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '', '' ],
 					[ '00[]', '01' ],
 					[ '10', '11' ],
@@ -416,7 +418,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should not update table heading rows attribute when inserting row after headings section', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20[]', '21' ]
@@ -424,7 +426,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '', '' ],
@@ -433,7 +435,7 @@ describe( 'InsertRowCommand', () => {
 			} );
 
 			it( 'should insert a row when multiple rows are selected', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '11', '12' ],
 					[ '21', '22' ],
 					[ '31', '32' ]
@@ -449,7 +451,7 @@ describe( 'InsertRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 					[ '', '' ],
 					[ '11', '12' ],
 					[ '21', '22' ],
@@ -470,7 +472,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+
 				// | 10 | 11 | 12 |
 				// +----+----+----+
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '[]00', { contents: '01', colspan: 2 } ],
 					[ '10', '11', '12' ]
 				] ) );
@@ -484,7 +486,7 @@ describe( 'InsertRowCommand', () => {
 				// +----+----+----+
 				// | 10 | 11 | 12 |
 				// +----+----+----+
-				expect( getData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 					[ '', { contents: '', colspan: 2 } ],
 					[ '00', { contents: '01', colspan: 2 } ],
 					[ '10', '11', '12' ]
@@ -502,7 +504,7 @@ describe( 'InsertRowCommand', () => {
 				view: 'foo'
 			} );
 
-			setData( model,
+			_setModelData( model,
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell></tableCell>' +
@@ -510,7 +512,7 @@ describe( 'InsertRowCommand', () => {
 					'<foo>bar[]</foo>' +
 				'</table>'
 			);
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 } );

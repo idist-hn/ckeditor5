@@ -1,55 +1,60 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { DataSchemaBlockElementDefinition, DataSchemaInlineElementDefinition } from './dataschema';
 
 /**
  * @module html-support/schemadefinitions
  */
 
-// Skipped elements due to HTML deprecation:
-// * noframes (not sure if we should provide support for this element. CKE4 is not supporting frameset and frame,
-//   but it will unpack <frameset><noframes>foobar</noframes></frameset> to <noframes>foobar</noframes>, so there
-//   may be some content loss. Although using noframes as a standalone element seems invalid)
-// * keygen (this one is also empty)
-// * applet (support is limited mostly to old IE)
-// * basefont (this one is also empty)
-// * isindex (basically no support for modern browsers at all)
-//
-// Skipped elements due to lack empty element support:
-// * hr
-// * area
-// * br
-// * command
-// * map
-// * wbr
-// * colgroup -> col
-//
-// Skipped elements due to complexity:
-// * datalist with option elements used as a data source for input[list] element
-//
-// Skipped elements as they are handled as an object content:
-// * track
-// * source
-// * option
-// * param
-// * optgroup
-//
-// Skipped full page HTML elements:
-// * body
-// * html
-// * title
-// * head
-// * meta
-// * link
-// * etc...
-//
-// Skipped hidden elements:
-// noscript
+import type { HtmlSupportDataSchemaBlockElementDefinition, HtmlSupportDataSchemaInlineElementDefinition } from './dataschema.js';
 
-export default {
+/**
+ * Skipped elements due to HTML deprecation:
+ * * noframes (not sure if we should provide support for this element. CKE4 is not supporting frameset and frame,
+ *   but it will unpack <frameset><noframes>foobar</noframes></frameset> to <noframes>foobar</noframes>, so there
+ *   may be some content loss. Although using noframes as a standalone element seems invalid)
+ * * keygen (this one is also empty)
+ * * applet (support is limited mostly to old IE)
+ * * basefont (this one is also empty)
+ * * isindex (basically no support for modern browsers at all)
+ *
+ * Skipped elements due to lack empty element support:
+ * * hr
+ * * area
+ * * br
+ * * command
+ * * map
+ * * wbr
+ * * colgroup -> col
+ *
+ * Skipped elements due to complexity:
+ * * datalist with option elements used as a data source for input[list] element
+ *
+ * Skipped elements as they are handled as an object content:
+ * * track
+ * * source
+ * * option
+ * * param
+ * * optgroup
+ *
+ * Skipped full page HTML elements:
+ * * body
+ * * html
+ * * title
+ * * head
+ * * meta
+ * * link
+ * * etc...
+ *
+ * Skipped hidden elements:
+ * noscript
+ *
+ * When adding elements to this list, update the feature guide listing, too.
+ *
+ * @internal
+ */
+export const defaultConfig = {
 	block: [
 		// Existing features.
 		{
@@ -115,6 +120,10 @@ export default {
 		{
 			model: 'imageInline',
 			view: 'img'
+		},
+		{
+			model: 'horizontalLine',
+			view: 'hr'
 		},
 
 		// Compatibility features.
@@ -194,7 +203,7 @@ export default {
 			model: 'htmlTr',
 			view: 'tr',
 			modelSchema: {
-				allowIn: [ 'htmlTable', 'htmlThead', 'htmlTbody' ],
+				allowIn: [ 'htmlTable', 'htmlThead', 'htmlTbody', 'htmlTfoot' ],
 				isLimit: true
 			}
 		},
@@ -279,7 +288,15 @@ export default {
 			model: 'htmlSummary',
 			view: 'summary',
 			modelSchema: {
-				allowChildren: '$text',
+				allowChildren: [
+					'htmlH1',
+					'htmlH2',
+					'htmlH3',
+					'htmlH4',
+					'htmlH5',
+					'htmlH6',
+					'$text'
+				],
 				allowIn: 'htmlDetails',
 				isBlock: false
 			}
@@ -334,14 +351,17 @@ export default {
 			view: 'form',
 			modelSchema: {
 				inheritAllFrom: '$container',
-				isBlock: true
+				isBlock: false
 			}
 		},
 		{
 			model: 'htmlHgroup',
 			view: 'hgroup',
 			modelSchema: {
+				allowWhere: '$container',
 				allowChildren: [
+					'paragraph',
+					'htmlP',
 					'htmlH1',
 					'htmlH2',
 					'htmlH3',
@@ -473,19 +493,12 @@ export default {
 			}
 		},
 		{
-			model: 'htmlDivDl',
-			view: 'div',
-			modelSchema: {
-				allowChildren: [ 'htmlDt', 'htmlDd' ],
-				allowIn: 'htmlDl'
-			}
-		},
-		{
 			model: 'htmlDl',
 			view: 'dl',
 			modelSchema: {
 				allowWhere: '$container',
-				allowChildren: [ 'htmlDt', 'htmlDd', 'htmlDivDl' ],
+				allowChildren: [ 'htmlDt', 'htmlDd', 'htmlDiv' ],
+				allowAttributesOf: [ '$container' ],
 				isBlock: false
 			}
 		},
@@ -494,6 +507,7 @@ export default {
 			view: 'dt',
 			modelSchema: {
 				allowChildren: '$block',
+				allowIn: 'htmlDiv',
 				isBlock: false
 			}
 		},
@@ -502,6 +516,7 @@ export default {
 			view: 'dd',
 			modelSchema: {
 				allowChildren: '$block',
+				allowIn: 'htmlDiv',
 				isBlock: false
 			}
 		},
@@ -512,8 +527,16 @@ export default {
 				inheritAllFrom: '$container',
 				isBlock: false
 			}
+		},
+		{
+			model: 'htmlHr',
+			view: 'hr',
+			isEmpty: true,
+			modelSchema: {
+				inheritAllFrom: '$blockObject'
+			}
 		}
-	] as Array<DataSchemaBlockElementDefinition>,
+	] as Array<HtmlSupportDataSchemaBlockElementDefinition>,
 
 	inline: [
 		// Existing features (attribute set on an existing model element).
@@ -543,6 +566,11 @@ export default {
 		{
 			model: 'htmlTheadAttributes',
 			view: 'thead',
+			appliesToBlock: 'table'
+		},
+		{
+			model: 'htmlTfootAttributes',
+			view: 'tfoot',
 			appliesToBlock: 'table'
 		},
 		{
@@ -675,7 +703,7 @@ export default {
 			priority: 5,
 			coupledAttribute: 'linkHref',
 			attributeProperties: {
-				copyOnEnter: true
+				isFormatting: true
 			}
 		},
 		{
@@ -961,5 +989,5 @@ export default {
 				isInline: true
 			}
 		}
-	] as Array<DataSchemaInlineElementDefinition>
+	] as Array<HtmlSupportDataSchemaInlineElementDefinition>
 };

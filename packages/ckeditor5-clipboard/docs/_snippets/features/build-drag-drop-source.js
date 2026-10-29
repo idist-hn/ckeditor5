@@ -1,54 +1,53 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window */
-
-//
-// Editors and default plugins.
-//
-
-import { ClassicEditor as ClassicEditorBase } from '@ckeditor/ckeditor5-editor-classic';
-import { BalloonEditor as BalloonEditorBase } from '@ckeditor/ckeditor5-editor-balloon';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Alignment } from '@ckeditor/ckeditor5-alignment';
-import { Autoformat } from '@ckeditor/ckeditor5-autoformat';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { Heading } from '@ckeditor/ckeditor5-heading';
 import {
+	ClassicEditor as ClassicEditorBase,
+	BalloonEditor as BalloonEditorBase,
+	Essentials,
+	Alignment,
+	Autoformat,
+	Bold,
+	Italic,
+	BlockQuote,
+	CKBox,
+	CKBoxImageEdit,
+	Heading,
 	Image,
+	ImageInsert,
 	ImageCaption,
 	ImageStyle,
 	ImageToolbar,
 	ImageUpload,
 	PictureEditing,
 	ImageResize,
-	AutoImage
-} from '@ckeditor/ckeditor5-image';
-import { Indent } from '@ckeditor/ckeditor5-indent';
-import { Link, LinkImage } from '@ckeditor/ckeditor5-link';
-import { List } from '@ckeditor/ckeditor5-list';
-import { MediaEmbed } from '@ckeditor/ckeditor5-media-embed';
-import { PasteFromOffice } from '@ckeditor/ckeditor5-paste-from-office';
-import { Table, TableToolbar } from '@ckeditor/ckeditor5-table';
-import { TextTransformation } from '@ckeditor/ckeditor5-typing';
-import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
-import { Font } from '@ckeditor/ckeditor5-font';
-import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
-
-//
-// Plugins for specific scenarios.
-//
+	AutoImage,
+	Indent,
+	IndentBlock,
+	Link,
+	LinkImage,
+	List,
+	MediaEmbed,
+	PasteFromOffice,
+	Table,
+	TableToolbar,
+	TextTransformation,
+	CloudServices,
+	Font,
+	HorizontalLine,
+	DragDrop,
+	DragDropBlockToolbar,
+	BlockToolbar
+} from 'ckeditor5';
 
 import {
-	DragDrop,
-	DragDropBlockToolbar
-} from '@ckeditor/ckeditor5-clipboard';
-import { BlockToolbar } from '@ckeditor/ckeditor5-ui';
-import { HCardEditing } from './hcard';
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+
+import { HCardEditing } from './hcard.js';
 
 const defaultPlugins = [
 	Essentials,
@@ -58,9 +57,11 @@ const defaultPlugins = [
 	Italic,
 	BlockQuote,
 	CKBox,
+	CKBoxImageEdit,
 	CloudServices,
 	Heading,
 	Image,
+	ImageInsert,
 	ImageCaption,
 	ImageStyle,
 	ImageToolbar,
@@ -69,6 +70,7 @@ const defaultPlugins = [
 	AutoImage,
 	LinkImage,
 	Indent,
+	IndentBlock,
 	Link,
 	List,
 	MediaEmbed,
@@ -92,7 +94,7 @@ const defaultToolbar = {
 		'italic',
 		'|',
 		'link',
-		'uploadImage',
+		'insertImage',
 		'insertTable',
 		'mediaEmbed',
 		'horizontalLine',
@@ -110,10 +112,12 @@ const defaultConfig = {
 		toolbar: [
 			'imageStyle:inline',
 			'imageStyle:block',
-			'imageStyle:side',
+			'imageStyle:wrapText',
 			'|',
 			'toggleImageCaption',
-			'imageTextAlternative'
+			'imageTextAlternative',
+			'|',
+			'ckboxImageEdit'
 		]
 	},
 	table: {
@@ -121,8 +125,13 @@ const defaultConfig = {
 	},
 	ui: {
 		viewportOffset: {
-			top: window.getViewportTopOffsetConfig()
+			top: getViewportTopOffsetConfig()
 		}
+	},
+	ckbox: {
+		tokenUrl: TOKEN_URL,
+		allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+		forceDemoLabel: true
 	},
 	fontFamily: {
 		supportAllValues: true
@@ -131,37 +140,42 @@ const defaultConfig = {
 		options: [ 10, 12, 14, 'default', 18, 20, 22 ],
 		supportAllValues: true
 	},
+	list: {
+		enableSkipLevelLists: true
+	},
 	language: 'en'
 };
 
-class ClassicEditor extends ClassicEditorBase {}
-ClassicEditor.builtinPlugins = [ ...defaultPlugins, HCardEditing ];
-ClassicEditor.defaultConfig = defaultConfig;
+export class DragDropEditor extends ClassicEditorBase {
+	static builtinPlugins = [
+		...defaultPlugins,
+		HCardEditing
+	];
 
-class ClassicEditorExperimental extends ClassicEditorBase {}
-ClassicEditorExperimental.builtinPlugins = [
-	...defaultPlugins,
-	DragDrop
-];
-ClassicEditorExperimental.defaultConfig = defaultConfig;
+	static defaultConfig = defaultConfig;
+}
 
-class BalloonEditorExperimental extends BalloonEditorBase {}
-BalloonEditorExperimental.builtinPlugins = [
-	...defaultPlugins,
-	DragDrop,
-	DragDropBlockToolbar,
-	BlockToolbar
-];
+export class ClassicEditorExperimental extends ClassicEditorBase {
+	static builtinPlugins = [
+		...defaultPlugins,
+		DragDrop
+	];
 
-BalloonEditorExperimental.defaultConfig = {
-	...defaultConfig,
-	blockToolbar: defaultToolbar
-};
+	static defaultConfig = defaultConfig;
+}
 
-// Remove not needed toolbars.
-delete BalloonEditorExperimental.defaultConfig.toolbar;
-delete BalloonEditorExperimental.defaultConfig.balloonToolbar;
+export class BalloonEditorExperimental extends BalloonEditorBase {
+	static builtinPlugins = [
+		...defaultPlugins,
+		DragDrop,
+		DragDropBlockToolbar,
+		BlockToolbar
+	];
 
-window.ClassicEditor = ClassicEditor;
-window.ClassicEditorExperimental = ClassicEditorExperimental;
-window.BalloonEditorExperimental = BalloonEditorExperimental;
+	static defaultConfig = {
+		...defaultConfig,
+		toolbar: undefined,
+		balloonToolbar: undefined,
+		blockToolbar: defaultToolbar
+	};
+}

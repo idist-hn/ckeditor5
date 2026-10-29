@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -13,6 +13,7 @@ import {
 	createLabeledDropdown,
 	createLabeledInputText,
 	FocusCycler,
+	FormRowView,
 	FormHeaderView,
 	LabeledFieldView,
 	LabelView,
@@ -24,31 +25,27 @@ import {
 	type InputTextView,
 	type NormalizedColorOption,
 	type ColorPickerConfig,
-	type FocusCyclerForwardCycleEvent,
-	type FocusCyclerBackwardCycleEvent
-} from 'ckeditor5/src/ui';
-import { FocusTracker, KeystrokeHandler, type ObservableChangeEvent, type Locale } from 'ckeditor5/src/utils';
-import { icons } from 'ckeditor5/src/core';
+	type FocusableView
+} from '@ckeditor/ckeditor5-ui';
+import { FocusTracker, KeystrokeHandler, type ObservableChangeEvent, type Locale } from '@ckeditor/ckeditor5-utils';
+import {
+	IconObjectCenter,
+	IconObjectInlineLeft,
+	IconObjectInlineRight,
+	IconObjectLeft,
+	IconObjectRight,
+	IconPreviousArrow
+} from '@ckeditor/ckeditor5-icons';
 
 import {
 	fillToolbar,
 	getBorderStyleDefinitions,
 	getBorderStyleLabels,
 	getLabeledColorInputCreator
-} from '../../utils/ui/table-properties';
-import FormRowView from '../../ui/formrowview';
+} from '../../utils/ui/table-properties.js';
 
-import '../../../theme/form.css';
-import '../../../theme/tableform.css';
-import '../../../theme/tableproperties.css';
-import type ColorInputView from '../../ui/colorinputview';
-import type { TablePropertiesOptions } from '../../tableconfig';
-
-const ALIGNMENT_ICONS = {
-	left: icons.objectLeft,
-	center: icons.objectCenter,
-	right: icons.objectRight
-};
+import { type ColorInputView } from '../../ui/colorinputview.js';
+import type { TablePropertiesOptions } from '../../tableconfig.js';
 
 /**
  * Additional configuration of the view.
@@ -73,6 +70,13 @@ export interface TablePropertiesViewOptions {
 	defaultTableProperties: TablePropertiesOptions;
 
 	/**
+	 * The number of columns in the color palettes.
+	 *
+	 * Defaults to {@link module:ui/colorgrid/colors~defaultColorGridColumns}.
+	 */
+	colorGridColumns?: number;
+
+	/**
 	 * The default color picker config.
 	 */
 	colorPickerConfig: false | ColorPickerConfig;
@@ -82,7 +86,7 @@ export interface TablePropertiesViewOptions {
  * The class representing a table properties form, allowing users to customize
  * certain style aspects of a table, for instance, border, background color, alignment, etc..
  */
-export default class TablePropertiesView extends View {
+export class TablePropertiesView extends View {
 	/**
 	 * The value of the border style.
 	 *
@@ -205,9 +209,14 @@ export default class TablePropertiesView extends View {
 	public cancelButtonView: ButtonView;
 
 	/**
+	 * The Back button view displayed in the header.
+	 */
+	public backButtonView: ButtonView;
+
+	/**
 	 * A collection of views that can be focused in the form.
 	 */
-	protected readonly _focusables: ViewCollection;
+	protected readonly _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * Helps cycling over {@link #_focusables} in the form.
@@ -257,6 +266,8 @@ export default class TablePropertiesView extends View {
 
 		this.saveButtonView = saveButtonView;
 		this.cancelButtonView = cancelButtonView;
+		this.backButtonView = this._createBackButton();
+
 		this._focusables = new ViewCollection();
 		this._focusCycler = new FocusCycler( {
 			focusables: this._focusables,
@@ -272,9 +283,13 @@ export default class TablePropertiesView extends View {
 		} );
 
 		// Form header.
-		this.children.add( new FormHeaderView( locale, {
+		const headerView = new FormHeaderView( locale, {
 			label: this.t!( 'Table properties' )
-		} ) );
+		} );
+
+		headerView.children.add( this.backButtonView, 0 );
+
+		this.children.add( headerView );
 
 		// Border row.
 		this.children.add( new FormRowView( locale, {
@@ -282,20 +297,10 @@ export default class TablePropertiesView extends View {
 			children: [
 				borderRowLabel,
 				borderStyleDropdown,
-				borderColorInput,
-				borderWidthInput
+				borderWidthInput,
+				borderColorInput
 			],
 			class: 'ck-table-form__border-row'
-		} ) );
-
-		// Background row.
-		this.children.add( new FormRowView( locale, {
-			labelView: backgroundRowLabel,
-			children: [
-				backgroundRowLabel,
-				backgroundInput
-			],
-			class: 'ck-table-form__background-row'
 		} ) );
 
 		this.children.add( new FormRowView( locale, {
@@ -311,25 +316,40 @@ export default class TablePropertiesView extends View {
 					],
 					class: 'ck-table-form__dimensions-row'
 				} ),
-				// Alignment row.
+
+				// Background row.
 				new FormRowView( locale, {
-					labelView: alignmentLabel,
+					labelView: backgroundRowLabel,
 					children: [
-						alignmentLabel,
-						alignmentToolbar
+						backgroundRowLabel,
+						backgroundInput
 					],
-					class: 'ck-table-properties-form__alignment-row'
+					class: 'ck-table-form__background-row'
 				} )
 			]
 		} ) );
 
+		// Alignment row.
+		this.children.add(
+			new FormRowView( locale, {
+				labelView: alignmentLabel,
+				children: [
+					alignmentLabel,
+					alignmentToolbar
+				],
+				class: 'ck-table-properties-form__alignment-row'
+			} )
+		);
+
 		// Action row.
 		this.children.add( new FormRowView( locale, {
 			children: [
-				this.saveButtonView,
-				this.cancelButtonView
+				this.cancelButtonView,
+				this.saveButtonView
 			],
-			class: 'ck-table-form__action-row'
+			class: [
+				'ck-table-form__action-row'
+			]
 		} ) );
 
 		this.setTemplate( {
@@ -362,27 +382,20 @@ export default class TablePropertiesView extends View {
 
 		// Maintain continuous focus cycling over views that have focusable children and focus cyclers themselves.
 		[ this.borderColorInput, this.backgroundInput ].forEach( view => {
-			view.fieldView.focusCycler.on<FocusCyclerForwardCycleEvent>( 'forwardCycle', evt => {
-				this._focusCycler.focusNext();
-				evt.stop();
-			} );
-
-			view.fieldView.focusCycler.on<FocusCyclerBackwardCycleEvent>( 'backwardCycle', evt => {
-				this._focusCycler.focusPrevious();
-				evt.stop();
-			} );
+			this._focusCycler.chain( view.fieldView.focusCycler );
 		} );
 
 		[
 			this.borderStyleDropdown,
-			this.borderColorInput,
 			this.borderWidthInput,
-			this.backgroundInput,
+			this.borderColorInput,
 			this.widthInput,
 			this.heightInput,
+			this.backgroundInput,
 			this.alignmentToolbar,
+			this.cancelButtonView,
 			this.saveButtonView,
-			this.cancelButtonView
+			this.backButtonView
 		].forEach( view => {
 			// Register the view as focusable.
 			this._focusables.add( view! );
@@ -429,7 +442,7 @@ export default class TablePropertiesView extends View {
 
 		const colorInputCreator = getLabeledColorInputCreator( {
 			colorConfig: this.options.borderColors,
-			columns: 5,
+			columns: this.options.colorGridColumns,
 			defaultColorValue: defaultBorder.color,
 			colorPickerConfig: this.options.colorPickerConfig
 		} );
@@ -547,7 +560,7 @@ export default class TablePropertiesView extends View {
 
 		const backgroundInputCreator = getLabeledColorInputCreator( {
 			colorConfig: this.options.backgroundColors,
-			columns: 5,
+			columns: this.options.colorGridColumns,
 			defaultColorValue: this.options.defaultTableProperties.backgroundColor,
 			colorPickerConfig: this.options.colorPickerConfig
 		} );
@@ -648,19 +661,26 @@ export default class TablePropertiesView extends View {
 		// -- Label ---------------------------------------------------
 
 		const alignmentLabel = new LabelView( locale );
-		alignmentLabel.text = t( 'Alignment' );
+		alignmentLabel.text = t( 'Table Alignment' );
 
 		// -- Toolbar ---------------------------------------------------
 
 		const alignmentToolbar = new ToolbarView( locale! );
 		alignmentToolbar.set( {
+			role: 'radiogroup',
 			isCompact: true,
 			ariaLabel: t( 'Table alignment toolbar' )
 		} );
 
 		fillToolbar( {
 			view: this,
-			icons: ALIGNMENT_ICONS,
+			icons: {
+				left: IconObjectInlineLeft,
+				center: IconObjectCenter,
+				right: IconObjectInlineRight,
+				blockLeft: IconObjectLeft,
+				blockRight: IconObjectRight
+			},
 			toolbar: alignmentToolbar,
 			labels: this._alignmentLabels,
 			propertyName: 'alignment',
@@ -682,7 +702,7 @@ export default class TablePropertiesView extends View {
 	private _createActionButtons(): {
 		saveButtonView: ButtonView;
 		cancelButtonView: ButtonView;
-		} {
+	} {
 		const locale = this.locale;
 		const t = this.t!;
 
@@ -698,8 +718,7 @@ export default class TablePropertiesView extends View {
 
 		saveButtonView.set( {
 			label: t( 'Save' ),
-			icon: icons.check,
-			class: 'ck-button-save',
+			class: 'ck-button-action ck-button_standard',
 			type: 'submit',
 			withText: true
 		} );
@@ -710,9 +729,8 @@ export default class TablePropertiesView extends View {
 
 		cancelButtonView.set( {
 			label: t( 'Cancel' ),
-			icon: icons.cancel,
-			class: 'ck-button-cancel',
-			withText: true
+			withText: true,
+			class: 'ck-button_standard'
 		} );
 
 		cancelButtonView.delegate( 'execute' ).to( this, 'cancel' );
@@ -723,22 +741,44 @@ export default class TablePropertiesView extends View {
 	}
 
 	/**
+	 * Creates a back button view that cancels the form.
+	 */
+	private _createBackButton(): ButtonView {
+		const t = this.locale!.t;
+		const backButton = new ButtonView( this.locale );
+
+		backButton.set( {
+			class: 'ck-button-back',
+			label: t( 'Back' ),
+			icon: IconPreviousArrow,
+			tooltip: true
+		} );
+
+		backButton.delegate( 'execute' ).to( this, 'cancel' );
+
+		return backButton;
+	}
+
+	/**
 	 * Provides localized labels for {@link #alignmentToolbar} buttons.
 	 */
 	private get _alignmentLabels() {
 		const locale = this.locale!;
 		const t = this.t!;
 
-		const left = t( 'Align table to the left' );
-		const center = t( 'Center table' );
-		const right = t( 'Align table to the right' );
+		const blockLeft = t( 'Align table to the left with no text wrapping' );
+		const blockRight = t( 'Align table to the right with no text wrapping' );
+
+		const left = t( 'Align table to the left with text wrapping' );
+		const center = t( 'Center table with no text wrapping' );
+		const right = t( 'Align table to the right with text wrapping' );
 
 		// Returns object with a proper order of labels.
 		if ( locale.uiLanguageDirection === 'rtl' ) {
-			return { right, center, left };
-		} else {
-			return { left, center, right };
+			return { right, left, blockRight, center, blockLeft };
 		}
+
+		return { blockLeft, center, blockRight, left, right };
 	}
 }
 

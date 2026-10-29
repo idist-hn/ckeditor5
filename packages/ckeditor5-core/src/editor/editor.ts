@@ -1,19 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module core/editor/editor
  */
 
+import { set, get } from 'es-toolkit/compat';
+
 import {
 	Config,
 	CKEditorError,
 	ObservableMixin,
+	logError,
+	releaseDate,
+	toArray,
+	uid,
+	crc32,
+	decodeLicenseKey,
+	isFeatureBlockedByLicenseKey,
 	type Locale,
 	type LocaleTranslate,
-	type ObservableChangeEvent
+	type ObservableChangeEvent,
+	type CRCData,
+	type ObservableMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
 import {
@@ -26,13 +37,24 @@ import {
 
 import type { EditorUI } from '@ckeditor/ckeditor5-ui';
 
-import Context from '../context';
-import PluginCollection from '../plugincollection';
-import CommandCollection, { type CommandsMap } from '../commandcollection';
-import EditingKeystrokeHandler from '../editingkeystrokehandler';
+import { Context } from '../context.js';
+import { _addLiveEditor, _removeLiveEditor } from '../errorattribution/liveeditors.js';
+import { onEditorError, type EditorErrorCallback } from '../errorreporter.js';
+import { PluginCollection } from '../plugincollection.js';
+import { CommandCollection, type CommandsMap } from '../commandcollection.js';
+import { EditingKeystrokeHandler } from '../editingkeystrokehandler.js';
+import { Accessibility } from '../accessibility.js';
+import { getEditorUsageData, type EditorUsageData } from './utils/editorusagedata.js';
 
-import type { LoadedPlugins, PluginConstructor } from '../plugin';
-import type { EditorConfig } from './editorconfig';
+import type { LoadedPlugins, PluginConstructor } from '../plugin.js';
+import type { EditorConfig } from './editorconfig.js';
+
+declare global {
+	var CKEDITOR_GLOBAL_LICENSE_KEY: string | undefined;
+	var CKEDITOR_WARNING_SUPPRESSIONS: Record<string, boolean>;
+}
+
+const EditorBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * The class representing a basic, generic editor.
@@ -52,7 +74,19 @@ import type { EditorConfig } from './editorconfig';
  * the specific editor implements also the {@link ~Editor#ui} property
  * (as most editor implementations do).
  */
-export default abstract class Editor extends ObservableMixin() {
+export abstract class Editor extends EditorBase {
+	/**
+	 * A required name of the editor class. The name should reflect the constructor name.
+	 */
+	public static get editorName(): `${ string }Editor` {
+		return 'Editor';
+	}
+
+	/**
+	 * A namespace for the accessibility features of the editor.
+	 */
+	public readonly accessibility: Accessibility;
+
 	/**
 	 * Commands registered to the editor.
 	 *
@@ -140,7 +174,7 @@ export default abstract class Editor extends ObservableMixin() {
 	 * Note: Certain typing-oriented keystrokes (like <kbd>Backspace</kbd> or <kbd>Enter</kbd>) are handled
 	 * by a low-level mechanism and trying to listen to them via the keystroke handler will not work reliably.
 	 * To handle these specific keystrokes, see the events fired by the
-	 * {@link module:engine/view/document~Document editing view document} (`editor.editing.view.document`).
+	 * {@link module:engine/view/document~ViewDocument editing view document} (`editor.editing.view.document`).
 	 */
 	public readonly keystrokes: EditingKeystrokeHandler;
 
@@ -171,7 +205,8 @@ export default abstract class Editor extends ObservableMixin() {
 	/**
 	 * The default configuration which is built into the editor class.
 	 *
-	 * It is used in CKEditor 5 builds to provide the default configuration options which are later used during the editor initialization.
+	 * It was used in the now deprecated CKEditor 5 builds to provide the default configuration options
+	 * which are later used during the editor initialization.
 	 *
 	 * ```ts
 	 * ClassicEditor.defaultConfig = {
@@ -188,7 +223,7 @@ export default abstract class Editor extends ObservableMixin() {
 	 *
 	 * // The default options can be overridden by the configuration passed to create().
 	 * ClassicEditor
-	 * 	.create( sourceElement, { bar: 3 } )
+	 * 	.create( { bar: 3 } )
 	 * 	.then( editor => {
 	 * 		editor.config.get( 'foo' ); // -> 1
 	 * 		editor.config.get( 'bar' ); // -> 3
@@ -202,7 +237,7 @@ export default abstract class Editor extends ObservableMixin() {
 	/**
 	 * An array of plugins built into this editor class.
 	 *
-	 * It is used in CKEditor 5 builds to provide a list of plugins which are later automatically initialized
+	 * It is used in the now deprecated CKEditor 5 builds to provide a list of plugins which are later automatically initialized
 	 * during the editor initialization.
 	 *
 	 * They will be automatically initialized by the editor, unless listed in `config.removePlugins` and
@@ -222,7 +257,7 @@ export default abstract class Editor extends ObservableMixin() {
 	 * 	} );
 	 *
 	 * ClassicEditor
-	 * 	.create( sourceElement, {
+	 * 	.create( {
 	 * 		// Do not initialize these plugins (note: it is defined by a string):
 	 * 		removePlugins: [ 'Foo' ]
 	 * 	} )
@@ -232,7 +267,7 @@ export default abstract class Editor extends ObservableMixin() {
 	 * 	} );
 	 *
 	 * ClassicEditor
-	 * 	.create( sourceElement, {
+	 * 	.create( {
 	 * 		// Load only this plugin. It can also be defined by a string if
 	 * 		// this plugin was built into the editor class.
 	 * 		plugins: [ FooPlugin ]
@@ -259,9 +294,45 @@ export default abstract class Editor extends ObservableMixin() {
 	protected readonly _context: Context;
 
 	/**
+	 * Objects that error attribution must not walk into when deciding whether something belongs to this
+	 * editor — see {@link module:core/context~Context#_errorExclusions}.
+	 *
+	 * Exposed here because `_context` is protected and attribution runs outside this class.
+	 *
+	 * It has to be a getter rather than a property. Editors sharing a context share one exclusion set, and
+	 * the set is not a member of itself, so holding it in a property would put the same object on every
+	 * editor — and the search would find it there and match them all. A getter lives on the prototype and
+	 * is not enumerable, so the search does not see it, and the only route left to the set runs through the
+	 * context, which is excluded.
+	 *
+	 * @internal
+	 */
+	public get _errorExclusions(): Set<unknown> | undefined {
+		return this._context._errorExclusions;
+	}
+
+	/**
 	 * A set of lock IDs for the {@link #isReadOnly} getter.
 	 */
 	protected readonly _readOnlyLocks: Set<symbol | string>;
+
+	/**
+	 * Holds attributes keys that were passed in
+	 * {@link module:core/editor/editorconfig~EditorConfig#roots `config.roots.<rootName>.modelAttributes`}
+	 *  or {@link module:core/editor/editorconfig~EditorConfig#root `config.root.modelAttributes`}.
+	 */
+	protected readonly _registeredRootsAttributesKeys: Set<string> = new Set<string>();
+
+	/**
+	 * `Editor` class is commonly put in `config.plugins` array.
+	 *
+	 * This property helps with better error detection.
+	 *
+	 * @internal
+	 */
+	public static get _throwErrorWhenUsedAsAPlugin(): true {
+		return true;
+	};
 
 	/**
 	 * Creates a new instance of the editor class.
@@ -273,21 +344,52 @@ export default abstract class Editor extends ObservableMixin() {
 	constructor( config: EditorConfig = {} ) {
 		super();
 
+		if ( typeof config !== 'object' || Array.isArray( config ) ) {
+			/**
+			 * Editor configuration must be an object.
+			 *
+			 * A common cause of this error is passing an Editor class (for example
+			 * `ClassicEditor`) in the `config.plugins` array. In such case, the editor
+			 * constructor is called with an Editor or Context instance instead of
+			 * the configuration object.
+			 *
+			 * @error editor-config-invalid-type
+			 */
+			throw new CKEditorError( 'editor-config-invalid-type' );
+		}
+
+		if ( 'sanitizeHtml' in config ) {
+			/**
+			 * Configuration property `config.sanitizeHtml` was removed in CKEditor version 43.1.0 and is no longer supported.
+			 *
+			 * Please use `config.htmlEmbed.sanitizeHtml` and/or `config.mergeFields.sanitizeHtml` instead.
+			 *
+			 * @error editor-config-sanitizehtml-not-supported
+			 */
+			throw new CKEditorError( 'editor-config-sanitizehtml-not-supported' );
+		}
+
 		const constructor = this.constructor as typeof Editor;
 
-		// Prefer the language passed as the argument to the constructor instead of the constructor's `defaultConfig`, if both are set.
-		const language = config.language || ( constructor.defaultConfig && constructor.defaultConfig.language );
+		// We don't pass translations to the config, because its behavior of splitting keys
+		// with dots (e.g. `resize.width` => `resize: { width }`) breaks the translations.
+		const { translations: defaultTranslations, ...defaultConfig } = constructor.defaultConfig || {};
+		const { translations = defaultTranslations, ...rest } = config;
 
-		this._context = config.context || new Context( { language } );
+		// Prefer the language passed as the argument to the constructor instead of the constructor's `defaultConfig`, if both are set.
+		const language = config.language || defaultConfig.language;
+
+		this._context = config.context || new Context( { language, translations } );
 		this._context._addEditor( this, !config.context );
 
-		// Clone the plugins to make sure that the plugin array will not be shared
-		// between editors and make the watchdog feature work correctly.
+		// Clone the plugins to make sure that the plugin array will not be shared between editors.
 		const availablePlugins = Array.from( constructor.builtinPlugins || [] );
 
-		this.config = new Config<EditorConfig>( config, constructor.defaultConfig );
+		this.config = new Config<EditorConfig>( rest, defaultConfig );
 		this.config.define( 'plugins', availablePlugins );
 		this.config.define( this._context._getEditorConfig() );
+
+		checkLicenseKeyIsDefined( this.config );
 
 		this.plugins = new PluginCollection<Editor>( this, availablePlugins, this._context.plugins );
 
@@ -302,7 +404,13 @@ export default abstract class Editor extends ObservableMixin() {
 		this.once<EditorReadyEvent>( 'ready', () => ( this.state = 'ready' ), { priority: 'high' } );
 		this.once<EditorDestroyEvent>( 'destroy', () => ( this.state = 'destroyed' ), { priority: 'high' } );
 
-		this.model = new Model();
+		// Registered on `ready` rather than in the constructor: error reporting ignores an editor that is
+		// not ready anyway, and an editor whose `create()` rejects never fires `ready`, so it cannot be
+		// left behind in the list.
+		this.once<EditorReadyEvent>( 'ready', () => _addLiveEditor( this ), { priority: 'high' } );
+		this.once<EditorDestroyEvent>( 'destroy', () => _removeLiveEditor( this ), { priority: 'high' } );
+
+		this.model = new Model( this.config );
 
 		this.on( 'change:isReadOnly', () => {
 			this.model.document.isReadOnly = this.isReadOnly;
@@ -321,6 +429,221 @@ export default abstract class Editor extends ObservableMixin() {
 
 		this.keystrokes = new EditingKeystrokeHandler( this );
 		this.keystrokes.listenTo( this.editing.view.document );
+
+		this.accessibility = new Accessibility( this );
+
+		verifyLicenseKey( this );
+
+		// Checks if the license key is defined and throws an error if it is not.
+		function checkLicenseKeyIsDefined( config: Config<EditorConfig> ) {
+			let licenseKey = config.get( 'licenseKey' );
+
+			if ( !licenseKey && window.CKEDITOR_GLOBAL_LICENSE_KEY ) {
+				licenseKey = window.CKEDITOR_GLOBAL_LICENSE_KEY;
+				config.set( 'licenseKey', licenseKey );
+			}
+
+			if ( !licenseKey ) {
+				/**
+				 * The `licenseKey` property is missing in the editor configuration.
+				 *
+				 * * If you are using the editor in a commercial setup, please provide your license key.
+				 * * If you still need to acquire a key, please [contact us](https://ckeditor.com/contact/) or
+				 *   [create a free account with a 14 day premium features trial](https://portal.ckeditor.com/checkout?plan=free).
+				 * * If you are using the editor under a GPL license or another license from our Open Source Initiative,
+				 *   use the 'GPL' license key instead.
+				 *
+				 * ```js
+				 * ClassicEditor.create( {
+				 * 	attachTo: document.querySelector( '#editor' ),
+				 * 	licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
+				 * 	// ... Other configuration options ...
+				 * } ) ;
+				 *
+				 * @error license-key-missing
+				 */
+				throw new CKEditorError( 'license-key-missing' );
+			}
+		}
+
+		function verifyLicenseKey( editor: Editor ) {
+			const licenseKey = editor.config.get( 'licenseKey' )!;
+			const distributionChannel = ( window as any )[ Symbol.for( 'cke distribution' ) ] || 'sh';
+
+			function blockEditor( reason: LicenseErrorReason, name?: string ) {
+				editor.enableReadOnlyMode( Symbol( 'invalidLicense' ) );
+				editor._showLicenseError( reason, name );
+			}
+
+			function hasAllRequiredFields( licensePayload: Record<string, unknown> ) {
+				const requiredFields = [ 'exp', 'jti', 'vc' ];
+
+				return requiredFields.every( field => field in licensePayload );
+			}
+
+			function getCrcInputData( licensePayload: Record<string, unknown> ): CRCData {
+				const keysToCheck = Object.getOwnPropertyNames( licensePayload ).sort();
+
+				const filteredValues = keysToCheck
+					.filter( key => key != 'vc' && licensePayload[ key ] != null )
+					.map( key => licensePayload[ key ] );
+
+				return filteredValues as CRCData;
+			}
+
+			function checkLicensedHosts( licensedHosts: Array<string> ): boolean {
+				const { hostname } = new URL( window.location.href );
+
+				if ( licensedHosts.includes( hostname ) ) {
+					return true;
+				}
+
+				const segments = hostname.split( '.' );
+
+				return licensedHosts
+					// Filter out hosts without wildcards.
+					.filter( host => host.includes( '*' ) )
+					// Split the hosts into segments.
+					.map( host => host.split( '.' ) )
+					// Filter out hosts that have more segments than the current hostname.
+					.filter( host => host.length <= segments.length )
+					// Pad the beginning of the licensed host if it's shorter than the current hostname.
+					.map( host => Array( segments.length - host.length ).fill( host[ 0 ] === '*' ? '*' : '' ).concat( host ) )
+					// Check if some license host matches the hostname.
+					.some( octets => segments.every( ( segment, index ) => octets[ index ] === segment || octets[ index ] === '*' ) );
+			}
+
+			function warnAboutNonProductionLicenseKey( licenseType: string ) {
+				const capitalizedLicenseType = licenseType[ 0 ].toUpperCase() + licenseType.slice( 1 );
+				const article = licenseType === 'evaluation' ? 'an' : 'a';
+
+				console.info(
+					`%cCKEditor 5 ${ capitalizedLicenseType } License`,
+					'color: #ffffff; background: #743CCD; font-size: 14px; padding: 4px 8px; border-radius: 4px;'
+				);
+
+				console.warn(
+					`⚠️ You are using ${ article } ${ licenseType } license of CKEditor 5` +
+					`${ licenseType === 'trial' ? ' which is for evaluation purposes only' : '' }. ` +
+					'For production usage, please obtain a production license at https://portal.ckeditor.com/'
+				);
+			}
+
+			if ( licenseKey == 'GPL' ) {
+				if ( distributionChannel == 'cloud' ) {
+					blockEditor( 'distributionChannel' );
+				}
+
+				return;
+			}
+
+			const licensePayload = decodeLicenseKey( licenseKey );
+
+			if ( !licensePayload ) {
+				blockEditor( 'invalid' );
+
+				return;
+			}
+
+			if ( !hasAllRequiredFields( licensePayload ) ) {
+				blockEditor( 'invalid' );
+
+				return;
+			}
+
+			if ( licensePayload.distributionChannel && !toArray( licensePayload.distributionChannel ).includes( distributionChannel ) ) {
+				blockEditor( 'distributionChannel' );
+
+				return;
+			}
+
+			if ( crc32( getCrcInputData( licensePayload ) ) != licensePayload.vc.toLowerCase() ) {
+				blockEditor( 'invalid' );
+
+				return;
+			}
+
+			const expirationDate = new Date( licensePayload.exp * 1000 );
+
+			if ( expirationDate < releaseDate ) {
+				blockEditor( 'expired' );
+
+				return;
+			}
+
+			const licensedHosts: Array<string> | undefined = licensePayload.licensedHosts;
+
+			if ( licensedHosts && licensedHosts.length > 0 && !checkLicensedHosts( licensedHosts ) ) {
+				blockEditor( 'domainLimit' );
+
+				return;
+			}
+
+			if ( [ 'evaluation', 'trial' ].includes( licensePayload.licenseType ) && licensePayload.exp * 1000 < Date.now() ) {
+				blockEditor( 'expired' );
+
+				return;
+			}
+
+			if ( [ 'development', 'evaluation', 'trial' ].includes( licensePayload.licenseType ) ) {
+				const { licenseType } = licensePayload;
+
+				window.CKEDITOR_WARNING_SUPPRESSIONS = window.CKEDITOR_WARNING_SUPPRESSIONS || {};
+
+				if ( !window.CKEDITOR_WARNING_SUPPRESSIONS[ licenseType ] ) {
+					warnAboutNonProductionLicenseKey( licenseType );
+
+					window.CKEDITOR_WARNING_SUPPRESSIONS[ licenseType ] = true;
+				}
+			}
+
+			if ( licensePayload.licenseType === 'evaluation' ) {
+				const timerId = setTimeout( () => {
+					blockEditor( 'evaluationLimit' );
+				}, 600000 );
+
+				editor.on( 'destroy', () => {
+					clearTimeout( timerId );
+				} );
+			}
+
+			if ( licensePayload.usageEndpoint ) {
+				editor.once<EditorReadyEvent>( 'ready', () => {
+					const request = {
+						requestId: uid(),
+						requestTime: Math.round( Date.now() / 1000 ),
+						license: licenseKey,
+						editor: collectUsageData( editor )
+					};
+
+					/**
+					 * This part of the code is not executed in open-source implementations using a GPL key.
+					 * It only runs when a specific license key is provided. If you are uncertain whether
+					 * this applies to your installation, please contact our support team.
+					 */
+					editor._sendUsageRequest( licensePayload.usageEndpoint, request ).then( response => {
+						const { status, message } = response;
+
+						if ( message ) {
+							console.warn( message );
+						}
+
+						if ( status != 'ok' ) {
+							blockEditor( 'usageLimit' );
+						}
+					}, () => {
+						/**
+						 * Your license key cannot be validated due to a network issue.
+						 * Please ensure that your setup does not block requests to the validation endpoint.
+						 *
+						 * @error license-key-validation-endpoint-not-reachable
+						 * @param {string} url The URL that was attempted to be reached for validation.
+						 */
+						logError( 'license-key-validation-endpoint-not-reachable', { url: licensePayload.usageEndpoint } );
+					} );
+				}, { priority: 'high' } );
+			}
+		}
 	}
 
 	/**
@@ -423,6 +746,7 @@ export default abstract class Editor extends ObservableMixin() {
 			 * The lock ID is missing or it is not a string or symbol.
 			 *
 			 * @error editor-read-only-lock-id-invalid
+			 * @param {never} lockId Lock ID.
 			 */
 			throw new CKEditorError( 'editor-read-only-lock-id-invalid', null, { lockId } );
 		}
@@ -464,18 +788,117 @@ export default abstract class Editor extends ObservableMixin() {
 	}
 
 	/**
+	 * Sets the data in the editor.
+	 *
+	 * ```ts
+	 * editor.setData( '<p>This is editor!</p>' );
+	 * ```
+	 *
+	 * If your editor implementation uses multiple roots, you should pass an object with keys corresponding
+	 * to the editor root names and values equal to the data that should be set in each root:
+	 *
+	 * ```ts
+	 * editor.setData( {
+	 *     header: '<p>Content for header part.</p>',
+	 *     content: '<p>Content for main part.</p>',
+	 *     footer: '<p>Content for footer part.</p>'
+	 * } );
+	 * ```
+	 *
+	 * By default the editor accepts HTML. This can be controlled by injecting a different data processor.
+	 * See the {@glink features/markdown Markdown output} guide for more details.
+	 *
+	 * @param data Input data.
+	 */
+	public setData( data: string | Record<string, string> ): void {
+		this.data.set( data );
+	}
+
+	/**
+	 * Gets the data from the editor.
+	 *
+	 * ```ts
+	 * editor.getData(); // -> '<p>This is editor!</p>'
+	 * ```
+	 *
+	 * If your editor implementation uses multiple roots, you should pass root name as one of the options:
+	 *
+	 * ```ts
+	 * editor.getData( { rootName: 'header' } ); // -> '<p>Content for header part.</p>'
+	 * ```
+	 *
+	 * By default, the editor outputs HTML. This can be controlled by injecting a different data processor.
+	 * See the {@glink features/markdown Markdown output} guide for more details.
+	 *
+	 * A warning is logged when you try to retrieve data for a detached root, as most probably this is a mistake. A detached root should
+	 * be treated like it is removed, and you should not save its data. Note, that the detached root data is always an empty string.
+	 *
+	 * @param options Additional configuration for the retrieved data.
+	 * Editor features may introduce more configuration options that can be set through this parameter.
+	 * @param options.rootName Root name. Defaults to `'main'`.
+	 * @param options.trim Whether returned data should be trimmed. This option is set to `'empty'` by default,
+	 * which means that whenever editor content is considered empty, an empty string is returned. To turn off trimming
+	 * use `'none'`. In such cases exact content will be returned (for example `'<p>&nbsp;</p>'` for an empty editor).
+	 * @returns Output data.
+	 */
+	public getData( options?: {
+		rootName?: string;
+		trim?: 'empty' | 'none';
+		[ key: string ]: unknown;
+	} ): string {
+		return this.data.get( options );
+	}
+
+	/**
 	 * Loads and initializes plugins specified in the configuration.
 	 *
 	 * @returns A promise which resolves once the initialization is completed, providing an array of loaded plugins.
 	 */
-	public initPlugins(): Promise<LoadedPlugins> {
+	public async initPlugins(): Promise<LoadedPlugins> {
 		const config = this.config;
 		const plugins = config.get( 'plugins' )!;
 		const removePlugins = config.get( 'removePlugins' ) || [];
 		const extraPlugins = config.get( 'extraPlugins' ) || [];
 		const substitutePlugins = config.get( 'substitutePlugins' ) || [];
 
-		return this.plugins.init( plugins.concat( extraPlugins ), removePlugins, substitutePlugins );
+		const loadedPlugins = await this.plugins.init( plugins.concat( extraPlugins ), removePlugins, substitutePlugins );
+
+		checkPluginsAllowedByLicenseKey( this );
+
+		return loadedPlugins;
+
+		function checkPluginsAllowedByLicenseKey( editor: Editor ): void {
+			const licenseKey = editor.config.get( 'licenseKey' )!;
+
+			if ( licenseKey === 'GPL' ) {
+				return;
+			}
+
+			const decodedPayload = decodeLicenseKey( licenseKey );
+
+			if ( !decodedPayload ) {
+				return;
+			}
+
+			const disallowedPlugin = [ ...editor.plugins ]
+				.map( ( [ pluginConstructor ] ) => pluginConstructor )
+				.find( pluginConstructor => {
+					if ( !pluginConstructor.pluginName ) {
+						return false;
+					}
+
+					if ( !pluginConstructor.licenseFeatureCode ) {
+						return false;
+					}
+
+					return isFeatureBlockedByLicenseKey( decodedPayload, pluginConstructor.licenseFeatureCode );
+				} );
+
+			if ( disallowedPlugin ) {
+				editor.enableReadOnlyMode( Symbol( 'invalidLicense' ) );
+				editor._showLicenseError( 'pluginNotAllowed', disallowedPlugin.pluginName );
+			}
+		}
 	}
 
 	/**
@@ -487,29 +910,29 @@ export default abstract class Editor extends ObservableMixin() {
 	 * @fires destroy
 	 * @returns A promise that resolves once the editor instance is fully destroyed.
 	 */
-	public destroy(): Promise<unknown> {
-		let readyPromise: Promise<unknown> = Promise.resolve();
-
+	public async destroy(): Promise<unknown> {
 		if ( this.state == 'initializing' ) {
-			readyPromise = new Promise( resolve => this.once<EditorReadyEvent>( 'ready', resolve ) );
+			await new Promise( resolve => this.once<EditorReadyEvent>( 'ready', resolve ) );
 		}
 
-		return readyPromise
-			.then( () => {
-				this.fire<EditorDestroyEvent>( 'destroy' );
-				this.stopListening();
-				this.commands.destroy();
-			} )
-			.then( () => this.plugins.destroy() )
-			.then( () => {
-				this.model.destroy();
-				this.data.destroy();
-				this.editing.destroy();
-				this.keystrokes.destroy();
-			} )
-			// Remove the editor from the context.
-			// When the context was created by this editor, the context will be destroyed.
-			.then( () => this._context._removeEditor( this ) );
+		this.fire<EditorDestroyEvent>( 'destroy' );
+		this.stopListening();
+		this.commands.destroy();
+
+		await this.plugins.destroy();
+
+		this.model.destroy();
+		this.data.destroy();
+		this.editing.destroy();
+		this.keystrokes.destroy();
+
+		// Remove the editor from the context.
+		// When the context was created by this editor, the context will be destroyed.
+		await this._context._removeEditor( this );
+
+		// To satisfy the return type and to keep it backward compatible.
+		// eslint-disable-next-line no-useless-return
+		return;
 	}
 
 	/**
@@ -533,7 +956,7 @@ export default abstract class Editor extends ObservableMixin() {
 			return this.commands.execute( commandName, ...commandParams );
 		} catch ( err: any ) {
 			// @if CK_DEBUG // throw err;
-			/* istanbul ignore next -- @preserve */
+			/* v8 ignore next -- @preserve */
 			CKEditorError.rethrowUnexpectedError( err, this );
 		}
 	}
@@ -542,7 +965,7 @@ export default abstract class Editor extends ObservableMixin() {
 	 * Focuses the editor.
 	 *
 	 * **Note** To explicitly focus the editing area of the editor, use the
-	 * {@link module:engine/view/view~View#focus `editor.editing.view.focus()`} method of the editing view.
+	 * {@link module:engine/view/view~EditingView#focus `editor.editing.view.focus()`} method of the editing view.
 	 *
 	 * Check out the {@glink framework/deep-dive/ui/focus-tracking#focus-in-the-editor-ui Focus in the editor UI} section
 	 * of the {@glink framework/deep-dive/ui/focus-tracking Deep dive into focus tracking} guide to learn more.
@@ -551,7 +974,61 @@ export default abstract class Editor extends ObservableMixin() {
 		this.editing.view.focus();
 	}
 
-	/* istanbul ignore next -- @preserve */
+	/**
+	 * Registers a given string as a root attribute key. Registered root attributes are added to
+	 * the {@link module:engine/model/schema~ModelSchema schema}.
+	 *
+	 * **Note:** Attributes passed in the configuration for multi-root editors
+	 * ({@link module:core/editor/editorconfig~EditorConfig#roots `config.roots.<rootName>.modelAttributes`}) or
+	 * single-root editors ({@link module:core/editor/editorconfig~EditorConfig#root `config.root.modelAttributes`})
+	 * are automatically registered when the editor is initialized. However, registering the same attribute twice
+	 * does not have any negative impact, so it is recommended to use this method in any feature that uses
+	 * root attributes.
+	 *
+	 * **Note:** Registered attributes are attached only to the generic `$root` schema element. A custom root
+	 * {@link module:core/editor/editorconfig~RootConfig#modelElement `modelElement`} must opt into the `$root`
+	 * attribute chain via `allowAttributesOf: '$root'` to inherit these attributes.
+	 * See the {@glink framework/deep-dive/schema#custom-root-elements Custom root elements} section of the
+	 * {@glink framework/deep-dive/schema Schema deep-dive} guide for more details.
+	 */
+	public registerRootAttribute( key: string ): void {
+		if ( this._registeredRootsAttributesKeys.has( key ) ) {
+			return;
+		}
+
+		this._registeredRootsAttributesKeys.add( key );
+		this.editing.model.schema.extend( '$root', { allowAttributes: key } );
+	}
+
+	/**
+	 * Returns attributes for the specified root.
+	 * If no root name is provided, it returns attributes for the 'main' root by default.
+	 *
+	 * Note: all and only {@link ~Editor#registerRootAttribute registered} roots attributes will be returned.
+	 * If a registered root attribute is not set for a given root, `null` will be returned.
+	 */
+	public getRootAttributes( rootName: string = 'main' ): EditorRootAttributes {
+		const root = this.model.document.getRoot( rootName );
+
+		if ( !root ) {
+			/**
+			 * The requested root does not exist. Please ensure that the provided root name
+			 * is correct and that the root has been properly initialized in the document.
+			 *
+			 * @error get-root-attributes-missing-root
+			 */
+			throw new CKEditorError( 'get-root-attributes-missing-root', this, { rootName } );
+		}
+
+		const rootAttributes: EditorRootAttributes = {};
+
+		for ( const key of this._registeredRootsAttributesKeys ) {
+			rootAttributes[ key ] = root.hasAttribute( key ) ? root.getAttribute( key ) : null;
+		}
+
+		return rootAttributes;
+	}
+
 	/**
 	 * Creates and initializes a new editor instance.
 	 *
@@ -564,10 +1041,274 @@ export default abstract class Editor extends ObservableMixin() {
 	 * * {@link module:editor-decoupled/decouplededitor~DecoupledEditor.create `DecoupledEditor.create()`}
 	 * * {@link module:editor-inline/inlineeditor~InlineEditor.create `InlineEditor.create()`}
 	 */
-	public static create( ...args: Array<unknown> ): void {
+	public static create( ...args: Array<unknown> ): void { // eslint-disable-line @typescript-eslint/no-unused-vars
 		throw new Error( 'This is an abstract method.' );
 	}
+
+	/**
+	 * The {@link module:core/context~Context} class.
+	 *
+	 * Exposed as a static editor member for easier access in editor builds.
+	 *
+	 * A getter rather than a field, for the same reason as {@link ~Editor.onEditorError}: a field would
+	 * read `Context` while this class is being defined, and the error reporter puts this module and
+	 * `context.ts` in an import cycle, so at that moment `Context` is not always initialized yet.
+	 */
+	public static get Context(): typeof Context {
+		return Context;
+	}
+
+	/**
+	 * {@link module:core/errorreporter~onEditorError `onEditorError()`}, reachable without importing it.
+	 *
+	 * Code that is handed an editor class rather than importing one — a framework integration, above all —
+	 * cannot import from CKEditor at all. Importing anything as a value loads the npm build, and an
+	 * application that meant to load CKEditor from a CDN is then refused. Reading the function off the class
+	 * it was given avoids that, and it also lands on the copy of this package the editor itself came from.
+	 *
+	 * ```ts
+	 * const off = ClassicEditor.onEditorError( ( { error, source } ) => {
+	 * 	if ( source !== myEditor ) {
+	 * 		return;
+	 * 	}
+	 *
+	 * 	reportToMyErrorTracker( error );
+	 * } );
+	 * ```
+	 *
+	 * The same page-level registration as the exported function — not a registration scoped to this editor
+	 * class. Prefer the import wherever imports are an option.
+	 *
+	 * A getter rather than a field: this module and the error reporter already refer to each other, so
+	 * reading its export while defining this class would read it before it exists. A getter body runs on
+	 * access, long after both modules are done. It also keeps the property off the list of the class's own
+	 * enumerable properties, which a field would have joined.
+	 */
+	public static get onEditorError(): ( callback: EditorErrorCallback ) => () => void {
+		return onEditorError;
+	}
+
+	protected _showLicenseError( reason: LicenseErrorReason, name?: string ): void {
+		setTimeout( () => {
+			if ( reason == 'invalid' ) {
+				/**
+				 * The license key provided is invalid. Please ensure that it is copied correctly
+				 * from the [Customer Portal](http://portal.ckeditor.com). If the issue persists,
+				 * please [contact our customer support](https://ckeditor.com/contact/).
+				 *
+				 * @error invalid-license-key
+				 */
+				throw new CKEditorError( 'invalid-license-key' );
+			}
+
+			if ( reason == 'expired' ) {
+				/**
+				 * Your license key has expired.
+				 *
+				 * If you used our free trial, you either need to switch to
+				 * [open-source license](https://ckeditor.com/docs/ckeditor5/latest/getting-started/licensing/license-and-legal.html), or
+				 * in case of a commercial plan, change the trial key to production key or development key.
+				 * Switching from trial, you also need to align the editor configuration to the features available in your plan.
+				 *
+				 * If you already had one of our Cloud or Custom plans, please renew your license in the
+				 * [Customer Portal](https://portal.ckeditor.com).
+				 *
+				 * @error license-key-expired
+				 */
+				throw new CKEditorError( 'license-key-expired' );
+			}
+
+			if ( reason == 'domainLimit' ) {
+				/**
+				 * The provided license does not allow the editor to run on this domain.
+				 * Some license keys are restricted to local test environments only.
+				 * For more details, please refer to the
+				 * {@glink getting-started/licensing/license-key-and-activation#license-key-types license key type documentation}.
+				 *
+				 * @error license-key-domain-limit
+				 */
+				throw new CKEditorError( 'license-key-domain-limit' );
+			}
+
+			if ( reason == 'pluginNotAllowed' ) {
+				// It's safe to assume `name` exists because `pluginNotAllowed` must know a plugin name when checking the license.
+				const gluePluginName = name!.replace( /(Editing|UI)$/, '' );
+				const containsGluePlugin = this.plugins.has( gluePluginName );
+
+				/**
+				 * The plugin you are trying to use is not permitted under your current license.
+				 * Please check the available features on the
+				 * [Customer Portal](https://portal.ckeditor.com) or
+				 * [contact support](https://ckeditor.com/contact/) for more information.
+				 *
+				 * @error license-key-plugin-not-allowed
+				 * @param {String} pluginName The plugin you tried to load.
+				 */
+				throw new CKEditorError( 'license-key-plugin-not-allowed', null, {
+					pluginName: containsGluePlugin ? gluePluginName : name
+				} );
+			}
+
+			if ( reason == 'featureNotAllowed' ) {
+				/**
+				 * The feature you are trying to use is not permitted under your current license.
+				 * Please check the available features on the
+				 * [Customer Portal](https://portal.ckeditor.com) or
+				 * [contact support](https://ckeditor.com/contact/) for more information.
+				 *
+				 * @error license-key-feature-not-allowed
+				 * @param {String} featureName The feature you tried to use.
+				 */
+				throw new CKEditorError( 'license-key-feature-not-allowed', null, { featureName: name } );
+			}
+
+			if ( reason == 'evaluationLimit' ) {
+				/**
+				 * You have exceeded the editor operation limit available for your evaluation license key.
+				 * Please restart the editor to continue using it.
+				 * {@glink getting-started/licensing/license-key-and-activation#license-key-types Read more about license key types}.
+				 *
+				 * @error license-key-evaluation-limit
+				 */
+				throw new CKEditorError( 'license-key-evaluation-limit' );
+			}
+
+			if ( reason == 'trialLimit' ) {
+				/**
+				 * You have exceeded the editor operation limit for your trial license key.
+				 * Please restart the editor to continue using it.
+				 * {@glink getting-started/licensing/license-key-and-activation#license-key-types Read more about license key types}.
+				 *
+				 * @error license-key-trial-limit
+				 */
+				throw new CKEditorError( 'license-key-trial-limit' );
+			}
+
+			if ( reason == 'developmentLimit' ) {
+				/**
+				 * You have exceeded the operation limit for your development license key within the editor.
+				 * Please restart the editor to continue using it.
+				 * {@glink getting-started/licensing/license-key-and-activation#license-key-types Read more about license key types}.
+				 *
+				 * @error license-key-development-limit
+				 */
+				throw new CKEditorError( 'license-key-development-limit' );
+			}
+
+			if ( reason == 'usageLimit' ) {
+				/**
+				 * You have reached the usage limit of your license key. This can occur in the following situations:
+				 *
+				 * * You are on a free subscription without a connected payment method and have exceeded the allowed usage threshold.
+				 * * Your account has overdue invoices and the grace period has ended.
+				 *
+				 * To extend the limit and restore access, please update the required details in the
+				 * [Customer Portal](https://portal.ckeditor.com) or
+				 * [contact our customer support](https://ckeditor.com/contact).
+				 *
+				 * @error license-key-usage-limit
+				 */
+				throw new CKEditorError( 'license-key-usage-limit' );
+			}
+
+			/* v8 ignore else -- @preserve */
+			if ( reason == 'distributionChannel' ) {
+				/**
+				 * Your license does not allow the current distribution channel.
+				 *
+				 * These are the available distribution channels:
+				 * * Self-hosted - the editor is installed via npm or from a ZIP package
+				 * * Cloud - the editor is run from CDN
+				 *
+				 * The licenses available include:
+				 * * GPL license for open-source users.
+				 * * Commercial plans (Cloud or sales-assisted).
+				 *
+				 * The relation between distribution channels and licenses works as follows:
+				 * * With the 'GPL' license key, you may use the editor installed via npm or a ZIP package (self-hosted).
+				 * * With the CKEditor Cloud plans, you may use the editor via our CDN.
+				 * * With the CKEditor Custom plans, depending on your plan details, you can use the editor via npm
+				 *   or a ZIP package (self-hosted) or Cloud (CDN).
+				 *
+				 * {@glink getting-started/licensing/usage-based-billing#key-terms Read more about distributions in the documentation}.
+				 * Please verify your installation or [contact support](https://ckeditor.com/contact/) for assistance.
+				 * Should you need to migrate your installation from npm to CDN, please refer to our
+				 * [dedicated migration guides](https://ckeditor.com/docs/ckeditor5/latest/updating/migrations/vanilla-js.html).
+				 *
+				 * @error license-key-invalid-distribution-channel
+				 */
+				throw new CKEditorError( 'license-key-invalid-distribution-channel' );
+			}
+
+			/* v8 ignore next -- @preserve */
+			const unreachable: never = reason; // eslint-disable-line @typescript-eslint/no-unused-vars
+		}, 0 );
+
+		this._showLicenseError = () => {};
+	}
+
+	/**
+	 * This part of the code is _not_ executed in installations under the GPL license (with `config.licenseKey = 'GPL'`).
+	 *
+	 * It is only executed when a specific license key is provided. If you are uncertain whether
+	 * this applies to your installation, please contact our support team.
+	 */
+	private async _sendUsageRequest( endpoint: string, request: unknown ) {
+		const headers = new Headers( { 'Content-Type': 'application/json' } );
+		const response = await fetch( new URL( endpoint ), {
+			method: 'POST',
+			headers,
+			body: JSON.stringify( request )
+		} );
+
+		if ( !response.ok ) {
+			// TODO: refine message.
+			throw new Error( `HTTP Response: ${ response.status }` );
+		}
+
+		return response.json();
+	}
 }
+
+function collectUsageData( editor: Editor ): EditorUsageData {
+	const collectedData = getEditorUsageData( editor );
+
+	function setUsageData( path: string, value: unknown ) {
+		if ( get( collectedData, path ) !== undefined ) {
+			/**
+			 * The error thrown when trying to set the usage data path that was already set.
+			 * Make sure that you are not setting the same path multiple times.
+			 *
+			 * @error editor-usage-data-path-already-set
+			 * @param {string} path The path that was already set.
+			 */
+			throw new CKEditorError( 'editor-usage-data-path-already-set', { path } );
+		}
+
+		set( collectedData, path, value );
+	}
+
+	editor.fire<EditorCollectUsageDataEvent>( 'collectUsageData', {
+		setUsageData
+	} );
+
+	return collectedData;
+}
+
+/**
+ * @internal
+ */
+export type LicenseErrorReason =
+	'invalid' |
+	'expired' |
+	'domainLimit' |
+	'pluginNotAllowed' |
+	'featureNotAllowed' |
+	'evaluationLimit' |
+	'trialLimit' |
+	'developmentLimit' |
+	'usageLimit' |
+	'distributionChannel';
 
 /**
  * Fired when the {@link module:engine/controller/datacontroller~DataController#event:ready data} and all additional
@@ -589,6 +1330,24 @@ export type EditorReadyEvent = {
 };
 
 /**
+ * Fired when the editor is about to collect usage data.
+ *
+ * This event is fired when the editor is about to collect usage data. It allows plugins to provide additional data for
+ * the usage statistics. The usage data is collected by the editor and sent to the usage tracking server. All plugins are
+ * expected to be ready at this point.
+ *
+ * @eventName ~Editor#collectUsageData
+ */
+export type EditorCollectUsageDataEvent = {
+	name: 'collectUsageData';
+	args: [
+		{
+			setUsageData( path: string, value: unknown ): void;
+		}
+	];
+};
+
+/**
  * Fired when this editor instance is destroyed. The editor at this point is not usable and this event should be used to
  * perform the clean-up in any plugin.
  *
@@ -602,10 +1361,15 @@ export type EditorDestroyEvent = {
 };
 
 /**
+ * Attributes set on a model root element.
+ */
+export type EditorRootAttributes = Record<string, unknown>;
+
+/**
  * This error is thrown when trying to pass a `<textarea>` element to a `create()` function of an editor class.
  *
  * The only editor type which can be initialized on `<textarea>` elements is
- * the {@glink installation/getting-started/predefined-builds#classic-editor classic editor}.
+ * the {@glink getting-started/setup/editor-types#classic-editor classic editor}.
  * This editor hides the passed element and inserts its own UI next to it. Other types of editors reuse the passed element as their root
  * editable element and therefore `<textarea>` is not appropriate for them. Use a `<div>` or another text container instead:
  *
@@ -616,4 +1380,22 @@ export type EditorDestroyEvent = {
  * ```
  *
  * @error editor-wrong-element
+ */
+
+/**
+ * You are running [CKEditor 5 Long-term Support Edition (LTS)](https://ckeditor.com/ckeditor-5-lts/),
+ * but the provided license key does not include access to the LTS version, or the key is invalid.
+ *
+ * Please ensure that it is copied correctly from the [Customer Portal](http://portal.ckeditor.com/),
+ * and if the issue persists, please [contact our customer support](https://ckeditor.com/contact/).
+ *
+ * In case you intended to use the [LTS Edition](https://ckeditor.com/ckeditor-5-lts/),
+ * but have not yet made a purchase, please [contact our sales team](https://ckeditor.com/contact-sales/)
+ *
+ * If you did not intend to use LTS, please note that all releases in the v47.7 line are
+ * for LTS subscribers only. To use a non-LTS edition, either upgrade to v48 or newer,
+ * which is our standard [latest](https://ckeditor.com/docs/ckeditor5/latest/updating/guides/changelog.html)
+ * release line, or stay on a version 47.6.2 or earlier.
+ *
+ * @error license-key-lts-not-allowed
  */

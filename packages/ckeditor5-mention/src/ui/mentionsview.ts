@@ -1,23 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module mention/ui/mentionsview
  */
 
-import { ListView } from 'ckeditor5/src/ui';
-import { Rect, type Locale } from 'ckeditor5/src/utils';
+import { ListView } from '@ckeditor/ckeditor5-ui';
+import { Rect, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import type MentionListItemView from './mentionlistitemview';
-
-import '../../theme/mentionui.css';
+import { type MentionListItemView } from './mentionlistitemview.js';
 
 /**
  * The mention ui view.
  */
-export default class MentionsView extends ListView {
+export class MentionsView extends ListView {
 	public selected: MentionListItemView | undefined;
 
 	public position: string | undefined;

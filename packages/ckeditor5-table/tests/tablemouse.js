@@ -1,20 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _setModelData, ViewDocumentDomEventData } from '@ckeditor/ckeditor5-engine';
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-import TableEditing from '../src/tableediting';
-import TableSelection from '../src/tableselection';
-import TableMouse from '../src/tablemouse';
-import { assertSelectedCells, modelTable } from './_utils/utils';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
+import { TableEditing } from '../src/tableediting.js';
+import { TableSelection } from '../src/tableselection.js';
+import { TableMouse } from '../src/tablemouse.js';
+import { assertSelectedCells, modelTable } from './_utils/utils.js';
+import { Typing } from '@ckeditor/ckeditor5-typing';
 
 describe( 'TableMouse', () => {
 	let editorElement, editor, model, tableMouse, modelRoot, view, viewDocument;
@@ -35,7 +33,15 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should have pluginName', () => {
-			expect( TableMouse.pluginName ).to.equal( 'TableMouse' );
+			expect( TableMouse.pluginName ).toBe( 'TableMouse' );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( TableMouse.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( TableMouse.isPremiumPlugin ).toBe( false );
 		} );
 	} );
 
@@ -48,7 +54,7 @@ describe( 'TableMouse', () => {
 			viewDocument = view.document;
 			tableMouse = editor.plugins.get( TableMouse );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -58,7 +64,7 @@ describe( 'TableMouse', () => {
 		it( 'should do nothing if the plugin is disabled', () => {
 			tableMouse.isEnabled = false;
 
-			viewDocument.fire( 'mousedown', new DomEventData( view, {} ) );
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {} ) );
 
 			assertSelectedCells( model, [
 				[ 0, 0, 0 ],
@@ -70,7 +76,7 @@ describe( 'TableMouse', () => {
 		it( 'should do nothing if the TableSelection plugin is disabled', () => {
 			editor.plugins.get( 'TableSelection' ).isEnabled = false;
 
-			viewDocument.fire( 'mousedown', new DomEventData( view, {} ) );
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {} ) );
 
 			assertSelectedCells( model, [
 				[ 0, 0, 0 ],
@@ -80,7 +86,7 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should abort if Shift key was not pressed', () => {
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				shiftKey: false,
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
@@ -96,7 +102,7 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should abort if Shift+clicked an element outside a table', () => {
-			const preventDefault = sinon.spy();
+			const preventDefault = vi.fn();
 
 			model.change( writer => {
 				const paragraph = writer.createElement( 'paragraph' );
@@ -107,7 +113,7 @@ describe( 'TableMouse', () => {
 				writer.setSelection( paragraph, 'end' );
 			} );
 
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				shiftKey: true,
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 1 )
@@ -121,13 +127,13 @@ describe( 'TableMouse', () => {
 				[ 0, 0, 0 ]
 			] );
 
-			expect( preventDefault.called ).to.equal( false );
+			expect( preventDefault ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should abort if clicked a cell that belongs to another table', () => {
-			const preventDefault = sinon.spy();
+			const preventDefault = vi.fn();
 
-			setModelData( model, [
+			_setModelData( model, [
 				modelTable( [
 					[ '1.11[]', '1.12' ],
 					[ '1.21', '1.22' ]
@@ -138,7 +144,7 @@ describe( 'TableMouse', () => {
 				] )
 			].join( '' ) );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				shiftKey: true,
 				target: view.domConverter.mapViewToDom(
 					// The second table: figure > table > tbody > tr > td
@@ -154,13 +160,13 @@ describe( 'TableMouse', () => {
 				[ 0, 0 ]
 			] );
 
-			expect( preventDefault.called ).to.equal( false );
+			expect( preventDefault ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should select all cells in first row', () => {
-			const preventDefault = sinon.spy();
+			const preventDefault = vi.fn();
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				shiftKey: true,
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
@@ -177,13 +183,13 @@ describe( 'TableMouse', () => {
 				[ 0, 0, 0 ]
 			] );
 
-			expect( preventDefault.called ).to.equal( true );
+			expect( preventDefault ).toHaveBeenCalled();
 		} );
 
 		it( 'should use the anchor cell from the selection if possible', () => {
-			const preventDefault = sinon.spy();
+			const preventDefault = vi.fn();
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				shiftKey: true,
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
@@ -210,18 +216,18 @@ describe( 'TableMouse', () => {
 				[ 0, 0, 0 ]
 			] );
 
-			expect( preventDefault.called ).to.equal( true );
+			expect( preventDefault ).toHaveBeenCalled();
 		} );
 
 		it( 'should ignore `selectionChange` event when selecting cells', () => {
-			const preventDefault = sinon.spy();
-			const selectionChangeCallback = sinon.spy();
+			const preventDefault = vi.fn();
+			const selectionChangeCallback = vi.fn();
 
 			// Adding a new callback to check whether it will be executed (whether `evt.stop()` is being called).
 			viewDocument.on( 'selectionChange', selectionChangeCallback );
 
 			// Shift+click a cell to create a selection. Should disable listening to `selectionChange`.
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				shiftKey: true,
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
@@ -237,7 +243,7 @@ describe( 'TableMouse', () => {
 
 			// The callback shouldn't be executed because
 			// `selectionChange` event should be canceled.
-			expect( selectionChangeCallback.called ).to.equal( false );
+			expect( selectionChangeCallback ).not.toHaveBeenCalled();
 
 			// Enables listening to `selectionChange` event.
 			viewDocument.fire( 'mouseup' );
@@ -246,7 +252,7 @@ describe( 'TableMouse', () => {
 				newSelection: view.document.selection
 			} );
 
-			expect( selectionChangeCallback.called ).to.equal( true );
+			expect( selectionChangeCallback ).toHaveBeenCalled();
 		} );
 	} );
 
@@ -261,19 +267,19 @@ describe( 'TableMouse', () => {
 			viewDocument = view.document;
 			tableMouse = editor.plugins.get( TableMouse );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
 			] ) );
 
-			preventDefault = sinon.spy();
+			preventDefault = vi.fn();
 		} );
 
 		it( 'should do nothing if the plugin is disabled', () => {
 			tableMouse.isEnabled = false;
 
-			const domEventDataMock = new DomEventData( view, {} );
+			const domEventDataMock = new ViewDocumentDomEventData( view, {} );
 
 			viewDocument.fire( 'mousedown', domEventDataMock );
 
@@ -287,7 +293,7 @@ describe( 'TableMouse', () => {
 		it( 'should do nothing if the TableSelection plugin is disabled', () => {
 			editor.plugins.get( 'TableSelection' ).isEnabled = false;
 
-			const domEventDataMock = new DomEventData( view, {} );
+			const domEventDataMock = new ViewDocumentDomEventData( view, {} );
 
 			viewDocument.fire( 'mousedown', domEventDataMock );
 
@@ -299,7 +305,7 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should abort if Ctrl is pressed', () => {
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				ctrlKey: true
 			} );
 
@@ -313,7 +319,7 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should abort if Alt is pressed', () => {
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				altKey: true
 			} );
 
@@ -327,7 +333,7 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should do nothing if any of mouse buttons was not clicked', () => {
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				buttons: 0
 			} ) );
 
@@ -348,13 +354,13 @@ describe( 'TableMouse', () => {
 				writer.setSelection( paragraph, 'end' );
 			} );
 
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 1 )
 				)
 			} ) );
 
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				buttons: 1
 			} ) );
 
@@ -375,13 +381,13 @@ describe( 'TableMouse', () => {
 				writer.setSelection( paragraph, 'end' );
 			} );
 
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				)
 			} ) );
 
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 1 )
 				),
@@ -396,7 +402,7 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should do nothing if ended dragging inside another table', () => {
-			setModelData( model, [
+			_setModelData( model, [
 				modelTable( [
 					[ '1.11[]', '1.12' ],
 					[ '1.21', '1.22' ]
@@ -407,13 +413,13 @@ describe( 'TableMouse', () => {
 				] )
 			].join( '' ) );
 
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				)
 			} ) );
 
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 1 ).getChild( 1 ).getChild( 0 ).getChild( 1 ).getChild( 1 )
 				),
@@ -427,13 +433,13 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should do nothing if ended in the same cell', () => {
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				)
 			} ) );
 
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				),
@@ -448,28 +454,28 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should select started and ended dragging in the same cell but went over its border', () => {
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				)
 			} ) );
 
 			// Select the next one.
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 1 )
 				),
 				buttons: 1,
-				preventDefault: sinon.spy()
+				preventDefault: vi.fn()
 			} ) );
 
 			// And back to the "started" cell.
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				),
 				buttons: 1,
-				preventDefault: sinon.spy()
+				preventDefault: vi.fn()
 			} ) );
 
 			viewDocument.fire( 'mouseup' );
@@ -482,14 +488,14 @@ describe( 'TableMouse', () => {
 		} );
 
 		it( 'should select all cells in first row', () => {
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 0 )
 				)
 			} ) );
 
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 2 )
@@ -506,18 +512,18 @@ describe( 'TableMouse', () => {
 				[ 0, 0, 0 ]
 			] );
 
-			expect( preventDefault.called ).to.equal( true );
+			expect( preventDefault ).toHaveBeenCalled();
 		} );
 
-		it( 'should ignore `selectionChange` event when selecting cells ', () => {
-			const preventDefault = sinon.spy();
-			const selectionChangeCallback = sinon.spy();
+		it( 'should ignore `selectionChange` event when selecting cells', () => {
+			const preventDefault = vi.fn();
+			const selectionChangeCallback = vi.fn();
 
 			// Adding a new callback to check whether it will be executed (whether `evt.stop()` is being called).
 			viewDocument.on( 'selectionChange', selectionChangeCallback );
 
 			// Click on a cell.
-			viewDocument.fire( 'mousedown', new DomEventData( view, {
+			viewDocument.fire( 'mousedown', new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
 					viewDocument.getRoot().getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ).getChild( 1 )
@@ -525,7 +531,7 @@ describe( 'TableMouse', () => {
 			} ) );
 
 			// Then move the mouse to another cell. Disables listening to `selectionChange`.
-			viewDocument.fire( 'mousemove', new DomEventData( view, {
+			viewDocument.fire( 'mousemove', new ViewDocumentDomEventData( view, {
 				buttons: 1,
 				target: view.domConverter.mapViewToDom(
 					// figure > table > tbody > tr > td
@@ -538,7 +544,7 @@ describe( 'TableMouse', () => {
 			viewDocument.fire( 'selectionChange' );
 
 			// `selectionChange` event should be canceled.
-			expect( selectionChangeCallback.called ).to.equal( false );
+			expect( selectionChangeCallback ).not.toHaveBeenCalled();
 
 			// Enables listening to `selectionChange` event.
 			viewDocument.fire( 'mouseup' );
@@ -547,7 +553,7 @@ describe( 'TableMouse', () => {
 				newSelection: view.document.selection
 			} );
 
-			expect( selectionChangeCallback.called ).to.equal( true );
+			expect( selectionChangeCallback ).toHaveBeenCalled();
 		} );
 	} );
 

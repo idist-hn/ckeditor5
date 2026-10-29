@@ -1,34 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ViewElement } from '../../../src/view/element.js';
+import { ViewUIElement } from '../../../src/view/uielement.js';
+import { ViewDocument } from '../../../src/view/document.js';
+import { ViewDocumentSelection } from '../../../src/view/documentselection.js';
+import { ViewSelection } from '../../../src/view/selection.js';
+import { ViewDomConverter } from '../../../src/view/domconverter.js';
+import { ViewDocumentFragment } from '../../../src/view/documentfragment.js';
+import { BR_FILLER, INLINE_FILLER, INLINE_FILLER_LENGTH, NBSP_FILLER, MARKED_NBSP_FILLER } from '../../../src/view/filler.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
+import { _parseView, _stringifyView } from '../../../src/dev-utils/view.js';
 
-import ViewElement from '../../../src/view/element';
-import ViewUIElement from '../../../src/view/uielement';
-import ViewDocument from '../../../src/view/document';
-import ViewDocumentSelection from '../../../src/view/documentselection';
-import ViewSelection from '../../../src/view/selection';
-import DomConverter from '../../../src/view/domconverter';
-import ViewDocumentFragment from '../../../src/view/documentfragment';
-import { BR_FILLER, INLINE_FILLER, INLINE_FILLER_LENGTH, NBSP_FILLER } from '../../../src/view/filler';
-import { StylesProcessor } from '../../../src/view/stylesmap';
-import { parse, stringify } from '../../../src/dev-utils/view';
-
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import count from '@ckeditor/ckeditor5-utils/src/count';
-import createElement from '@ckeditor/ckeditor5-utils/src/dom/createelement';
-import env from '@ckeditor/ckeditor5-utils/src/env';
+import { count, createElement, env } from '@ckeditor/ckeditor5-utils';
 
 describe( 'DomConverter', () => {
 	let converter, viewDocument;
 
-	testUtils.createSinonSandbox();
-
-	before( () => {
+	beforeEach( () => {
 		viewDocument = new ViewDocument( new StylesProcessor() );
-		converter = new DomConverter( viewDocument );
+		converter = new ViewDomConverter( viewDocument );
 	} );
 
 	describe( 'domToView()', () => {
@@ -43,18 +37,18 @@ describe( 'DomConverter', () => {
 
 			const viewP = converter.domToView( domP );
 
-			expect( viewP ).to.be.an.instanceof( ViewElement );
-			expect( viewP.name ).to.equal( 'p' );
+			expect( viewP ).toBeInstanceOf( ViewElement );
+			expect( viewP.name ).toBe( 'p' );
 
-			expect( viewP.getAttribute( 'class' ) ).to.equal( 'foo' );
-			expect( count( viewP.getAttributeKeys() ) ).to.equal( 1 );
+			expect( viewP.getAttribute( 'class' ) ).toBe( 'foo' );
+			expect( count( viewP.getAttributeKeys() ) ).toBe( 1 );
 
-			expect( viewP.childCount ).to.equal( 2 );
-			expect( viewP.getChild( 0 ).name ).to.equal( 'img' );
-			expect( viewP.getChild( 1 ).data ).to.equal( 'foo' );
+			expect( viewP.childCount ).toBe( 2 );
+			expect( viewP.getChild( 0 ).name ).toBe( 'img' );
+			expect( viewP.getChild( 1 ).data ).toBe( 'foo' );
 
-			expect( converter.mapViewToDom( viewP ) ).to.not.equal( domP );
-			expect( converter.mapViewToDom( viewP.getChild( 0 ) ) ).to.equal( domImg );
+			expect( converter.mapViewToDom( viewP ) ).not.toBe( domP );
+			expect( converter.mapViewToDom( viewP.getChild( 0 ) ) ).toBe( domImg );
 		} );
 
 		it( 'should create tree of view elements from DOM elements and bind elements', () => {
@@ -64,18 +58,18 @@ describe( 'DomConverter', () => {
 
 			const viewP = converter.domToView( domP, { bind: true } );
 
-			expect( viewP ).to.be.an.instanceof( ViewElement );
-			expect( viewP.name ).to.equal( 'p' );
+			expect( viewP ).toBeInstanceOf( ViewElement );
+			expect( viewP.name ).toBe( 'p' );
 
-			expect( viewP.getAttribute( 'class' ) ).to.equal( 'foo' );
-			expect( count( viewP.getAttributeKeys() ) ).to.equal( 1 );
+			expect( viewP.getAttribute( 'class' ) ).toBe( 'foo' );
+			expect( count( viewP.getAttributeKeys() ) ).toBe( 1 );
 
-			expect( viewP.childCount ).to.equal( 2 );
-			expect( viewP.getChild( 0 ).name ).to.equal( 'img' );
-			expect( viewP.getChild( 1 ).data ).to.equal( 'foo' );
+			expect( viewP.childCount ).toBe( 2 );
+			expect( viewP.getChild( 0 ).name ).toBe( 'img' );
+			expect( viewP.getChild( 1 ).data ).toBe( 'foo' );
 
-			expect( converter.mapViewToDom( viewP ) ).to.equal( domP );
-			expect( converter.mapViewToDom( viewP.getChild( 0 ) ) ).to.equal( domP.childNodes[ 0 ] );
+			expect( converter.mapViewToDom( viewP ) ).toBe( domP );
+			expect( converter.mapViewToDom( viewP.getChild( 0 ) ) ).toBe( domP.childNodes[ 0 ] );
 		} );
 
 		it( 'should support unicode', () => {
@@ -84,13 +78,13 @@ describe( 'DomConverter', () => {
 
 			const viewP = converter.domToView( domP, { bind: true } );
 
-			expect( viewP.childCount ).to.equal( 1 );
+			expect( viewP.childCount ).toBe( 1 );
 
 			const viewText = viewP.getChild( 0 );
-			expect( viewText.data ).to.equal( 'நிலைக்கு' );
+			expect( viewText.data ).toBe( 'நிலைக்கு' );
 
-			expect( converter.mapViewToDom( viewP ) ).to.equal( domP );
-			expect( converter.findCorrespondingDomText( viewP.getChild( 0 ) ) ).to.equal( domP.childNodes[ 0 ] );
+			expect( converter.mapViewToDom( viewP ) ).toBe( domP );
+			expect( converter.findCorrespondingDomText( viewP.getChild( 0 ) ) ).toBe( domP.childNodes[ 0 ] );
 		} );
 
 		it( 'should create tree of view elements from DOM element without children', () => {
@@ -104,14 +98,14 @@ describe( 'DomConverter', () => {
 
 			const viewP = converter.domToView( domP, { withChildren: false } );
 
-			expect( viewP ).to.be.an.instanceof( ViewElement );
-			expect( viewP.name ).to.equal( 'p' );
+			expect( viewP ).toBeInstanceOf( ViewElement );
+			expect( viewP.name ).toBe( 'p' );
 
-			expect( viewP.getAttribute( 'class' ) ).to.equal( 'foo' );
-			expect( count( viewP.getAttributeKeys() ) ).to.equal( 1 );
+			expect( viewP.getAttribute( 'class' ) ).toBe( 'foo' );
+			expect( count( viewP.getAttributeKeys() ) ).toBe( 1 );
 
-			expect( viewP.childCount ).to.equal( 0 );
-			expect( converter.mapViewToDom( viewP ) ).to.not.equal( domP );
+			expect( viewP.childCount ).toBe( 0 );
+			expect( converter.mapViewToDom( viewP ) ).not.toBe( domP );
 		} );
 
 		it( 'should create view document fragment from DOM document fragment', () => {
@@ -124,13 +118,13 @@ describe( 'DomConverter', () => {
 
 			const viewFragment = converter.domToView( domFragment, { bind: true } );
 
-			expect( viewFragment ).to.be.an.instanceof( ViewDocumentFragment );
-			expect( viewFragment.childCount ).to.equal( 2 );
-			expect( viewFragment.getChild( 0 ).name ).to.equal( 'img' );
-			expect( viewFragment.getChild( 1 ).data ).to.equal( 'foo' );
+			expect( viewFragment ).toBeInstanceOf( ViewDocumentFragment );
+			expect( viewFragment.childCount ).toBe( 2 );
+			expect( viewFragment.getChild( 0 ).name ).toBe( 'img' );
+			expect( viewFragment.getChild( 1 ).data ).toBe( 'foo' );
 
-			expect( converter.mapViewToDom( viewFragment ) ).to.equal( domFragment );
-			expect( converter.mapViewToDom( viewFragment.getChild( 0 ) ) ).to.equal( domFragment.childNodes[ 0 ] );
+			expect( converter.mapViewToDom( viewFragment ) ).toBe( domFragment );
+			expect( converter.mapViewToDom( viewFragment.getChild( 0 ) ) ).toBe( domFragment.childNodes[ 0 ] );
 		} );
 
 		it( 'should create view document fragment from DOM document fragment without children', () => {
@@ -147,10 +141,10 @@ describe( 'DomConverter', () => {
 
 			const viewFragment = converter.domToView( domFragment, { withChildren: false } );
 
-			expect( viewFragment ).to.be.an.instanceof( ViewDocumentFragment );
+			expect( viewFragment ).toBeInstanceOf( ViewDocumentFragment );
 
-			expect( viewFragment.childCount ).to.equal( 0 );
-			expect( converter.mapViewToDom( viewFragment ) ).to.not.equal( domFragment );
+			expect( viewFragment.childCount ).toBe( 0 );
+			expect( converter.mapViewToDom( viewFragment ) ).not.toBe( domFragment );
 		} );
 
 		it( 'should return already bind document fragment', () => {
@@ -161,20 +155,30 @@ describe( 'DomConverter', () => {
 
 			const viewFragment2 = converter.domToView( domFragment );
 
-			expect( viewFragment2 ).to.equal( viewFragment );
+			expect( viewFragment2 ).toBe( viewFragment );
 		} );
 
 		it( 'should return null for block filler', () => {
 			// eslint-disable-next-line new-cap
 			const domFiller = BR_FILLER( document );
 
-			expect( converter.domToView( domFiller ) ).to.be.null;
+			expect( converter.domToView( domFiller ) ).toBeNull();
+		} );
+
+		it( 'should ignore a block filler inside a paragraph', () => {
+			// eslint-disable-next-line new-cap
+			const domFiller = BR_FILLER( document );
+			const domP = createElement( document, 'p', undefined, [ domFiller ] );
+
+			const viewP = converter.domToView( domP );
+			expect( viewP.is( 'element', 'p' ) ).toBe( true );
+			expect( viewP.childCount ).toBe( 0 );
 		} );
 
 		it( 'should return null for empty text node', () => {
 			const textNode = document.createTextNode( '' );
 
-			expect( converter.domToView( textNode ) ).to.be.null;
+			expect( converter.domToView( textNode ) ).toBeNull();
 		} );
 
 		it( 'should create UIElement for comment', () => {
@@ -182,12 +186,26 @@ describe( 'DomConverter', () => {
 
 			const viewComment = converter.domToView( domComment );
 
-			expect( viewComment ).to.be.an.instanceof( ViewUIElement );
-			expect( viewComment.name ).to.equal( '$comment' );
+			expect( viewComment ).toBeInstanceOf( ViewUIElement );
+			expect( viewComment.name ).toBe( '$comment' );
 
-			expect( viewComment.getCustomProperty( '$rawContent' ) ).to.equal( 'abc' );
+			expect( viewComment.getCustomProperty( '$rawContent' ) ).toBe( 'abc' );
 
-			expect( converter.mapViewToDom( viewComment ) ).to.not.equal( domComment );
+			expect( converter.mapViewToDom( viewComment ) ).not.toBe( domComment );
+		} );
+
+		it( 'should create UIElement for processing instruction', () => {
+			const domInstruction = document.createProcessingInstruction( 'if', '!supportLists' );
+
+			const viewInstruction = converter.domToView( domInstruction );
+
+			expect( viewInstruction ).toBeInstanceOf( ViewUIElement );
+			expect( viewInstruction.name ).toBe( '$processingInstruction' );
+
+			expect( viewInstruction.getCustomProperty( '$processingTarget' ) ).toBe( 'if' );
+			expect( viewInstruction.getCustomProperty( '$processingData' ) ).toBe( '!supportLists' );
+
+			expect( converter.mapViewToDom( viewInstruction ) ).not.toBe( domInstruction );
 		} );
 
 		it( 'should create UIElement for comment and bind elements', () => {
@@ -195,12 +213,12 @@ describe( 'DomConverter', () => {
 
 			const viewComment = converter.domToView( domComment, { bind: true } );
 
-			expect( viewComment ).to.be.an.instanceof( ViewUIElement );
-			expect( viewComment.name ).to.equal( '$comment' );
+			expect( viewComment ).toBeInstanceOf( ViewUIElement );
+			expect( viewComment.name ).toBe( '$comment' );
 
-			expect( viewComment.getCustomProperty( '$rawContent' ) ).to.equal( 'abc' );
+			expect( viewComment.getCustomProperty( '$rawContent' ) ).toBe( 'abc' );
 
-			expect( converter.mapViewToDom( viewComment ) ).to.equal( domComment );
+			expect( converter.mapViewToDom( viewComment ) ).toBe( domComment );
 		} );
 
 		it( 'should return `null` for a comment when the `skipComments` option is set to `true`', () => {
@@ -208,20 +226,90 @@ describe( 'DomConverter', () => {
 
 			const viewComment = converter.domToView( domComment, { skipComments: true } );
 
-			expect( viewComment ).to.be.null;
+			expect( viewComment ).toBeNull();
+		} );
+
+		it( 'should return `null` for a processing instruction when the `skipProcessingInstructions` option is set to `true`', () => {
+			const domInstruction = document.createProcessingInstruction( 'if', '!supportLists' );
+
+			const viewInstruction = converter.domToView( domInstruction, { skipProcessingInstructions: true } );
+
+			expect( viewInstruction ).toBeNull();
+		} );
+
+		it( 'should create UIElement for processing instruction and bind elements', () => {
+			const domInstruction = document.createProcessingInstruction( 'if', '!supportLists' );
+
+			const viewInstruction = converter.domToView( domInstruction, { bind: true } );
+
+			expect( viewInstruction ).toBeInstanceOf( ViewUIElement );
+			expect( viewInstruction.name ).toBe( '$processingInstruction' );
+
+			expect( converter.mapViewToDom( viewInstruction ) ).toBe( domInstruction );
+		} );
+
+		it( 'should not return `null` for a processing instruction when only the `skipComments` option is set to `true`', () => {
+			const domInstruction = document.createProcessingInstruction( 'if', '!supportLists' );
+
+			const viewInstruction = converter.domToView( domInstruction, { skipComments: true } );
+
+			expect( viewInstruction.name ).toBe( '$processingInstruction' );
+		} );
+
+		it( 'should not return `null` for a comment when only the `skipProcessingInstructions` option is set to `true`', () => {
+			const domComment = document.createComment( 'abc' );
+
+			const viewComment = converter.domToView( domComment, { skipProcessingInstructions: true } );
+
+			expect( viewComment.name ).toBe( '$comment' );
+		} );
+
+		it( 'should preserve the processing instruction target letter case', () => {
+			// Unlike tag names, processing instruction targets are case-sensitive.
+			const domInstruction = document.createProcessingInstruction( 'Foo', 'bar' );
+
+			expect( converter.domToView( domInstruction ).getCustomProperty( '$processingTarget' ) ).toBe( 'Foo' );
+
+			expect(
+				converter.domToView( domInstruction, { keepOriginalCase: false } ).getCustomProperty( '$processingTarget' )
+			).toBe( 'Foo' );
+		} );
+
+		it( 'should keep processing instruction data starting with a question mark intact', () => {
+			// `<?t?d?>` tokenizes as target "t", data "?d".
+			const domInstruction = document.createProcessingInstruction( 't', '?d' );
+
+			expect( converter.domToView( domInstruction ).getCustomProperty( '$processingData' ) ).toBe( '?d' );
+		} );
+
+		it( 'should not create children for a processing instruction', () => {
+			const domInstruction = document.createProcessingInstruction( 'if', '!supportLists' );
+
+			expect( converter.domToView( domInstruction ).childCount ).toBe( 0 );
+		} );
+
+		it( 'should create UIElement for a processing instruction nested in an element', () => {
+			const domInstruction = document.createProcessingInstruction( 'if', '!supportLists' );
+			const domP = createElement( document, 'p', {}, [ domInstruction ] );
+
+			const viewP = converter.domToView( domP );
+
+			expect( viewP.childCount ).toBe( 1 );
+			expect( viewP.getChild( 0 ) ).toBeInstanceOf( ViewUIElement );
+			expect( viewP.getChild( 0 ).name ).toBe( '$processingInstruction' );
 		} );
 
 		it( 'should set attributes in the same order as in the DOM', () => {
 			const domP = createElement( document, 'p', { 'data-foo': 'a', 'data-bar': 'b' } );
 			const viewP = converter.domToView( domP );
 
-			expect( viewP ).to.be.an.instanceof( ViewElement );
-			expect( viewP.name ).to.equal( 'p' );
+			expect( viewP ).toBeInstanceOf( ViewElement );
+			expect( viewP.name ).toBe( 'p' );
 
 			const attributes = Array.from( viewP.getAttributes() );
 
-			expect( attributes.length ).to.equal( 2 );
-			expect( attributes ).to.deep.equal( [
+			expect( attributes.length ).toBe( 2 );
+			expect( attributes ).toEqual( [
 				[ 'data-foo', 'a' ],
 				[ 'data-bar', 'b' ]
 			] );
@@ -241,9 +329,9 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 2 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
-				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 2 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
+				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			it( 'at the end of block element', () => {
@@ -259,9 +347,9 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 2 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
-				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).to.equal( 'bar' );
+				expect( viewDiv.childCount ).toBe( 2 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
+				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).toBe( 'bar' );
 			} );
 
 			it( 'after a block element', () => {
@@ -274,8 +362,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			it( 'after a block element (new line)', () => {
@@ -288,8 +376,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			it( 'after a block element (carriage return)', () => {
@@ -302,8 +390,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			it( 'after a block element (tab)', () => {
@@ -316,8 +404,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			// See https://github.com/ckeditor/ckeditor5-engine/issues/822#issuecomment-311670249
@@ -334,11 +422,11 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 2 );
+				expect( viewDiv.childCount ).toBe( 2 );
 				expect( viewDiv.getChild( 0 ).getChild( 0 ).data )
-					.to.equal( 'x\fx\vx\u00a0x\u1680x\u2000x\u200ax\u2028x\u2029x\u202fx\u205fx\u3000x\ufeffx' );
+					.toBe( 'x\fx\vx\u00a0x\u1680x\u2000x\u200ax\u2028x\u2029x\u202fx\u205fx\u3000x\ufeffx' );
 				expect( viewDiv.getChild( 1 ).getChild( 0 ).data )
-					.to.equal( 'x\f\vx\u00a0\u1680x\u2000\u200ax\u2028\u2029x\u202f\u205fx\u3000\ufeffx' );
+					.toBe( 'x\f\vx\u00a0\u1680x\u2000\u200ax\u2028\u2029x\u202f\u205fx\u3000\ufeffx' );
 			} );
 
 			it( 'before a block element', () => {
@@ -351,8 +439,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			it( 'before a block element (new line)', () => {
@@ -365,8 +453,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 			} );
 
 			it( 'after a <br>', () => {
@@ -378,8 +466,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 3 );
-				expect( viewP.getChild( 2 ).data ).to.equal( 'bar' );
+				expect( viewP.childCount ).toBe( 3 );
+				expect( viewP.getChild( 2 ).data ).toBe( 'bar' );
 			} );
 
 			it( 'after a <br> – two spaces', () => {
@@ -391,8 +479,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 3 );
-				expect( viewP.getChild( 2 ).data ).to.equal( ' bar' );
+				expect( viewP.childCount ).toBe( 3 );
+				expect( viewP.getChild( 2 ).data ).toBe( ' bar' );
 			} );
 
 			// This TC ensures that the algorithm stops on <br>.
@@ -406,8 +494,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 3 );
-				expect( viewP.getChild( 2 ).data ).to.equal( 'bar' );
+				expect( viewP.childCount ).toBe( 3 );
+				expect( viewP.getChild( 2 ).data ).toBe( 'bar' );
 			} );
 
 			it( 'after a <br> – when text after that <br> is nested', () => {
@@ -421,8 +509,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 3 );
-				expect( viewP.getChild( 2 ).getChild( 0 ).data ).to.equal( 'bar' );
+				expect( viewP.childCount ).toBe( 3 );
+				expect( viewP.getChild( 2 ).getChild( 0 ).data ).toBe( 'bar' );
 			} );
 
 			it( 'between <br>s - trim only the left boundary', () => {
@@ -436,8 +524,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 5 );
-				expect( viewP.getChild( 2 ).data ).to.equal( 'foo ' );
+				expect( viewP.childCount ).toBe( 5 );
+				expect( viewP.getChild( 2 ).data ).toBe( 'foo ' );
 			} );
 
 			it( 'multiple consecutive whitespaces changed to one', () => {
@@ -452,8 +540,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'f o o' );
-				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).to.equal( 'fo o' );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'f o o' );
+				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).toBe( 'fo o' );
 			} );
 
 			it( 'multiple consecutive whitespaces changed to one (tab, new line, carriage return)', () => {
@@ -467,8 +555,8 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( 'f o o' );
+				expect( viewDiv.childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( 'f o o' );
 			} );
 
 			function testTexts( inputTexts, output ) {
@@ -491,7 +579,7 @@ describe( 'DomConverter', () => {
 						data += child.data.replace( /\u00A0/g, '_' );
 					}
 
-					expect( data ).to.equal( output );
+					expect( data ).toBe( output );
 				} );
 			}
 
@@ -575,7 +663,7 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).to.equal( '   foo\n   foo  ' );
+				expect( viewDiv.getChild( 0 ).getChild( 0 ).data ).toBe( '   foo\n   foo  ' );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5-clipboard/issues/2#issuecomment-310417731
@@ -590,9 +678,9 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.getChild( 1 ).name ).to.equal( 'span' );
-				expect( viewDiv.getChild( 1 ).childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).to.equal( ' ' );
+				expect( viewDiv.getChild( 1 ).name ).toBe( 'span' );
+				expect( viewDiv.getChild( 1 ).childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).toBe( ' ' );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5-clipboard/issues/2#issuecomment-310417731
@@ -607,9 +695,9 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.getChild( 1 ).name ).to.equal( 'span' );
-				expect( viewDiv.getChild( 1 ).childCount ).to.equal( 1 );
-				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).to.equal( '\u00a0' );
+				expect( viewDiv.getChild( 1 ).name ).toBe( 'span' );
+				expect( viewDiv.getChild( 1 ).childCount ).toBe( 1 );
+				expect( viewDiv.getChild( 1 ).getChild( 0 ).data ).toBe( '\u00a0' );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5-clipboard/issues/2#issuecomment-310417731
@@ -631,13 +719,13 @@ describe( 'DomConverter', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'span' );
-				expect( viewDiv.getChild( 0 ).childCount ).to.equal( 2 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'span' );
+				expect( viewDiv.getChild( 0 ).childCount ).toBe( 2 );
 
-				expect( viewDiv.getChild( 0 ).getChild( 1 ).name ).to.equal( 'span' );
-				expect( viewDiv.getChild( 0 ).getChild( 1 ).childCount ).to.equal( 1 );
+				expect( viewDiv.getChild( 0 ).getChild( 1 ).name ).toBe( 'span' );
+				expect( viewDiv.getChild( 0 ).getChild( 1 ).childCount ).toBe( 1 );
 
-				expect( viewDiv.getChild( 0 ).getChild( 1 ).getChild( 0 ).data ).to.equal( '\u00a0' );
+				expect( viewDiv.getChild( 0 ).getChild( 1 ).getChild( 0 ).data ).toBe( '\u00a0' );
 			} );
 
 			// While we render `X&nbsp;<br>X`, `X <br>X` is ok too – the space needs to be preserved.
@@ -649,8 +737,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 2 );
-				expect( viewP.getChild( 0 ).data ).to.equal( 'foo ' );
+				expect( viewP.childCount ).toBe( 2 );
+				expect( viewP.getChild( 0 ).data ).toBe( 'foo ' );
 			} );
 
 			it( 'not before a <br> (space+nbsp)', () => {
@@ -661,8 +749,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 2 );
-				expect( viewP.getChild( 0 ).data ).to.equal( 'foo  ' );
+				expect( viewP.childCount ).toBe( 2 );
+				expect( viewP.getChild( 0 ).data ).toBe( 'foo  ' );
 			} );
 
 			it( 'before a <br> (space+space=>space)', () => {
@@ -673,8 +761,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 2 );
-				expect( viewP.getChild( 0 ).data ).to.equal( 'foo ' );
+				expect( viewP.childCount ).toBe( 2 );
+				expect( viewP.getChild( 0 ).data ).toBe( 'foo ' );
 			} );
 
 			it( 'not before a <br> – when text before that <br> is nested', () => {
@@ -687,8 +775,8 @@ describe( 'DomConverter', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 2 );
-				expect( viewP.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo ' );
+				expect( viewP.childCount ).toBe( 2 );
+				expect( viewP.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo ' );
 			} );
 
 			//
@@ -701,7 +789,7 @@ describe( 'DomConverter', () => {
 				const text = document.createTextNode( INLINE_FILLER + 'foo' );
 				const view = converter.domToView( text );
 
-				expect( view.data ).to.equal( 'foo' );
+				expect( view.data ).toBe( 'foo' );
 			} );
 
 			// See https://github.com/ckeditor/ckeditor5/issues/692.
@@ -709,14 +797,43 @@ describe( 'DomConverter', () => {
 				const text = document.createTextNode( INLINE_FILLER + ' ' );
 				const view = converter.domToView( text );
 
-				expect( view.data ).to.equal( ' ' );
+				expect( view.data ).toBe( ' ' );
 			} );
 
 			it( 'should convert non breaking space to normal space after inline filler', () => {
 				const text = document.createTextNode( INLINE_FILLER + '\u00A0' );
 				const view = converter.domToView( text );
 
-				expect( view.data ).to.equal( ' ' );
+				expect( view.data ).toBe( ' ' );
+			} );
+		} );
+
+		describe( 'block filler handling (markedNbsp mode)', () => {
+			it( 'should mark parent block as having a block filler and remove the filler span when the span has a parent element', () => {
+				// eslint-disable-next-line new-cap
+				const domFillerSpan = MARKED_NBSP_FILLER( document );
+				const domP = createElement( document, 'p', null, [ domFillerSpan ] );
+
+				const converter2 = new ViewDomConverter( viewDocument, { blockFillerMode: 'markedNbsp' } );
+				const viewP = converter2.domToView( domP );
+
+				// The filler span should have been removed from the view paragraph.
+				expect( viewP.childCount ).toBe( 0 );
+				// The paragraph should be marked as having a block filler.
+				expect( viewP.getCustomProperty( '$hasBlockFiller' ) ).toBe( true );
+			} );
+
+			it( 'should not crash when the marked-nbsp filler span has no parent element', () => {
+				// eslint-disable-next-line new-cap
+				const domFillerSpan = MARKED_NBSP_FILLER( document );
+
+				const converter2 = new ViewDomConverter( viewDocument, { blockFillerMode: 'markedNbsp' } );
+
+				// The span is the root element being converted (no parent), so `node.parent.parent` is null.
+				// The converter should handle this gracefully \u2014 the text is cleared but no custom property is set.
+				const viewSpan = converter2.domToView( domFillerSpan );
+
+				expect( viewSpan.childCount ).toBe( 0 );
 			} );
 		} );
 	} );
@@ -729,9 +846,9 @@ describe( 'DomConverter', () => {
 
 			const viewChildren = Array.from( converter.domChildrenToView( domP ) );
 
-			expect( viewChildren.length ).to.equal( 2 );
-			expect( stringify( viewChildren[ 0 ] ) ).to.equal( '<img></img>' );
-			expect( stringify( viewChildren[ 1 ] ) ).to.equal( 'foo' );
+			expect( viewChildren.length ).toBe( 2 );
+			expect( _stringifyView( viewChildren[ 0 ] ) ).toBe( '<img></img>' );
+			expect( _stringifyView( viewChildren[ 1 ] ) ).toBe( 'foo' );
 		} );
 
 		it( 'should skip filler', () => {
@@ -741,7 +858,7 @@ describe( 'DomConverter', () => {
 
 			const viewChildren = Array.from( converter.domChildrenToView( domP ) );
 
-			expect( viewChildren.length ).to.equal( 0 );
+			expect( viewChildren.length ).toBe( 0 );
 		} );
 
 		it( 'should pass options', () => {
@@ -751,9 +868,9 @@ describe( 'DomConverter', () => {
 
 			const viewChildren = Array.from( converter.domChildrenToView( domP, { withChildren: false } ) );
 
-			expect( viewChildren.length ).to.equal( 2 );
-			expect( stringify( viewChildren[ 0 ] ) ).to.equal( '<b></b>' );
-			expect( stringify( viewChildren[ 1 ] ) ).to.equal( 'foo' );
+			expect( viewChildren.length ).toBe( 2 );
+			expect( _stringifyView( viewChildren[ 0 ] ) ).toBe( '<b></b>' );
+			expect( _stringifyView( viewChildren[ 1 ] ) ).toBe( 'foo' );
 		} );
 	} );
 
@@ -763,27 +880,27 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, 'bar' );
 			const domP = createElement( document, 'p', null, [ domText, domB ] );
 
-			const viewP = parse( '<p>foo<b>bar</b></p>' );
+			const viewP = _parseView( '<p>foo<b>bar</b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 0 ) );
 
 			const viewPosition = converter.domPositionToView( domText, 2 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>fo{}o<b>bar</b></p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>fo{}o<b>bar</b></p>' );
 		} );
 
 		it( 'should support unicode', () => {
 			const domText = document.createTextNode( 'நிலைக்கு' );
 			const domP = createElement( document, 'p', null, [ domText ] );
 
-			const viewP = parse( '<p>நிலைக்கு</p>' );
+			const viewP = _parseView( '<p>நிலைக்கு</p>' );
 
 			converter.bindElements( domP, viewP );
 
 			const viewPosition = converter.domPositionToView( domText, 4 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>நிலை{}க்கு</p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>நிலை{}க்கு</p>' );
 		} );
 
 		it( 'should converter position in element', () => {
@@ -791,41 +908,41 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, 'bar' );
 			const domP = createElement( document, 'p', null, [ domText, domB ] );
 
-			const viewP = parse( '<p>foo<b>bar</b></p>' );
+			const viewP = _parseView( '<p>foo<b>bar</b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 0 ) );
 
 			const viewPosition = converter.domPositionToView( domP, 1 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>foo[]<b>bar</b></p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>foo[]<b>bar</b></p>' );
 		} );
 
 		it( 'should converter position at the beginning', () => {
 			const domText = document.createTextNode( 'foo' );
 			const domP = createElement( document, 'p', null, domText );
 
-			const viewP = parse( '<p>foo</p>' );
+			const viewP = _parseView( '<p>foo</p>' );
 
 			converter.bindElements( domP, viewP );
 
 			const viewPosition = converter.domPositionToView( domP, 0 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>[]foo</p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>[]foo</p>' );
 		} );
 
 		it( 'should converter position inside block filler', () => {
-			const converter = new DomConverter( viewDocument, { blockFillerMode: 'nbsp' } );
+			const converter = new ViewDomConverter( viewDocument, { blockFillerMode: 'nbsp' } );
 			const domFiller = NBSP_FILLER( document ); // eslint-disable-line new-cap
 			const domP = createElement( document, 'p', null, domFiller );
 
-			const viewP = parse( '<p></p>' );
+			const viewP = _parseView( '<p></p>' );
 
 			converter.bindElements( domP, viewP );
 
 			const viewPosition = converter.domPositionToView( domFiller, 0 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>[]</p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>[]</p>' );
 		} );
 
 		it( 'should converter position inside inline filler', () => {
@@ -834,14 +951,14 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, domFiller );
 			const domP = createElement( document, 'p', null, [ domText, domB ] );
 
-			const viewP = parse( '<p>foo<b></b></p>' );
+			const viewP = _parseView( '<p>foo<b></b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 1 ) );
 
 			const viewPosition = converter.domPositionToView( domFiller, INLINE_FILLER_LENGTH );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>foo<b>[]</b></p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>foo<b>[]</b></p>' );
 		} );
 
 		it( 'should converter position inside inline filler with text', () => {
@@ -850,15 +967,15 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, domFiller );
 			const domP = createElement( document, 'p', null, [ domText, domB ] );
 
-			const viewP = parse( '<p>foo<b>bar</b></p>' );
+			const viewP = _parseView( '<p>foo<b>bar</b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 1 ) );
 
 			const viewPosition = converter.domPositionToView( domFiller, INLINE_FILLER_LENGTH + 2 );
 
-			expect( viewPosition.offset ).to.equal( 2 );
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>foo<b>ba{}r</b></p>' );
+			expect( viewPosition.offset ).toBe( 2 );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>foo<b>ba{}r</b></p>' );
 		} );
 
 		it( 'should converter position inside inline filler with text at the beginning', () => {
@@ -867,28 +984,28 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, domFiller );
 			const domP = createElement( document, 'p', null, [ domText, domB ] );
 
-			const viewP = parse( '<p>foo<b>bar</b></p>' );
+			const viewP = _parseView( '<p>foo<b>bar</b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 1 ) );
 
 			const viewPosition = converter.domPositionToView( domFiller, INLINE_FILLER_LENGTH - 1 );
 
-			expect( viewPosition.offset ).to.equal( 0 );
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>foo<b>{}bar</b></p>' );
+			expect( viewPosition.offset ).toBe( 0 );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>foo<b>{}bar</b></p>' );
 		} );
 
 		it( 'should converter position at the end', () => {
 			const domText = document.createTextNode( 'foo' );
 			const domP = createElement( document, 'p', null, domText );
 
-			const viewP = parse( '<p>foo</p>' );
+			const viewP = _parseView( '<p>foo</p>' );
 
 			converter.bindElements( domP, viewP );
 
 			const viewPosition = converter.domPositionToView( domP, 1 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>foo[]</p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>foo[]</p>' );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/12575.
@@ -897,14 +1014,14 @@ describe( 'DomConverter', () => {
 			const domBr = createElement( document, 'br' );
 			const domP = createElement( document, 'p', null, [ domFiller, domBr ] );
 
-			const viewP = parse( '<p><br/></p>' );
+			const viewP = _parseView( '<p><br/></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domBr, viewP.getChild( 0 ) );
 
 			const viewPosition = converter.domPositionToView( domP, 1 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>[]<br></br></p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>[]<br></br></p>' );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/12575.
@@ -914,7 +1031,7 @@ describe( 'DomConverter', () => {
 			const domBr2 = createElement( document, 'br' );
 			const domP = createElement( document, 'p', null, [ domBr1, domFiller, domBr2 ] );
 
-			const viewP = parse( '<p><br/><br/></p>' );
+			const viewP = _parseView( '<p><br/><br/></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domBr1, viewP.getChild( 0 ) );
@@ -922,34 +1039,34 @@ describe( 'DomConverter', () => {
 
 			const viewPosition = converter.domPositionToView( domP, 2 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p><br></br>[]<br></br></p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p><br></br>[]<br></br></p>' );
 		} );
 
 		it( 'should convert position after a block filler', () => {
 			const domFiller = BR_FILLER( document ); // eslint-disable-line new-cap
 			const domP = createElement( document, 'p', null, [ domFiller ] );
 
-			const viewP = parse( '<p></p>' );
+			const viewP = _parseView( '<p></p>' );
 
 			converter.bindElements( domP, viewP );
 
 			const viewPosition = converter.domPositionToView( domP, 1 );
 
-			expect( stringify( viewP, viewPosition ) ).to.equal( '<p>[]</p>' );
+			expect( _stringifyView( viewP, viewPosition ) ).toBe( '<p>[]</p>' );
 		} );
 
 		it( 'should not crash if offset does not exist', () => {
 			const domFiller = document.createTextNode( INLINE_FILLER );
 			const domP = createElement( document, 'p', null, [ domFiller ] );
 
-			const viewP = parse( '<p></p>' );
+			const viewP = _parseView( '<p></p>' );
 
 			converter.bindElements( domP, viewP );
 
 			const viewPosition = converter.domPositionToView( domP, 100 );
 
-			expect( viewPosition ).to.be.null;
-			expect( stringify( viewP ) ).to.equal( '<p></p>' );
+			expect( viewPosition ).toBeNull();
+			expect( _stringifyView( viewP ) ).toBe( '<p></p>' );
 		} );
 
 		it( 'should return null if there is no corresponding parent node', () => {
@@ -958,7 +1075,7 @@ describe( 'DomConverter', () => {
 
 			const viewPosition = converter.domPositionToView( domP, 0 );
 
-			expect( viewPosition ).to.be.null;
+			expect( viewPosition ).toBeNull();
 		} );
 
 		it( 'should return null if there is no corresponding sibling node', () => {
@@ -968,7 +1085,7 @@ describe( 'DomConverter', () => {
 
 			const viewPosition = converter.domPositionToView( domP, 1 );
 
-			expect( viewPosition ).to.be.null;
+			expect( viewPosition ).toBeNull();
 		} );
 
 		it( 'should return null if there is no corresponding text node', () => {
@@ -976,7 +1093,7 @@ describe( 'DomConverter', () => {
 
 			const viewPosition = converter.domPositionToView( domText, 1 );
 
-			expect( viewPosition ).to.be.null;
+			expect( viewPosition ).toBeNull();
 		} );
 	} );
 
@@ -987,7 +1104,7 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, domBar );
 			const domP = createElement( document, 'p', null, [ domFoo, domB ] );
 
-			const viewP = parse( '<p>foo<b>bar</b></p>' );
+			const viewP = _parseView( '<p>foo<b>bar</b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 1 ) );
@@ -998,7 +1115,7 @@ describe( 'DomConverter', () => {
 
 			const viewRange = converter.domRangeToView( domRange );
 
-			expect( stringify( viewP, viewRange ) ).to.equal( '<p>f{oo<b>ba}r</b></p>' );
+			expect( _stringifyView( viewP, viewRange ) ).toBe( '<p>f{oo<b>ba}r</b></p>' );
 		} );
 
 		it( 'should return null if start or end is null', () => {
@@ -1013,7 +1130,7 @@ describe( 'DomConverter', () => {
 
 			const viewRange = converter.domRangeToView( domRange );
 
-			expect( viewRange ).to.be.null;
+			expect( viewRange ).toBeNull();
 		} );
 	} );
 
@@ -1024,7 +1141,7 @@ describe( 'DomConverter', () => {
 			const domB = createElement( document, 'b', null, domBar );
 			const domP = createElement( document, 'p', null, [ domFoo, domB ] );
 
-			const viewP = parse( '<p>foo<b>bar</b></p>' );
+			const viewP = _parseView( '<p>foo<b>bar</b></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 1 ) );
@@ -1041,8 +1158,8 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 1 );
-			expect( stringify( viewP, viewSelection.getFirstRange() ) ).to.equal( '<p>f{oo<b>ba}r</b></p>' );
+			expect( viewSelection.rangeCount ).toBe( 1 );
+			expect( _stringifyView( viewP, viewSelection.getFirstRange() ) ).toBe( '<p>f{oo<b>ba}r</b></p>' );
 
 			domP.remove();
 		} );
@@ -1053,14 +1170,14 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 0 );
+			expect( viewSelection.rangeCount ).toBe( 0 );
 		} );
 
 		it( 'should handle selection direction (forward, same node)', () => {
 			const domFoo = document.createTextNode( 'foo' );
 			const domP = createElement( document, 'p', null, [ domFoo ] );
 
-			const viewP = parse( '<p>foo</p>' );
+			const viewP = _parseView( '<p>foo</p>' );
 
 			converter.bindElements( domP, viewP );
 
@@ -1077,10 +1194,10 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 1 );
-			expect( viewSelection.anchor.offset ).to.equal( 1 );
-			expect( viewSelection.focus.offset ).to.equal( 2 );
-			expect( viewSelection.isBackward ).to.be.false;
+			expect( viewSelection.rangeCount ).toBe( 1 );
+			expect( viewSelection.anchor.offset ).toBe( 1 );
+			expect( viewSelection.focus.offset ).toBe( 2 );
+			expect( viewSelection.isBackward ).toBe( false );
 
 			domP.remove();
 		} );
@@ -1092,7 +1209,7 @@ describe( 'DomConverter', () => {
 			const domI = createElement( document, 'i', null, [ domBar ] );
 			const domP = createElement( document, 'p', null, [ domB, domI ] );
 
-			const viewP = parse( '<p><b>foo</b><i>bar</i></p>' );
+			const viewP = _parseView( '<p><b>foo</b><i>bar</i></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 0 ) );
@@ -1111,12 +1228,12 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 1 );
-			expect( viewSelection.anchor.parent.parent.name ).to.equal( 'b' );
-			expect( viewSelection.anchor.offset ).to.equal( 2 );
-			expect( viewSelection.focus.parent.parent.name ).to.equal( 'i' );
-			expect( viewSelection.focus.offset ).to.equal( 1 );
-			expect( viewSelection.isBackward ).to.be.false;
+			expect( viewSelection.rangeCount ).toBe( 1 );
+			expect( viewSelection.anchor.parent.parent.name ).toBe( 'b' );
+			expect( viewSelection.anchor.offset ).toBe( 2 );
+			expect( viewSelection.focus.parent.parent.name ).toBe( 'i' );
+			expect( viewSelection.focus.offset ).toBe( 1 );
+			expect( viewSelection.isBackward ).toBe( false );
 
 			domP.remove();
 		} );
@@ -1125,7 +1242,7 @@ describe( 'DomConverter', () => {
 			const domFoo = document.createTextNode( 'foo' );
 			const domP = createElement( document, 'p', null, [ domFoo ] );
 
-			const viewP = parse( '<p>foo</p>' );
+			const viewP = _parseView( '<p>foo</p>' );
 
 			converter.bindElements( domP, viewP );
 
@@ -1142,10 +1259,10 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 1 );
-			expect( viewSelection.anchor.offset ).to.equal( 2 );
-			expect( viewSelection.focus.offset ).to.equal( 1 );
-			expect( viewSelection.isBackward ).to.be.true;
+			expect( viewSelection.rangeCount ).toBe( 1 );
+			expect( viewSelection.anchor.offset ).toBe( 2 );
+			expect( viewSelection.focus.offset ).toBe( 1 );
+			expect( viewSelection.isBackward ).toBe( true );
 
 			domP.remove();
 		} );
@@ -1157,7 +1274,7 @@ describe( 'DomConverter', () => {
 			const domI = createElement( document, 'i', null, [ domBar ] );
 			const domP = createElement( document, 'p', null, [ domB, domI ] );
 
-			const viewP = parse( '<p><b>foo</b><i>bar</i></p>' );
+			const viewP = _parseView( '<p><b>foo</b><i>bar</i></p>' );
 
 			converter.bindElements( domP, viewP );
 			converter.bindElements( domB, viewP.getChild( 0 ) );
@@ -1176,12 +1293,12 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 1 );
-			expect( viewSelection.anchor.parent.parent.name ).to.equal( 'i' );
-			expect( viewSelection.anchor.offset ).to.equal( 1 );
-			expect( viewSelection.focus.parent.parent.name ).to.equal( 'b' );
-			expect( viewSelection.focus.offset ).to.equal( 2 );
-			expect( viewSelection.isBackward ).to.be.true;
+			expect( viewSelection.rangeCount ).toBe( 1 );
+			expect( viewSelection.anchor.parent.parent.name ).toBe( 'i' );
+			expect( viewSelection.anchor.offset ).toBe( 1 );
+			expect( viewSelection.focus.parent.parent.name ).toBe( 'b' );
+			expect( viewSelection.focus.offset ).toBe( 2 );
+			expect( viewSelection.isBackward ).toBe( true );
 
 			domP.remove();
 		} );
@@ -1192,7 +1309,7 @@ describe( 'DomConverter', () => {
 			const domFoo = document.createTextNode( 'foo' );
 			const domP = createElement( document, 'p', null, [ domFoo ] );
 
-			const viewP = parse( '<p>foo</p>' );
+			const viewP = _parseView( '<p>foo</p>' );
 
 			converter.bindElements( domP, viewP );
 
@@ -1217,10 +1334,10 @@ describe( 'DomConverter', () => {
 
 			expect( () => {
 				viewSelection = converter.domSelectionToView( domSelection );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
-			expect( viewSelection.rangeCount ).to.equal( 1 );
-			expect( viewSelection.isBackward ).to.be.false;
+			expect( viewSelection.rangeCount ).toBe( 1 );
+			expect( viewSelection.isBackward ).toBe( false );
 
 			domP.remove();
 		} );
@@ -1243,7 +1360,7 @@ describe( 'DomConverter', () => {
 
 			const viewSelection = converter.domSelectionToView( domSelection );
 
-			expect( viewSelection.rangeCount ).to.equal( 0 );
+			expect( viewSelection.rangeCount ).toBe( 0 );
 
 			domP.remove();
 		} );
@@ -1264,7 +1381,7 @@ describe( 'DomConverter', () => {
 
 			const bindViewSelection = converter.domSelectionToView( domSelection );
 
-			expect( bindViewSelection.isEqual( viewSelection ) ).to.be.true;
+			expect( bindViewSelection.isEqual( viewSelection ) ).toBe( true );
 
 			domContainer.remove();
 		} );
@@ -1285,7 +1402,7 @@ describe( 'DomConverter', () => {
 
 			const bindViewSelection = converter.domSelectionToView( domSelection );
 
-			expect( bindViewSelection.isEqual( viewSelection ) ).to.be.true;
+			expect( bindViewSelection.isEqual( viewSelection ) ).toBe( true );
 
 			domContainer.remove();
 		} );
@@ -1293,12 +1410,12 @@ describe( 'DomConverter', () => {
 		// See https://github.com/ckeditor/ckeditor5/issues/9635.
 		describe( 'restricted objects in Firefox', () => {
 			it( 'not throw if selection is anchored in the restricted object', () => {
-				testUtils.sinon.stub( env, 'isGecko' ).value( true );
+				vi.spyOn( env, 'isGecko', 'get' ).mockReturnValue( true );
 
 				const domFoo = document.createTextNode( 'foo' );
 				const domP = createElement( document, 'p', null, [ domFoo ] );
 
-				const viewP = parse( '<p>foo</p>' );
+				const viewP = _parseView( '<p>foo</p>' );
 
 				converter.bindElements( domP, viewP );
 
@@ -1314,11 +1431,11 @@ describe( 'DomConverter', () => {
 
 				const viewSelection = converter.domSelectionToView( domSelection );
 
-				expect( viewSelection.rangeCount ).to.equal( 1 );
-				expect( stringify( viewP, viewSelection.getFirstRange() ) ).to.equal( '<p>f{o}o</p>' );
+				expect( viewSelection.rangeCount ).toBe( 1 );
+				expect( _stringifyView( viewP, viewSelection.getFirstRange() ) ).toBe( '<p>f{o}o</p>' );
 
 				// Now we know that there should be a valid view range. So let's test if the DOM node throws an error.
-				sinon.stub( domFoo, Symbol.toStringTag ).get( () => {
+				vi.spyOn( domFoo, Symbol.toStringTag, 'get' ).mockImplementation( () => {
 					throw new Error( 'Permission denied to access property Symbol.toStringTag' );
 				} );
 
@@ -1326,21 +1443,21 @@ describe( 'DomConverter', () => {
 
 				expect( () => {
 					result = converter.domSelectionToView( domSelection );
-				} ).to.not.throw();
+				} ).not.toThrow();
 
-				expect( result instanceof ViewSelection ).to.be.true;
-				expect( result.rangeCount ).to.equal( 0 );
+				expect( result instanceof ViewSelection ).toBe( true );
+				expect( result.rangeCount ).toBe( 0 );
 
 				domP.remove();
 			} );
 
 			it( 'should not check if restricted object on non-Gecko browsers', () => {
-				testUtils.sinon.stub( env, 'isGecko' ).value( false );
+				vi.spyOn( env, 'isGecko', 'get' ).mockReturnValue( false );
 
 				const domFoo = document.createTextNode( 'foo' );
 				const domP = createElement( document, 'p', null, [ domFoo ] );
 
-				const viewP = parse( '<p>foo</p>' );
+				const viewP = _parseView( '<p>foo</p>' );
 
 				converter.bindElements( domP, viewP );
 
@@ -1356,21 +1473,21 @@ describe( 'DomConverter', () => {
 
 				const viewSelection = converter.domSelectionToView( domSelection );
 
-				expect( viewSelection.rangeCount ).to.equal( 1 );
-				expect( stringify( viewP, viewSelection.getFirstRange() ) ).to.equal( '<p>f{o}o</p>' );
+				expect( viewSelection.rangeCount ).toBe( 1 );
+				expect( _stringifyView( viewP, viewSelection.getFirstRange() ) ).toBe( '<p>f{o}o</p>' );
 
 				domP.remove();
 			} );
 
 			it( 'should convert empty selection to empty selection (in Gecko)', () => {
-				testUtils.sinon.stub( env, 'isGecko' ).value( true );
+				vi.spyOn( env, 'isGecko', 'get' ).mockReturnValue( true );
 
 				const domSelection = document.getSelection();
 				domSelection.removeAllRanges();
 
 				const viewSelection = converter.domSelectionToView( domSelection );
 
-				expect( viewSelection.rangeCount ).to.equal( 0 );
+				expect( viewSelection.rangeCount ).toBe( 0 );
 			} );
 		} );
 	} );

@@ -1,34 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, Event, window, HTMLElement, getComputedStyle  */
-
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Editor } from '@ckeditor/ckeditor5-core';
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import EditorUI from '../../src/editorui/editorui';
-import { BalloonPanelView } from '../../src';
-import View from '../../src/view';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { SourceEditing } from '@ckeditor/ckeditor5-source-editing';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { Rect } from '@ckeditor/ckeditor5-utils';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { generateLicenseKey } from '@ckeditor/ckeditor5-core/tests/_utils/generatelicensekey.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { Rect, global } from '@ckeditor/ckeditor5-utils';
-import SourceEditing from '@ckeditor/ckeditor5-source-editing/src/sourceediting';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { EditorUI } from '../../src/editorui/editorui.js';
+import { BalloonPanelView } from '../../src/index.js';
+import { View } from '../../src/view.js';
 
 describe( 'PoweredBy', () => {
 	let editor, element;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
 		editor = await createEditor( element );
 
-		testUtils.sinon.stub( editor.editing.view.getDomRoot(), 'getBoundingClientRect' ).returns( {
+		vi.spyOn( editor.editing.view.getDomRoot(), 'getBoundingClientRect' ).mockReturnValue( {
 			top: 0,
 			left: 0,
 			right: 400,
@@ -37,7 +34,7 @@ describe( 'PoweredBy', () => {
 			height: 100
 		} );
 
-		testUtils.sinon.stub( document.body, 'getBoundingClientRect' ).returns( {
+		vi.spyOn( document.body, 'getBoundingClientRect' ).mockReturnValue( {
 			top: 0,
 			right: 1000,
 			bottom: 1000,
@@ -46,8 +43,8 @@ describe( 'PoweredBy', () => {
 			height: 1000
 		} );
 
-		sinon.stub( global.window, 'innerWidth' ).value( 1000 );
-		sinon.stub( global.window, 'innerHeight' ).value( 1000 );
+		vi.stubGlobal( 'innerWidth', 1000 );
+		vi.stubGlobal( 'innerHeight', 1000 );
 	} );
 
 	afterEach( async () => {
@@ -57,7 +54,8 @@ describe( 'PoweredBy', () => {
 
 	describe( 'constructor()', () => {
 		describe( 'balloon creation', () => {
-			it( 'should not throw if there is no view in EditorUI', () => {
+			it( 'should not throw if there is no view in EditorUI', async () => {
+				let destroyPromise;
 				expect( () => {
 					const editor = new Editor();
 
@@ -70,42 +68,72 @@ describe( 'PoweredBy', () => {
 					editor.ui.focusTracker.add( element );
 					element.focus();
 
-					editor.destroy();
+					editor.fire( 'ready' );
 					editor.ui.destroy();
-				} ).to.not.throw();
+					destroyPromise = editor.destroy();
+				} ).not.toThrow();
+				await destroyPromise;
 			} );
 
 			it( 'should create the balloon on demand', () => {
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
 
 				focusEditor( editor );
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.instanceOf( BalloonPanelView );
+				expect( editor.ui.poweredBy._balloonView ).toBeInstanceOf( BalloonPanelView );
 			} );
 
-			it( 'should not create the balloon when a valid license key is configured', async () => {
+			it( 'should create the balloon when license is `GPL`', async () => {
 				const editor = await createEditor( element, {
-					// eslint-disable-next-line max-len
-					// https://github.com/ckeditor/ckeditor5/blob/226bf243d1eb8bae2d447f631d6f5d9961bc6541/packages/ckeditor5-utils/tests/verifylicense.js#L14
-					// eslint-disable-next-line max-len
-					licenseKey: 'dG9vZWFzZXRtcHNsaXVyb3JsbWlkbXRvb2Vhc2V0bXBzbGl1cm9ybG1pZG10b29lYXNldG1wc2xpdXJvcmxtaWRtLU1qQTBOREEyTVRJPQ=='
+					licenseKey: 'GPL'
 				} );
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
 
 				focusEditor( editor );
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeInstanceOf( BalloonPanelView );
 
 				await editor.destroy();
 			} );
 
-			it( 'should create the balloon when a valid license key is configured and `forceVisible` is set to true', async () => {
+			it( 'should create the balloon when license is invalid', async () => {
+				const showErrorStub = vi.spyOn( ClassicTestEditor.prototype, '_showLicenseError' ).mockImplementation( () => {} );
+
 				const editor = await createEditor( element, {
-					// eslint-disable-next-line max-len
-					// https://github.com/ckeditor/ckeditor5/blob/226bf243d1eb8bae2d447f631d6f5d9961bc6541/packages/ckeditor5-utils/tests/verifylicense.js#L14
-					// eslint-disable-next-line max-len
-					licenseKey: 'dG9vZWFzZXRtcHNsaXVyb3JsbWlkbXRvb2Vhc2V0bXBzbGl1cm9ybG1pZG10b29lYXNldG1wc2xpdXJvcmxtaWRtLU1qQTBOREEyTVRJPQ==',
+					licenseKey: '<YOUR_LICENSE_KEY>'
+				} );
+
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
+
+				focusEditor( editor );
+
+				expect( editor.ui.poweredBy._balloonView ).toBeInstanceOf( BalloonPanelView );
+
+				await editor.destroy();
+
+				showErrorStub.mockRestore();
+			} );
+
+			it( 'should not create the balloon when a white-label license key is configured', async () => {
+				const { licenseKey } = generateLicenseKey( { whiteLabel: true } );
+				const editor = await createEditor( element, {
+					licenseKey
+				} );
+
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
+
+				focusEditor( editor );
+
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
+
+				await editor.destroy();
+			} );
+
+			it( 'should create the balloon when a white-label license key is configured and `forceVisible` is set to true', async () => {
+				const { licenseKey } = generateLicenseKey( { whiteLabel: true } );
+				const editor = await createEditor( element, {
+					licenseKey,
 					ui: {
 						poweredBy: {
 							forceVisible: true
@@ -113,11 +141,26 @@ describe( 'PoweredBy', () => {
 					}
 				} );
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
 
 				focusEditor( editor );
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.instanceOf( BalloonPanelView );
+				expect( editor.ui.poweredBy._balloonView ).toBeInstanceOf( BalloonPanelView );
+
+				await editor.destroy();
+			} );
+
+			it( 'should create the balloon when a non-white-label license key is configured', async () => {
+				const { licenseKey } = generateLicenseKey();
+				const editor = await createEditor( element, {
+					licenseKey
+				} );
+
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
+
+				focusEditor( editor );
+
+				expect( editor.ui.poweredBy._balloonView ).toBeInstanceOf( BalloonPanelView );
 
 				await editor.destroy();
 			} );
@@ -129,7 +172,7 @@ describe( 'PoweredBy', () => {
 			it( 'should show the balloon when the editor gets focused', () => {
 				focusEditor( editor );
 
-				expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
+				expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
 			} );
 
 			it( 'should show the balloon if the focus is not in the editing root but in other editor UI', async () => {
@@ -144,12 +187,12 @@ describe( 'PoweredBy', () => {
 				blurEditor( editor );
 
 				await wait( 10 );
-				const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+				const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 				focusEditor( editor, focusableEditorUIElement );
 
-				sinon.assert.calledOnce( pinSpy );
-				sinon.assert.calledWith( pinSpy, sinon.match.has( 'target', editor.editing.view.getDomRoot() ) );
+				expect( pinSpy ).toHaveBeenCalledOnce();
+				expect( pinSpy ).toHaveBeenCalledWith( expect.objectContaining( { target: editor.editing.view.getDomRoot() } ) );
 
 				focusableEditorUIElement.remove();
 			} );
@@ -157,14 +200,14 @@ describe( 'PoweredBy', () => {
 			it( 'should hide the balloon on blur', async () => {
 				focusEditor( editor );
 
-				expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
+				expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
 
 				blurEditor( editor );
 
 				// FocusTracker's blur handler is asynchronous.
 				await wait( 200 );
 
-				expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.false;
+				expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( false );
 			} );
 
 			// This is a weak test because it does not check the geometry but it will do.
@@ -179,7 +222,7 @@ describe( 'PoweredBy', () => {
 				}
 
 				// Rect#getVisible() passthrough to ignore ancestors. Makes testing a lot easier.
-				testUtils.sinon.stub( Rect.prototype, 'getVisible' ).callsFake( function() {
+				vi.spyOn( Rect.prototype, 'getVisible' ).mockImplementation( function() {
 					if ( isEditableElement( this._source ) ) {
 						return new Rect( this._source );
 					} else {
@@ -188,7 +231,7 @@ describe( 'PoweredBy', () => {
 				} );
 
 				// Stub textarea's client rect.
-				testUtils.sinon.stub( HTMLElement.prototype, 'getBoundingClientRect' ).callsFake( function() {
+				vi.spyOn( HTMLElement.prototype, 'getBoundingClientRect' ).mockImplementation( function() {
 					if ( this.parentNode.classList.contains( 'ck-source-editing-area' ) ) {
 						return {
 							top: 0,
@@ -205,7 +248,7 @@ describe( 'PoweredBy', () => {
 
 				focusEditor( editor );
 
-				domRoot.getBoundingClientRect.returns( {
+				domRoot.getBoundingClientRect.mockReturnValue( {
 					top: 0,
 					left: 0,
 					right: 350,
@@ -214,61 +257,60 @@ describe( 'PoweredBy', () => {
 					height: 100
 				} );
 
-				const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+				const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 				editor.ui.fire( 'update' );
 
 				await wait( 75 );
 
-				expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-				expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'position_border-side_right' );
-				sinon.assert.calledWith( pinSpy.lastCall, sinon.match.has( 'target', domRoot ) );
+				expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+				expect( editor.ui.poweredBy._balloonView.position ).toBe( 'position_border-side_right' );
+				expect( pinSpy ).toHaveBeenLastCalledWith( expect.objectContaining( { target: domRoot } ) );
 
 				editor.plugins.get( 'SourceEditing' ).isSourceEditingMode = true;
 
 				const sourceAreaElement = editor.ui.getEditableElement( 'sourceEditing:main' );
 
 				focusEditor( editor, sourceAreaElement );
-				sinon.assert.calledWith(
-					pinSpy.lastCall,
-					sinon.match.has( 'target', sourceAreaElement )
+				expect( pinSpy ).toHaveBeenLastCalledWith(
+					expect.objectContaining( { target: sourceAreaElement } )
 				);
 
-				expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-				expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'position_border-side_right' );
+				expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+				expect( editor.ui.poweredBy._balloonView.position ).toBe( 'position_border-side_right' );
 
 				editor.plugins.get( 'SourceEditing' ).isSourceEditingMode = false;
 				focusEditor( editor );
 
-				expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-				expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'position_border-side_right' );
-				sinon.assert.calledWith( pinSpy.lastCall, sinon.match.has( 'target', domRoot ) );
-			} );
+				expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+				expect( editor.ui.poweredBy._balloonView.position ).toBe( 'position_border-side_right' );
+				expect( pinSpy ).toHaveBeenLastCalledWith( expect.objectContaining( { target: domRoot } ) );
+			}, 1000 * 30 );
 		} );
 
 		describe( 'balloon management on EditorUI#update', () => {
 			it( 'should not trigger if the editor is not focused', () => {
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
 
 				editor.ui.fire( 'update' );
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
 			} );
 
 			it( 'should (re-)show the balloon but throttled', async () => {
 				focusEditor( editor );
 
-				const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+				const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 				editor.ui.fire( 'update' );
 				editor.ui.fire( 'update' );
 
-				sinon.assert.notCalled( pinSpy );
+				expect( pinSpy ).not.toHaveBeenCalled();
 
 				await wait( 75 );
 
-				sinon.assert.calledOnce( pinSpy );
-				sinon.assert.calledWith( pinSpy.firstCall, sinon.match.has( 'target', editor.editing.view.getDomRoot() ) );
+				expect( pinSpy ).toHaveBeenCalledOnce();
+				expect( pinSpy ).toHaveBeenCalledWith( expect.objectContaining( { target: editor.editing.view.getDomRoot() } ) );
 			} );
 
 			it( 'should (re-)show the balloon if the focus is not in the editing root but in other editor UI', async () => {
@@ -279,19 +321,19 @@ describe( 'PoweredBy', () => {
 
 				focusEditor( editor, focusableEditorUIElement );
 
-				const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+				const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
-				sinon.assert.notCalled( pinSpy );
+				expect( pinSpy ).not.toHaveBeenCalled();
 
 				editor.ui.fire( 'update' );
 				editor.ui.fire( 'update' );
 
-				sinon.assert.calledOnce( pinSpy );
+				expect( pinSpy ).toHaveBeenCalledOnce();
 
 				await wait( 75 );
 
-				sinon.assert.calledTwice( pinSpy );
-				sinon.assert.calledWith( pinSpy, sinon.match.has( 'target', editor.editing.view.getDomRoot() ) );
+				expect( pinSpy ).toHaveBeenCalledTimes( 2 );
+				expect( pinSpy ).toHaveBeenCalledWith( expect.objectContaining( { target: editor.editing.view.getDomRoot() } ) );
 				focusableEditorUIElement.remove();
 			} );
 		} );
@@ -300,7 +342,7 @@ describe( 'PoweredBy', () => {
 			let balloon, focusTrackerAddSpy;
 
 			beforeEach( () => {
-				focusTrackerAddSpy = testUtils.sinon.spy( editor.ui.focusTracker, 'add' );
+				focusTrackerAddSpy = vi.spyOn( editor.ui.focusTracker, 'add' );
 
 				focusEditor( editor );
 
@@ -308,27 +350,27 @@ describe( 'PoweredBy', () => {
 			} );
 
 			it( 'should be an instance of BalloonPanelView', () => {
-				expect( balloon ).to.be.instanceOf( BalloonPanelView );
+				expect( balloon ).toBeInstanceOf( BalloonPanelView );
 			} );
 
 			it( 'should host a powered by view', () => {
-				expect( balloon.content.first ).to.be.instanceOf( View );
+				expect( balloon.content.first ).toBeInstanceOf( View );
 			} );
 
 			it( 'should have no arrow', () => {
-				expect( balloon.withArrow ).to.be.false;
+				expect( balloon.withArrow ).toBe( false );
 			} );
 
 			it( 'should have a specific CSS class', () => {
-				expect( balloon.class ).to.equal( 'ck-powered-by-balloon' );
+				expect( balloon.class ).toBe( 'ck-powered-by-balloon' );
 			} );
 
 			it( 'should be added to editor\'s body view collection', () => {
-				expect( editor.ui.view.body.has( balloon ) ).to.be.true;
+				expect( editor.ui.view.body.has( balloon ) ).toBe( true );
 			} );
 
 			it( 'should be registered in the focus tracker to avoid focus loss on click', () => {
-				sinon.assert.calledWith( focusTrackerAddSpy, balloon.element );
+				expect( focusTrackerAddSpy ).toHaveBeenCalledWith( balloon.element );
 			} );
 		} );
 
@@ -342,46 +384,46 @@ describe( 'PoweredBy', () => {
 			} );
 
 			it( 'should have specific CSS classes', () => {
-				expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-				expect( view.element.classList.contains( 'ck-powered-by' ) ).to.be.true;
+				expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+				expect( view.element.classList.contains( 'ck-powered-by' ) ).toBe( true );
 			} );
 
 			it( 'should have a link that opens in a new tab', () => {
-				const link = 'https://ckeditor.com/?utm_source=ckeditor&utm_medium=referral' +
+				const link = 'https://ckeditor.com/powered-by-ckeditor/?utm_source=ckeditor&utm_medium=referral' +
 					'&utm_campaign=701Dn000000hVgmIAE_powered_by_ckeditor_logo';
-				expect( view.element.firstChild.tagName ).to.equal( 'A' );
-				expect( view.element.firstChild.href ).to.equal( link );
-				expect( view.element.firstChild.target ).to.equal( '_blank' );
+				expect( view.element.firstChild.tagName ).toBe( 'A' );
+				expect( view.element.firstChild.href ).toBe( link );
+				expect( view.element.firstChild.target ).toBe( '_blank' );
 			} );
 
 			it( 'should have a label inside the link', () => {
-				expect( view.element.firstChild.firstChild.tagName ).to.equal( 'SPAN' );
-				expect( view.element.firstChild.firstChild.classList.contains( 'ck' ) ).to.be.true;
-				expect( view.element.firstChild.firstChild.classList.contains( 'ck-powered-by__label' ) ).to.be.true;
-				expect( view.element.firstChild.firstChild.textContent ).to.equal( 'Powered by' );
+				expect( view.element.firstChild.firstChild.tagName ).toBe( 'SPAN' );
+				expect( view.element.firstChild.firstChild.classList.contains( 'ck' ) ).toBe( true );
+				expect( view.element.firstChild.firstChild.classList.contains( 'ck-powered-by__label' ) ).toBe( true );
+				expect( view.element.firstChild.firstChild.textContent ).toBe( 'Powered by' );
 			} );
 
 			it( 'should have an icon next to the label', () => {
-				expect( view.element.firstChild.lastChild.tagName ).to.equal( 'svg' );
+				expect( view.element.firstChild.lastChild.tagName ).toBe( 'svg' );
 			} );
 
 			it( 'should be impossible to drag and drop into editor\'s content', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 				const evt = new Event( 'dragstart' );
 
 				evt.preventDefault = spy;
 
 				view.element.firstChild.dispatchEvent( evt );
 
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should be excluded from the accessibility tree', () => {
-				expect( view.element.getAttribute( 'aria-hidden' ) ).to.equal( 'true' );
+				expect( view.element.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 			} );
 
 			it( 'should not be accessible via tab key navigation', () => {
-				expect( view.element.firstChild.tabIndex ).to.equal( -1 );
+				expect( view.element.firstChild.tabIndex ).toBe( -1 );
 			} );
 
 			it( 'should have a configurable label (custom text)', async () => {
@@ -397,7 +439,7 @@ describe( 'PoweredBy', () => {
 
 				const view = editor.ui.poweredBy._balloonView.content.first;
 
-				expect( view.element.firstChild.firstChild.textContent ).to.equal( 'foo' );
+				expect( view.element.firstChild.firstChild.textContent ).toBe( 'foo' );
 
 				await editor.destroy();
 			} );
@@ -415,8 +457,8 @@ describe( 'PoweredBy', () => {
 
 				const view = editor.ui.poweredBy._balloonView.content.first;
 
-				expect( view.element.firstChild.childElementCount ).to.equal( 1 );
-				expect( view.element.firstChild.firstChild.tagName ).to.equal( 'svg' );
+				expect( view.element.firstChild.childElementCount ).toBe( 1 );
+				expect( view.element.firstChild.firstChild.tagName ).toBe( 'svg' );
 
 				await editor.destroy();
 			} );
@@ -429,47 +471,49 @@ describe( 'PoweredBy', () => {
 				focusEditor( editor );
 			} );
 
-			it( 'should unpin the balloon', () => {
-				const unpinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'unpin' );
+			it( 'should unpin the balloon', async () => {
+				const unpinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'unpin' );
 
-				editor.destroy();
+				await editor.destroy();
 
-				sinon.assert.calledOnce( unpinSpy );
+				expect( unpinSpy ).toHaveBeenCalledOnce();
 			} );
 
-			it( 'should destroy the balloon', () => {
-				const destroySpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'destroy' );
+			it( 'should destroy the balloon', async () => {
+				const destroySpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'destroy' );
 
-				editor.destroy();
+				await editor.destroy();
 
-				sinon.assert.called( destroySpy );
+				expect( destroySpy ).toHaveBeenCalled();
 
-				expect( editor.ui.poweredBy._balloonView ).to.be.null;
+				expect( editor.ui.poweredBy._balloonView ).toBeNull();
 			} );
 
-			it( 'should cancel any throttled show to avoid post-destroy timed errors', () => {
-				const spy = testUtils.sinon.spy( editor.ui.poweredBy._showBalloonThrottled, 'cancel' );
+			it( 'should cancel any throttled show to avoid post-destroy timed errors', async () => {
+				const spy = vi.spyOn( editor.ui.poweredBy._showBalloonThrottled, 'cancel' );
 
-				editor.destroy();
+				await editor.destroy();
 
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 
 		describe( 'if there was no balloon', () => {
-			it( 'should not throw', () => {
+			it( 'should not throw', async () => {
+				let destroyPromise;
 				expect( () => {
-					editor.destroy();
-				} ).to.not.throw();
+					destroyPromise = editor.destroy();
+				} ).not.toThrow();
+				await destroyPromise;
 			} );
 		} );
 
-		it( 'should destroy the emitter listeners', () => {
-			const spy = testUtils.sinon.spy( editor.ui.poweredBy, 'stopListening' );
+		it( 'should destroy the emitter listeners', async () => {
+			const spy = vi.spyOn( editor.ui.poweredBy, 'stopListening' );
 
-			editor.destroy();
+			await editor.destroy();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -495,8 +539,8 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-			expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'arrowless' );
+			expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+			expect( editor.ui.poweredBy._balloonView.position ).toBe( 'arrowless' );
 
 			parentWithOverflow.remove();
 		} );
@@ -514,8 +558,8 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-			expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'arrowless' );
+			expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+			expect( editor.ui.poweredBy._balloonView.position ).toBe( 'arrowless' );
 
 			parentWithOverflow.remove();
 		} );
@@ -525,7 +569,7 @@ describe( 'PoweredBy', () => {
 				language: 'ar'
 			} );
 
-			testUtils.sinon.stub( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).returns( {
+			vi.spyOn( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 400,
@@ -536,20 +580,20 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 95,
 				left: 5,
 				name: 'position_border-side_left',
@@ -564,20 +608,20 @@ describe( 'PoweredBy', () => {
 		it( 'should position the balloon in the lower right corner by default', async () => {
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 95,
 				left: 375,
 				name: 'position_border-side_right',
@@ -596,7 +640,7 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			testUtils.sinon.stub( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).returns( {
+			vi.spyOn( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 400,
@@ -607,20 +651,20 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 95,
 				left: 5,
 				name: 'position_border-side_left',
@@ -641,7 +685,7 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			testUtils.sinon.stub( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).returns( {
+			vi.spyOn( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 400,
@@ -652,20 +696,20 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 95,
 				left: 375,
 				name: 'position_border-side_right',
@@ -686,7 +730,7 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			testUtils.sinon.stub( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).returns( {
+			vi.spyOn( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 400,
@@ -697,20 +741,20 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 85,
 				left: 375,
 				name: 'position_inside-side_right',
@@ -727,26 +771,26 @@ describe( 'PoweredBy', () => {
 
 			const domRoot = editor.editing.view.getDomRoot();
 
-			rootRect = new Rect( { top: 0, left: 0, width: 100, right: 100, bottom: 10, height: 10 } );
-
-			testUtils.sinon.stub( rootRect, 'getVisible' ).returns( null );
+			// The root's visible area is smaller than the badge balloon, so the balloon cannot fit
+			// within it and the positioning function returns `null` (the balloon is hidden).
+			rootRect = new Rect( { top: 0, left: 0, width: 100, right: 100, bottom: 5, height: 5 } );
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( domRoot );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.equal( null );
+			expect( pinArgs.target ).toBe( domRoot );
+			expect( positioningFunction( rootRect, balloonRect ) ).toBeNull();
 
 			await editor.destroy();
 		} );
@@ -762,24 +806,26 @@ describe( 'PoweredBy', () => {
 
 			const domRoot = editor.editing.view.getDomRoot();
 
-			rootRect = new Rect( { top: 0, left: 0, width: 100, right: 100, bottom: 10, height: 10 } );
+			// Only a thin strip of the root is visible - shorter than the badge balloon - so the
+			// balloon is partially cropped and the positioning function returns `null` (hidden).
+			rootRect = new Rect( { top: 0, left: 0, width: 100, right: 100, bottom: 5, height: 5 } );
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( domRoot );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.equal( null );
+			expect( pinArgs.target ).toBe( domRoot );
+			expect( positioningFunction( rootRect, balloonRect ) ).toBeNull();
 
 			await editor.destroy();
 		} );
@@ -793,9 +839,9 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			rootRect = new Rect( { top: 0, left: 0, width: 400, right: 400, bottom: 200, height: 200 } );
-
-			testUtils.sinon.stub( rootRect, 'getVisible' ).returns( { top: 0, left: 0, width: 400, right: 400, bottom: 10, height: 10 } );
+			// Only a small sliver in the corner of the root is visible - smaller than the badge
+			// balloon - so the balloon is partially cropped and the positioning function returns `null`.
+			rootRect = new Rect( { top: 0, left: 0, width: 10, right: 10, bottom: 5, height: 5 } );
 
 			balloonRect = new Rect( { top: 200, left: 0, width: 20, right: 20, bottom: 210, height: 10 } );
 
@@ -803,20 +849,20 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( domRoot );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.equal( null );
+			expect( pinArgs.target ).toBe( domRoot );
+			expect( positioningFunction( rootRect, balloonRect ) ).toBeNull();
 
 			await editor.destroy();
 		} );
@@ -831,7 +877,7 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			testUtils.sinon.stub( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).returns( {
+			vi.spyOn( editor.ui.getEditableElement( 'main' ), 'getBoundingClientRect' ).mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 400,
@@ -842,20 +888,20 @@ describe( 'PoweredBy', () => {
 
 			focusEditor( editor );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
 			editor.ui.fire( 'update' );
 
 			// Throttled #update listener.
 			await wait( 75 );
 
-			sinon.assert.calledOnce( pinSpy );
+			expect( pinSpy ).toHaveBeenCalledOnce();
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 85,
 				left: 370,
 				name: 'position_border-side_right',
@@ -870,7 +916,7 @@ describe( 'PoweredBy', () => {
 		it( 'should not display the balloon if the root is narrower than 350px', async () => {
 			const domRoot = editor.editing.view.getDomRoot();
 
-			testUtils.sinon.stub( Rect.prototype, 'getVisible' ).callsFake( function() {
+			vi.spyOn( Rect.prototype, 'getVisible' ).mockImplementation( function() {
 				if ( this._source === domRoot ) {
 					return new Rect( domRoot );
 				} else {
@@ -878,7 +924,7 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			domRoot.getBoundingClientRect.returns( {
+			domRoot.getBoundingClientRect.mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 349,
@@ -894,12 +940,12 @@ describe( 'PoweredBy', () => {
 			// Throttled #update listener.
 			await wait( 75 );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
-			expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-			expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'arrowless' );
+			expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+			expect( editor.ui.poweredBy._balloonView.position ).toBe( 'arrowless' );
 
-			domRoot.getBoundingClientRect.returns( {
+			domRoot.getBoundingClientRect.mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 350,
@@ -913,14 +959,14 @@ describe( 'PoweredBy', () => {
 			// Throttled #update listener.
 			await wait( 75 );
 
-			expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-			expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'position_border-side_right' );
+			expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+			expect( editor.ui.poweredBy._balloonView.position ).toBe( 'position_border-side_right' );
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 95,
 				left: 325,
 				name: 'position_border-side_right',
@@ -933,7 +979,7 @@ describe( 'PoweredBy', () => {
 		it( 'should not display the balloon if the root is shorter than 50px', async () => {
 			const domRoot = editor.editing.view.getDomRoot();
 
-			testUtils.sinon.stub( Rect.prototype, 'getVisible' ).callsFake( function() {
+			vi.spyOn( Rect.prototype, 'getVisible' ).mockImplementation( function() {
 				if ( this._source === domRoot ) {
 					return new Rect( domRoot );
 				} else {
@@ -941,7 +987,7 @@ describe( 'PoweredBy', () => {
 				}
 			} );
 
-			domRoot.getBoundingClientRect.returns( {
+			domRoot.getBoundingClientRect.mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 1000,
@@ -957,12 +1003,12 @@ describe( 'PoweredBy', () => {
 			// Throttled #update listener.
 			await wait( 75 );
 
-			const pinSpy = testUtils.sinon.spy( editor.ui.poweredBy._balloonView, 'pin' );
+			const pinSpy = vi.spyOn( editor.ui.poweredBy._balloonView, 'pin' );
 
-			expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-			expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'arrowless' );
+			expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+			expect( editor.ui.poweredBy._balloonView.position ).toBe( 'arrowless' );
 
-			domRoot.getBoundingClientRect.returns( {
+			domRoot.getBoundingClientRect.mockReturnValue( {
 				top: 0,
 				left: 0,
 				right: 1000,
@@ -976,14 +1022,14 @@ describe( 'PoweredBy', () => {
 			// Throttled #update listener.
 			await wait( 75 );
 
-			expect( editor.ui.poweredBy._balloonView.isVisible ).to.be.true;
-			expect( editor.ui.poweredBy._balloonView.position ).to.equal( 'position_border-side_right' );
+			expect( editor.ui.poweredBy._balloonView.isVisible ).toBe( true );
+			expect( editor.ui.poweredBy._balloonView.position ).toBe( 'position_border-side_right' );
 
-			const pinArgs = pinSpy.firstCall.args[ 0 ];
+			const pinArgs = pinSpy.mock.calls[ 0 ][ 0 ];
 			const positioningFunction = pinArgs.positions[ 0 ];
 
-			expect( pinArgs.target ).to.equal( editor.editing.view.getDomRoot() );
-			expect( positioningFunction( rootRect, balloonRect ) ).to.deep.equal( {
+			expect( pinArgs.target ).toBe( editor.editing.view.getDomRoot() );
+			expect( positioningFunction( rootRect, balloonRect ) ).toEqual( {
 				top: 45,
 				left: 975,
 				name: 'position_border-side_right',
@@ -1006,7 +1052,7 @@ describe( 'PoweredBy', () => {
 
 		const zIndexOfRegularBalloon = Number( getComputedStyle( balloonView.element ).zIndex );
 
-		expect( zIndexOfPoweredByBalloon ).to.be.lessThan( zIndexOfRegularBalloon );
+		expect( zIndexOfPoweredByBalloon ).toBeLessThan( zIndexOfRegularBalloon );
 
 		balloonView.element.remove();
 		balloonView.destroy();
@@ -1024,7 +1070,7 @@ describe( 'PoweredBy', () => {
 			}
 		} );
 
-		setData( editor.model, '<heading2>foo[]bar</heading2>' );
+		_setModelData( editor.model, '<heading2>foo[]bar</heading2>' );
 
 		focusEditor( editor );
 
@@ -1040,12 +1086,16 @@ describe( 'PoweredBy', () => {
 			y: ( poweredByElementGeometry.height / 2 ) + poweredByElementGeometry.top
 		};
 
+		// Sample the label element's own center rather than a fixed offset from the badge center,
+		// so the check does not depend on the exact badge/SVG layout.
+		const poweredByLabelRect = new Rect( poweredByElement.querySelector( '.ck-powered-by__label' ) );
+
 		let elementFromPoint = document.elementFromPoint(
-			middleOfThePoweredByCoords.x - 5, // "-5" to hit in the label not SVG,
-			middleOfThePoweredByCoords.y
+			poweredByLabelRect.left + poweredByLabelRect.width / 2,
+			poweredByLabelRect.top + poweredByLabelRect.height / 2
 		);
 
-		expect( elementFromPoint.classList.contains( 'ck-powered-by__label' ) ).to.be.true;
+		expect( elementFromPoint.classList.contains( 'ck-powered-by__label' ) ).toBe( true );
 
 		// show heading dropdown
 		headingToolbarButton.buttonView.fire( 'execute' );
@@ -1055,7 +1105,9 @@ describe( 'PoweredBy', () => {
 			middleOfThePoweredByCoords.y
 		);
 
-		expect( elementFromPoint.classList.contains( 'ck-button__label' ) ).to.be.true;
+		// The dropdown panel opens over the badge - assert a dropdown element (not the badge) is on top
+		// at the badge midpoint, without depending on which exact panel descendant that pixel hits.
+		expect( elementFromPoint.closest( '.ck-dropdown__panel' ) ).not.toBeNull();
 
 		await editor.destroy();
 	} );

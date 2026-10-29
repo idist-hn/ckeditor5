@@ -1,33 +1,38 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module media-embed/mediaembedediting
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import type { UpcastElementEvent } from 'ckeditor5/src/engine';
-import { first, type GetCallback } from 'ckeditor5/src/utils';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import type { UpcastElementEvent } from '@ckeditor/ckeditor5-engine';
+import { first, type GetCallback } from '@ckeditor/ckeditor5-utils';
 
-import { modelToViewUrlAttributeConverter } from './converters';
-import type { MediaEmbedConfig } from './mediaembedconfig';
-import MediaEmbedCommand from './mediaembedcommand';
-import MediaRegistry from './mediaregistry';
-import { toMediaWidget, createMediaFigureElement } from './utils';
-
-import '../theme/mediaembedediting.css';
+import { modelToViewUrlAttributeConverter } from './converters.js';
+import type { MediaEmbedConfig } from './mediaembedconfig.js';
+import { MediaEmbedCommand } from './mediaembedcommand.js';
+import { MediaRegistry } from './mediaregistry.js';
+import { toMediaWidget, createMediaFigureElement } from './utils.js';
 
 /**
  * The media embed editing feature.
  */
-export default class MediaEmbedEditing extends Plugin {
+export class MediaEmbedEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'MediaEmbedEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -45,15 +50,19 @@ export default class MediaEmbedEditing extends Plugin {
 			providers: [
 				{
 					name: 'dailymotion',
-					url: /^dailymotion\.com\/video\/(\w+)/,
+					url: [
+						/^dailymotion\.com\/video\/(\w+)/,
+						/^dai.ly\/(\w+)/
+					],
 					html: match => {
 						const id = match[ 1 ];
 
 						return (
-							'<div style="position: relative; padding-bottom: 100%; height: 0; ">' +
+							'<div>' +
 								`<iframe src="https://www.dailymotion.com/embed/video/${ id }" ` +
-									'style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;" ' +
-									'frameborder="0" width="480" height="270" allowfullscreen allow="autoplay">' +
+									'width="1280" height="720" ' +
+									'style="width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; display: block;" ' +
+									'frameborder="0" allowfullscreen allow="autoplay">' +
 								'</iframe>' +
 							'</div>'
 						);
@@ -69,11 +78,16 @@ export default class MediaEmbedEditing extends Plugin {
 					],
 					html: match => {
 						const id = match[ 1 ];
+						const isTrack = id.startsWith( 'track/' );
+						const iframeStyle = isTrack ?
+							'width: 100%; height: 80px; border: 0; display: block;' :
+							'width: 100%; height: auto; aspect-ratio: 100 / 126; border: 0; display: block;';
 
 						return (
-							'<div style="position: relative; padding-bottom: 100%; height: 0; padding-bottom: 126%;">' +
+							'<div>' +
 								`<iframe src="https://open.spotify.com/embed/${ id }" ` +
-									'style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;" ' +
+									`width="300" height="${ isTrack ? '80' : '378' }" ` +
+									`style="${ iframeStyle }" ` +
 									'frameborder="0" allowtransparency="true" allow="encrypted-media">' +
 								'</iframe>' +
 							'</div>'
@@ -85,6 +99,7 @@ export default class MediaEmbedEditing extends Plugin {
 					name: 'youtube',
 					url: [
 						/^(?:m\.)?youtube\.com\/watch\?v=([\w-]+)(?:&t=(\d+))?/,
+						/^(?:m\.)?youtube\.com\/shorts\/([\w-]+)(?:\?t=(\d+))?/,
 						/^(?:m\.)?youtube\.com\/v\/([\w-]+)(?:\?t=(\d+))?/,
 						/^youtube\.com\/embed\/([\w-]+)(?:\?start=(\d+))?/,
 						/^youtu\.be\/([\w-]+)(?:\?t=(\d+))?/
@@ -94,10 +109,12 @@ export default class MediaEmbedEditing extends Plugin {
 						const time = match[ 2 ];
 
 						return (
-							'<div style="position: relative; padding-bottom: 100%; height: 0; padding-bottom: 56.2493%;">' +
+							'<div>' +
 								`<iframe src="https://www.youtube.com/embed/${ id }${ time ? `?start=${ time }` : '' }" ` +
-									'style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;" ' +
-									'frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>' +
+									'width="1280" height="720" ' +
+									'style="width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; display: block;" ' +
+									'frameborder="0" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin" ' +
+									'allowfullscreen>' +
 								'</iframe>' +
 							'</div>'
 						);
@@ -119,9 +136,10 @@ export default class MediaEmbedEditing extends Plugin {
 						const id = match[ 1 ];
 
 						return (
-							'<div style="position: relative; padding-bottom: 100%; height: 0; padding-bottom: 56.2493%;">' +
+							'<div>' +
 								`<iframe src="https://player.vimeo.com/video/${ id }" ` +
-									'style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;" ' +
+									'width="1280" height="720" ' +
+									'style="width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; display: block;" ' +
 									'frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen>' +
 								'</iframe>' +
 							'</div>'
@@ -131,11 +149,17 @@ export default class MediaEmbedEditing extends Plugin {
 
 				{
 					name: 'instagram',
-					url: /^instagram\.com\/p\/(\w+)/
+					url: [
+						/^instagram\.com\/p\/(\w+)/,
+						/^instagram\.com\/reel\/(\w+)/
+					]
 				},
 				{
 					name: 'twitter',
-					url: /^twitter\.com/
+					url: [
+						/^twitter\.com/,
+						/^x\.com/
+					]
 				},
 				{
 					name: 'googleMaps',

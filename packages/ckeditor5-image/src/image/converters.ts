@@ -1,23 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/converters
  */
 
-import type {
-	DowncastDispatcher,
-	Element,
-	UpcastDispatcher,
-	UpcastElementEvent,
-	ViewElement,
-	ViewElementAttributes,
-	DowncastAttributeEvent
-} from 'ckeditor5/src/engine';
-import { first, type GetCallback } from 'ckeditor5/src/utils';
-import type ImageUtils from '../imageutils';
+import {
+	type DowncastDispatcher,
+	type ModelElement,
+	type UpcastDispatcher,
+	type UpcastElementEvent,
+	type ViewElement,
+	type ViewElementAttributes,
+	type DowncastAttributeEvent,
+	type Consumables
+} from '@ckeditor/ckeditor5-engine';
+import { first, type GetCallback } from '@ckeditor/ckeditor5-utils';
+import { type ImageUtils } from '../imageutils.js';
+import { getViewImageType, isImageTypePlaceable } from './utils.js';
 
 /**
  * Returns a function that converts the image view representation:
@@ -52,14 +54,33 @@ export function upcastImageFigure( imageUtils: ImageUtils ): ( dispatcher: Upcas
 			return;
 		}
 
+		// If a block image cannot land at this position (e.g. inside an inline root or another limit that
+		// disallows block content), do not handle the figure here. Leaving it unconsumed lets the default
+		// converter unwrap the figure so the `upcastImg()` converter can turn the inner `<img>` into an inline
+		// image - otherwise the whole figure (the image included) would be dropped.
+		if ( !isImageTypePlaceable( conversionApi.schema, data.modelCursor, 'imageBlock' ) ) {
+			return;
+		}
+
 		// Consume the figure to prevent other converters from processing it again.
 		conversionApi.consumable.consume( data.viewItem, { name: true, classes: 'image' } );
 
 		// Convert view image to model image.
 		const conversionResult = conversionApi.convertItem( viewImage, data.modelCursor );
 
+		// When nothing was converted there is no model image to attach the figure's children to.
+		// In practice `convertItem()` yields a non-null (empty) range for an `<img/>` - handled by the
+		// `!modelImage` check below - so this only guards the `ModelRange | null` return type.
+		/* istanbul ignore if: defensive guard for the `ModelRange | null` return type -- @preserve */
+		if ( !conversionResult.modelRange ) {
+			// Revert consumed figure so other features can convert it.
+			conversionApi.consumable.revert( data.viewItem, { name: true, classes: 'image' } );
+
+			return;
+		}
+
 		// Get image element from conversion result.
-		const modelImage = first( conversionResult.modelRange!.getItems() ) as Element;
+		const modelImage = first( conversionResult.modelRange.getItems() ) as ModelElement;
 
 		// When image wasn't successfully converted then finish conversion.
 		if ( !modelImage ) {
@@ -77,6 +98,71 @@ export function upcastImageFigure( imageUtils: ImageUtils ): ( dispatcher: Upcas
 
 	return dispatcher => {
 		dispatcher.on<UpcastElementEvent>( 'element:figure', converter );
+	};
+}
+
+/**
+ * Returns a function that upcasts an `<img>` element to either an `imageBlock` or an `imageInline` model element.
+ *
+ * The image type is first determined from the view structure (see {@link module:image/image/utils~getViewImageType}):
+ * an `<img>` wrapped in a `<figure class="image">` or styled with `display: block` becomes an `imageBlock`, otherwise
+ * an `imageInline`.
+ *
+ * That structural type is then verified against the schema at the insertion position. If it cannot be placed there -
+ * neither directly (or after hoisting to an allowed ancestor) nor wrapped in an auto-created paragraph - the converter
+ * falls back to `matchImageType`. This is what allows a block image to degrade to an inline image inside an inline root
+ * (and, symmetrically, an inline image to become a block image in a context that only accepts block images) instead of
+ * being dropped.
+ *
+ * Both `ImageBlockEditing` and `ImageInlineEditing` register this converter, each passing the type it falls back to.
+ * When only one of them is loaded, that single type is always produced.
+ *
+ * @internal
+ * @param matchImageType The image type to fall back to when the type resolved from the view cannot be placed at the
+ * insertion position.
+ * @param imageUtils The `ImageUtils` plugin instance.
+ */
+export function upcastImg(
+	matchImageType: 'imageBlock' | 'imageInline',
+	imageUtils: ImageUtils
+): ( dispatcher: UpcastDispatcher ) => void {
+	const converter: GetCallback<UpcastElementEvent> = ( evt, data, conversionApi ) => {
+		// Check if the `<img>` should be upcasted as a block image or an inline one.
+		let imageType = getViewImageType( data.viewItem, imageUtils );
+
+		// Collect attributes and build consumables to test.
+		const attributes = data.viewItem.hasAttribute( 'src' ) ? {
+			src: data.viewItem.getAttribute( 'src' )
+		} : undefined;
+
+		const consumables: Consumables = {
+			name: true,
+			attributes: Object.keys( attributes || {} )
+		};
+
+		// Exit early if it is already consumed by some other converter.
+		if ( !conversionApi.consumable.test( data.viewItem, consumables ) ) {
+			return;
+		}
+
+		// Is this image type allowed here? Switch type if not.
+		if ( imageType != matchImageType && !isImageTypePlaceable( conversionApi.schema, data.modelCursor, imageType ) ) {
+			imageType = matchImageType;
+		}
+
+		const modelElement = conversionApi.writer.createElement( imageType, attributes );
+
+		if ( !conversionApi.safeInsert( modelElement, data.modelCursor ) ) {
+			return;
+		}
+
+		conversionApi.consumable.consume( data.viewItem, consumables );
+		conversionApi.convertChildren( data.viewItem, modelElement );
+		conversionApi.updateConversionResult( modelElement, data );
+	};
+
+	return dispatcher => {
+		dispatcher.on<UpcastElementEvent>( 'element:img', converter );
 	};
 }
 
@@ -151,7 +237,20 @@ export function upcastPicture( imageUtils: ImageUtils ): ( dispatcher: UpcastDis
 			// Continue conversion where image conversion ends.
 			data.modelCursor = conversionResult.modelCursor;
 
-			modelImage = first( conversionResult.modelRange!.getItems() ) as Element;
+			// The `<img/>` was not converted to a model image element (e.g. an inline root only allows
+			// inline content and neither image type was allowed), so there is nothing to set the sources on.
+			// In practice `convertItem()` yields a non-null (empty) range for an `<img/>` - handled by the
+			// `!modelImage` check below - so this only guards the `ModelRange | null` return type.
+			/* istanbul ignore if: defensive guard for the `ModelRange | null` return type -- @preserve */
+			if ( !conversionResult.modelRange ) {
+				return;
+			}
+
+			modelImage = first( conversionResult.modelRange.getItems() ) as ModelElement;
+
+			if ( !modelImage ) {
+				return;
+			}
 		}
 
 		conversionApi.consumable.consume( pictureViewElement, { name: true } );
@@ -185,7 +284,7 @@ export function downcastSrcsetAttribute(
 	imageUtils: ImageUtils,
 	imageType: 'imageBlock' | 'imageInline'
 ): ( dispatcher: DowncastDispatcher ) => void {
-	const converter: GetCallback<DowncastAttributeEvent<Element>> = ( evt, data, conversionApi	) => {
+	const converter: GetCallback<DowncastAttributeEvent<ModelElement>> = ( evt, data, conversionApi	) => {
 		if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
 			return;
 		}
@@ -207,7 +306,7 @@ export function downcastSrcsetAttribute(
 	};
 
 	return dispatcher => {
-		dispatcher.on<DowncastAttributeEvent<Element>>( `attribute:srcset:${ imageType }`, converter );
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( `attribute:srcset:${ imageType }`, converter );
 	};
 }
 
@@ -218,7 +317,7 @@ export function downcastSrcsetAttribute(
  * @internal
  */
 export function downcastSourcesAttribute( imageUtils: ImageUtils ): ( dispatcher: DowncastDispatcher ) => void {
-	const converter: GetCallback<DowncastAttributeEvent<Element>> = ( evt, data, conversionApi	) => {
+	const converter: GetCallback<DowncastAttributeEvent<ModelElement>> = ( evt, data, conversionApi	) => {
 		if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
 			return;
 		}
@@ -229,13 +328,6 @@ export function downcastSourcesAttribute( imageUtils: ImageUtils ): ( dispatcher
 		const attributeNewValue = data.attributeNewValue as null | Array<ViewElementAttributes>;
 
 		if ( attributeNewValue && attributeNewValue.length ) {
-			// Make sure <picture> does not break attribute elements, for instance <a> in linked images.
-			const pictureElement = viewWriter.createContainerElement( 'picture', null,
-				attributeNewValue.map( sourceAttributes => {
-					return viewWriter.createEmptyElement( 'source', sourceAttributes );
-				} )
-			);
-
 			// Collect all wrapping attribute elements.
 			const attributeElements = [];
 			let viewElement = imgElement.parent;
@@ -249,8 +341,23 @@ export function downcastSourcesAttribute( imageUtils: ImageUtils ): ( dispatcher
 				viewElement = parentElement;
 			}
 
-			// Insert the picture and move img into it.
-			viewWriter.insert( viewWriter.createPositionBefore( imgElement ), pictureElement );
+			const hasPictureElement = imgElement.parent!.is( 'element', 'picture' );
+
+			// Reuse existing <picture> element (https://github.com/ckeditor/ckeditor5/issues/17192) or create a new one.
+			const pictureElement = hasPictureElement ? imgElement.parent : viewWriter.createContainerElement( 'picture', null );
+
+			if ( !hasPictureElement ) {
+				viewWriter.insert( viewWriter.createPositionBefore( imgElement ), pictureElement );
+			}
+
+			viewWriter.remove( viewWriter.createRangeIn( pictureElement ) );
+
+			viewWriter.insert( viewWriter.createPositionAt( pictureElement, 'end' ),
+				attributeNewValue.map( sourceAttributes => {
+					return viewWriter.createEmptyElement( 'source', sourceAttributes );
+				} )
+			);
+
 			viewWriter.move( viewWriter.createRangeOn( imgElement ), viewWriter.createPositionAt( pictureElement, 'end' ) );
 
 			// Apply collected attribute elements over the new picture element.
@@ -269,8 +376,8 @@ export function downcastSourcesAttribute( imageUtils: ImageUtils ): ( dispatcher
 	};
 
 	return dispatcher => {
-		dispatcher.on<DowncastAttributeEvent<Element>>( 'attribute:sources:imageBlock', converter );
-		dispatcher.on<DowncastAttributeEvent<Element>>( 'attribute:sources:imageInline', converter );
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( 'attribute:sources:imageBlock', converter );
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( 'attribute:sources:imageInline', converter );
 	};
 }
 
@@ -286,7 +393,7 @@ export function downcastImageAttribute(
 	imageType: 'imageBlock' | 'imageInline',
 	attributeKey: string
 ): ( dispatcher: DowncastDispatcher ) => void {
-	const converter: GetCallback<DowncastAttributeEvent<Element>> = ( evt, data, conversionApi ) => {
+	const converter: GetCallback<DowncastAttributeEvent<ModelElement>> = ( evt, data, conversionApi ) => {
 		if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
 			return;
 		}
@@ -299,7 +406,6 @@ export function downcastImageAttribute(
 	};
 
 	return dispatcher => {
-		dispatcher.on<DowncastAttributeEvent<Element>>( `attribute:${ attributeKey }:${ imageType }`, converter );
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( `attribute:${ attributeKey }:${ imageType }`, converter );
 	};
 }
-

@@ -1,0 +1,1601 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { ListEditing } from '../../src/list/listediting.js';
+import { ListPropertiesEditing } from '../../src/listproperties/listpropertiesediting.js';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { ModelRange, _getModelData, _parseModel, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
+
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
+import { IndentEditing } from '@ckeditor/ckeditor5-indent';
+import { TableEditing } from '@ckeditor/ckeditor5-table';
+import { AlignmentEditing } from '@ckeditor/ckeditor5-alignment';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { stubUid } from './_utils/uid.js';
+
+describe( 'ListEditing - converters', () => {
+	let editor, model, modelDoc, modelRoot, view, viewDoc, viewRoot;
+
+	beforeEach( async () => {
+		editor = await VirtualTestEditor.create( {
+			plugins: [ Paragraph, IndentEditing, ClipboardPipeline, BoldEditing, ListEditing, UndoEditing,
+				BlockQuoteEditing, TableEditing, HeadingEditing, AlignmentEditing ]
+		} );
+
+		model = editor.model;
+		modelDoc = model.document;
+		modelRoot = modelDoc.getRoot();
+
+		view = editor.editing.view;
+		viewDoc = view.document;
+		viewRoot = viewDoc.getRoot();
+
+		model.schema.register( 'foo', {
+			allowWhere: '$block',
+			allowAttributesOf: '$container',
+			isBlock: true,
+			isObject: true
+		} );
+
+		// Stub `view.scrollToTheSelection` as it will fail on VirtualTestEditor without DOM.
+		vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+		stubUid();
+	} );
+
+	afterEach( async () => {
+		await editor.destroy();
+	} );
+
+	describe( 'position mapping', () => {
+		describe( 'flat lists', () => {
+			let mapper;
+
+			beforeEach( () => {
+				mapper = editor.editing.mapper;
+
+				editor.setData(
+					'<p>a</p>' +
+					'<ul>' +
+						'<li><p>b</p></li>' +
+						'<li><p>c</p></li>' +
+						'<li><p>d</p></li>' +
+					'</ul>' +
+					'<p>e</p>' +
+					'<ol>' +
+						'<li><p>f</p></li>' +
+					'</ol>' +
+					'<p>g</p>'
+				);
+			} );
+
+			/*
+				<paragraph>a</paragraph>
+				<paragraph listIndent=0 listType="bulleted">b</paragraph>
+				<paragraph listIndent=0 listType="bulleted">c</paragraph>
+				<paragraph listIndent=0 listType="bulleted">d</paragraph>
+				<paragraph>e</paragraph>
+				<paragraph listIndent=0 listType="numbered">f</paragraph>
+				<paragraph>g</paragraph>
+			 */
+
+			describe( 'view to model', () => {
+				function testList( viewPath, modelPath ) {
+					const viewPos = getViewPosition( viewRoot, viewPath, view );
+					const modelPos = mapper.toModelPosition( viewPos );
+
+					expect( modelPos.root ).toBe( modelRoot );
+					expect( modelPos.path ).toEqual( modelPath );
+				}
+
+				it( 'before ul --> before first list item', () => {
+					testList( [ 1 ], [ 1 ] );
+				} );
+
+				it( 'before first li --> before first list item', () => {
+					testList( [ 1, 0 ],	[ 1 ] );
+				} );
+
+				it( 'beginning of li --> before first list item', () => {
+					testList( [ 1, 0, 0 ], [ 1 ] );
+				} );
+
+				it( 'end of li --> after first list item', () => {
+					testList( [ 1, 0, 1 ], [ 2 ] );
+				} );
+
+				it( 'beginning of p in li --> beginning of first list item paragraph', () => {
+					testList( [ 1, 0, 0, 0 ], [ 1, 0 ] );
+				} );
+
+				it( 'end of p in li --> end of first list item paragraph', () => {
+					testList( [ 1, 0, 0, 1 ], [ 1, 1 ] );
+				} );
+
+				it( 'before middle li --> before middle list item', () => {
+					testList( [ 1, 1 ], [ 2 ] );
+				} );
+
+				it( 'before last li --> before last list item', () => {
+					testList( [ 1, 2 ], [ 3 ] );
+				} );
+
+				it( 'after last li --> after last list item / before paragraph', () => {
+					testList( [ 1, 3 ], [ 4 ] );
+				} );
+
+				it( 'after ul --> after last list item / before paragraph', () => {
+					testList( [ 2 ], [ 4 ] );
+				} );
+
+				it( 'before ol --> before numbered list item', () => {
+					testList( [ 3 ], [ 5 ] );
+				} );
+
+				it( 'before only li --> before numbered list item', () => {
+					testList( [ 3, 0 ], [ 5 ] );
+				} );
+
+				it( 'after only li --> after numbered list item', () => {
+					testList( [ 3, 1 ], [ 6 ] );
+				} );
+
+				it( 'after ol --> after numbered list item', () => {
+					testList( [ 4 ], [ 6 ] );
+				} );
+			} );
+
+			describe( 'model to view', () => {
+				function testList( modelPath, viewPath ) {
+					const modelPos = model.createPositionFromPath( modelRoot, modelPath );
+					const viewPos = mapper.toViewPosition( modelPos );
+
+					expect( viewPos.root ).toBe( viewRoot );
+					expect( getViewPath( viewPos ) ).toEqual( viewPath );
+				}
+
+				it( 'before first list item --> before ul', () => {
+					testList( [ 1 ], [ 1 ] );
+				} );
+
+				it( 'beginning of first list item --> beginning of `b` text node', () => {
+					testList( [ 1, 0 ], [ 1, 0, 0, 0, 0 ] );
+				} );
+
+				it( 'end of first list item --> end of `b` text node', () => {
+					testList( [ 1, 1 ], [ 1, 0, 0, 0, 1 ] );
+				} );
+
+				it( 'before middle list item --> before middle li', () => {
+					testList( [ 2 ], [ 1, 1 ] );
+				} );
+
+				it( 'before last list item --> before last li', () => {
+					testList( [ 3 ], [ 1, 2 ] );
+				} );
+
+				it( 'after last list item --> after ul', () => {
+					testList( [ 4 ], [ 2 ] );
+				} );
+
+				it( 'before numbered list item --> before ol', () => {
+					testList( [ 5 ], [ 3 ] );
+				} );
+
+				it( 'after numbered list item --> after ol', () => {
+					testList( [ 6 ], [ 4 ] );
+				} );
+			} );
+		} );
+
+		describe( 'nested lists', () => {
+			let mapper;
+
+			beforeEach( () => {
+				mapper = editor.editing.mapper;
+
+				editor.setData(
+					'<ul>' +
+						'<li><p>a</p></li>' +
+						'<li>' +
+							'<p>bbb</p>' +
+							'<ol>' +
+								'<li><p>c</p></li>' +
+								'<li><p>d</p></li>' +
+								'<li><p>e</p></li>' +
+								'<li>' +
+									'<p></p>' +
+									'<ul>' +
+										'<li><p>g</p></li>' +
+										'<li><p>h</p></li>' +
+										'<li><p>i</p></li>' +
+									'</ul>' +
+								'</li>' +
+								'<li><p>j</p></li>' +
+							'</ol>' +
+						'</li>' +
+						'<li><p>k</p></li>' +
+					'</ul>'
+				);
+			} );
+
+			/*
+				<paragraph listIndent=0 listType="bulleted">a</paragraph>
+				<paragraph listIndent=0 listType="bulleted">bbb</paragraph>
+				<paragraph listIndent=1 listType="numbered">c</paragraph>
+				<paragraph listIndent=1 listType="numbered">d</paragraph>
+				<paragraph listIndent=1 listType="numbered">e</paragraph>
+				<paragraph listIndent=1 listType="numbered"></paragraph>
+				<paragraph listIndent=2 listType="bulleted">g</paragraph>
+				<paragraph listIndent=2 listType="bulleted">h</paragraph>
+				<paragraph listIndent=2 listType="bullered">i</paragraph>
+				<paragraph listIndent=1 listType="numbered">j</paragraph>
+				<paragraph listIndent=0 listType="bulleted">k</paragraph>
+			 */
+
+			describe( 'view to model', () => {
+				function testList( viewPath, modelPath ) {
+					const viewPos = getViewPosition( viewRoot, viewPath, view );
+					const modelPos = mapper.toModelPosition( viewPos );
+
+					expect( modelPos.root ).toBe( modelRoot );
+					expect( modelPos.path ).toEqual( modelPath );
+				}
+
+				it( 'before ul#1 --> before listItem "a"', () => {
+					testList( [ 0 ], [ 0 ] );
+				} );
+
+				it( 'before li "a" --> before listItem "a"', () => {
+					testList( [ 0, 0 ], [ 0 ] );
+				} );
+
+				it( 'before "a" paragraph --> beginning of listItem "a"', () => {
+					testList( [ 0, 0, 0 ], [ 0 ] );
+				} );
+
+				it( 'before "a" --> beginning of listItem "a"', () => {
+					testList( [ 0, 0, 0, 0 ], [ 0, 0 ] );
+				} );
+
+				it( 'after "a" --> end of listItem "a"', () => {
+					testList( [ 0, 0, 0, 1 ], [ 0, 1 ] );
+				} );
+
+				it( 'after "a" paragraph --> end of listItem "a"', () => {
+					testList( [ 0, 0, 1 ], [ 1 ] );
+				} );
+
+				it( 'before li "bbb" --> before listItem "bbb"', () => {
+					testList( [ 0, 1 ], [ 1 ] );
+				} );
+
+				it( 'before "bbb" paragraph --> beginning of listItem "bbb"', () => {
+					testList( [ 0, 1, 0 ], [ 1 ] );
+				} );
+
+				it( 'before "bbb" --> beginning of listItem "bbb"', () => {
+					testList( [ 0, 1, 0, 0 ], [ 1, 0 ] );
+				} );
+
+				it( 'after "bbb" --> end of listItem "bbb"', () => {
+					testList( [ 0, 1, 0, 1 ], [ 1, 3 ] );
+				} );
+
+				it( 'after "bbb" paragraph --> end of listItem "bbb"', () => {
+					testList( [ 0, 1, 1 ], [ 2 ] );
+				} );
+
+				it( 'before li "c" --> before listItem "c"', () => {
+					testList( [ 0, 1, 1, 0 ], [ 2 ] );
+				} );
+
+				it( 'before "c" paragraph --> beginning of listItem "c"', () => {
+					testList( [ 0, 1, 1, 0, 0 ], [ 2 ] );
+				} );
+
+				it( 'before "c" --> beginning of listItem "c"', () => {
+					testList( [ 0, 1, 1, 0, 0, 0 ], [ 2, 0 ] );
+				} );
+
+				it( 'after "c" --> end of listItem "c"', () => {
+					testList( [ 0, 1, 1, 0, 0, 1 ], [ 2, 1 ] );
+				} );
+
+				it( 'after "c" paragraph --> end of listItem "c"', () => {
+					testList( [ 0, 1, 1, 0, 1 ], [ 3 ] );
+				} );
+
+				it( 'before li "d" --> before listItem "d"', () => {
+					testList( [ 0, 1, 1, 1 ], [ 3 ] );
+				} );
+
+				it( 'before li "e" --> before listItem "e"', () => {
+					testList( [ 0, 1, 1, 2 ], [ 4 ] );
+				} );
+
+				it( 'before "empty" li --> before "empty" listItem', () => {
+					testList( [ 0, 1, 1, 3 ], [ 5 ] );
+				} );
+
+				it( 'before ul#2 --> inside "empty" listItem', () => {
+					testList( [ 0, 1, 1, 3, 0, 0 ], [ 5, 0 ] );
+				} );
+
+				it( 'before li "g" --> before listItem "g"', () => {
+					testList( [ 0, 1, 1, 3, 1, 0, 0 ], [ 6 ] );
+				} );
+
+				it( 'before li "h" --> before listItem "h"', () => {
+					testList( [ 0, 1, 1, 3, 1, 1 ], [ 7 ] );
+				} );
+
+				it( 'before li "i" --> before listItem "i"', () => {
+					testList( [ 0, 1, 1, 3, 1, 2 ], [ 8 ] );
+				} );
+
+				it( 'after li "i" --> before listItem "j"', () => {
+					testList( [ 0, 1, 1, 3, 1, 3 ], [ 9 ] );
+				} );
+
+				it( 'after ul#2 --> before listItem "j"', () => {
+					testList( [ 0, 1, 1, 3, 2 ], [ 9 ] );
+				} );
+
+				it( 'before li "j" --> before listItem "j"', () => {
+					testList( [ 0, 1, 1, 4 ], [ 9 ] );
+				} );
+
+				it( 'after li "j" --> before listItem "k"', () => {
+					testList( [ 0, 1, 1, 5 ], [ 10 ] );
+				} );
+
+				it( 'end of li "bbb" --> before listItem "k"', () => {
+					testList( [ 0, 1, 2 ], [ 10 ] );
+				} );
+
+				it( 'before li "k" --> before listItem "k"', () => {
+					testList( [ 0, 2 ], [ 10 ] );
+				} );
+
+				it( 'after li "k" --> after listItem "k"', () => {
+					testList( [ 0, 3 ], [ 11 ] );
+				} );
+
+				it( 'after ul --> after listItem "k"', () => {
+					testList( [ 1 ], [ 11 ] );
+				} );
+			} );
+
+			describe( 'model to view', () => {
+				function testList( modelPath, viewPath ) {
+					const modelPos = model.createPositionFromPath( modelRoot, modelPath );
+					const viewPos = mapper.toViewPosition( modelPos );
+
+					expect( viewPos.root ).toBe( viewRoot );
+					expect( getViewPath( viewPos ) ).toEqual( viewPath );
+				}
+
+				it( 'before listItem "a" --> before ul', () => {
+					testList( [ 0 ], [ 0 ] );
+				} );
+
+				it( 'beginning of listItem "a" --> beginning of "a" text node', () => {
+					testList( [ 0, 0 ], [ 0, 0, 0, 0, 0 ] );
+				} );
+
+				it( 'end of listItem "a" --> end of "a" text node', () => {
+					testList( [ 0, 1 ], [ 0, 0, 0, 0, 1 ] );
+				} );
+
+				it( 'before listItem "bbb" --> before li "bbb"', () => {
+					testList( [ 1 ], [ 0, 1 ] );
+				} );
+
+				it( 'beginning of listItem "bbb" --> beginning of "bbb" text node', () => {
+					testList( [ 1, 0 ], [ 0, 1, 0, 0, 0 ] );
+				} );
+
+				it( 'end of listItem "bbb" --> end of "bbb" text node', () => {
+					testList( [ 1, 3 ], [ 0, 1, 0, 0, 3 ] );
+				} );
+
+				it( 'before listItem "c" --> before li "c"', () => {
+					testList( [ 2 ], [ 0, 1, 1 ] );
+				} );
+
+				it( 'beginning of listItem "c" --> beginning of "c" text node', () => {
+					testList( [ 2, 0 ], [ 0, 1, 1, 0, 0, 0, 0 ] );
+				} );
+
+				it( 'end of listItem "c" --> end of "c" text node', () => {
+					testList( [ 2, 1 ], [ 0, 1, 1, 0, 0, 0, 1 ] );
+				} );
+
+				it( 'before listItem "d" --> before li "d"', () => {
+					testList( [ 3 ], [ 0, 1, 1, 1 ] );
+				} );
+
+				it( 'before listItem "e" --> before li "e"', () => {
+					testList( [ 4 ], [ 0, 1, 1, 2 ] );
+				} );
+
+				it( 'before "empty" listItem --> before "empty" li', () => {
+					testList( [ 5 ], [ 0, 1, 1, 3 ] );
+				} );
+
+				it( 'inside "empty" listItem --> before ul', () => {
+					testList( [ 5, 0 ], [ 0, 1, 1, 3, 0, 0 ] );
+				} );
+
+				it( 'before listItem "g" --> before li "g"', () => {
+					testList( [ 6 ], [ 0, 1, 1, 3, 1 ] );
+				} );
+
+				it( 'before listItem "h" --> before li "h"', () => {
+					testList( [ 7 ], [ 0, 1, 1, 3, 1, 1 ] );
+				} );
+
+				it( 'before listItem "i" --> before li "i"', () => {
+					testList( [ 8 ], [ 0, 1, 1, 3, 1, 2 ] );
+				} );
+
+				it( 'before listItem "j" --> before li "j"', () => {
+					testList( [ 9 ], [ 0, 1, 1, 4 ] );
+				} );
+
+				it( 'before listItem "k" --> before li "k"', () => {
+					testList( [ 10 ], [ 0, 2 ] );
+				} );
+
+				it( 'after listItem "k" --> after ul', () => {
+					testList( [ 11 ], [ 1 ] );
+				} );
+			} );
+		} );
+	} );
+
+	describe( 'other', () => {
+		describe( 'bogus paragraph', () => {
+			it( 'should refresh bogus paragraph on setting attribute from a different feature', () => {
+				_setModelData( model,
+					'<paragraph listIndent="0" listItemId="a" listType="bulleted">a</paragraph>' +
+					'<paragraph listIndent="0" listItemId="b" listType="bulleted">b</paragraph>'
+				);
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li><span class="ck-list-bogus-paragraph">a</span></li>' +
+						'<li><span class="ck-list-bogus-paragraph">b</span></li>' +
+					'</ul>'
+				);
+
+				const spy = vi.spyOn( editor.editing, 'reconvertItem' );
+
+				model.change( writer => {
+					writer.setAttribute( 'alignment', 'right', modelRoot.getChild( 0 ) );
+				} );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li><p style="text-align:right">a</p></li>' +
+						'<li><span class="ck-list-bogus-paragraph">b</span></li>' +
+					'</ul>'
+				);
+
+				expect( editor.getData( { skipListItemIds: true } ) ).toBe(
+					'<ul>' +
+						'<li><p style="text-align:right;">a</p></li>' +
+						'<li>b</li>' +
+					'</ul>'
+				);
+
+				expect( spy ).toHaveBeenCalledOnce();
+			} );
+
+			it( 'should not refresh bogus paragraph on setting selection attribute in an empty block', () => {
+				_setModelData( model,
+					'<paragraph listIndent="0" listItemId="a" listType="bulleted"></paragraph>' +
+					'<paragraph listIndent="0" listItemId="b" listType="bulleted">b</paragraph>'
+				);
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li><span class="ck-list-bogus-paragraph"></span></li>' +
+						'<li><span class="ck-list-bogus-paragraph">b</span></li>' +
+					'</ul>'
+				);
+
+				const spy = vi.spyOn( editor.editing, 'reconvertItem' );
+
+				model.change( writer => {
+					writer.setSelectionAttribute( 'bold', true );
+				} );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+					'<paragraph listIndent="0" listItemBold="true" listItemId="a" listType="bulleted" selection:bold="true"></paragraph>' +
+					'<paragraph listIndent="0" listItemId="b" listType="bulleted">b</paragraph>'
+				);
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li class="ck-list-marker-bold"><span class="ck-list-bogus-paragraph"><strong></strong></span></li>' +
+						'<li><span class="ck-list-bogus-paragraph">b</span></li>' +
+					'</ul>'
+				);
+
+				expect( editor.getData( { skipListItemIds: true } ) ).toBe(
+					'<ul>' +
+						'<li class="ck-list-marker-bold">&nbsp;</li>' +
+						'<li>b</li>' +
+					'</ul>'
+				);
+
+				expect( spy ).not.toHaveBeenCalled();
+			} );
+
+			it( 'should not refresh bogus paragraph on setting attribute from a different feature on non-item element', () => {
+				_setModelData( model,
+					'<paragraph>a</paragraph>' +
+					'<paragraph listIndent="0" listItemId="b" listType="bulleted">b</paragraph>'
+				);
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<p>a</p>' +
+					'<ul>' +
+						'<li><span class="ck-list-bogus-paragraph">b</span></li>' +
+					'</ul>'
+				);
+
+				const spy = vi.spyOn( editor.editing, 'reconvertItem' );
+
+				model.change( writer => {
+					writer.setAttribute( 'alignment', 'right', modelRoot.getChild( 0 ) );
+				} );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<p style="text-align:right">a</p>' +
+					'<ul>' +
+						'<li><span class="ck-list-bogus-paragraph">b</span></li>' +
+					'</ul>'
+				);
+
+				expect( editor.getData( { skipListItemIds: true } ) ).toBe(
+					'<p style="text-align:right;">a</p>' +
+					'<ul>' +
+						'<li>b</li>' +
+					'</ul>'
+				);
+
+				expect( spy ).not.toHaveBeenCalled();
+			} );
+
+			describe( 'consuming', () => {
+				it( 'model bogus paragraph converter should not fire if change was already consumed', () => {
+					editor.conversion.for( 'downcast' )
+						.elementToElement( {
+							model: 'paragraph',
+							view: 'div',
+							converterPriority: 'highest'
+						} );
+
+					const input = _parseModel(
+						'<paragraph listIndent="0" listItemId="a" listType="bulleted">foo</paragraph>',
+						model.schema
+					);
+
+					model.change( writer => {
+						writer.remove( writer.createRangeIn( modelRoot ) );
+						writer.insert( input, modelRoot, 0 );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+						'<ul><li><div>foo</div></li></ul>'
+					);
+
+					expect( editor.getData( { skipListItemIds: true } ) ).toBe(
+						'<ul><li><div>foo</div></li></ul>'
+					);
+				} );
+			} );
+		} );
+
+		describe( 'consuming', () => {
+			it( 'model change indent converter should not fire if change was already consumed', () => {
+				editor.editing.downcastDispatcher.on( 'attribute:listIndent', ( evt, data, conversionApi ) => {
+					conversionApi.consumable.consume( data.item, 'attribute:listIndent' );
+				}, { priority: 'highest' } );
+
+				_setModelData( model,
+					'<paragraph listIndent="0" listItemId="a" listType="bulleted">a</paragraph>' +
+					'<paragraph listIndent="0" listItemId="b" listType="bulleted">b</paragraph>'
+				);
+
+				model.change( writer => {
+					writer.setAttribute( 'listIndent', 1, modelRoot.getChild( 1 ) );
+				} );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<span class="ck-list-bogus-paragraph">a</span>' +
+					'<span class="ck-list-bogus-paragraph">b</span>'
+				);
+			} );
+
+			it( 'view li converter should not fire if change was already consumed', () => {
+				editor.data.upcastDispatcher.on( 'element:li', ( evt, data, conversionApi ) => {
+					conversionApi.consumable.consume( data.viewItem, { name: true } );
+				}, { priority: 'highest' } );
+
+				editor.setData( '<p></p><ul><li></li></ul>' );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe( '<paragraph></paragraph>' );
+			} );
+
+			it( 'view li converter should not set list attributes if change was already consumed to some non listable element', () => {
+				model.schema.addAttributeCheck( ( context, attributeName ) => {
+					if ( context.endsWith( 'heading1' ) && attributeName == 'listItemId' ) {
+						return false;
+					}
+				} );
+
+				editor.conversion.for( 'upcast' ).elementToElement( { view: 'li', model: 'heading1', converterPriority: 'highest' } );
+
+				editor.setData( '<ul><li></li></ul>' );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe( '<heading1></heading1>' );
+			} );
+
+			it( 'view ul converter should not fire if change was already consumed', () => {
+				editor.data.upcastDispatcher.on( 'element:ul', ( evt, data, conversionApi ) => {
+					conversionApi.consumable.consume( data.viewItem, { name: true } );
+				}, { priority: 'highest' } );
+
+				editor.setData( '<p></p><ul><li></li></ul>' );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe( '<paragraph></paragraph>' );
+			} );
+
+			it( 'view converter should pass model range in data.modelRange', () => {
+				editor.data.upcastDispatcher.on( 'element:ul', ( evt, data ) => {
+					expect( data.modelRange ).toBeInstanceOf( ModelRange );
+				}, { priority: 'lowest' } );
+
+				editor.setData( '<ul><li>Foo</li><li>Bar</li></ul>' );
+			} );
+		} );
+
+		describe( 'UIElement', () => {
+			it( 'ul and ol should not be inserted before ui element - change indent of the second list item', () => {
+				editor.setData(
+					'<ul>' +
+						'<li>Foo</li>' +
+						'<li>Bar</li>' +
+					'</ul>'
+				);
+
+				// Append ui element at the end of first <li> (inside the bogus paragraph).
+				view.change( writer => {
+					const firstChild = viewDoc.getRoot().getChild( 0 ).getChild( 0 ).getChild( 0 );
+
+					writer.insert( writer.createPositionAt( firstChild, 'end' ), writer.createUIElement( 'span' ) );
+				} );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li><span class="ck-list-bogus-paragraph">Foo<span></span></span></li>' +
+						'<li><span class="ck-list-bogus-paragraph">Bar</span></li>' +
+					'</ul>'
+				);
+
+				model.change( writer => {
+					// Change indent of the second list item.
+					writer.setAttribute( 'listIndent', 1, modelRoot.getChild( 1 ) );
+				} );
+
+				// Check if the new <ul> was added at correct position.
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li>' +
+							'<span class="ck-list-bogus-paragraph">Foo<span></span></span>' +
+							'<ul>' +
+								'<li><span class="ck-list-bogus-paragraph">Bar</span></li>' +
+							'</ul>' +
+						'</li>' +
+					'</ul>'
+				);
+			} );
+
+			it( 'ul and ol should not be inserted before ui element - remove second list item', () => {
+				editor.setData(
+					'<ul>' +
+						'<li>Foo</li>' +
+						'<li>' +
+							'Bar' +
+							'<ul>' +
+								'<li>Xxx</li>' +
+								'<li>Yyy</li>' +
+							'</ul>' +
+						'</li>' +
+					'</ul>'
+				);
+
+				// Append ui element at the end of first <li> (inside the bogus paragraph).
+				view.change( writer => {
+					const firstChild = viewDoc.getRoot().getChild( 0 ).getChild( 0 ).getChild( 0 );
+
+					writer.insert( writer.createPositionAt( firstChild, 'end' ), writer.createUIElement( 'span' ) );
+				} );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li><span class="ck-list-bogus-paragraph">Foo<span></span></span></li>' +
+						'<li>' +
+							'<span class="ck-list-bogus-paragraph">Bar</span>' +
+							'<ul>' +
+								'<li><span class="ck-list-bogus-paragraph">Xxx</span></li>' +
+								'<li><span class="ck-list-bogus-paragraph">Yyy</span></li>' +
+							'</ul>' +
+						'</li>' +
+					'</ul>'
+				);
+
+				model.change( writer => {
+					// Remove second list item. Expect that its sub-list will be moved to first list item.
+					writer.remove( modelRoot.getChild( 1 ) );
+				} );
+
+				// Check if the <ul> was added at correct position.
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+					'<ul>' +
+						'<li>' +
+							'<span class="ck-list-bogus-paragraph">Foo<span></span></span>' +
+							'<ul>' +
+								'<li><span class="ck-list-bogus-paragraph">Xxx</span></li>' +
+								'<li><span class="ck-list-bogus-paragraph">Yyy</span></li>' +
+							'</ul>' +
+						'</li>' +
+					'</ul>'
+				);
+			} );
+
+			describe( 'remove converter should properly handle ui elements', () => {
+				let liFoo, liBar;
+
+				beforeEach( () => {
+					editor.setData( '<ul><li>Foo</li><li>Bar</li></ul>' );
+
+					liFoo = modelRoot.getChild( 0 );
+					liBar = modelRoot.getChild( 1 );
+				} );
+
+				it( 'ui element before <ul>', () => {
+					view.change( writer => {
+						// Append ui element before <ul>.
+						writer.insert( writer.createPositionAt( viewRoot, 0 ), writer.createUIElement( 'span' ) );
+					} );
+
+					model.change( writer => {
+						writer.remove( liFoo );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+						'<span></span>' +
+						'<ul>' +
+							'<li><span class="ck-list-bogus-paragraph">Bar</span></li>' +
+						'</ul>'
+					);
+				} );
+
+				it( 'ui element before first <li>', () => {
+					view.change( writer => {
+						// Append ui element before <ll>.
+						writer.insert( writer.createPositionAt( viewRoot.getChild( 0 ), 0 ), writer.createUIElement( 'span' ) );
+					} );
+
+					model.change( writer => {
+						writer.remove( liFoo );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+						'<ul>' +
+							'<span></span>' +
+							'<li><span class="ck-list-bogus-paragraph">Bar</span></li>' +
+						'</ul>'
+					);
+				} );
+
+				it( 'ui element in the middle of list', () => {
+					view.change( writer => {
+						// Append ui element after <li>.
+						writer.insert( writer.createPositionAt( viewRoot.getChild( 0 ), 'end' ), writer.createUIElement( 'span' ) );
+					} );
+
+					model.change( writer => {
+						writer.remove( liBar );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+						'<ul>' +
+							'<li><span class="ck-list-bogus-paragraph">Foo</span></li>' +
+							'<span></span>' +
+						'</ul>'
+					);
+				} );
+			} );
+		} );
+
+		it( 'outdent outer list item with nested blockquote', () => {
+			_setModelData( model,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">a</paragraph>' +
+				'<paragraph listIndent="1" listItemId="b" listType="bulleted">b1</paragraph>' +
+				'<paragraph listIndent="1" listItemId="b" listType="bulleted">b2</paragraph>' +
+				'<blockQuote listIndent="2" listItemId="c" listType="bulleted">' +
+					'<paragraph listIndent="0" listItemId="d" listType="bulleted">d</paragraph>' +
+					'<paragraph listIndent="0" listItemId="e" listType="bulleted">e</paragraph>' +
+				'</blockQuote>'
+			);
+
+			const spy = vi.spyOn( editor.editing, 'reconvertItem' );
+
+			model.change( writer => {
+				writer.setAttribute( 'listIndent', 1, modelRoot.getChild( 3 ) );
+				writer.setAttribute( 'listItemId', 'b', modelRoot.getChild( 3 ) );
+			} );
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">a</paragraph>' +
+				'<paragraph listIndent="1" listItemId="b" listType="bulleted">b1</paragraph>' +
+				'<paragraph listIndent="1" listItemId="b" listType="bulleted">b2</paragraph>' +
+				'<blockQuote listIndent="1" listItemId="b" listType="bulleted">' +
+					'<paragraph listIndent="0" listItemId="d" listType="bulleted">d</paragraph>' +
+					'<paragraph listIndent="0" listItemId="e" listType="bulleted">e</paragraph>' +
+				'</blockQuote>'
+			);
+
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">a</span>' +
+						'<ul>' +
+							'<li>' +
+								'<p>b1</p>' +
+								'<p>b2</p>' +
+								'<blockquote>' +
+									'<ul>' +
+										'<li><span class="ck-list-bogus-paragraph">d</span></li>' +
+										'<li><span class="ck-list-bogus-paragraph">e</span></li>' +
+									'</ul>' +
+								'</blockquote>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+
+			expect( spy ).not.toHaveBeenCalled();
+		} );
+
+		describe( 'inside an elementToStructure', () => {
+			beforeEach( () => {
+				editor.model.schema.register( 'complex', {
+					inheritAllFrom: '$blockObject',
+					allowContentOf: '$container'
+				} );
+
+				editor.conversion.for( 'downcast' ).elementToStructure( {
+					model: 'complex',
+					view: ( modelElement, conversionApi ) => {
+						return conversionApi.writer.createContainerElement( 'div', { class: 'outer' }, [
+							conversionApi.writer.createContainerElement( 'div', { class: 'inner' }, [
+								conversionApi.writer.createSlot()
+							] )
+						] );
+					}
+				} );
+
+				editor.conversion.for( 'editingDowncast' ).elementToElement( {
+					model: 'paragraph',
+					view: ( modelElement, { writer } ) => {
+						if ( modelElement.parent.is( 'element', 'complex' ) ) {
+							return writer.createContainerElement( 'span', { class: 'ck-bogus-paragraph' } );
+						}
+					},
+					converterPriority: 'high'
+				} );
+
+				editor.conversion.for( 'dataDowncast' ).elementToElement( {
+					model: 'paragraph',
+					view: ( modelElement, { writer } ) => {
+						if ( modelElement.parent.is( 'element', 'complex' ) ) {
+							const viewElement = writer.createContainerElement( 'p' );
+
+							writer.setCustomProperty( 'dataPipeline:transparentRendering', true, viewElement );
+
+							return viewElement;
+						}
+					},
+					converterPriority: 'high'
+				} );
+			} );
+
+			it( 'when bogus paragraph is used inside complex structure before change into list', () => {
+				_setModelData( model,
+					'<complex>' +
+						'<paragraph>f[]oo</paragraph>' +
+					'</complex>'
+				);
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ), 'editing view' ).toBe(
+					'<div class="outer">' +
+						'<div class="inner">' +
+							'<span class="ck-bogus-paragraph">foo</span>' +
+						'</div>' +
+					'</div>'
+				);
+
+				editor.execute( 'bulletedList' );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ), 'editing view' ).toBe(
+					'<div class="outer">' +
+						'<div class="inner">' +
+							'<ul>' +
+								'<li><span class="ck-list-bogus-paragraph">foo</span></li>' +
+							'</ul>' +
+						'</div>' +
+					'</div>'
+				);
+				expect( editor.getData( { skipListItemIds: true } ), 'data' ).toBe(
+					'<div class="outer">' +
+						'<div class="inner">' +
+							'<ul>' +
+								'<li>foo</li>' +
+							'</ul>' +
+						'</div>' +
+					'</div>'
+				);
+			} );
+
+			it( 'when there is no bogus paragraph', () => {
+				_setModelData( model,
+					'<complex>' +
+						'<heading1>f[]oo</heading1>' +
+					'</complex>'
+				);
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ), 'editing view' ).toBe(
+					'<div class="outer">' +
+						'<div class="inner">' +
+							'<h2>foo</h2>' +
+						'</div>' +
+					'</div>'
+				);
+
+				editor.execute( 'bulletedList' );
+
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ), 'editing view' ).toBe(
+					'<div class="outer">' +
+						'<div class="inner">' +
+							'<ul>' +
+								'<li><h2>foo</h2></li>' +
+							'</ul>' +
+						'</div>' +
+					'</div>'
+				);
+				expect( editor.getData( { skipListItemIds: true } ), 'data' ).toBe(
+					'<div class="outer">' +
+						'<div class="inner">' +
+							'<ul>' +
+								'<li><h2>foo</h2></li>' +
+							'</ul>' +
+						'</div>' +
+					'</div>'
+				);
+			} );
+		} );
+	} );
+
+	describe( 'schema checking and parent splitting', () => {
+		beforeEach( () => {
+			// Since this part of test tests only view->model conversion editing pipeline is not necessary.
+			editor.editing.destroy();
+		} );
+
+		it( 'list should be not converted when modelCursor and its ancestors disallow to insert list', () => {
+			model.document.createRoot( '$title', 'title' );
+
+			model.schema.register( '$title', {
+				disallow: '$block',
+				allow: 'inline'
+			} );
+
+			editor.data.set( { title: '<ul><li>foo</li></ul>' } );
+
+			expect( _getModelData( model, { rootName: 'title', withoutSelection: true } ) ).toBe( '' );
+		} );
+
+		it( 'should split parent element when one of modelCursor ancestors allows to insert list - in the middle', () => {
+			editor.conversion.for( 'upcast' ).elementToElement( { view: 'div', model: 'div' } );
+			model.schema.register( 'div', { inheritAllFrom: '$block' } );
+
+			editor.setData(
+				'<div>' +
+					'abc' +
+					'<ul>' +
+						'<li>foo</li>' +
+					'</ul>' +
+					'def' +
+				'</div>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<div>abc</div>' +
+				'<paragraph listIndent="0" listItemId="a00" listType="bulleted">foo</paragraph>' +
+				'<div>def</div>'
+			);
+		} );
+
+		it( 'should split parent element when one of modelCursor ancestors allows to insert list - at the end', () => {
+			editor.conversion.for( 'upcast' ).elementToElement( { view: 'div', model: 'div' } );
+			model.schema.register( 'div', { inheritAllFrom: '$block' } );
+
+			editor.setData(
+				'<div>' +
+					'abc' +
+					'<ul>' +
+						'<li>foo</li>' +
+					'</ul>' +
+				'</div>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<div>abc</div>' +
+				'<paragraph listIndent="0" listItemId="a00" listType="bulleted">foo</paragraph>'
+			);
+		} );
+
+		it( 'should split parent element when one of modelCursor ancestors allows to insert list - at the beginning', () => {
+			editor.conversion.for( 'upcast' ).elementToElement( { view: 'div', model: 'div' } );
+			model.schema.register( 'div', { inheritAllFrom: '$block' } );
+
+			editor.setData(
+				'<div>' +
+					'<ul>' +
+						'<li>foo</li>' +
+					'</ul>' +
+					'def' +
+				'</div>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<paragraph listIndent="0" listItemId="a00" listType="bulleted">foo</paragraph>' +
+				'<div>def</div>'
+			);
+		} );
+
+		// https://github.com/ckeditor/ckeditor5-list/issues/121
+		it( 'should correctly set data.modelCursor', () => {
+			editor.setData(
+				'<ul>' +
+					'<li>a</li>' +
+					'<li>b</li>' +
+				'</ul>' +
+				'c'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<paragraph listIndent="0" listItemId="a00" listType="bulleted">a</paragraph>' +
+				'<paragraph listIndent="0" listItemId="a01" listType="bulleted">b</paragraph>' +
+				'<paragraph>c</paragraph>'
+			);
+		} );
+	} );
+
+	describe( 'skip-level lists', () => {
+		let skipEditor, skipModel;
+
+		beforeEach( async () => {
+			skipEditor = await VirtualTestEditor.create( {
+				plugins: [ Paragraph, IndentEditing, ClipboardPipeline, BoldEditing, ListEditing, UndoEditing,
+					BlockQuoteEditing, TableEditing, HeadingEditing, AlignmentEditing ],
+				list: {
+					enableSkipLevelLists: true
+				}
+			} );
+
+			skipModel = skipEditor.model;
+
+			vi.spyOn( skipEditor.editing.view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+		} );
+
+		afterEach( async () => {
+			await skipEditor.destroy();
+		} );
+
+		it( 'should create intermediate wrappers for a single skipped level', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ul>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should create intermediate wrappers for multiple skipped levels', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="3" listItemId="b" listType="bulleted">B</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li style="list-style-type:none">' +
+										'<ul>' +
+											'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+										'</ul>' +
+									'</li>' +
+								'</ul>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should create intermediate wrappers when the first item has a skip level', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="2" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="0" listItemId="b" listType="bulleted">B</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li style="list-style-type:none">' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">A</span></li>' +
+								'</ul>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+					'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should merge intermediate wrappers for sibling items at the same skip level', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="1" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="1" listItemId="b" listType="bulleted">B</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li style="list-style-type:none">' +
+						'<ul>' +
+							'<li><span class="ck-list-bogus-paragraph">A</span></li>' +
+							'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should inherit the list type from the ancestor for intermediate levels without a sibling', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ol>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ul>' +
+							'</li>' +
+						'</ol>' +
+					'</li>' +
+				'</ol>'
+			);
+		} );
+
+		it( 'should place intermediate and real items as siblings at the same indent', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B</paragraph>' +
+				'<paragraph listIndent="1" listItemId="c" listType="bulleted">C</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ul>' +
+							'</li>' +
+							'<li><span class="ck-list-bogus-paragraph">C</span></li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should handle multi-block list item with skip level', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B1</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B2</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li>' +
+										'<p>B1</p>' +
+										'<p>B2</p>' +
+									'</li>' +
+								'</ul>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should create intermediate wrappers for a numbered list', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="numbered">B</paragraph>' +
+				'<paragraph listIndent="1" listItemId="c" listType="numbered">C</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ol>' +
+							'<li style="list-style-type:none">' +
+								'<ol>' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ol>' +
+							'</li>' +
+							'<li><span class="ck-list-bogus-paragraph">C</span></li>' +
+						'</ol>' +
+					'</li>' +
+				'</ol>'
+			);
+		} );
+
+		it( 'should merge intermediate and real list wrappers in a mixed-type list', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B</paragraph>' +
+				'<paragraph listIndent="1" listItemId="c" listType="bulleted">C</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ul>' +
+							'</li>' +
+							'<li><span class="ck-list-bogus-paragraph">C</span></li>' +
+						'</ul>' +
+					'</li>' +
+				'</ol>'
+			);
+		} );
+
+		it( 'should handle a container at a skip level', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<blockQuote listIndent="2" listItemId="b" listType="bulleted">' +
+					'<paragraph>B</paragraph>' +
+				'</blockQuote>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><blockquote><p>B</p></blockquote></li>' +
+								'</ul>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should merge intermediate wrappers when child items at different depths have different types', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="bulleted">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="numbered">B</paragraph>' +
+				'<paragraph listIndent="3" listItemId="c" listType="bulleted">C</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ol>' +
+									'<li>' +
+										'<span class="ck-list-bogus-paragraph">B</span>' +
+										'<ul>' +
+											'<li><span class="ck-list-bogus-paragraph">C</span></li>' +
+										'</ul>' +
+									'</li>' +
+								'</ol>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should not pick a sibling from a different list context (lower indent boundary)', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="bulleted">B</paragraph>' +
+				'<paragraph listIndent="0" listItemId="d" listType="bulleted">D</paragraph>' +
+				'<paragraph listIndent="1" listItemId="c" listType="bulleted">C</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ol>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ul>' +
+							'</li>' +
+						'</ol>' +
+					'</li>' +
+				'</ol>' +
+				'<ul>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">D</span>' +
+						'<ul>' +
+							'<li><span class="ck-list-bogus-paragraph">C</span></li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should use sibling type at one intermediate level and ancestor type at another', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">A</paragraph>' +
+				'<paragraph listIndent="3" listItemId="b" listType="bulleted">B</paragraph>' +
+				'<paragraph listIndent="1" listItemId="c" listType="bulleted">C</paragraph>'
+			);
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ul>' +
+							'<li style="list-style-type:none">' +
+								'<ol>' +
+									'<li style="list-style-type:none">' +
+										'<ul>' +
+											'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+										'</ul>' +
+									'</li>' +
+								'</ol>' +
+							'</li>' +
+							'<li><span class="ck-list-bogus-paragraph">C</span></li>' +
+						'</ul>' +
+					'</li>' +
+				'</ol>'
+			);
+		} );
+
+		it( 'should apply scope:list strategies on intermediate wrappers', async () => {
+			const editor = await VirtualTestEditor.create( {
+				plugins: [ Paragraph, ListEditing, ListPropertiesEditing ],
+				list: {
+					enableSkipLevelLists: true,
+					properties: { styles: true }
+				}
+			} );
+
+			_setModelData( editor.model,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered" listStyle="upper-roman">A</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="numbered" listStyle="upper-roman">B</paragraph>'
+			);
+
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol style="list-style-type:upper-roman">' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">A</span>' +
+						'<ol style="list-style-type:upper-roman">' +
+							'<li style="list-style-type:none">' +
+								'<ol style="list-style-type:upper-roman">' +
+									'<li><span class="ck-list-bogus-paragraph">B</span></li>' +
+								'</ol>' +
+							'</li>' +
+						'</ol>' +
+					'</li>' +
+				'</ol>'
+			);
+
+			await editor.destroy();
+		} );
+
+		it( 'should refresh intermediate wrappers when listType changes on an item following a skip-level item', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="1" listItemId="a" listType="numbered">aaa</paragraph>' +
+				'<paragraph listIndent="0" listItemId="b" listType="numbered">bbb</paragraph>'
+			);
+
+			skipModel.change( writer => {
+				writer.setAttribute( 'listType', 'bulleted', skipModel.document.getRoot().getChild( 1 ) );
+			} );
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ul>' +
+					'<li style="list-style-type:none">' +
+						'<ol>' +
+							'<li><span class="ck-list-bogus-paragraph">aaa</span></li>' +
+						'</ol>' +
+					'</li>' +
+					'<li><span class="ck-list-bogus-paragraph">bbb</span></li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should keep consistent marker styling after indenting multiple items into a skip level', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">aaa</paragraph>' +
+				'<paragraph listIndent="1" listItemId="b" listType="bulleted">bbb</paragraph>' +
+				'<paragraph listIndent="1" listItemId="c" listType="bulleted">ccc</paragraph>' +
+				'<paragraph listIndent="1" listItemId="d" listType="bulleted">ddd</paragraph>'
+			);
+
+			// Indent bbb, ccc, ddd one by one (each as a separate model change).
+			for ( let i = 1; i <= 3; i++ ) {
+				skipModel.change( writer => {
+					writer.setAttribute( 'listIndent', 2, skipModel.document.getRoot().getChild( i ) );
+				} );
+			}
+
+			// All three items end up at indent 2 and share a single intermediate wrapper at indent 1,
+			// so their markers are consistent (all rendered by the same <ul>).
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe(
+				'<ol>' +
+					'<li>' +
+						'<span class="ck-list-bogus-paragraph">aaa</span>' +
+						'<ol>' +
+							'<li style="list-style-type:none">' +
+								'<ul>' +
+									'<li><span class="ck-list-bogus-paragraph">bbb</span></li>' +
+									'<li><span class="ck-list-bogus-paragraph">ccc</span></li>' +
+									'<li><span class="ck-list-bogus-paragraph">ddd</span></li>' +
+								'</ul>' +
+							'</li>' +
+						'</ol>' +
+					'</li>' +
+				'</ol>'
+			);
+		} );
+
+		it( 'should refresh intermediate wrappers after undoing an outdent of a skip-level item', () => {
+			_setModelData( skipModel,
+				'<paragraph listIndent="0" listItemId="a" listType="numbered">aaa</paragraph>' +
+				'<paragraph listIndent="2" listItemId="b" listType="numbered">bbb</paragraph>' +
+				'<paragraph listIndent="2" listItemId="c" listType="numbered">ccc</paragraph>'
+			);
+
+			const initialView = _getViewData( skipEditor.editing.view, { withoutSelection: true } );
+
+			// Outdent bbb from indent 2 to indent 1.
+			skipModel.change( writer => {
+				writer.setAttribute( 'listIndent', 1, skipModel.document.getRoot().getChild( 1 ) );
+			} );
+
+			skipEditor.execute( 'undo' );
+
+			expect( _getViewData( skipEditor.editing.view, { withoutSelection: true } ) ).toBe( initialView );
+		} );
+
+		describe( 'upcast (bogus <p> inside <li>)', () => {
+			it( 'should not create a leading empty multi-block paragraph for the first <li> ' +
+				'in an intermediate wrapper with multiple siblings', () => {
+				// Without bogus <p> handling, the first <li> inside a consumed skip-level
+				// wrapper's <ol> produced an auto-break empty paragraph.
+				skipEditor.setData(
+					'<ul>' +
+						'<li><p>A</p>' +
+							'<ul>' +
+								'<li style="list-style-type:none">' +
+									'<ul>' +
+										'<li><p>B</p></li>' +
+										'<li><p>C</p></li>' +
+									'</ul>' +
+								'</li>' +
+							'</ul>' +
+						'</li>' +
+					'</ul>'
+				);
+
+				expect( _getModelData( skipModel, { withoutSelection: true } ) ).toBe(
+					'<paragraph listIndent="0" listItemId="a03" listType="bulleted">A</paragraph>' +
+					'<paragraph listIndent="2" listItemId="a00" listType="bulleted">B</paragraph>' +
+					'<paragraph listIndent="2" listItemId="a01" listType="bulleted">C</paragraph>'
+				);
+			} );
+		} );
+	} );
+
+	function getViewPosition( root, path, view ) {
+		let parent = root;
+
+		while ( path.length > 1 ) {
+			parent = parent.getChild( path.shift() );
+		}
+
+		return view.createPositionAt( parent, path[ 0 ] );
+	}
+
+	function getViewPath( position ) {
+		const path = [ position.offset ];
+		let parent = position.parent;
+
+		while ( parent.parent ) {
+			path.unshift( parent.index );
+			parent = parent.parent;
+		}
+
+		return path;
+	}
+} );

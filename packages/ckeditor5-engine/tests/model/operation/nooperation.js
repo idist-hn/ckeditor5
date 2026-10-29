@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../../src/model/model';
-import NoOperation from '../../../src/model/operation/nooperation';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model } from '../../../src/model/model.js';
+import { NoOperation } from '../../../src/model/operation/nooperation.js';
 
 describe( 'NoOperation', () => {
 	let model, noop, doc;
@@ -16,28 +17,28 @@ describe( 'NoOperation', () => {
 	} );
 
 	it( 'should not throw an error when applied', () => {
-		expect( () => model.applyOperation( noop ) ).to.not.throw( Error );
+		expect( () => model.applyOperation( noop ) ).not.toThrow( Error );
 	} );
 
 	it( 'should create a NoOperation as a reverse', () => {
 		const reverse = noop.getReversed();
 
-		expect( reverse ).to.be.an.instanceof( NoOperation );
-		expect( reverse.baseVersion ).to.equal( 1 );
+		expect( reverse ).toBeInstanceOf( NoOperation );
+		expect( reverse.baseVersion ).toBe( 1 );
 	} );
 
 	it( 'should create NoOperation having same parameters when cloned', () => {
 		const clone = noop.clone();
 
-		expect( clone ).to.be.an.instanceof( NoOperation );
-		expect( clone.baseVersion ).to.equal( 0 );
+		expect( clone ).toBeInstanceOf( NoOperation );
+		expect( clone.baseVersion ).toBe( 0 );
 	} );
 
 	describe( 'toJSON', () => {
 		it( 'should create proper json object', () => {
 			const serialized = noop.toJSON();
 
-			expect( serialized ).to.deep.equal( {
+			expect( serialized ).toEqual( {
 				__className: 'NoOperation',
 				baseVersion: 0
 			} );
@@ -49,7 +50,7 @@ describe( 'NoOperation', () => {
 			const serialized = noop.toJSON();
 			const deserialized = NoOperation.fromJSON( serialized, doc );
 
-			expect( deserialized ).to.deep.equal( noop );
+			expect( deserialized ).toEqual( noop );
 		} );
 	} );
 } );

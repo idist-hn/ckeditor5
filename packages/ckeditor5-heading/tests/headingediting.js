@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import HeadingEditing from '../src/headingediting';
-import HeadingCommand from '../src/headingcommand';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ParagraphCommand from '@ckeditor/ckeditor5-paragraph/src/paragraphcommand';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { HeadingEditing } from '../src/headingediting.js';
+import { HeadingCommand } from '../src/headingcommand.js';
+import { Paragraph, ParagraphCommand } from '@ckeditor/ckeditor5-paragraph';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'HeadingEditing', () => {
 	let editor, model;
@@ -26,63 +25,71 @@ describe( 'HeadingEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( HeadingEditing.pluginName ).to.equal( 'HeadingEditing' );
+		expect( HeadingEditing.pluginName ).toEqual( 'HeadingEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( HeadingEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( HeadingEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( HeadingEditing ) ).to.be.instanceOf( HeadingEditing );
+		expect( editor.plugins.get( HeadingEditing ) ).toBeInstanceOf( HeadingEditing );
 	} );
 
 	it( 'should load paragraph feature', () => {
-		expect( editor.plugins.get( Paragraph ) ).to.be.instanceOf( Paragraph );
+		expect( editor.plugins.get( Paragraph ) ).toBeInstanceOf( Paragraph );
 	} );
 
 	it( 'should set proper schema rules', () => {
-		expect( model.schema.isRegistered( 'heading1' ) ).to.be.true;
-		expect( model.schema.isRegistered( 'heading2' ) ).to.be.true;
-		expect( model.schema.isRegistered( 'heading3' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'heading1' ) ).toBe( true );
+		expect( model.schema.isRegistered( 'heading2' ) ).toBe( true );
+		expect( model.schema.isRegistered( 'heading3' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root' ], 'heading1' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'heading1' ], '$text' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root' ], 'heading1' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'heading1' ], '$text' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root' ], 'heading2' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'heading2' ], '$text' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root' ], 'heading2' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'heading2' ], '$text' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root' ], 'heading3' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'heading3' ], '$text' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root' ], 'heading3' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'heading3' ], '$text' ) ).toBe( true );
 	} );
 
 	it( 'should register #commands', () => {
-		expect( editor.commands.get( 'paragraph' ) ).to.be.instanceOf( ParagraphCommand );
-		expect( editor.commands.get( 'heading' ) ).to.be.instanceOf( HeadingCommand );
+		expect( editor.commands.get( 'paragraph' ) ).toBeInstanceOf( ParagraphCommand );
+		expect( editor.commands.get( 'heading' ) ).toBeInstanceOf( HeadingCommand );
 	} );
 
 	it( 'should convert heading1', () => {
 		editor.setData( '<h2>foobar</h2>' );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal( '<heading1>foobar</heading1>' );
-		expect( editor.getData() ).to.equal( '<h2>foobar</h2>' );
+		expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<heading1>foobar</heading1>' );
+		expect( editor.getData() ).toEqual( '<h2>foobar</h2>' );
 	} );
 
 	it( 'should convert heading2', () => {
 		editor.setData( '<h3>foobar</h3>' );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal( '<heading2>foobar</heading2>' );
-		expect( editor.getData() ).to.equal( '<h3>foobar</h3>' );
+		expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<heading2>foobar</heading2>' );
+		expect( editor.getData() ).toEqual( '<h3>foobar</h3>' );
 	} );
 
 	it( 'should convert heading3', () => {
 		editor.setData( '<h4>foobar</h4>' );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal( '<heading3>foobar</heading3>' );
-		expect( editor.getData() ).to.equal( '<h4>foobar</h4>' );
+		expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<heading3>foobar</heading3>' );
+		expect( editor.getData() ).toEqual( '<h4>foobar</h4>' );
 	} );
 
 	it( 'should convert h1 to heading1 using default, low-priority converter', () => {
 		editor.setData( '<h1>foobar</h1>' );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal( '<heading1>foobar</heading1>' );
-		expect( editor.getData() ).to.equal( '<h2>foobar</h2>' );
+		expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<heading1>foobar</heading1>' );
+		expect( editor.getData() ).toEqual( '<h2>foobar</h2>' );
 	} );
 
 	describe( 'user defined', () => {
@@ -114,27 +121,25 @@ describe( 'HeadingEditing', () => {
 		it( 'should convert from defined h element', () => {
 			editor.setData( '<h1>foobar</h1>' );
 
-			expect( getData( model, { withoutSelection: true } ) ).to.equal( '<heading1>foobar</heading1>' );
-			expect( editor.getData() ).to.equal( '<h1>foobar</h1>' );
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<heading1>foobar</heading1>' );
+			expect( editor.getData() ).toEqual( '<h1>foobar</h1>' );
 		} );
 
 		it( 'should convert from defined paragraph with attributes', () => {
 			editor.setData( '<p data-heading="h1">foobar</p><p>Normal paragraph</p>' );
 
-			expect( getData( model, { withoutSelection: true } ) )
-				.to.equal( '<heading1>foobar</heading1><paragraph>Normal paragraph</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toEqual( '<heading1>foobar</heading1><paragraph>Normal paragraph</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<h1>foobar</h1><p>Normal paragraph</p>' );
+			expect( editor.getData() ).toEqual( '<h1>foobar</h1><p>Normal paragraph</p>' );
 		} );
 	} );
 
 	describe( 'default h1 conversion', () => {
 		let addDefaultConversionSpy;
 
-		testUtils.createSinonSandbox();
-
 		beforeEach( () => {
-			addDefaultConversionSpy = testUtils.sinon.spy( HeadingEditing.prototype, '_addDefaultH1Conversion' );
+			addDefaultConversionSpy = vi.spyOn( HeadingEditing.prototype, '_addDefaultH1Conversion' );
 		} );
 
 		it( 'should define the default h1 to heading1 converter' +
@@ -144,14 +149,14 @@ describe( 'HeadingEditing', () => {
 					plugins: [ HeadingEditing ]
 				} )
 				.then( editor => {
-					expect( addDefaultConversionSpy.callCount ).to.equal( 1 );
+					expect( addDefaultConversionSpy ).toHaveBeenCalledTimes( 1 );
 
 					editor.setData( '<h1>Foo</h1><h2>Bar</h2><p>Baz</p>' );
 
-					expect( getData( editor.model, { withoutSelection: true } ) )
-						.to.equal( '<heading1>Foo</heading1><heading1>Bar</heading1><paragraph>Baz</paragraph>' );
+					expect( _getModelData( editor.model, { withoutSelection: true } ) )
+						.toEqual( '<heading1>Foo</heading1><heading1>Bar</heading1><paragraph>Baz</paragraph>' );
 
-					expect( editor.getData() ).to.equal( '<h2>Foo</h2><h2>Bar</h2><p>Baz</p>' );
+					expect( editor.getData() ).toEqual( '<h2>Foo</h2><h2>Bar</h2><p>Baz</p>' );
 				} );
 		} );
 
@@ -168,14 +173,14 @@ describe( 'HeadingEditing', () => {
 					heading: { options }
 				} )
 				.then( editor => {
-					expect( addDefaultConversionSpy.callCount ).to.equal( 1 );
+					expect( addDefaultConversionSpy ).toHaveBeenCalledTimes( 1 );
 
 					editor.setData( '<h1>Foo</h1><h3>Bar</h3><h4>Baz</h4><h2>Bax</h2>' );
 
-					expect( getData( editor.model, { withoutSelection: true } ) )
-						.to.equal( '<heading1>Foo</heading1><heading1>Bar</heading1><heading2>Baz</heading2><paragraph>Bax</paragraph>' );
+					expect( _getModelData( editor.model, { withoutSelection: true } ) )
+						.toEqual( '<heading1>Foo</heading1><heading1>Bar</heading1><heading2>Baz</heading2><paragraph>Bax</paragraph>' );
 
-					expect( editor.getData() ).to.equal( '<h3>Foo</h3><h3>Bar</h3><h4>Baz</h4><p>Bax</p>' );
+					expect( editor.getData() ).toEqual( '<h3>Foo</h3><h3>Bar</h3><h4>Baz</h4><p>Bax</p>' );
 				} );
 		} );
 
@@ -193,30 +198,29 @@ describe( 'HeadingEditing', () => {
 					heading: { options }
 				} )
 				.then( editor => {
-					expect( addDefaultConversionSpy.callCount ).to.equal( 1 );
+					expect( addDefaultConversionSpy ).toHaveBeenCalledTimes( 1 );
 
 					editor.setData( '<h1>Foo</h1><h2>Bar</h2><h3>Baz</h3><h4>Bax</h4>' );
 
-					expect( getData( editor.model, { withoutSelection: true } ) )
-						.to.equal( '<heading2>Foo</heading2><heading1>Bar</heading1><heading3>Baz</heading3><paragraph>Bax</paragraph>' );
+					expect( _getModelData( editor.model, { withoutSelection: true } ) )
+						.toEqual( '<heading2>Foo</heading2><heading1>Bar</heading1><heading3>Baz</heading3><paragraph>Bax</paragraph>' );
 
-					expect( editor.getData() ).to.equal( '<h1>Foo</h1><h2>Bar</h2><h3>Baz</h3><p>Bax</p>' );
+					expect( editor.getData() ).toEqual( '<h1>Foo</h1><h2>Bar</h2><h3>Baz</h3><p>Bax</p>' );
 				} );
 		} );
 	} );
 
 	it( 'should not blow up if there\'s no enter command in the editor', () => {
-		return VirtualTestEditor
-			.create( {
-				plugins: [ HeadingEditing ]
-			} );
+		return expect( VirtualTestEditor.create( {
+			plugins: [ HeadingEditing ]
+		} ) ).resolves.toBeInstanceOf( VirtualTestEditor );
 	} );
 
 	describe( 'config', () => {
 		describe( 'options', () => {
 			describe( 'default value', () => {
 				it( 'should be set', () => {
-					expect( editor.config.get( 'heading.options' ) ).to.deep.equal( [
+					expect( editor.config.get( 'heading.options' ) ).toEqual( [
 						{ model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
 						{ model: 'heading1', view: 'h2', title: 'Heading 1', class: 'ck-heading_heading1' },
 						{ model: 'heading2', view: 'h3', title: 'Heading 2', class: 'ck-heading_heading2' },
@@ -241,15 +245,14 @@ describe( 'HeadingEditing', () => {
 					.then( editor => {
 						model = editor.model;
 
-						expect( model.schema.isRegistered( 'paragraph' ) ).to.be.true;
-						expect( model.schema.isRegistered( 'h4' ) ).to.be.true;
+						expect( model.schema.isRegistered( 'paragraph' ) ).toBe( true );
+						expect( model.schema.isRegistered( 'h4' ) ).toBe( true );
 
-						expect( model.schema.isRegistered( 'heading1' ) ).to.be.false;
-						expect( model.schema.isRegistered( 'heading2' ) ).to.be.false;
-						expect( model.schema.isRegistered( 'heading3' ) ).to.be.false;
+						expect( model.schema.isRegistered( 'heading1' ) ).toBe( false );
+						expect( model.schema.isRegistered( 'heading2' ) ).toBe( false );
+						expect( model.schema.isRegistered( 'heading3' ) ).toBe( false );
 					} );
 			} );
 		} );
 	} );
 } );
-

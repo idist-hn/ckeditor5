@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontfamily
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import FontFamilyEditing from './fontfamily/fontfamilyediting';
-import FontFamilyUI from './fontfamily/fontfamilyui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { FontFamilyEditing } from './fontfamily/fontfamilyediting.js';
+import { FontFamilyUI } from './fontfamily/fontfamilyui.js';
 
 /**
  * The font family plugin.
@@ -20,12 +20,12 @@ import FontFamilyUI from './fontfamily/fontfamilyui';
  * This is a "glue" plugin which loads the {@link module:font/fontfamily/fontfamilyediting~FontFamilyEditing} and
  * {@link module:font/fontfamily/fontfamilyui~FontFamilyUI} features in the editor.
  */
-export default class FontFamily extends Plugin {
+export class FontFamily extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ FontFamilyEditing, FontFamilyUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ FontFamilyEditing, FontFamilyUI ]> {
+		return [ FontFamilyEditing, FontFamilyUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class FontFamily extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'FontFamily' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

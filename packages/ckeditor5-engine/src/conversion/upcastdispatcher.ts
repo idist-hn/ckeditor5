@@ -1,48 +1,50 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/conversion/upcastdispatcher
  */
 
-import ViewConsumable from './viewconsumable';
-import ModelRange from '../model/range';
-import ModelPosition from '../model/position';
-import type ModelElement from '../model/element';
-import type ModelNode from '../model/node';
-import type ViewElement from '../view/element';
-import type ViewText from '../view/text';
-import type ViewDocumentFragment from '../view/documentfragment';
-import type ModelDocumentFragment from '../model/documentfragment';
-import type { default as Schema, SchemaContextDefinition } from '../model/schema';
-import { SchemaContext } from '../model/schema'; // eslint-disable-line no-duplicate-imports
-import type ModelWriter from '../model/writer';
-import { isParagraphable, wrapInParagraph } from '../model/utils/autoparagraphing';
+import { ViewConsumable } from './viewconsumable.js';
+import { ModelRange } from '../model/range.js';
+import { ModelPosition } from '../model/position.js';
+import { type ModelElement } from '../model/element.js';
+import { type ModelNode } from '../model/node.js';
+import { type ViewElement } from '../view/element.js';
+import { type ViewText } from '../view/text.js';
+import { type ViewDocumentFragment } from '../view/documentfragment.js';
+import { type ModelDocumentFragment } from '../model/documentfragment.js';
+import type { ModelSchema, ModelSchemaContextDefinition } from '../model/schema.js';
+import { ModelSchemaContext } from '../model/schema.js'; // eslint-disable-line no-duplicate-imports
+import { type ModelWriter } from '../model/writer.js';
+import { isParagraphable, wrapInParagraph } from '../model/utils/autoparagraphing.js';
 
-import type ViewItem from '../view/item';
+import { type ViewItem } from '../view/item.js';
 
-import { CKEditorError, EmitterMixin } from '@ckeditor/ckeditor5-utils';
+import { CKEditorError, EmitterMixin, type EmitterMixinConstructor } from '@ckeditor/ckeditor5-utils';
+
+const UpcastDispatcherBase: EmitterMixinConstructor = /* #__PURE__ */ EmitterMixin();
 
 /**
  * Upcast dispatcher is a central point of the view-to-model conversion, which is a process of
- * converting a given {@link module:engine/view/documentfragment~DocumentFragment view document fragment} or
- * {@link module:engine/view/element~Element view element} into a correct model structure.
+ * converting a given {@link module:engine/view/documentfragment~ViewDocumentFragment view document fragment} or
+ * {@link module:engine/view/element~ViewElement view element} into a correct model structure.
  *
- * During the conversion process, the dispatcher fires events for all {@link module:engine/view/node~Node view nodes}
+ * During the conversion process, the dispatcher fires events for all {@link module:engine/view/node~ViewNode view nodes}
  * from the converted view document fragment.
  * Special callbacks called "converters" should listen to these events in order to convert the view nodes.
  *
  * The second parameter of the callback is the `data` object with the following properties:
  *
- * * `data.viewItem` contains a {@link module:engine/view/node~Node view node} or a
- * {@link module:engine/view/documentfragment~DocumentFragment view document fragment}
+ * * `data.viewItem` contains a {@link module:engine/view/node~ViewNode view node} or a
+ * {@link module:engine/view/documentfragment~ViewDocumentFragment view document fragment}
  * that is converted at the moment and might be handled by the callback.
  * * `data.modelRange` is used to point to the result
  * of the current conversion (e.g. the element that is being inserted)
- * and is always a {@link module:engine/model/range~Range} when the conversion succeeds.
- * * `data.modelCursor` is a {@link module:engine/model/position~Position position} on which the converter should insert
+ * and is always a {@link module:engine/model/range~ModelRange} when the conversion succeeds.
+ * * `data.modelCursor` is a {@link module:engine/model/position~ModelPosition position} on which the converter should insert
  * the newly created items.
  *
  * The third parameter of the callback is an instance of {@link module:engine/conversion/upcastdispatcher~UpcastConversionApi}
@@ -121,7 +123,7 @@ import { CKEditorError, EmitterMixin } from '@ckeditor/ckeditor5-utils';
  * @fires text
  * @fires documentFragment
  */
-export default class UpcastDispatcher extends EmitterMixin() {
+export class UpcastDispatcher extends UpcastDispatcherBase {
 	/**
 	 * An interface passed by the dispatcher to the event callbacks.
 	 */
@@ -184,6 +186,13 @@ export default class UpcastDispatcher extends EmitterMixin() {
 	/**
 	 * Starts the conversion process. The entry point for the conversion.
 	 *
+	 * **Note:** The default `context` value is `[ '$root' ]`, which only matches the generic root. When the editor uses
+	 * a custom root {@link module:core/editor/editorconfig~RootConfig#modelElement `modelElement`}, pass the target
+	 * {@link module:engine/model/rootelement~ModelRootElement root element} (or its configured model element name)
+	 * explicitly, otherwise the conversion result may be wrong.
+	 * See the {@glink framework/deep-dive/schema#custom-root-elements Custom root elements} section of the
+	 * {@glink framework/deep-dive/schema Schema deep-dive} guide for more details.
+	 *
 	 * @fires element
 	 * @fires text
 	 * @fires documentFragment
@@ -192,12 +201,12 @@ export default class UpcastDispatcher extends EmitterMixin() {
 	 * @param context Elements will be converted according to this context.
 	 * @returns Model data that is the result of the conversion process
 	 * wrapped in `DocumentFragment`. Converted marker elements will be set as the document fragment's
-	 * {@link module:engine/model/documentfragment~DocumentFragment#markers static markers map}.
+	 * {@link module:engine/model/documentfragment~ModelDocumentFragment#markers static markers map}.
 	 */
 	public convert(
 		viewElement: ViewElement | ViewDocumentFragment,
 		writer: ModelWriter,
-		context: SchemaContextDefinition = [ '$root' ]
+		context: ModelSchemaContextDefinition = [ '$root' ]
 	): ModelDocumentFragment {
 		this.fire<UpcastViewCleanupEvent>( 'viewCleanup', viewElement );
 
@@ -223,13 +232,14 @@ export default class UpcastDispatcher extends EmitterMixin() {
 
 		// When there is a conversion result.
 		if ( modelRange ) {
-			// Remove all empty elements that were create while splitting.
+			// Remove all empty elements that were created while splitting.
 			this._removeEmptyElements();
 
 			// Move all items that were converted in context tree to the document fragment.
-			for ( const item of Array.from( this._modelCursor.parent.getChildren() ) ) {
-				writer.append( item, documentFragment );
-			}
+			const parent = this._modelCursor.parent;
+			const children = parent._removeChildren( 0, parent.childCount );
+
+			documentFragment._insertChild( 0, children );
 
 			// Extract temporary markers elements from model and set as static markers collection.
 			( documentFragment as any ).markers = extractMarkersFromModelFragment( documentFragment, writer );
@@ -285,7 +295,7 @@ export default class UpcastDispatcher extends EmitterMixin() {
 			/**
 			 * Incorrect conversion result was dropped.
 			 *
-			 * {@link module:engine/model/range~Range Model range} should be a conversion result.
+			 * {@link module:engine/model/range~ModelRange Model range} should be a conversion result.
 			 *
 			 * @error view-conversion-dispatcher-incorrect-result
 			 */
@@ -302,9 +312,9 @@ export default class UpcastDispatcher extends EmitterMixin() {
 		viewItem: ViewElement | ViewDocumentFragment,
 		elementOrModelCursor: ModelPosition | ModelElement
 	): {
-		modelRange: ModelRange;
-		modelCursor: ModelPosition;
-	} {
+			modelRange: ModelRange;
+			modelCursor: ModelPosition;
+		} {
 		let nextModelCursor = elementOrModelCursor.is( 'position' ) ?
 			elementOrModelCursor : ModelPosition._createAt( elementOrModelCursor, 0 );
 
@@ -340,7 +350,7 @@ export default class UpcastDispatcher extends EmitterMixin() {
 		}
 
 		// Insert element on allowed position.
-		this.conversionApi.writer!.insert( modelNode, splitResult.position );
+		this.conversionApi.writer.insert( modelNode, splitResult.position );
 
 		return true;
 	}
@@ -498,18 +508,26 @@ export default class UpcastDispatcher extends EmitterMixin() {
 	 * as some elements might have become empty after other empty elements were removed from them.
 	 */
 	private _removeEmptyElements(): void {
-		let anyRemoved = false;
+		// For every parent, prepare an array of children (empty elements) to remove from it.
+		// Then, in next step, we will remove all children together, which is faster than removing them one by one.
+		const toRemove = new Map<ModelElement | ModelDocumentFragment, Array<ModelElement>>();
 
 		for ( const element of this._splitParts.keys() ) {
 			if ( element.isEmpty && !this._emptyElementsToKeep.has( element ) ) {
-				this.conversionApi.writer!.remove( element );
+				const children = toRemove.get( element.parent! ) || [];
+
+				children.push( element );
 				this._splitParts.delete( element );
 
-				anyRemoved = true;
+				toRemove.set( element.parent!, children );
 			}
 		}
 
-		if ( anyRemoved ) {
+		for ( const [ parent, children ] of toRemove ) {
+			parent._removeChildrenArray( children );
+		}
+
+		if ( toRemove.size ) {
 			this._removeEmptyElements();
 		}
 	}
@@ -526,7 +544,7 @@ export type UpcastViewCleanupEvent = {
 	args: [ ViewElement | ViewDocumentFragment ];
 };
 
-type UpcastEvent<TName extends string, TItem extends ViewItem | ViewDocumentFragment> = {
+export type UpcastEvent<TName extends string, TItem extends ViewItem | ViewDocumentFragment> = {
 	name: TName | `${ TName }:${ string }`;
 	args: [ data: UpcastConversionData<TItem>, conversionApi: UpcastConversionApi ];
 };
@@ -558,7 +576,7 @@ export interface UpcastConversionData<TItem extends ViewItem | ViewDocumentFragm
 }
 
 /**
- * Fired when an {@link module:engine/view/element~Element} is converted.
+ * Fired when an {@link module:engine/view/element~ViewElement} is converted.
  *
  * `element` is a namespace event for a class of events. Names of actually called events follow the pattern of
  * `element:<elementName>` where `elementName` is the name of the converted element. This way listeners may listen to
@@ -573,7 +591,7 @@ export interface UpcastConversionData<TItem extends ViewItem | ViewDocumentFragm
 export type UpcastElementEvent = UpcastEvent<'element', ViewElement>;
 
 /**
- * Fired when a {@link module:engine/view/text~Text} is converted.
+ * Fired when a {@link module:engine/view/text~ViewText} is converted.
  *
  * @eventName ~UpcastDispatcher#text
  * @see ~UpcastDispatcher#event:element
@@ -581,7 +599,7 @@ export type UpcastElementEvent = UpcastEvent<'element', ViewElement>;
 export type UpcastTextEvent = UpcastEvent<'text', ViewText>;
 
 /**
- * Fired when a {@link module:engine/view/documentfragment~DocumentFragment} is converted.
+ * Fired when a {@link module:engine/view/documentfragment~ViewDocumentFragment} is converted.
  *
  * @eventName ~UpcastDispatcher#documentFragment
  * @see ~UpcastDispatcher#event:element
@@ -590,7 +608,7 @@ export type UpcastDocumentFragmentEvent = UpcastEvent<'documentFragment', ViewDo
 
 /**
  * Traverses given model item and searches elements which marks marker range. Found element is removed from
- * DocumentFragment but path of this element is stored in a Map which is then returned.
+ * ModelDocumentFragment but path of this element is stored in a Map which is then returned.
  *
  * @param modelItem Fragment of model.
  * @returns List of static markers.
@@ -602,7 +620,7 @@ function extractMarkersFromModelFragment( modelItem: ModelDocumentFragment, writ
 	// Create ModelTreeWalker.
 	const range = ModelRange._createIn( modelItem ).getItems();
 
-	// Walk through DocumentFragment and collect marker elements.
+	// Walk through ModelDocumentFragment and collect marker elements.
 	for ( const item of range ) {
 		// Check if current element is a marker.
 		if ( item.is( 'element', '$marker' ) ) {
@@ -610,7 +628,7 @@ function extractMarkersFromModelFragment( modelItem: ModelDocumentFragment, writ
 		}
 	}
 
-	// Walk through collected marker elements store its path and remove its from the DocumentFragment.
+	// Walk through collected marker elements store its path and remove its from the ModelDocumentFragment.
 	for ( const markerElement of markerElements ) {
 		const markerName = markerElement.getAttribute( 'data-name' ) as string;
 		const currentPosition = writer.createPositionBefore( markerElement );
@@ -623,7 +641,7 @@ function extractMarkersFromModelFragment( modelItem: ModelDocumentFragment, writ
 			( markers.get( markerName ) as any ).end = currentPosition.clone();
 		}
 
-		// Remove marker element from DocumentFragment.
+		// Remove marker element from ModelDocumentFragment.
 		writer.remove( markerElement );
 	}
 
@@ -634,12 +652,12 @@ function extractMarkersFromModelFragment( modelItem: ModelDocumentFragment, writ
  * Creates model fragment according to given context and returns position in the bottom (the deepest) element.
  */
 function createContextTree(
-	contextDefinition: SchemaContextDefinition,
+	contextDefinition: ModelSchemaContextDefinition,
 	writer: ModelWriter
 ): ModelPosition | undefined {
 	let position: ModelPosition | undefined;
 
-	for ( const item of new SchemaContext( contextDefinition ) ) {
+	for ( const item of new ModelSchemaContext( contextDefinition ) ) {
 		const attributes: Record<string, unknown> = {};
 
 		for ( const key of item.getAttributeKeys() ) {
@@ -674,10 +692,10 @@ export interface UpcastConversionApi {
 	/**
 	 * The model's schema instance.
 	 */
-	schema: Schema;
+	schema: ModelSchema;
 
 	/**
-	 * The {@link module:engine/model/writer~Writer} instance used to manipulate the data during conversion.
+	 * The {@link module:engine/model/writer~ModelWriter} instance used to manipulate the data during conversion.
 	 */
 	writer: ModelWriter;
 
@@ -696,7 +714,7 @@ export interface UpcastConversionApi {
 	 *
 	 * Every fired event is passed (as the first parameter) an object with the `modelRange` property. Every event may set and/or
 	 * modify that property. When all callbacks are done, the final value of the `modelRange` property is returned by this method.
-	 * The `modelRange` must be a {@link module:engine/model/range~Range model range} or `null` (as set by default).
+	 * The `modelRange` must be a {@link module:engine/model/range~ModelRange model range} or `null` (as set by default).
 	 *
 	 * @fires module:engine/conversion/upcastdispatcher~UpcastDispatcher#event:element
 	 * @fires module:engine/conversion/upcastdispatcher~UpcastDispatcher#event:text
@@ -733,7 +751,8 @@ export interface UpcastConversionApi {
 	};
 
 	/**
-	 * Safely inserts an element to the document, checking the {@link module:engine/model/schema~Schema schema} to find an allowed parent
+	 * Safely inserts an element to the document, checking the
+	 * {@link module:engine/model/schema~ModelSchema schema} to find an allowed parent
 	 * for an element that you are going to insert, starting from the given position. If the current parent does not allow to insert
 	 * the element but one of the ancestors does, then splits the nodes to allowed parent.
 	 *
@@ -796,9 +815,9 @@ export interface UpcastConversionApi {
 	updateConversionResult( modelElement: ModelElement, data: UpcastConversionData ): void;
 
 	/**
-	 * Checks the {@link module:engine/model/schema~Schema schema} to find an allowed parent for an element that is going to be inserted
-	 * starting from the given position. If the current parent does not allow inserting an element but one of the ancestors does, the method
-	 * splits nodes to allowed parent.
+	 * Checks the {@link module:engine/model/schema~ModelSchema schema} to find an allowed parent for an element
+	 * that is going to be inserted starting from the given position. If the current parent does not allow
+	 * inserting an element but one of the ancestors does, the method splits nodes to allowed parent.
 	 *
 	 * If the schema allows inserting the node in the given position, nothing is split and an object with that position is returned.
 	 *

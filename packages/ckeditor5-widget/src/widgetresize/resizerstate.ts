@@ -1,20 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module widget/widgetresize/resizerstate
  */
 
-import { ObservableMixin, Rect } from '@ckeditor/ckeditor5-utils';
+import { ObservableMixin, Rect, type ObservableMixinConstructor } from '@ckeditor/ckeditor5-utils';
 
-import type { ResizerOptions } from '../widgetresize';
+import type { WidgetResizerOptions } from '../widgetresize.js';
+import { calculateResizeHostPercentageWidth } from '../utils.js';
+
+const WidgetResizeStateBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * Stores the internal state of a single resizable object.
  */
-export default class ResizeState extends ObservableMixin() {
+export class WidgetResizeState extends WidgetResizeStateBase {
 	/**
 	 * The position of the handle that initiated the resizing. E.g. `"top-left"`, `"bottom-right"` etc. or `null`
 	 * if unknown.
@@ -72,7 +75,7 @@ export default class ResizeState extends ObservableMixin() {
 	/**
 	 * Resizer options.
 	 */
-	private readonly _options: ResizerOptions;
+	private readonly _options: WidgetResizerOptions;
 
 	/**
 	 * The original width (pixels) of the resized object when the resize process was started.
@@ -105,7 +108,7 @@ export default class ResizeState extends ObservableMixin() {
 	/**
 	 * @param options Resizer options.
 	 */
-	constructor( options: ResizerOptions ) {
+	constructor( options: WidgetResizerOptions ) {
 		super();
 
 		this.set( 'activeHandlePosition', null );
@@ -168,7 +171,7 @@ export default class ResizeState extends ObservableMixin() {
 		if ( widthStyle && widthStyle.match( /^\d+(\.\d*)?%$/ ) ) {
 			this._originalWidthPercents = parseFloat( widthStyle );
 		} else {
-			this._originalWidthPercents = calculateHostPercentageWidth( domResizeHost, clientRect );
+			this._originalWidthPercents = calculateResizeHostPercentageWidth( domResizeHost, clientRect );
 		}
 	}
 
@@ -186,38 +189,6 @@ export default class ResizeState extends ObservableMixin() {
 		this.proposedHandleHostWidth = newSize.handleHostWidth;
 		this.proposedHandleHostHeight = newSize.handleHostHeight;
 	}
-}
-
-/**
- * Calculates a relative width of a `domResizeHost` compared to its ancestor in percents.
- */
-function calculateHostPercentageWidth( domResizeHost: HTMLElement, resizeHostRect: Rect ) {
-	const domResizeHostParent = domResizeHost.parentElement;
-
-	// Need to use computed style as it properly excludes parent's paddings from the returned value.
-	let parentWidth = parseFloat( domResizeHostParent!.ownerDocument.defaultView!.getComputedStyle( domResizeHostParent! ).width );
-
-	// Sometimes parent width cannot be accessed. If that happens we should go up in the elements tree
-	// and try to get width from next ancestor.
-	// https://github.com/ckeditor/ckeditor5/issues/10776
-	const ancestorLevelLimit = 5;
-	let currentLevel = 0;
-
-	let checkedElement = domResizeHostParent!;
-
-	while ( isNaN( parentWidth ) ) {
-		checkedElement = checkedElement.parentElement!;
-
-		if ( ++currentLevel > ancestorLevelLimit ) {
-			return 0;
-		}
-
-		parentWidth = parseFloat(
-				domResizeHostParent!.ownerDocument.defaultView!.getComputedStyle( checkedElement ).width
-		);
-	}
-
-	return resizeHostRect.width / parentWidth * 100;
 }
 
 /**

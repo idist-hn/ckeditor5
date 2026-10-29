@@ -1,41 +1,43 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Clipboard from '@ckeditor/ckeditor5-clipboard/src/clipboard';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ShiftEnter from '@ckeditor/ckeditor5-enter/src/shiftenter';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import Bold from '@ckeditor/ckeditor5-basic-styles/src/bold';
-import Underline from '@ckeditor/ckeditor5-basic-styles/src/underline';
-import Italic from '@ckeditor/ckeditor5-basic-styles/src/italic';
-import Link from '@ckeditor/ckeditor5-link/src/link';
-import Strikethrough from '@ckeditor/ckeditor5-basic-styles/src/strikethrough';
-import List from '@ckeditor/ckeditor5-list/src/list';
-import ListProperties from '@ckeditor/ckeditor5-list/src/listproperties';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import TableProperties from '@ckeditor/ckeditor5-table/src/tableproperties';
-import TableCellProperties from '@ckeditor/ckeditor5-table/src/tablecellproperties';
-import FontBackgroundColor from '@ckeditor/ckeditor5-font/src/fontbackgroundcolor';
-import FontColor from '@ckeditor/ckeditor5-font/src/fontcolor';
-import PageBreak from '@ckeditor/ckeditor5-page-break/src/pagebreak';
+import { describe, beforeEach } from 'vitest';
 
-import PasteFromOffice from '../../src/pastefromoffice';
-import { generateTests } from '../_utils/utils';
-import * as fixtures from '../_utils/fixtures';
+import { Clipboard } from '@ckeditor/ckeditor5-clipboard';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ShiftEnter } from '@ckeditor/ckeditor5-enter';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { Bold, Underline, Italic, Strikethrough } from '@ckeditor/ckeditor5-basic-styles';
+import { Link } from '@ckeditor/ckeditor5-link';
+import { List, ListProperties } from '@ckeditor/ckeditor5-list';
+import { stubUid } from '@ckeditor/ckeditor5-list/tests/list/_utils/uid.js';
+import { Image } from '@ckeditor/ckeditor5-image';
+import { Table, TableProperties, TableCellProperties } from '@ckeditor/ckeditor5-table';
+import { FontBackgroundColor, FontColor } from '@ckeditor/ckeditor5-font';
+import { PageBreak } from '@ckeditor/ckeditor5-page-break';
+import { Bookmark } from '@ckeditor/ckeditor5-bookmark';
+
+import { PasteFromOffice } from '../../src/pastefromoffice.js';
+import { generateTests } from '../_utils/utils.js';
+import * as fixtures from '../_utils/fixtures.js';
 
 const browsers = [ 'chrome', 'firefox', 'safari', 'edge' ];
 
 describe( 'PasteFromOffice - integration', () => {
+	beforeEach( () => {
+		stubUid();
+	} );
+
 	generateIntegrationTests( {
 		input: 'basic-styles',
 		editorConfig: {
 			plugins: [ Clipboard, Paragraph, Heading, Bold, Italic, Underline, Strikethrough, PasteFromOffice ]
 		},
 		skip: {
-			safari: [ 'italicStartingText', 'multipleStylesSingleLine', 'multipleStylesMultiline' ] // Skip due to spacing issue (#13).
+			// Skip due to spacing issue (https://github.com/ckeditor/ckeditor5-paste-from-office/issues/13).
+			safari: [ 'italicStartingText', 'multipleStylesSingleLine', 'multipleStylesMultiline' ]
 		}
 	} );
 
@@ -58,7 +60,7 @@ describe( 'PasteFromOffice - integration', () => {
 			plugins: [ Clipboard, Paragraph, Heading, Bold, Link, ShiftEnter, PasteFromOffice ]
 		},
 		skip: {
-			safari: [ 'combined' ] // Skip due to spacing issue (#13).
+			safari: [ 'combined' ] // Skip due to spacing issue (https://github.com/ckeditor/ckeditor5-paste-from-office/issues/13).
 		}
 	} );
 
@@ -68,7 +70,17 @@ describe( 'PasteFromOffice - integration', () => {
 			plugins: [ Clipboard, Paragraph, Heading, Bold, Italic, Underline, Link, List, ListProperties, PasteFromOffice ]
 		},
 		skip: {
-			safari: [ 'heading3Styled' ] // Skip due to spacing issue (#13).
+			safari: [ 'heading3Styled' ] // Skip due to spacing issue (https://github.com/ckeditor/ckeditor5-paste-from-office/issues/13).
+		}
+	} );
+
+	// Same Word inputs as above, but with `list.enableSkipLevelLists: true` so PFO emits intermediate
+	// `<li style="list-style-type:none">` wrappers and the list post-fixer keeps the indent gaps.
+	generateIntegrationTests( {
+		input: 'list-skip-level',
+		editorConfig: {
+			plugins: [ Clipboard, Paragraph, Heading, Bold, Italic, Underline, Link, List, ListProperties, PasteFromOffice ],
+			list: { enableSkipLevelLists: true }
 		}
 	} );
 
@@ -127,6 +139,20 @@ describe( 'PasteFromOffice - integration', () => {
 		input: 'google-docs-br-paragraphs',
 		editorConfig: {
 			plugins: [ Clipboard, Paragraph, Bold, ShiftEnter, PasteFromOffice ]
+		}
+	} );
+
+	generateIntegrationTests( {
+		input: 'smart-tags',
+		editorConfig: {
+			plugins: [ Clipboard, Paragraph, Bold, PasteFromOffice, FontColor ]
+		}
+	} );
+
+	generateIntegrationTests( {
+		input: 'bookmark',
+		editorConfig: {
+			plugins: [ Clipboard, Paragraph, Bookmark, Table, TableProperties, TableCellProperties, Bold, Image, PasteFromOffice ]
 		}
 	} );
 

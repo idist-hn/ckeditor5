@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecellproperties/commands/tablecellborderwidthcommand
  */
 
-import type { Editor } from 'ckeditor5/src/core';
-import type { Element } from 'ckeditor5/src/engine';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
 
-import TableCellPropertyCommand from './tablecellpropertycommand';
-import { addDefaultUnitToNumericValue, getSingleValue } from '../../utils/table-properties';
+import { TableCellPropertyCommand } from './tablecellpropertycommand.js';
+import { addDefaultUnitToNumericValue, getSingleValue } from '../../utils/table-properties.js';
 
 /**
  * The table cell border width command.
@@ -37,7 +37,7 @@ import { addDefaultUnitToNumericValue, getSingleValue } from '../../utils/table-
  *
  * will set the `borderWidth` attribute to `'5px'` in the model.
  */
-export default class TableCellBorderWidthCommand extends TableCellPropertyCommand {
+export class TableCellBorderWidthCommand extends TableCellPropertyCommand {
 	/**
 	 * Creates a new `TableCellBorderWidthCommand` instance.
 	 *
@@ -51,7 +51,7 @@ export default class TableCellBorderWidthCommand extends TableCellPropertyComman
 	/**
 	 * @inheritDoc
 	 */
-	protected override _getAttribute( tableCell: Element ): unknown {
+	protected override _getAttribute( tableCell: ModelElement ): unknown {
 		if ( !tableCell ) {
 			return;
 		}

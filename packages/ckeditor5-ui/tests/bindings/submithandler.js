@@ -1,19 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, Event */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { submitHandler } from '../../src/bindings/submithandler.js';
 
-import submitHandler from '../../src/bindings/submithandler';
-
-import View from '../../src/view';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { View } from '../../src/view.js';
 
 describe( 'submitHandler', () => {
 	let view;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		view = new View();
@@ -25,15 +21,17 @@ describe( 'submitHandler', () => {
 		submitHandler( { view } );
 	} );
 
-	it( 'should fire #submit event on the view and prevent the native DOM #submit', done => {
-		const evt = new Event( 'submit' );
-		const spy = sinon.spy( evt, 'preventDefault' );
+	it( 'should fire #submit event on the view and prevent the native DOM #submit', () => {
+		return new Promise( resolve => {
+			const evt = new Event( 'submit' );
+			const spy = vi.spyOn( evt, 'preventDefault' );
 
-		view.on( 'submit', () => {
-			sinon.assert.calledOnce( spy );
-			done();
+			view.on( 'submit', () => {
+				expect( spy ).toHaveBeenCalledOnce();
+				resolve();
+			} );
+
+			view.element.child.dispatchEvent( evt );
 		} );
-
-		view.element.child.dispatchEvent( evt );
 	} );
 } );

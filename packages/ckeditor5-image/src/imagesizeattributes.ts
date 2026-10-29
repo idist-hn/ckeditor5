@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagesizeattributes
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { DowncastDispatcher, DowncastAttributeEvent, ViewElement, Element } from 'ckeditor5/src/engine';
-import ImageUtils from './imageutils';
-import { widthAndHeightStylesAreBothSet, getSizeValueIfInPx } from './image/utils';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { DowncastDispatcher, DowncastAttributeEvent, ViewElement, ModelElement } from '@ckeditor/ckeditor5-engine';
+import { ImageUtils } from './imageutils.js';
+import { widthAndHeightStylesAreBothSet, getSizeValueIfInPx } from './image/utils.js';
 
 /**
  * This plugin enables `width` and `height` attributes in inline and block image elements.
  */
-export default class ImageSizeAttributes extends Plugin {
+export class ImageSizeAttributes extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageUtils ]> {
+		return [ ImageUtils ];
 	}
 
 	/**
@@ -28,6 +28,13 @@ export default class ImageSizeAttributes extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageSizeAttributes' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -43,12 +50,14 @@ export default class ImageSizeAttributes extends Plugin {
 	 * Registers the `width` and `height` attributes for inline and block images.
 	 */
 	private _registerSchema(): void {
+		const schema = this.editor.model.schema;
+
 		if ( this.editor.plugins.has( 'ImageBlockEditing' ) ) {
-			this.editor.model.schema.extend( 'imageBlock', { allowAttributes: [ 'width', 'height' ] } );
+			schema.extend( 'imageBlock', { allowAttributes: [ 'width', 'height' ] } );
 		}
 
 		if ( this.editor.plugins.has( 'ImageInlineEditing' ) ) {
-			this.editor.model.schema.extend( 'imageInline', { allowAttributes: [ 'width', 'height' ] } );
+			schema.extend( 'imageInline', { allowAttributes: [ 'width', 'height' ] } );
 		}
 	}
 
@@ -114,8 +123,8 @@ export default class ImageSizeAttributes extends Plugin {
 
 		// Dedicated converters to propagate attributes to the <img> element.
 		editor.conversion.for( 'editingDowncast' ).add( dispatcher => {
-			attachDowncastConverter( dispatcher, 'width', 'width', true );
-			attachDowncastConverter( dispatcher, 'height', 'height', true );
+			attachDowncastConverter( dispatcher, 'width', 'width', true, true );
+			attachDowncastConverter( dispatcher, 'height', 'height', true, true );
 		} );
 
 		editor.conversion.for( 'dataDowncast' ).add( dispatcher => {
@@ -123,11 +132,24 @@ export default class ImageSizeAttributes extends Plugin {
 			attachDowncastConverter( dispatcher, 'height', 'height', false );
 		} );
 
+		// Consume `aspect-ratio` style if `width` and `height` attributes are set on the image.
+		editor.conversion.for( 'upcast' ).add( dispatcher => {
+			dispatcher.on( 'element:img', ( evt, data, conversionApi ) => {
+				const width = data.viewItem.getAttribute( 'width' );
+				const height = data.viewItem.getAttribute( 'height' );
+
+				if ( width && height ) {
+					conversionApi.consumable.consume( data.viewItem, { styles: [ 'aspect-ratio' ] } );
+				}
+			} );
+		} );
+
 		function attachDowncastConverter(
 			dispatcher: DowncastDispatcher,
 			modelAttributeName: string,
 			viewAttributeName: string,
-			setRatioForInlineImage: boolean
+			setRatioForInlineImage: boolean,
+			isEditingDowncast: boolean = false
 		) {
 			dispatcher.on<DowncastAttributeEvent>( `attribute:${ modelAttributeName }:${ imageType }`, ( evt, data, conversionApi ) => {
 				if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
@@ -135,13 +157,21 @@ export default class ImageSizeAttributes extends Plugin {
 				}
 
 				const viewWriter = conversionApi.writer;
-				const viewElement = conversionApi.mapper.toViewElement( data.item as Element )!;
+				const viewElement = conversionApi.mapper.toViewElement( data.item as ModelElement )!;
 				const img = imageUtils.findViewImgElement( viewElement )!;
 
 				if ( data.attributeNewValue !== null ) {
 					viewWriter.setAttribute( viewAttributeName, data.attributeNewValue, img );
 				} else {
 					viewWriter.removeAttribute( viewAttributeName, img );
+				}
+
+				const width = data.item.getAttribute( 'width' );
+				const height = data.item.getAttribute( 'height' );
+				const hasSizes = width && height;
+
+				if ( hasSizes && isEditingDowncast ) {
+					viewWriter.setAttribute( 'loading', 'lazy', img );
 				}
 
 				// Do not set aspect-ratio for pictures. See https://github.com/ckeditor/ckeditor5/issues/14579.
@@ -156,15 +186,10 @@ export default class ImageSizeAttributes extends Plugin {
 					return;
 				}
 
-				const width = data.item.getAttribute( 'width' );
-				const height = data.item.getAttribute( 'height' );
-				const aspectRatio = img.getStyle( 'aspect-ratio' );
-
-				if ( width && height && !aspectRatio ) {
+				if ( hasSizes ) {
 					viewWriter.setStyle( 'aspect-ratio', `${ width }/${ height }`, img );
 				}
 			} );
 		}
 	}
 }
-

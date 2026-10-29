@@ -1,33 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import DowncastWriter from '../../../src/view/downcastwriter';
-import { stringify, parse } from '../../../src/dev-utils/view';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { ViewDowncastWriter } from '../../../src/view/downcastwriter.js';
+import { _stringifyView, _parseView } from '../../../src/dev-utils/view.js';
 
-import Document from '../../../src/view/document';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { ViewDocument } from '../../../src/view/document.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'DowncastWriter', () => {
 	describe( 'mergeContainers()', () => {
 		let writer;
 
-		// Executes test using `parse` and `stringify` utils functions. Uses range delimiters `[]{}` to create and
+		// Executes test using `_parseView` and `_stringifyView` utils functions. Uses range delimiters `[]{}` to create and
 		// test break position.
 		//
 		// @param {String} input
 		// @param {String} expected
 		function testMerge( input, expected ) {
-			const { view, selection } = parse( input );
+			const { view, selection } = _parseView( input );
 
 			const newPosition = writer.mergeContainers( selection.getFirstPosition() );
-			expect( stringify( view.root, newPosition, { showType: true, showPriority: false } ) ).to.equal( expected );
+			expect( _stringifyView( view.root, newPosition, { showType: true, showPriority: false } ) ).toBe( expected );
 		}
 
-		before( () => {
-			writer = new DowncastWriter( new Document( new StylesProcessor() ) );
+		beforeAll( () => {
+			writer = new ViewDowncastWriter( new ViewDocument( new StylesProcessor() ) );
 		} );
 
 		it( 'should merge two container elements - position between elements', () => {
@@ -58,7 +59,7 @@ describe( 'DowncastWriter', () => {
 		} );
 
 		it( 'should throw if there is no element before position', () => {
-			const { selection } = parse( '[]<container:div>foobar</container:div>' );
+			const { selection } = _parseView( '[]<container:div>foobar</container:div>' );
 
 			expectToThrowCKEditorError( () => {
 				writer.mergeContainers( selection.getFirstPosition() );
@@ -66,7 +67,7 @@ describe( 'DowncastWriter', () => {
 		} );
 
 		it( 'should throw if there is no element after position', () => {
-			const { selection } = parse( '<container:div>foobar</container:div>[]' );
+			const { selection } = _parseView( '<container:div>foobar</container:div>[]' );
 
 			expectToThrowCKEditorError( () => {
 				writer.mergeContainers( selection.getFirstPosition() );
@@ -74,7 +75,7 @@ describe( 'DowncastWriter', () => {
 		} );
 
 		it( 'should throw if element before position is not a container element', () => {
-			const { selection } = parse( '<attribute:u>foo</attribute:u>[]<container:div>bar</container:div>' );
+			const { selection } = _parseView( '<attribute:u>foo</attribute:u>[]<container:div>bar</container:div>' );
 
 			expectToThrowCKEditorError( () => {
 				writer.mergeContainers( selection.getFirstPosition() );
@@ -82,7 +83,7 @@ describe( 'DowncastWriter', () => {
 		} );
 
 		it( 'should throw if element after position is not a container element', () => {
-			const { selection } = parse( '<container:div>foo</container:div>[]<attribute:u>bar</attribute:u>' );
+			const { selection } = _parseView( '<container:div>foo</container:div>[]<attribute:u>bar</attribute:u>' );
 
 			expectToThrowCKEditorError( () => {
 				writer.mergeContainers( selection.getFirstPosition() );

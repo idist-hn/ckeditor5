@@ -1,0 +1,2032 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import {
+	expandListBlocksToCompleteItems,
+	expandListBlocksToCompleteList,
+	getAllListItemBlocks,
+	getListItemBlocks,
+	getListItems,
+	getNestedListBlocks,
+	indentBlocks,
+	isFirstBlockOfListItem,
+	isLastBlockOfListItem,
+	isFirstListItemInList,
+	isSingleListItem,
+	ListItemUid,
+	mergeListItemBefore,
+	outdentBlocksWithMerge,
+	outdentFollowingItems,
+	removeListAttributes,
+	splitListItemBefore
+} from '../../../src/list/utils/model.js';
+import { modelList } from '../_utils/utils.js';
+import { stubUid } from '../_utils/uid.js';
+
+import { describe, it, expect, beforeEach } from 'vitest';
+
+import { Model, _stringifyModel, _parseModel } from '@ckeditor/ckeditor5-engine';
+
+describe( 'List - utils - model', () => {
+	let model, schema, attributeNames;
+
+	beforeEach( () => {
+		model = new Model();
+		schema = model.schema;
+		attributeNames = [ 'listType', 'listIndent', 'listItemId', 'blockIndentListItem' ];
+
+		schema.register( 'paragraph', { inheritAllFrom: '$block' } );
+		schema.register( 'blockQuote', { inheritAllFrom: '$container' } );
+		schema.extend( '$container', { allowAttributes: attributeNames } );
+	} );
+
+	describe( 'ListItemUid.next()', () => {
+		it( 'should generate UIDs', () => {
+			stubUid( 0 );
+
+			expect( ListItemUid.next() ).toEqual( '000' );
+			expect( ListItemUid.next() ).toEqual( '001' );
+			expect( ListItemUid.next() ).toEqual( '002' );
+			expect( ListItemUid.next() ).toEqual( '003' );
+			expect( ListItemUid.next() ).toEqual( '004' );
+			expect( ListItemUid.next() ).toEqual( '005' );
+		} );
+	} );
+
+	describe( 'getAllListItemBlocks()', () => {
+		it( 'should return a single item if it meets conditions', () => {
+			const input = modelList( [
+				'foo',
+				'* 0.',
+				'* 1.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+			const foundElements = getAllListItemBlocks( listItem );
+
+			expect( foundElements.length ).toEqual( 1 );
+			expect( foundElements[ 0 ] ).toEqual( listItem );
+		} );
+
+		it( 'should return a items if started looking from the first list item block', () => {
+			const input = modelList( [
+				'foo',
+				'* 0a.',
+				'  1b.',
+				'  1c.',
+				'* 2.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+			const foundElements = getAllListItemBlocks( listItem );
+
+			expect( foundElements.length ).toEqual( 3 );
+			expect( foundElements[ 0 ] ).toEqual( listItem );
+			expect( foundElements[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( foundElements[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should return a items if started looking from the last list item block', () => {
+			const input = modelList( [
+				'foo',
+				'* 0a.',
+				'  1b.',
+				'  1c.',
+				'* 2.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 3 );
+			const foundElements = getAllListItemBlocks( listItem );
+
+			expect( foundElements.length ).toEqual( 3 );
+			expect( foundElements[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( foundElements[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( foundElements[ 2 ] ).toEqual( listItem );
+		} );
+
+		it( 'should return a items if started looking from the middle list item block', () => {
+			const input = modelList( [
+				'foo',
+				'* 0a.',
+				'  1b.',
+				'  1c.',
+				'* 2.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+			const foundElements = getAllListItemBlocks( listItem );
+
+			expect( foundElements.length ).toEqual( 3 );
+			expect( foundElements[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( foundElements[ 1 ] ).toEqual( listItem );
+			expect( foundElements[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should ignore nested list blocks', () => {
+			const input = modelList( [
+				'foo',
+				'* a',
+				'* b1',
+				'  * b1.c',
+				'  b2',
+				'  * b2.d',
+				'  b3',
+				'* e',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 4 );
+			const foundElements = getAllListItemBlocks( listItem );
+
+			expect( foundElements.length ).toEqual( 3 );
+			expect( foundElements[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( foundElements[ 1 ] ).toEqual( listItem );
+			expect( foundElements[ 2 ] ).toEqual( fragment.getChild( 6 ) );
+		} );
+	} );
+
+	describe( 'getListItemBlocks()', () => {
+		it( 'should return a single item if it meets conditions', () => {
+			const input = modelList( [
+				'foo',
+				'* 0.',
+				'* 1.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+			const backwardElements = getListItemBlocks( listItem, { direction: 'backward' } );
+			const forwardElements = getListItemBlocks( listItem, { direction: 'forward' } );
+
+			expect( backwardElements.length ).toEqual( 0 );
+			expect( forwardElements.length ).toEqual( 1 );
+			expect( forwardElements[ 0 ] ).toEqual( listItem );
+		} );
+
+		it( 'should return a items if started looking from the first list item block', () => {
+			const input = modelList( [
+				'foo',
+				'* 0a.',
+				'  1b.',
+				'  1c.',
+				'* 2.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+			const backwardElements = getListItemBlocks( listItem, { direction: 'backward' } );
+			const forwardElements = getListItemBlocks( listItem, { direction: 'forward' } );
+
+			expect( backwardElements.length ).toEqual( 0 );
+			expect( forwardElements.length ).toEqual( 3 );
+			expect( forwardElements[ 0 ] ).toEqual( listItem );
+			expect( forwardElements[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( forwardElements[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should return a items if started looking from the last list item block', () => {
+			const input = modelList( [
+				'foo',
+				'* 0a.',
+				'  1b.',
+				'  1c.',
+				'* 2.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 3 );
+			const backwardElements = getListItemBlocks( listItem, { direction: 'backward' } );
+			const forwardElements = getListItemBlocks( listItem, { direction: 'forward' } );
+
+			expect( backwardElements.length ).toEqual( 2 );
+			expect( backwardElements[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( backwardElements[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+
+			expect( forwardElements.length ).toEqual( 1 );
+			expect( forwardElements[ 0 ] ).toEqual( listItem );
+		} );
+
+		it( 'should return a items if started looking from the middle list item block', () => {
+			const input = modelList( [
+				'foo',
+				'* 0a.',
+				'  1b.',
+				'  1c.',
+				'* 2.',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+			const backwardElements = getListItemBlocks( listItem, { direction: 'backward' } );
+			const forwardElements = getListItemBlocks( listItem, { direction: 'forward' } );
+
+			expect( backwardElements.length ).toEqual( 1 );
+			expect( backwardElements[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+
+			expect( forwardElements.length ).toEqual( 2 );
+			expect( forwardElements[ 0 ] ).toEqual( listItem );
+			expect( forwardElements[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should ignore nested list blocks', () => {
+			const input = modelList( [
+				'foo',
+				'* a',
+				'* b1',
+				'  * b1.c',
+				'  b2',
+				'  * b2.d',
+				'  b3',
+				'* e',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 4 );
+			const backwardElements = getListItemBlocks( listItem, { direction: 'backward' } );
+			const forwardElements = getListItemBlocks( listItem, { direction: 'forward' } );
+
+			expect( backwardElements.length ).toEqual( 1 );
+			expect( backwardElements[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+
+			expect( forwardElements.length ).toEqual( 2 );
+			expect( forwardElements[ 0 ] ).toEqual( listItem );
+			expect( forwardElements[ 1 ] ).toEqual( fragment.getChild( 6 ) );
+		} );
+
+		it( 'should break if exited nested list', () => {
+			const input = modelList( [
+				'foo',
+				'* a',
+				'  * b',
+				'    b',
+				'* c',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+			const backwardElements = getListItemBlocks( listItem, { direction: 'backward' } );
+			const forwardElements = getListItemBlocks( listItem, { direction: 'forward' } );
+
+			expect( backwardElements.length ).toEqual( 0 );
+
+			expect( forwardElements.length ).toEqual( 2 );
+			expect( forwardElements[ 0 ] ).toEqual( listItem );
+			expect( forwardElements[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should search backward by default', () => {
+			const input = modelList( [
+				'foo',
+				'* a',
+				'* b',
+				'  b',
+				'* c',
+				'bar'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 3 );
+			const backwardElements = getListItemBlocks( listItem );
+
+			expect( backwardElements.length ).toEqual( 1 );
+			expect( backwardElements[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+		} );
+	} );
+
+	describe( 'getNestedListBlocks()', () => {
+		it( 'should return empty array if there is no nested blocks', () => {
+			const input = modelList( [
+				'* a',
+				'* b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+			const blocks = getNestedListBlocks( listItem );
+
+			expect( blocks.length ).toEqual( 0 );
+		} );
+
+		it( 'should return blocks that have a greater indent than the given item', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'    * c',
+				'    * d',
+				'* e'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+			const blocks = getNestedListBlocks( listItem );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should return blocks that have a greater indent than the given item (nested one)', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'    * c',
+				'    * d',
+				'* e'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+			const blocks = getNestedListBlocks( listItem );
+
+			expect( blocks.length ).toEqual( 2 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should not include items from other subtrees', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'    * c',
+				'* d',
+				'  * e'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+			const blocks = getNestedListBlocks( listItem );
+
+			expect( blocks.length ).toEqual( 2 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+		} );
+	} );
+
+	describe( 'getListItems()', () => {
+		it( 'should return all list items for a single flat list (when given the first list item)', () => {
+			const input = modelList( [
+				'0',
+				'* 1',
+				'* 2',
+				'* 3',
+				'4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+
+		it( 'should return all list items for a single flat list (when given the last list item)', () => {
+			const input = modelList( [
+				'0',
+				'* 1',
+				'* 2',
+				'* 3',
+				'4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 3 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+
+		it( 'should return all list items for a single flat list (when given the middle list item)', () => {
+			const input = modelList( [
+				'0',
+				'* 1',
+				'* 2',
+				'* 3',
+				'4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+
+		it( 'should return all list items for a nested list', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'  * 2',
+				'  * 3',
+				'* 4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+
+		it( 'should return all list items of the same type', () => {
+			const input = modelList( [
+				'# 0',
+				'* 1',
+				'* 2',
+				'* 3',
+				'# 4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+
+		it( 'should return all list items and ignore nested lists', () => {
+			const input = modelList( [
+				'0',
+				'* 1',
+				'  * 2',
+				'* 3',
+				'4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+
+		it( 'should return all list items with following blocks belonging to the same item', () => {
+			const input = modelList( [
+				'0',
+				'* 1',
+				'  2',
+				'* 3',
+				'  4',
+				'5'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+
+			expect( getListItems( listItem ) ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 ),
+				fragment.getChild( 4 )
+			] );
+		} );
+
+		describe( 'modify backward and forward iterator with options', () => {
+			it( 'should return all list items and nested lists (higherIndent: true)', () => {
+				const input = modelList( [
+					'0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'  * 4',
+					'    * 5',
+					'  * 6',
+					'7'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const listItem = fragment.getChild( 4 );
+
+				expect( getListItems( listItem, { higherIndent: true } ) ).toEqual( [
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 ),
+					fragment.getChild( 4 ),
+					fragment.getChild( 5 ),
+					fragment.getChild( 6 )
+				] );
+			} );
+
+			it( 'should return all list items of all types (sameAttributes: [])', () => {
+				const input = modelList( [
+					'# 0',
+					'* 1',
+					'* 2',
+					'* 3',
+					'# 4'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const listItem = fragment.getChild( 2 );
+
+				expect( getListItems( listItem, { sameAttributes: [] } ) ).toEqual( [
+					fragment.getChild( 0 ),
+					fragment.getChild( 1 ),
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 ),
+					fragment.getChild( 4 )
+				] );
+			} );
+		} );
+	} );
+
+	describe( 'isFirstBlockOfListItem()', () => {
+		it( 'should return true for the first list item', () => {
+			const input = modelList( [
+				'* a',
+				'* b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+
+			expect( isFirstBlockOfListItem( listItem ) ).toBe( true );
+		} );
+
+		it( 'should return true for the second list item', () => {
+			const input = modelList( [
+				'* a',
+				'* b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( isFirstBlockOfListItem( listItem ) ).toBe( true );
+		} );
+
+		it( 'should return false for the second block of list item', () => {
+			const input = modelList( [
+				'* a',
+				'  b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( isFirstBlockOfListItem( listItem ) ).toBe( false );
+		} );
+
+		it( 'should return true if the previous block has lower indent', () => {
+			const input = modelList( [
+				'* a',
+				'  * b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( isFirstBlockOfListItem( listItem ) ).toBe( true );
+		} );
+
+		it( 'should return false if the previous block has higher indent but it is a part of bigger list item', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'  c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 2 );
+
+			expect( isFirstBlockOfListItem( listItem ) ).toBe( false );
+		} );
+	} );
+
+	describe( 'isLastBlockOfListItem()', () => {
+		it( 'should return true for the last list item', () => {
+			const input = modelList( [
+				'* a',
+				'* b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( isLastBlockOfListItem( listItem ) ).toBe( true );
+		} );
+
+		it( 'should return true for the first list item', () => {
+			const input = modelList( [
+				'* a',
+				'* b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+
+			expect( isLastBlockOfListItem( listItem ) ).toBe( true );
+		} );
+
+		it( 'should return false for the first block of list item', () => {
+			const input = modelList( [
+				'* a',
+				'  b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+
+			expect( isLastBlockOfListItem( listItem ) ).toBe( false );
+		} );
+
+		it( 'should return true if the next block has lower indent', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'* c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 1 );
+
+			expect( isLastBlockOfListItem( listItem ) ).toBe( true );
+		} );
+
+		it( 'should return false if the next block has higher indent but it is a part of bigger list item', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'  c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const listItem = fragment.getChild( 0 );
+
+			expect( isLastBlockOfListItem( listItem ) ).toBe( false );
+		} );
+	} );
+
+	describe( 'expandListBlocksToCompleteItems()', () => {
+		it( 'should not modify list for a single block of a single-block list item', () => {
+			const input = modelList( [
+				'* a',
+				'* b',
+				'* c',
+				'* d'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 0 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 1 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+		} );
+
+		it( 'should include all blocks for single list item', () => {
+			const input = modelList( [
+				'* 0',
+				'  1',
+				'  2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 0 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 2 ) );
+		} );
+
+		it( 'should include all blocks for only first list item block', () => {
+			const input = modelList( [
+				'* 0',
+				'* 1',
+				'  2',
+				'  3',
+				'* 3'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 1 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all blocks for only last list item block', () => {
+			const input = modelList( [
+				'* 0',
+				'* 1',
+				'  2',
+				'  3',
+				'* 3'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all blocks for only middle list item block', () => {
+			const input = modelList( [
+				'* 0',
+				'* 1',
+				'  2',
+				'  3',
+				'* 3'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all blocks in nested list item', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'    2',
+				'    3',
+				'* 3'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all blocks including nested items (start from first item)', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'  2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 0 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 2 ) );
+		} );
+
+		it( 'should include all blocks including nested items (start from last item)', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'  2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 2 ) );
+		} );
+
+		it( 'should expand first and last items', () => {
+			const input = modelList( [
+				'* x',
+				'* 0',
+				'  1',
+				'* 2',
+				'  3',
+				'* y'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 4 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 3 ] ).toEqual( fragment.getChild( 4 ) );
+		} );
+
+		it( 'should not include nested items from other item', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'* 2',
+				'  * 3',
+				'* 4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 2 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all blocks even if not at the same indent level from the edge block', () => {
+			const fragment = _parseModel( modelList( [
+				'* 0',
+				'  * 1',
+				'    * 2',
+				'    3',
+				'  * 4',
+				'    * 5',
+				'    6',
+				'  * 7'
+			] ), schema );
+
+			let blocks = [
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 ),
+				fragment.getChild( 4 ),
+				fragment.getChild( 5 )
+			];
+
+			blocks = expandListBlocksToCompleteItems( blocks );
+
+			expect( blocks.length ).toEqual( 6 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 3 ] ).toEqual( fragment.getChild( 4 ) );
+			expect( blocks[ 4 ] ).toEqual( fragment.getChild( 5 ) );
+			expect( blocks[ 5 ] ).toEqual( fragment.getChild( 6 ) );
+		} );
+	} );
+
+	describe( 'expandListBlocksToCompleteList()', () => {
+		it( 'should not include anything (no blocks given)', () => {
+			let blocks = [];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 0 );
+		} );
+
+		it( 'should include all list items (single item given)', () => {
+			const input = modelList( [
+				'* a',
+				'* b', // <--
+				'* c',
+				'* d'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 1 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 4 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 3 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all list item (two items given)', () => {
+			const input = modelList( [
+				'* a',
+				'* b', // <--
+				'* c',
+				'* d' // <--
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 1 ),
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 4 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 3 ] ).toEqual( fragment.getChild( 3 ) );
+		} );
+
+		it( 'should include all list item (part of list item given)', () => {
+			const input = modelList( [
+				'* a',
+				'* b',
+				'  c', // <--
+				'* d',
+				'  e'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 5 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 0 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 1 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 3 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 4 ] ).toEqual( fragment.getChild( 4 ) );
+		} );
+
+		it( 'should include all list item of nested list', () => {
+			const input = modelList( [
+				'* a',
+				'* b',
+				'  # b1',
+				'  # b2', // <--
+				'  # b3',
+				'* c',
+				'* d'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 4 ) );
+		} );
+
+		it( 'should include all list item from many lists', () => {
+			const input = modelList( [
+				'* a',
+				'* b',
+				'  # b1', // <--
+				'    * b1a', // <--
+				'    * b1b',
+				'      # b1b1',
+				'    * b1c',
+				'  # b2',
+				'  # b3',
+				'* c',
+				'* d'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 6 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 4 ) );
+			expect( blocks[ 3 ] ).toEqual( fragment.getChild( 6 ) );
+			expect( blocks[ 4 ] ).toEqual( fragment.getChild( 7 ) );
+			expect( blocks[ 5 ] ).toEqual( fragment.getChild( 8 ) );
+		} );
+
+		it( 'should not include any item from other list', () => {
+			const input = modelList( [
+				'* 1a',
+				'* 1b',
+				'# 2a',
+				'# 2b', // <--
+				'# 2c',
+				'* 3a',
+				'* 3b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 4 ) );
+		} );
+
+		it( 'should not include any item that is not a list', () => {
+			const input = modelList( [
+				'<paragraph listItemId="01" listType="bulleted">1a</paragraph>' +
+				'<paragraph>Foo</paragraph>' +
+				'<paragraph listItemId="01" listType="bulleted">2a</paragraph>' +
+				'<paragraph listItemId="01" listType="bulleted">2b</paragraph>' + // This one.
+				'<paragraph listItemId="01" listType="bulleted">2c</paragraph>' +
+				'<paragraph>Bar</paragraph>' +
+				'<paragraph listItemId="01" listType="bulleted">3a</paragraph>'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let blocks = [
+				fragment.getChild( 3 )
+			];
+
+			blocks = expandListBlocksToCompleteList( blocks, [ 'listType' ] );
+
+			expect( blocks.length ).toEqual( 3 );
+			expect( blocks[ 0 ] ).toEqual( fragment.getChild( 2 ) );
+			expect( blocks[ 1 ] ).toEqual( fragment.getChild( 3 ) );
+			expect( blocks[ 2 ] ).toEqual( fragment.getChild( 4 ) );
+		} );
+	} );
+
+	describe( 'splitListItemBefore()', () => {
+		it( 'should replace all blocks ids for first block given', () => {
+			const input = modelList( [
+				'* a',
+				'  b',
+				'  c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			stubUid();
+			model.change( writer => splitListItemBefore( fragment.getChild( 0 ), writer ) );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* a{id:a00}',
+				'  b',
+				'  c'
+			] ) );
+		} );
+
+		it( 'should replace blocks ids for second block given', () => {
+			const input = modelList( [
+				'* a',
+				'  b',
+				'  c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			stubUid();
+			model.change( writer => splitListItemBefore( fragment.getChild( 1 ), writer ) );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* a',
+				'* b{id:a00}',
+				'  c'
+			] ) );
+		} );
+
+		it( 'should not modify other items', () => {
+			const input = modelList( [
+				'* x',
+				'* a',
+				'  b',
+				'  c',
+				'* y'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			stubUid();
+			model.change( writer => splitListItemBefore( fragment.getChild( 2 ), writer ) );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* x',
+				'* a',
+				'* b{id:a00}',
+				'  c',
+				'* y'
+			] ) );
+		} );
+
+		it( 'should not modify nested items', () => {
+			const input = modelList( [
+				'* a',
+				'  b',
+				'  * c',
+				'  d'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			stubUid();
+			model.change( writer => splitListItemBefore( fragment.getChild( 1 ), writer ) );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* a',
+				'* b{id:a00}',
+				'  * c',
+				'  d'
+			] ) );
+		} );
+
+		it( 'should not modify parent items', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'    c',
+				'    d',
+				'  e'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			stubUid();
+			model.change( writer => splitListItemBefore( fragment.getChild( 2 ), writer ) );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* a',
+				'  * b',
+				'  * c{id:a00}',
+				'    d',
+				'  e'
+			] ) );
+		} );
+	} );
+
+	describe( 'mergeListItemBefore()', () => {
+		it( 'should apply parent list attributes to the given list block', () => {
+			const input = modelList( [
+				'* 0',
+				'  # 1',
+				'* 2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = mergeListItemBefore( fragment.getChild( 1 ), fragment.getChild( 0 ), writer );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'  1',
+				'* 2'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 1 )
+			] );
+		} );
+
+		it( 'should apply parent list attributes to the given list block and all blocks of the same item', () => {
+			const input = modelList( [
+				'* 0',
+				'  # 1',
+				'    2',
+				'* 3'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = mergeListItemBefore( fragment.getChild( 1 ), fragment.getChild( 0 ), writer );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'  1',
+				'  2',
+				'* 3'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 )
+			] );
+		} );
+
+		it( 'should not apply non-list attributes', () => {
+			const input = modelList( [
+				'* <paragraph alignment="right">0</paragraph>',
+				'  * 1',
+				'* 2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = mergeListItemBefore( fragment.getChild( 1 ), fragment.getChild( 0 ), writer );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* <paragraph alignment="right">0</paragraph>',
+				'  1',
+				'* 2'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 1 )
+			] );
+		} );
+	} );
+
+	describe( 'indentBlocks()', () => {
+		describe( 'indentBy = 1', () => {
+			it( 'flat items', () => {
+				const input = modelList( [
+					'* a',
+					'  b',
+					'* c',
+					'  d'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 )
+				];
+
+				stubUid();
+
+				model.change( writer => indentBlocks( blocks, writer, { attributeNames } ) );
+
+				expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  b',
+					'  * c',
+					'    d'
+				] ) );
+			} );
+
+			it( 'nested lists should keep structure', () => {
+				const input = modelList( [
+					'* a',
+					'  * b',
+					'    * c',
+					'  * d',
+					'* e'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 1 ),
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 )
+				];
+
+				stubUid();
+
+				model.change( writer => indentBlocks( blocks, writer, { attributeNames } ) );
+
+				expect( _stringifyModel( fragment ) ).toEqual( modelList( [
+					'* a',
+					'    * b',
+					'      * c',
+					'    * d',
+					'* e'
+				] ) );
+			} );
+
+			it( 'should apply indentation on all blocks of given items (expand = true)', () => {
+				const input = modelList( [
+					'* 0',
+					'* 1',
+					'  2',
+					'* 3',
+					'  4',
+					'* 5'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 )
+				];
+
+				model.change( writer => indentBlocks( blocks, writer, { expand: true, attributeNames } ) );
+
+				expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'  * 1',
+					'    2',
+					'  * 3',
+					'    4',
+					'* 5'
+				] ) );
+			} );
+		} );
+
+		describe( 'indentBy = -1', () => {
+			it( 'should handle outdenting', () => {
+				const input = modelList( [
+					'* 0',
+					'  * 1',
+					'    * 2',
+					'  * 3',
+					'* 4'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 1 ),
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 )
+				];
+
+				let changedBlocks;
+
+				model.change( writer => {
+					changedBlocks = indentBlocks( blocks, writer, { indentBy: -1, attributeNames } );
+				} );
+
+				expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'* 3',
+					'* 4'
+				] ) );
+
+				expect( changedBlocks ).toEqual( blocks );
+			} );
+
+			it( 'should remove list attributes if outdented below 0', () => {
+				const input = modelList( [
+					'* 0',
+					'* 1',
+					'* 2',
+					'  * 3',
+					'* 4'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 ),
+					fragment.getChild( 4 )
+				];
+
+				let changedBlocks;
+
+				model.change( writer => {
+					changedBlocks = indentBlocks( blocks, writer, { indentBy: -1, attributeNames } );
+				} );
+
+				expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'2',
+					'* 3',
+					'4'
+				] ) );
+
+				expect( changedBlocks ).toEqual( blocks );
+			} );
+
+			it( 'should not remove attributes other than lists if outdented below 0', () => {
+				const input = modelList( [
+					'* <paragraph alignment="right">0</paragraph>',
+					'* <paragraph alignment="right">1</paragraph>',
+					'  * <paragraph alignment="right">2</paragraph>',
+					'* <paragraph alignment="right">3</paragraph>',
+					'  * <paragraph alignment="right">4</paragraph>'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 ),
+					fragment.getChild( 4 )
+				];
+
+				let changedBlocks;
+
+				model.change( writer => {
+					changedBlocks = indentBlocks( blocks, writer, { indentBy: -1, attributeNames } );
+				} );
+
+				expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+					'* <paragraph alignment="right">0</paragraph>',
+					'* <paragraph alignment="right">1</paragraph>',
+					'* <paragraph alignment="right">2</paragraph>',
+					'<paragraph alignment="right">3</paragraph>',
+					'* <paragraph alignment="right">4</paragraph>'
+				] ) );
+
+				expect( changedBlocks ).toEqual( blocks );
+			} );
+
+			it( 'should apply indentation on all blocks of given items (expand = true)', () => {
+				const input = modelList( [
+					'* 0',
+					'  * 1',
+					'    2',
+					'  * 3',
+					'    4',
+					'  * 5'
+				] );
+
+				const fragment = _parseModel( input, schema );
+				const blocks = [
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 )
+				];
+
+				let changedBlocks;
+
+				model.change( writer => {
+					changedBlocks = indentBlocks( blocks, writer, { expand: true, indentBy: -1, attributeNames } );
+				} );
+
+				expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'  2',
+					'* 3',
+					'  4',
+					'  * 5'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					fragment.getChild( 1 ),
+					fragment.getChild( 2 ),
+					fragment.getChild( 3 ),
+					fragment.getChild( 4 )
+				] );
+			} );
+		} );
+	} );
+
+	describe( 'outdentBlocksWithMerge()', () => {
+		it( 'should merge nested items to the parent item if nested block is not the last block of parent list item', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'    2',
+				'  3',
+				'* 4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 1 )
+			];
+
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = outdentBlocksWithMerge( blocks, writer, { attributeNames } );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'  1',
+				'  2',
+				'  3',
+				'* 4'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 )
+			] );
+		} );
+
+		it( 'should not merge nested items to the parent item if nested block is the last block of parent list item', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'    2',
+				'* 3',
+				'* 4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 1 )
+			];
+
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = outdentBlocksWithMerge( blocks, writer, { attributeNames } );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'* 1',
+				'  2',
+				'* 3',
+				'* 4'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 )
+			] );
+		} );
+
+		it( 'should merge nested items but not deeper nested lists', () => {
+			const input = modelList( [
+				'* 0',
+				'  * 1',
+				'    * 2',
+				'    * 3',
+				'* 4'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 1 )
+			];
+
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = outdentBlocksWithMerge( blocks, writer, { attributeNames } );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'* 1',
+				'  * 2',
+				'  * 3',
+				'* 4'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 )
+			] );
+		} );
+	} );
+
+	describe( 'removeListAttributes()', () => {
+		it( 'should remove all list attributes on a given blocks', () => {
+			const input = modelList( [
+				'* 0',
+				'* 1',
+				'  * 2 {blockIndentListItem:40px}',
+				'    3',
+				'  * 4',
+				'* 5'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 ),
+				fragment.getChild( 4 )
+			];
+
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = removeListAttributes( blocks, writer, attributeNames );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'* 1',
+				'2',
+				'3',
+				'4',
+				'* 5'
+			] ) );
+
+			expect( changedBlocks ).toEqual( blocks );
+		} );
+
+		it( 'should not remove non-list attributes', () => {
+			const input = modelList( [
+				'* 0',
+				'* 1',
+				'  * <paragraph alignmnent="right">2</paragraph>',
+				'    3',
+				'  * 4',
+				'* 5'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 2 ),
+				fragment.getChild( 3 ),
+				fragment.getChild( 4 )
+			];
+
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = removeListAttributes( blocks, writer, attributeNames );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'* 0',
+				'* 1',
+				'<paragraph alignmnent="right">2</paragraph>',
+				'3',
+				'4',
+				'* 5'
+			] ) );
+
+			expect( changedBlocks ).toEqual( blocks );
+		} );
+	} );
+
+	describe( 'isSingleListItem()', () => {
+		it( 'should return false if no blocks are given', () => {
+			expect( isSingleListItem( [] ) ).toBe( false );
+		} );
+
+		it( 'should return false if first block is not a list item', () => {
+			const input = modelList( [
+				'0',
+				'1'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 1 )
+			];
+
+			expect( isSingleListItem( blocks ) ).toBe( false );
+		} );
+
+		it( 'should return false if any block has a different ID', () => {
+			const input = modelList( [
+				'* 0',
+				'  1',
+				'* 2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 0 ),
+				fragment.getChild( 1 ),
+				fragment.getChild( 2 )
+			];
+
+			expect( isSingleListItem( blocks ) ).toBe( false );
+		} );
+
+		it( 'should return true if all block has the same ID', () => {
+			const input = modelList( [
+				'* 0',
+				'  1',
+				'* 2'
+			] );
+
+			const fragment = _parseModel( input, schema );
+			const blocks = [
+				fragment.getChild( 0 ),
+				fragment.getChild( 1 )
+			];
+
+			expect( isSingleListItem( blocks ) ).toBe( true );
+		} );
+	} );
+
+	describe( 'outdentFollowingItems()', () => {
+		it( 'should outdent all items and keep nesting structure where possible', () => {
+			/* eslint-disable @stylistic/no-multi-spaces */
+			const input = modelList( [
+				'0',
+				'* 1',
+				'  * 2',
+				'    * 3', 			// <- this is turned off.
+				'      * 4', 		// <- this has to become indent = 0, because it will be first item on a new list.
+				'        * 5', 		// <- this should be still be a child of item above, so indent = 1.
+				'    * 6', 			// <- this has to become indent = 0, because it should not be a child of any of items above.
+				'      * 7', 		// <- this should be still be a child of item above, so indent = 1.
+				'  * 8', 			// <- this has to become indent = 0.
+				'    * 9', 			// <- this should still be a child of item above, so indent = 1.
+				'      * 10', 		// <- this should still be a child of item above, so indent = 2.
+				'      * 11', 		// <- this should still be at the same level as item above, so indent = 2.
+				'* 12', 			// <- this and all below are left unchanged.
+				'  * 13',
+				'    * 14'
+			] );
+			/* eslint-enable @stylistic/no-multi-spaces */
+
+			const fragment = _parseModel( input, schema );
+			let changedBlocks;
+
+			model.change( writer => {
+				changedBlocks = outdentFollowingItems( fragment.getChild( 3 ), writer );
+			} );
+
+			expect( _stringifyModel( fragment ) ).toEqualMarkup( modelList( [
+				'0',
+				'* 1',
+				'  * 2',
+				'    * 3',
+				'* 4',
+				'  * 5',
+				'* 6',
+				'  * 7',
+				'* 8',
+				'  * 9',
+				'    * 10',
+				'    * 11',
+				'* 12',
+				'  * 13',
+				'    * 14'
+			] ) );
+
+			expect( changedBlocks ).toEqual( [
+				fragment.getChild( 4 ),
+				fragment.getChild( 5 ),
+				fragment.getChild( 6 ),
+				fragment.getChild( 7 ),
+				fragment.getChild( 8 ),
+				fragment.getChild( 9 ),
+				fragment.getChild( 10 ),
+				fragment.getChild( 11 )
+			] );
+		} );
+	} );
+
+	describe( 'isFirstListItemInList()', () => {
+		it( 'should return true for the first item in a list and false for the next same-type sibling', () => {
+			const input = modelList( [
+				'* a',
+				'* b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+		} );
+
+		it( 'should return true for a list item preceded by a non-list block', () => {
+			const input = modelList( [
+				'foo',
+				'* a'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( true );
+		} );
+
+		it( 'should return true for a list item preceded by a list item of a different type at the same indent', () => {
+			const input = modelList( [
+				'* a',
+				'# b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( true );
+		} );
+
+		it( 'should return false for a nested list item preceded by a same-indent same-type sibling', () => {
+			const input = modelList( [
+				'* a',
+				'  * b',
+				'  * c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( false );
+		} );
+
+		it( 'should return true for the first item after a list of a different type', () => {
+			const input = modelList( [
+				'# a',
+				'# b',
+				'* c',
+				'* d'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			// First numbered item.
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			// Second numbered item.
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+			// First bulleted item.
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( true );
+			// Second bulleted item.
+			expect( isFirstListItemInList( fragment.getChild( 3 ) ) ).toBe( false );
+		} );
+
+		it( 'should return false for same-type item after nested item of different type', () => {
+			const input = modelList( [
+				'* a',
+				'  # b',
+				'* c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( false );
+		} );
+
+		it( 'should return true for a skip-level list item that is first in the document', () => {
+			const input = modelList( [
+				'  * a',
+				'    * b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+		} );
+
+		it( 'should return false for a top-level item placed after a same-type skip-level nested list', () => {
+			// `bbb` is the second visible item in the outer numbered list, so it is not first.
+			const input = modelList( [
+				'  # aaa',
+				'# bbb'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+		} );
+
+		it( 'should return false for an item placed after a higher-indent block of a different type', () => {
+			// The higher-indent block is rendered inside a phantom skip-level wrapper at our indent,
+			// so the visible list already has earlier items regardless of the wrapper's type.
+			const input = modelList( [
+				'  * a',
+				'# b'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+		} );
+
+		it( 'should return false along a chain of higher-indent skip-level items', () => {
+			const input = modelList( [
+				'    * a',
+				'  * b',
+				'* c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( false );
+		} );
+
+		it( 'should return false for a top-level item placed after a different-type skip-level nested list and before list item', () => {
+			const input = modelList( [
+				'  * a',
+				'# b',
+				'  * c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( true );
+		} );
+
+		it( 'should return true for a top-level item placed after a different-type skip-level nested list and before list item', () => {
+			const input = modelList( [
+				'  * a',
+				'    # b',
+				'  * c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( false );
+		} );
+
+		it( 'should return true for an item starting a new list after a different-type list with a nested list', () => {
+			const input = modelList( [
+				'# a',
+				'  * b',
+				'* c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( true );
+		} );
+
+		it( 'should return true for an item starting a new list after a different-type list with a skip-level nested list', () => {
+			const input = modelList( [
+				'# a',
+				'    * b',
+				'* c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 2 ) ) ).toBe( true );
+		} );
+
+		it( 'should return false for a continuation block of a multi-block list item', () => {
+			const input = modelList( [
+				'* a',
+				'  text'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 0 ) ) ).toBe( true );
+			expect( isFirstListItemInList( fragment.getChild( 1 ) ) ).toBe( false );
+		} );
+
+		it( 'should return false for an item placed after a multi-block continuation of a preceding item', () => {
+			const input = modelList( [
+				'* a',
+				'* b',
+				'  text',
+				'* c'
+			] );
+
+			const fragment = _parseModel( input, schema );
+
+			expect( isFirstListItemInList( fragment.getChild( 3 ) ) ).toBe( false );
+		} );
+	} );
+} );

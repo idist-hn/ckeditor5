@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module highlight/highlight
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import HighlightEditing from './highlightediting';
-import HighlightUI from './highlightui';
+import { HighlightEditing } from './highlightediting.js';
+import { HighlightUI } from './highlightui.js';
 
 /**
  * The highlight plugin.
@@ -20,12 +20,12 @@ import HighlightUI from './highlightui';
  * This is a "glue" plugin which loads the {@link module:highlight/highlightediting~HighlightEditing} and
  * {@link module:highlight/highlightui~HighlightUI} plugins.
  */
-export default class Highlight extends Plugin {
+export class Highlight extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ HighlightEditing, HighlightUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ HighlightEditing, HighlightUI ]> {
+		return [ HighlightEditing, HighlightUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class Highlight extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Highlight' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

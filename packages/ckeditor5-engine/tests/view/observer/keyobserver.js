@@ -1,20 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import KeyObserver from '../../../src/view/observer/keyobserver';
-import View from '../../../src/view/view';
-import { getCode } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { KeyObserver } from '../../../src/view/observer/keyobserver.js';
+import { EditingView } from '../../../src/view/view.js';
+import { getCode } from '@ckeditor/ckeditor5-utils';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'KeyObserver', () => {
 	let view, viewDocument, observer;
 
 	beforeEach( () => {
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 		observer = view.getObserver( KeyObserver );
 	} );
@@ -24,13 +23,13 @@ describe( 'KeyObserver', () => {
 	} );
 
 	it( 'should define domEventType', () => {
-		expect( observer.domEventType ).to.contains( 'keydown' );
-		expect( observer.domEventType ).to.contains( 'keyup' );
+		expect( observer.domEventType ).toContain( 'keydown' );
+		expect( observer.domEventType ).toContain( 'keyup' );
 	} );
 
 	describe( 'onDomEvent', () => {
 		it( 'should fire keydown with the target and key info', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'keydown', spy );
 
@@ -44,22 +43,22 @@ describe( 'KeyObserver', () => {
 				shiftKey: false
 			} );
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 
-			const data = spy.args[ 0 ][ 1 ];
-			expect( data ).to.have.property( 'domTarget', document.body );
-			expect( data ).to.have.property( 'keyCode', 111 );
-			expect( data ).to.have.property( 'altKey', false );
-			expect( data ).to.have.property( 'ctrlKey', false );
-			expect( data ).to.have.property( 'shiftKey', false );
-			expect( data ).to.have.property( 'keystroke', getCode( data ) );
+			const data = spy.mock.calls[ 0 ][ 1 ];
+			expect( data ).toHaveProperty( 'domTarget', document.body );
+			expect( data ).toHaveProperty( 'keyCode', 111 );
+			expect( data ).toHaveProperty( 'altKey', false );
+			expect( data ).toHaveProperty( 'ctrlKey', false );
+			expect( data ).toHaveProperty( 'shiftKey', false );
+			expect( data ).toHaveProperty( 'keystroke', getCode( data ) );
 
 			// Just to be sure.
-			expect( getCode( data ) ).to.equal( 111 );
+			expect( getCode( data ) ).toBe( 111 );
 		} );
 
 		it( 'should fire keydown with proper key modifiers info', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'keydown', spy );
 
@@ -73,41 +72,41 @@ describe( 'KeyObserver', () => {
 				shiftKey: true
 			} );
 
-			const data = spy.args[ 0 ][ 1 ];
-			expect( data ).to.have.property( 'keyCode', 111 );
-			expect( data ).to.have.property( 'altKey', true );
-			expect( data ).to.have.property( 'ctrlKey', true );
-			expect( data ).to.have.property( 'shiftKey', true );
-			expect( data ).to.have.property( 'keystroke', getCode( data ) );
+			const data = spy.mock.calls[ 0 ][ 1 ];
+			expect( data ).toHaveProperty( 'keyCode', 111 );
+			expect( data ).toHaveProperty( 'altKey', true );
+			expect( data ).toHaveProperty( 'ctrlKey', true );
+			expect( data ).toHaveProperty( 'shiftKey', true );
+			expect( data ).toHaveProperty( 'keystroke', getCode( data ) );
 
 			// Just to be sure.
-			expect( getCode( data ) ).to.be.greaterThan( 111 );
+			expect( getCode( data ) ).toBeGreaterThan( 111 );
 		} );
 
 		it( 'should fire keydown with ctrlKey set to true once ctrl was pressed', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'keydown', spy );
 
 			observer.onDomEvent( { type: 'keydown', target: document.body, keyCode: 111, ctrlKey: true } );
 
-			const data = spy.args[ 0 ][ 1 ];
-			expect( data ).to.have.property( 'ctrlKey', true );
+			const data = spy.mock.calls[ 0 ][ 1 ];
+			expect( data ).toHaveProperty( 'ctrlKey', true );
 		} );
 
 		it( 'should fire keydown with metaKey set to true once meta (cmd) was pressed', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'keydown', spy );
 
 			observer.onDomEvent( { type: 'keydown', target: document.body, keyCode: 111, metaKey: true } );
 
-			const data = spy.args[ 0 ][ 1 ];
-			expect( data ).to.have.property( 'metaKey', true );
+			const data = spy.mock.calls[ 0 ][ 1 ];
+			expect( data ).toHaveProperty( 'metaKey', true );
 		} );
 
 		it( 'should fire keyup with the target and key info', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'keyup', spy );
 
@@ -121,18 +120,18 @@ describe( 'KeyObserver', () => {
 				shiftKey: false
 			} );
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 
-			const data = spy.args[ 0 ][ 1 ];
-			expect( data ).to.have.property( 'domTarget', document.body );
-			expect( data ).to.have.property( 'keyCode', 111 );
-			expect( data ).to.have.property( 'altKey', false );
-			expect( data ).to.have.property( 'ctrlKey', false );
-			expect( data ).to.have.property( 'shiftKey', false );
-			expect( data ).to.have.property( 'keystroke', getCode( data ) );
+			const data = spy.mock.calls[ 0 ][ 1 ];
+			expect( data ).toHaveProperty( 'domTarget', document.body );
+			expect( data ).toHaveProperty( 'keyCode', 111 );
+			expect( data ).toHaveProperty( 'altKey', false );
+			expect( data ).toHaveProperty( 'ctrlKey', false );
+			expect( data ).toHaveProperty( 'shiftKey', false );
+			expect( data ).toHaveProperty( 'keystroke', getCode( data ) );
 
 			// Just to be sure.
-			expect( getCode( data ) ).to.equal( 111 );
+			expect( getCode( data ) ).toBe( 111 );
 		} );
 	} );
 } );

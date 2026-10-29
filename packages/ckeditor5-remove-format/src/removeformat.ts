@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module remove-format/removeformat
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import RemoveFormatUI from './removeformatui';
-import RemoveFormatEditing from './removeformatediting';
+import { RemoveFormatUI } from './removeformatui.js';
+import { RemoveFormatEditing } from './removeformatediting.js';
 
 /**
  * The remove format plugin.
@@ -20,12 +20,12 @@ import RemoveFormatEditing from './removeformatediting';
  *
  * For a detailed overview, check out the {@glink features/remove-format remove format} feature documentation.
  */
-export default class RemoveFormat extends Plugin {
+export class RemoveFormat extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ RemoveFormatEditing, RemoveFormatUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ RemoveFormatEditing, RemoveFormatUI ]> {
+		return [ RemoveFormatEditing, RemoveFormatUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class RemoveFormat extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'RemoveFormat' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

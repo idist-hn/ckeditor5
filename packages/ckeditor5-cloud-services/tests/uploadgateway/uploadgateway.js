@@ -1,18 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* eslint-env browser */
-
-import FileUploader from '../../src/uploadgateway/fileuploader';
-import UploadGateway from '../../src/uploadgateway/uploadgateway';
-import Token from '../../src/token/token';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { FileUploader } from '../../src/uploadgateway/fileuploader.js';
+import { UploadGateway } from '../../src/uploadgateway/uploadgateway.js';
+import { Token } from '../../src/token/token.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 describe( 'UploadGateway', () => {
-	const tokenInitValue = `header.${ btoa( JSON.stringify( { exp: Date.now() + 3600000 } ) ) }.signature`;
-	const token = new Token( 'url', { initValue: tokenInitValue, autoRefresh: false } );
+	let token;
+
+	beforeEach( () => {
+		const tokenInitValue = `header.${ btoa( JSON.stringify( { exp: Date.now() + 3600000 } ) ) }.signature`;
+
+		token = new Token( 'url', { initValue: tokenInitValue, autoRefresh: false } );
+	} );
+
+	afterEach( () => {
+		token.destroy();
+	} );
 
 	describe( 'constructor()', () => {
 		it( 'should throw error when no token provided', () => {
@@ -28,7 +36,7 @@ describe( 'UploadGateway', () => {
 		it( 'should return `FileUploader` instance', () => {
 			const uploader = new UploadGateway( token, 'test' );
 
-			expect( uploader.upload( 'file' ) ).to.be.instanceOf( FileUploader );
+			expect( uploader.upload( 'file' ) ).toBeInstanceOf( FileUploader );
 		} );
 	} );
 } );

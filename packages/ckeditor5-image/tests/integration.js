@@ -1,24 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import BalloonToolbar from '@ckeditor/ckeditor5-ui/src/toolbar/balloon/balloontoolbar';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import Image from '../src/image';
-import ImageToolbar from '../src/imagetoolbar';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import ImageTextAlternative from '../src/imagetextalternative';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { BalloonToolbar, View } from '@ckeditor/ckeditor5-ui';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { Image } from '../src/image.js';
+import { ImageToolbar } from '../src/imagetoolbar.js';
+import { ImageTextAlternative } from '../src/imagetextalternative.js';
 
 describe( 'ImageToolbar integration', () => {
 	describe( 'with the BalloonToolbar', () => {
 		let balloon, balloonToolbar, newEditor, editorElement;
-
-		testUtils.createSinonSandbox();
 
 		beforeEach( () => {
 			editorElement = global.document.createElement( 'div' );
@@ -57,32 +54,32 @@ describe( 'ImageToolbar integration', () => {
 			newEditor.ui.focusTracker.isFocused = true;
 
 			// When image is selected along with text.
-			setModelData( newEditor.model,
-				'<paragraph>fo[o</paragraph><imageBlock alt="alt text" src="/assets/sample.png"></imageBlock>]' );
+			_setModelData( newEditor.model,
+				'<paragraph>fo[o</paragraph><imageBlock alt="alt text" src="/sample.png"></imageBlock>]' );
 
 			balloonToolbar.show();
 
 			// BalloonToolbar should be visible.
-			expect( balloon.visibleView ).to.equal( balloonToolbar.toolbarView );
+			expect( balloon.visibleView ).toBe( balloonToolbar.toolbarView );
 
 			// When only image is selected.
-			setModelData( newEditor.model,
-				'<paragraph>foo</paragraph>[<imageBlock alt="alt text" src="/assets/sample.png"></imageBlock>]' );
+			_setModelData( newEditor.model,
+				'<paragraph>foo</paragraph>[<imageBlock alt="alt text" src="/sample.png"></imageBlock>]' );
 
 			balloonToolbar.show();
 
 			// BalloonToolbar should not be visible.
-			expect( balloon.visibleView.ariaLabel ).to.equal( 'Image toolbar' );
+			expect( balloon.visibleView.ariaLabel ).toBe( 'Image toolbar' );
 		} );
 
 		it( 'should listen to BalloonToolbar#show event with the high priority', () => {
-			const highestPrioritySpy = sinon.spy();
-			const highPrioritySpy = sinon.spy();
-			const normalPrioritySpy = sinon.spy();
+			const highestPrioritySpy = vi.fn();
+			const highPrioritySpy = vi.fn();
+			const normalPrioritySpy = vi.fn();
 
 			// Select an image
-			setModelData( newEditor.model,
-				'<paragraph>foo</paragraph>[<imageBlock alt="alt text" src="/assets/sample.png"></imageBlock>]' );
+			_setModelData( newEditor.model,
+				'<paragraph>foo</paragraph>[<imageBlock alt="alt text" src="/sample.png"></imageBlock>]' );
 
 			newEditor.listenTo( balloonToolbar, 'show', highestPrioritySpy, { priority: 'highest' } );
 			newEditor.listenTo( balloonToolbar, 'show', highPrioritySpy, { priority: 'high' } );
@@ -90,9 +87,9 @@ describe( 'ImageToolbar integration', () => {
 
 			balloonToolbar.show();
 
-			sinon.assert.calledOnce( highestPrioritySpy );
-			sinon.assert.notCalled( highPrioritySpy );
-			sinon.assert.notCalled( normalPrioritySpy );
+			expect( highestPrioritySpy ).toHaveBeenCalledOnce();
+			expect( highPrioritySpy ).not.toHaveBeenCalled();
+			expect( normalPrioritySpy ).not.toHaveBeenCalled();
 		} );
 	} );
 } );

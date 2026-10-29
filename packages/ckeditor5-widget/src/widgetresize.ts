@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module widget/widgetresize
  */
 
-import Resizer, {
-	type ResizerBeginEvent,
-	type ResizerCancelEvent,
-	type ResizerCommitEvent
-} from './widgetresize/resizer';
+import {
+	WidgetResizer,
+	type WidgetResizerBeginEvent,
+	type WidgetResizerCancelEvent,
+	type WidgetResizerCommitEvent
+} from './widgetresize/resizer.js';
 
-import type WidgetToolbarRepository from './widgettoolbarrepository';
+import { type WidgetToolbarRepository } from './widgettoolbarrepository.js';
 
 import {
 	Plugin,
@@ -22,9 +23,9 @@ import {
 
 import {
 	MouseObserver,
-	type DocumentChangeEvent,
-	type DomEventData,
-	type Element,
+	type ModelDocumentChangeEvent,
+	type ViewDocumentDomEventData,
+	type ModelElement,
 	type ViewContainerElement,
 	type ViewDocumentMouseDownEvent,
 	type ViewSelectionChangeEvent
@@ -39,22 +40,20 @@ import {
 	type EventInfo
 } from '@ckeditor/ckeditor5-utils';
 
-import { throttle, type DebouncedFunc } from 'lodash-es';
-
-import '../theme/widgetresize.css';
+import { throttle } from 'es-toolkit/compat';
 
 /**
  * The widget resize feature plugin.
  *
  * Use the {@link module:widget/widgetresize~WidgetResize#attachTo} method to create a resizer for the specified widget.
  */
-export default class WidgetResize extends Plugin {
+export class WidgetResize extends Plugin {
 	/**
 	 * The currently selected resizer.
 	 *
 	 * @observable
 	 */
-	declare public selectedResizer: Resizer | null;
+	declare public selectedResizer: WidgetResizer | null;
 
 	/**
 	 * References an active resizer.
@@ -64,22 +63,29 @@ export default class WidgetResize extends Plugin {
 	 * @internal
 	 * @observable
 	 */
-	declare public _activeResizer: Resizer | null;
+	declare public _activeResizer: WidgetResizer | null;
 
 	/**
 	 * A map of resizers created using this plugin instance.
 	 */
-	private _resizers = new Map<ViewContainerElement, Resizer>();
+	private _resizers = new Map<ViewContainerElement, WidgetResizer>();
 
 	private _observer!: DomEmitter;
 
-	private _redrawSelectedResizerThrottled!: DebouncedFunc<() => void>;
+	private _redrawSelectedResizerThrottled!: ReturnType<typeof throttle<() => void>>;
 
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'WidgetResize' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -114,7 +120,7 @@ export default class WidgetResize extends Plugin {
 		// Remove view widget-resizer mappings for widgets that have been removed from the document.
 		// https://github.com/ckeditor/ckeditor5/issues/10156
 		// https://github.com/ckeditor/ckeditor5/issues/10266
-		this.editor.model.document.on<DocumentChangeEvent>( 'change', () => {
+		this.editor.model.document.on<ModelDocumentChangeEvent>( 'change', () => {
 			for ( const [ viewElement, resizer ] of this._resizers ) {
 				if ( !viewElement.isAttached() ) {
 					this._resizers.delete( viewElement );
@@ -167,7 +173,7 @@ export default class WidgetResize extends Plugin {
 	/**
 	 * Marks resizer as selected.
 	 */
-	public select( resizer: Resizer ): void {
+	public select( resizer: WidgetResizer ): void {
 		this.deselect();
 		this.selectedResizer = resizer;
 		this.selectedResizer.isSelected = true;
@@ -187,8 +193,8 @@ export default class WidgetResize extends Plugin {
 	/**
 	 * @param options Resizer options.
 	 */
-	public attachTo( options: ResizerOptions ): Resizer {
-		const resizer = new Resizer( options );
+	public attachTo( options: WidgetResizerOptions ): WidgetResizer {
+		const resizer = new WidgetResizer( options );
 		const plugins = this.editor.plugins;
 
 		resizer.attach();
@@ -198,15 +204,15 @@ export default class WidgetResize extends Plugin {
 			// (https://github.com/ckeditor/ckeditor5-widget/pull/112#issuecomment-564528765).
 			const widgetToolbarRepository: WidgetToolbarRepository = plugins.get( 'WidgetToolbarRepository' );
 
-			resizer.on<ResizerBeginEvent>( 'begin', () => {
+			resizer.on<WidgetResizerBeginEvent>( 'begin', () => {
 				widgetToolbarRepository.forceDisabled( 'resize' );
 			}, { priority: 'lowest' } );
 
-			resizer.on<ResizerCancelEvent>( 'cancel', () => {
+			resizer.on<WidgetResizerCancelEvent>( 'cancel', () => {
 				widgetToolbarRepository.clearForceDisabled( 'resize' );
 			}, { priority: 'highest' } );
 
-			resizer.on<ResizerCommitEvent>( 'commit', () => {
+			resizer.on<WidgetResizerCommitEvent>( 'commit', () => {
 				widgetToolbarRepository.clearForceDisabled( 'resize' );
 			}, { priority: 'highest' } );
 		}
@@ -229,14 +235,14 @@ export default class WidgetResize extends Plugin {
 	 *
 	 * @param viewElement View element associated with the resizer.
 	 */
-	public getResizerByViewElement( viewElement: ViewContainerElement ): Resizer | undefined {
+	public getResizerByViewElement( viewElement: ViewContainerElement ): WidgetResizer | undefined {
 		return this._resizers.get( viewElement );
 	}
 
 	/**
 	 * Returns a resizer that contains a given resize handle.
 	 */
-	private _getResizerByHandle( domResizeHandle: HTMLElement ): Resizer | undefined {
+	private _getResizerByHandle( domResizeHandle: HTMLElement ): WidgetResizer | undefined {
 		for ( const resizer of this._resizers.values() ) {
 			if ( resizer.containsHandle( domResizeHandle ) ) {
 				return resizer;
@@ -247,10 +253,10 @@ export default class WidgetResize extends Plugin {
 	/**
 	 * @param domEventData Native DOM event.
 	 */
-	private _mouseDownListener( event: EventInfo, domEventData: DomEventData ) {
+	private _mouseDownListener( event: EventInfo, domEventData: ViewDocumentDomEventData ) {
 		const resizeHandle = domEventData.domTarget;
 
-		if ( !Resizer.isResizeHandle( resizeHandle ) ) {
+		if ( !WidgetResizer.isResizeHandle( resizeHandle ) ) {
 			return;
 		}
 
@@ -259,7 +265,7 @@ export default class WidgetResize extends Plugin {
 		if ( this._activeResizer ) {
 			this._activeResizer.begin( resizeHandle );
 
-			// Do not call other events when resizing. See: #6755.
+			// Do not call other events when resizing. See: https://github.com/ckeditor/ckeditor5/issues/6755.
 			event.stop();
 			domEventData.preventDefault();
 		}
@@ -285,14 +291,14 @@ export default class WidgetResize extends Plugin {
 /**
  * Interface describing a resizer. It allows to specify the resizing host, custom logic for calculating aspect ratio, etc.
  */
-export interface ResizerOptions {
+export interface WidgetResizerOptions {
 
 	/**
 	 * Editor instance associated with the resizer.
 	 */
 	editor: Editor;
 
-	modelElement: Element;
+	modelElement: ModelElement;
 
 	/**
 	 * A view of an element to be resized. Typically it's the main widget's view instance.
@@ -327,5 +333,5 @@ export interface ResizerOptions {
 
 	getHandleHost: ( widgetWrapper: HTMLElement ) => HTMLElement;
 
-	isCentered?: ( resizer: Resizer ) => boolean;
+	isCentered?: ( resizer: WidgetResizer ) => boolean;
 }

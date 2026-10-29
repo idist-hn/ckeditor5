@@ -1,10 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import TableWalker from '../../src/tablewalker';
+import { expect } from 'vitest';
+
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { TableWalker } from '../../src/tablewalker.js';
 
 const WIDGET_TABLE_CELL_CLASS = 'ck-editor__editable ck-editor__nested-editable';
 
@@ -72,7 +74,7 @@ export function modelTable( tableData, attributes = {} ) {
  * @param {String} cellContent
  */
 export function setTableCellWithObjectAttributes( model, attributes, cellContent ) {
-	setData( model, modelTable( [ [ { contents: cellContent } ] ] ) );
+	_setModelData( model, modelTable( [ [ { contents: cellContent } ] ] ) );
 
 	const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
@@ -103,7 +105,7 @@ export function setTableCellWithObjectAttributes( model, attributes, cellContent
  * @param {String} cellContent
  */
 export function setTableWithObjectAttributes( model, attributes, cellContent ) {
-	setData( model, modelTable( [ [ { contents: cellContent } ] ] ) );
+	_setModelData( model, modelTable( [ [ { contents: cellContent } ] ] ) );
 
 	const table = model.document.getRoot().getChild( 0 );
 
@@ -149,6 +151,7 @@ export function viewTable( tableData, attributes = {} ) {
 	}
 
 	const headingRows = attributes.headingRows || 0;
+	const footerRows = attributes.footerRows || 0;
 	const asWidget = !!attributes.asWidget;
 
 	const thead = headingRows > 0 ? `<thead>${ makeRows( tableData.slice( 0, headingRows ), {
@@ -160,27 +163,39 @@ export function viewTable( tableData, attributes = {} ) {
 		asWidget
 	} ) }</thead>` : '';
 
-	const tbody = tableData.length > headingRows ?
-		`<tbody>${ makeRows( tableData.slice( headingRows ), {
-			cellElement: 'td',
-			rowElement: 'tr',
-			headingElement: 'th',
-			wrappingElement: asWidget ? 'span' : 'p',
-			enforceWrapping: asWidget,
-			asWidget
-		} ) }</tbody>` : '';
+	const tfoot = footerRows > 0 ? `<tfoot>${ makeRows( tableData.slice( -footerRows ), {
+		cellElement: 'td',
+		rowElement: 'tr',
+		headingElement: 'th',
+		wrappingElement: asWidget ? 'span' : 'p',
+		enforceWrapping: asWidget,
+		asWidget
+	} ) }</tfoot>` : '';
+
+	const tbody = tableData.length > headingRows + footerRows ?
+		`<tbody>${ makeRows(
+			footerRows ? tableData.slice( headingRows, -footerRows ) : tableData.slice( headingRows ),
+			{
+				cellElement: 'td',
+				rowElement: 'tr',
+				headingElement: 'th',
+				wrappingElement: asWidget ? 'span' : 'p',
+				enforceWrapping: asWidget,
+				asWidget
+			}
+		) }</tbody>` : '';
 
 	const figureAttributes = asWidget ?
 		'class="ck-widget ck-widget_with-selection-handle table" contenteditable="false"' : 'class="table"';
 	const widgetHandler = '<div class="ck ck-widget__selection-handle"></div>';
 
-	return `<figure ${ figureAttributes }>${ asWidget ? widgetHandler : '' }<table>${ thead }${ tbody }</table></figure>`;
+	return `<figure ${ figureAttributes }>${ asWidget ? widgetHandler : '' }<table>${ thead }${ tbody }${ tfoot }</table></figure>`;
 }
 
 /**
  * An assertion helper for top-right-bottom-left attribute object.
  *
- * @param {module:engine/model/node~Node} element
+ * @param {module:engine/model/node~ModelNode} element
  * @param {String} key Attribute key
  * @param {String} top Top value. Pass `null` to omit the value in the attributes object.
  * @param {String} [right=top] Right value - defaults to top if not provided.
@@ -209,7 +224,7 @@ export function assertTRBLAttribute( element, key, top, right = top, bottom = to
 		styleObject.left = left;
 	}
 
-	expect( element.getAttribute( key ) ).to.deep.equal( styleObject );
+	expect( element.getAttribute( key ) ).toEqual( styleObject );
 }
 
 /**
@@ -223,9 +238,25 @@ export function assertTableStyle( editor, tableStyle, figureStyle ) {
 	const tableStyleEntry = tableStyle ? ` style="${ tableStyle }"` : '';
 	const figureStyleEntry = figureStyle ? ` style="${ figureStyle }"` : '';
 
-	expect( editor.getData() ).to.equalMarkup(
+	expect( editor.getData() ).toEqualMarkup(
 		`<figure class="table"${ figureStyleEntry }>` +
 			`<table${ tableStyleEntry }>` +
+				'<tbody><tr><td>foo</td></tr></tbody>' +
+			'</table>' +
+		'</figure>'
+	);
+}
+
+/**
+ * An assertion helper for testing the `<table>` CSS class.
+ */
+export function assertTableClass( editor, tableClass, figureClass ) {
+	const tableClassEntry = tableClass ? ` class="${ tableClass }"` : '';
+	const figureClassEntry = figureClass ? ` ${ figureClass }` : '';
+
+	expect( editor.getData() ).toEqualMarkup(
+		`<figure class="table${ figureClassEntry }">` +
+			`<table${ tableClassEntry }>` +
 				'<tbody><tr><td>foo</td></tr></tbody>' +
 			'</table>' +
 		'</figure>'
@@ -239,7 +270,7 @@ export function assertTableStyle( editor, tableStyle, figureStyle ) {
  * @param {String} [tableCellStyle=''] A style to assert on td.
  */
 export function assertTableCellStyle( editor, tableCellStyle ) {
-	expect( editor.getData() ).to.equalMarkup(
+	expect( editor.getData() ).toEqualMarkup(
 		'<figure class="table"><table><tbody><tr>' +
 		`<td${ tableCellStyle ? ` style="${ tableCellStyle }"` : '' }>foo</td>` +
 		'</tr></tbody></table></figure>'
@@ -320,7 +351,7 @@ function assertNodeIsSelected( model, path ) {
 	const node = modelRoot.getNodeByPath( path );
 	const selectionRanges = Array.from( model.document.selection.getRanges() );
 
-	expect( selectionRanges.some( range => range.containsItem( node ) ), `Expected node [${ path }] to be selected` ).to.be.true;
+	expect( selectionRanges.some( range => range.containsItem( node ) ), `Expected node [${ path }] to be selected` ).toBe( true );
 }
 
 function assertNodeIsNotSelected( model, path ) {
@@ -328,13 +359,13 @@ function assertNodeIsNotSelected( model, path ) {
 	const node = modelRoot.getNodeByPath( path );
 	const selectionRanges = Array.from( model.document.selection.getRanges() );
 
-	expect( selectionRanges.every( range => !range.containsItem( node ) ), `Expected node [${ path }] to be not selected` ).to.be.true;
+	expect( selectionRanges.every( range => !range.containsItem( node ) ), `Expected node [${ path }] to be not selected` ).toBe( true );
 }
 
 // Formats table cell attributes
 //
 // @param {Object} attributes Attributes of a cell.
-function formatAttributes( attributes ) {
+export function formatAttributes( attributes ) {
 	let attributesString = '';
 
 	if ( attributes ) {
@@ -379,7 +410,7 @@ function makeRows( tableData, options ) {
 				if ( asWidget ) {
 					attributes.class = getClassToSet( attributes );
 					attributes.contenteditable = 'true';
-					attributes.role = 'textbox';
+					attributes.tabindex = '-1';
 				}
 
 				if ( isObject ) {
@@ -436,7 +467,7 @@ function getClassToSet( attributes ) {
  * Returns ascii-art visualization of the table.
  *
  * @param {module:engine/model/model~Model} model The editor model.
- * @param {module:engine/model/element~Element} table The table model element.
+ * @param {module:engine/model/element~ModelElement} table The table model element.
  * @returns {String}
  */
 export function createTableAsciiArt( model, table ) {
@@ -505,7 +536,7 @@ export function createTableAsciiArt( model, table ) {
  * Generates input data for `modelTable` helper method.
  *
  * @param {module:engine/model/model~Model} model The editor model.
- * @param {module:engine/model/element~Element} table The table model element.
+ * @param {module:engine/model/element~ModelElement} table The table model element.
  * @returns {Array.<Array.<String|Object>>}
  */
 export function prepareModelTableInput( model, table ) {

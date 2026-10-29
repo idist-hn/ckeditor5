@@ -1,17 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { testDataProcessor } from '../_utils/utils';
+import { describe, it } from 'vitest';
+import { testDataProcessor } from '../_utils/utils.js';
 
-describe( 'GFMDataProcessor', () => {
+describe( 'MarkdownGfmDataProcessor', () => {
 	describe( 'Strikethrough', () => {
 		it( 'should process strikethrough text', () => {
 			testDataProcessor(
 				'~deleted~',
 
-				'<p><del>deleted</del></p>'
+				'<p><del>deleted</del></p>',
+
+				// Single tildes work on github.com, but are technically prohibited by the GFM spec, so they are turned to double tildes.
+				'~~deleted~~'
 			);
 		} );
 
@@ -19,7 +23,10 @@ describe( 'GFMDataProcessor', () => {
 			testDataProcessor(
 				'This is ~deleted content~.',
 
-				'<p>This is <del>deleted content</del>.</p>'
+				'<p>This is <del>deleted content</del>.</p>',
+
+				// Single tildes work on github.com, but are technically prohibited by the GFM spec, so they are turned to double tildes.
+				'This is ~~deleted content~~.'
 			);
 		} );
 	} );

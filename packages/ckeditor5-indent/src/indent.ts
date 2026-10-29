@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module indent/indent
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import IndentEditing from './indentediting';
-import IndentUI from './indentui';
+import { IndentEditing } from './indentediting.js';
+import { IndentUI } from './indentui.js';
 
 /**
  * The indent feature.
@@ -32,7 +32,7 @@ import IndentUI from './indentui';
  *
  * **Note**: In order for the commands and buttons to work, at least one of compatible features is required.
  */
-export default class Indent extends Plugin {
+export class Indent extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -43,7 +43,14 @@ export default class Indent extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ IndentEditing, IndentUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ IndentEditing, IndentUI ]> {
+		return [ IndentEditing, IndentUI ];
 	}
 }

@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/bold
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import BoldEditing from './bold/boldediting';
-import BoldUI from './bold/boldui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { BoldEditing } from './bold/boldediting.js';
+import { BoldUI } from './bold/boldui.js';
 
 /**
  * The bold feature.
@@ -20,12 +20,12 @@ import BoldUI from './bold/boldui';
  * This is a "glue" plugin which loads the {@link module:basic-styles/bold/boldediting~BoldEditing bold editing feature}
  * and {@link module:basic-styles/bold/boldui~BoldUI bold UI feature}.
  */
-export default class Bold extends Plugin {
+export class Bold extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ BoldEditing, BoldUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ BoldEditing, BoldUI ]> {
+		return [ BoldEditing, BoldUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class Bold extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Bold' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-embed/htmlembed
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { Widget } from 'ckeditor5/src/widget';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Widget } from '@ckeditor/ckeditor5-widget';
 
-import HtmlEmbedEditing from './htmlembedediting';
-import HtmlEmbedUI from './htmlembedui';
+import { HtmlEmbedEditing } from './htmlembedediting.js';
+import { HtmlEmbedUI } from './htmlembedui.js';
 
 /**
  * The HTML embed feature.
@@ -20,12 +20,12 @@ import HtmlEmbedUI from './htmlembedui';
  *
  * For a detailed overview, check the {@glink features/html/html-embed HTML embed feature} documentation.
  */
-export default class HtmlEmbed extends Plugin {
+export class HtmlEmbed extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ HtmlEmbedEditing, HtmlEmbedUI, Widget ] as const;
+	public static get requires(): PluginDependenciesOf<[ HtmlEmbedEditing, HtmlEmbedUI, Widget ]> {
+		return [ HtmlEmbedEditing, HtmlEmbedUI, Widget ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class HtmlEmbed extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'HtmlEmbed' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

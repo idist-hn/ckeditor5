@@ -1,20 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module special-characters
  */
 
-export { default as SpecialCharacters } from './specialcharacters';
-export { default as SpecialCharactersArrows } from './specialcharactersarrows';
-export { default as SpecialCharactersText } from './specialcharacterstext';
-export { default as SpecialCharactersMathematical } from './specialcharactersmathematical';
-export { default as SpecialCharactersLatin } from './specialcharacterslatin';
-export { default as SpecialCharactersEssentials } from './specialcharactersessentials';
-export { default as SpecialCharactersCurrency } from './specialcharacterscurrency';
+export { SpecialCharacters, type SpecialCharacterDefinition } from './specialcharacters.js';
+export { SpecialCharactersArrows } from './specialcharactersarrows.js';
+export { SpecialCharactersText } from './specialcharacterstext.js';
+export { SpecialCharactersMathematical } from './specialcharactersmathematical.js';
+export { SpecialCharactersLatin } from './specialcharacterslatin.js';
+export { SpecialCharactersEssentials } from './specialcharactersessentials.js';
+export { SpecialCharactersCurrency } from './specialcharacterscurrency.js';
 
-export type { SpecialCharactersConfig } from './specialcharactersconfig';
+export type { SpecialCharactersConfig } from './specialcharactersconfig.js';
 
-import './augmentation';
+export {
+	type SpecialCharactersGridViewExecuteEvent,
+	type SpecialCharactersGridViewTileHoverEvent,
+	type SpecialCharactersGridViewTileFocusEvent,
+	type SpecialCharactersGridViewEventData,
+	CharacterGridView as _SpecialCharactersGridView
+} from './ui/charactergridview.js';
+
+export { CharacterInfoView as _SpecialCharactersInfoView } from './ui/characterinfoview.js';
+export { SpecialCharactersCategoriesView as _SpecialCharactersCategoriesView } from './ui/specialcharacterscategoriesview.js';
+export { SpecialCharactersView as _SpecialCharactersView } from './ui/specialcharactersview.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

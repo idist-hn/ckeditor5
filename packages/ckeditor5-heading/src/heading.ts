@@ -1,18 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module heading/heading
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import HeadingEditing from './headingediting';
-import HeadingUI from './headingui';
-
-import '../theme/heading.css';
+import { HeadingEditing } from './headingediting.js';
+import { HeadingUI } from './headingui.js';
 
 /**
  * The headings feature.
@@ -25,12 +23,12 @@ import '../theme/heading.css';
  *
  * @extends module:core/plugin~Plugin
  */
-export default class Heading extends Plugin {
+export class Heading extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ HeadingEditing, HeadingUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ HeadingEditing, HeadingUI ]> {
+		return [ HeadingEditing, HeadingUI ];
 	}
 
 	/**
@@ -38,5 +36,12 @@ export default class Heading extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Heading' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

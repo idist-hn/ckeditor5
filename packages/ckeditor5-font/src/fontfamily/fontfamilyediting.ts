@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontfamily/fontfamilyediting
  */
 
-import { type Editor, Plugin } from 'ckeditor5/src/core';
-import type { ViewElement } from 'ckeditor5/src/engine';
+import { type Editor, Plugin } from '@ckeditor/ckeditor5-core';
+import type { ViewElement } from '@ckeditor/ckeditor5-engine';
 
-import FontFamilyCommand from './fontfamilycommand';
-import { normalizeOptions } from './utils';
-import { buildDefinition, FONT_FAMILY } from '../utils';
+import { FontFamilyCommand } from './fontfamilycommand.js';
+import { normalizeOptions } from './utils.js';
+import { buildDefinition, FONT_FAMILY } from '../utils.js';
 
 /**
  * The font family editing feature.
@@ -22,12 +22,19 @@ import { buildDefinition, FONT_FAMILY } from '../utils';
  * in the {@link module:engine/view/view view} as an inline `<span>` element (`<span style="font-family: Arial">`),
  * depending on the {@link module:font/fontconfig~FontFamilyConfig configuration}.
  */
-export default class FontFamilyEditing extends Plugin {
+export class FontFamilyEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'FontFamilyEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

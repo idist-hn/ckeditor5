@@ -1,48 +1,49 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/element
  */
 
-import Node from './node';
-import Text from './text';
-import TextProxy from './textproxy';
-import { isIterable, toArray, toMap, type ArrayOrItem } from '@ckeditor/ckeditor5-utils';
-import { default as Matcher, type MatcherPattern } from './matcher';
-import { default as StylesMap, type StyleValue } from './stylesmap';
+import { ViewNode } from './node.js';
+import { ViewText } from './text.js';
+import { ViewTextProxy } from './textproxy.js';
+import { type ArrayOrItem, isIterable, toMap } from '@ckeditor/ckeditor5-utils';
+import { Matcher, isPatternMatched, type MatcherPattern, type NormalizedPropertyPattern } from './matcher.js';
+import { StylesMap, type Styles, type StyleValue } from './stylesmap.js';
 
-import type Document from './document';
-import type Item from './item';
+import { type ViewDocument } from './document.js';
+import { type ViewItem } from './item.js';
+import { ViewTokenList } from './tokenlist.js';
 
-// @if CK_DEBUG_ENGINE // const { convertMapToTags } = require( '../dev-utils/utils' );
+// @if CK_DEBUG_ENGINE // import { convertMapToTags } from '../dev-utils/utils.js';
 
 /**
  * View element.
  *
  * The editing engine does not define a fixed semantics of its elements (it is "DTD-free").
- * This is why the type of the {@link module:engine/view/element~Element} need to
+ * This is why the type of the {@link module:engine/view/element~ViewElement} need to
  * be defined by the feature developer. When creating an element you should use one of the following methods:
  *
- * * {@link module:engine/view/downcastwriter~DowncastWriter#createContainerElement `downcastWriter#createContainerElement()`}
- * in order to create a {@link module:engine/view/containerelement~ContainerElement},
- * * {@link module:engine/view/downcastwriter~DowncastWriter#createAttributeElement `downcastWriter#createAttributeElement()`}
- * in order to create a {@link module:engine/view/attributeelement~AttributeElement},
- * * {@link module:engine/view/downcastwriter~DowncastWriter#createEmptyElement `downcastWriter#createEmptyElement()`}
- * in order to create a {@link module:engine/view/emptyelement~EmptyElement}.
- * * {@link module:engine/view/downcastwriter~DowncastWriter#createUIElement `downcastWriter#createUIElement()`}
- * in order to create a {@link module:engine/view/uielement~UIElement}.
- * * {@link module:engine/view/downcastwriter~DowncastWriter#createEditableElement `downcastWriter#createEditableElement()`}
- * in order to create a {@link module:engine/view/editableelement~EditableElement}.
+ * * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createContainerElement `downcastWriter#createContainerElement()`}
+ * in order to create a {@link module:engine/view/containerelement~ViewContainerElement},
+ * * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createAttributeElement `downcastWriter#createAttributeElement()`}
+ * in order to create a {@link module:engine/view/attributeelement~ViewAttributeElement},
+ * * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createEmptyElement `downcastWriter#createEmptyElement()`}
+ * in order to create a {@link module:engine/view/emptyelement~ViewEmptyElement}.
+ * * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createUIElement `downcastWriter#createUIElement()`}
+ * in order to create a {@link module:engine/view/uielement~ViewUIElement}.
+ * * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createEditableElement `downcastWriter#createEditableElement()`}
+ * in order to create a {@link module:engine/view/editableelement~ViewEditableElement}.
  *
  * Note that for view elements which are not created from the model, like elements from mutations, paste or
  * {@link module:engine/controller/datacontroller~DataController#set data.set} it is not possible to define the type of the element.
- * In such cases the {@link module:engine/view/upcastwriter~UpcastWriter#createElement `UpcastWriter#createElement()`} method
+ * In such cases the {@link module:engine/view/upcastwriter~ViewUpcastWriter#createElement `UpcastWriter#createElement()`} method
  * should be used to create generic view elements.
  */
-export default class Element extends Node {
+export class ViewElement extends ViewNode {
 	/**
 	 * Name of the element.
 	 */
@@ -50,11 +51,11 @@ export default class Element extends Node {
 
 	/**
 	 * A list of attribute names that should be rendered in the editing pipeline even though filtering mechanisms
-	 * implemented in the {@link module:engine/view/domconverter~DomConverter} (for instance,
-	 * {@link module:engine/view/domconverter~DomConverter#shouldRenderAttribute}) would filter them out.
+	 * implemented in the {@link module:engine/view/domconverter~ViewDomConverter} (for instance,
+	 * {@link module:engine/view/domconverter~ViewDomConverter#shouldRenderAttribute}) would filter them out.
 	 *
 	 * These attributes can be specified as an option when the element is created by
-	 * the {@link module:engine/view/downcastwriter~DowncastWriter}. To check whether an unsafe an attribute should
+	 * the {@link module:engine/view/downcastwriter~ViewDowncastWriter}. To check whether an unsafe an attribute should
 	 * be permitted, use the {@link #shouldRenderUnsafeAttribute} method.
 	 *
 	 * @internal
@@ -64,28 +65,36 @@ export default class Element extends Node {
 	/**
 	 * Map of attributes, where attributes names are keys and attributes values are values.
 	 */
-	private readonly _attrs: Map<string, string>;
+	private readonly _attrs: Map<string, string | ViewElementAttributeValue>;
 
 	/**
 	 * Array of child nodes.
 	 */
-	private readonly _children: Array<Node>;
-
-	/**
-	 * Set of classes associated with element instance.
-	 */
-	private readonly _classes: Set<string>;
-
-	/**
-	 * Normalized styles.
-	 */
-	private readonly _styles: StylesMap;
+	private readonly _children: Array<ViewNode>;
 
 	/**
 	 * Map of custom properties.
 	 * Custom properties can be added to element instance, will be cloned but not rendered into DOM.
 	 */
 	private readonly _customProperties = new Map<string | symbol, unknown>();
+
+	/**
+	 * Set of classes associated with element instance.
+	 *
+	 * Note that this is just an alias for `this._attrs.get( 'class' );`
+	 */
+	private get _classes(): ViewTokenList | undefined {
+		return this._attrs.get( 'class' ) as ViewTokenList | undefined;
+	}
+
+	/**
+	 * Normalized styles.
+	 *
+	 * Note that this is just an alias for `this._attrs.get( 'style' );`
+	 */
+	private get _styles(): StylesMap | undefined {
+		return this._attrs.get( 'style' ) as StylesMap | undefined;
+	}
 
 	/**
 	 * Creates a view element.
@@ -105,38 +114,20 @@ export default class Element extends Node {
 	 * @param children A list of nodes to be inserted into created element.
 	 */
 	constructor(
-		document: Document,
+		document: ViewDocument,
 		name: string,
-		attrs?: ElementAttributes,
-		children?: Node | Iterable<Node>
+		attrs?: ViewElementAttributes,
+		children?: ViewNode | Iterable<ViewNode>
 	) {
 		super( document );
 
 		this.name = name;
 
-		this._attrs = parseAttributes( attrs );
+		this._attrs = this._parseAttributes( attrs );
 		this._children = [];
 
 		if ( children ) {
 			this._insertChild( 0, children );
-		}
-
-		this._classes = new Set();
-
-		if ( this._attrs.has( 'class' ) ) {
-			// Remove class attribute and handle it by class set.
-			const classString = this._attrs.get( 'class' );
-			parseClasses( this._classes, classString! );
-			this._attrs.delete( 'class' );
-		}
-
-		this._styles = new StylesMap( this.document.stylesProcessor );
-
-		if ( this._attrs.has( 'style' ) ) {
-			// Remove style attribute and handle it by styles map.
-			this._styles.setTo( this._attrs.get( 'style' )! );
-
-			this._attrs.delete( 'style' );
 		}
 	}
 
@@ -160,7 +151,7 @@ export default class Element extends Node {
 	 * @param index Index of child.
 	 * @returns Child node.
 	 */
-	public getChild( index: number ): Node | undefined {
+	public getChild( index: number ): ViewNode | undefined {
 		return this._children[ index ];
 	}
 
@@ -170,7 +161,7 @@ export default class Element extends Node {
 	 * @param node Child node.
 	 * @returns Index of the child node.
 	 */
-	public getChildIndex( node: Node ): number {
+	public getChildIndex( node: ViewNode ): number {
 		return this._children.indexOf( node );
 	}
 
@@ -179,7 +170,7 @@ export default class Element extends Node {
 	 *
 	 * @returns Child nodes iterator.
 	 */
-	public getChildren(): IterableIterator<Node> {
+	public getChildren(): IterableIterator<ViewNode> {
 		return this._children[ Symbol.iterator ]();
 	}
 
@@ -189,15 +180,22 @@ export default class Element extends Node {
 	 * @returns Keys for attributes.
 	 */
 	public* getAttributeKeys(): IterableIterator<string> {
-		if ( this._classes.size > 0 ) {
+		// This is yielded in this specific order to maintain backward compatibility of data.
+		// Otherwise, we could simply just have the `for` loop only inside this method.
+
+		if ( this._classes ) {
 			yield 'class';
 		}
 
-		if ( !this._styles.isEmpty ) {
+		if ( this._styles ) {
 			yield 'style';
 		}
 
-		yield* this._attrs.keys();
+		for ( const key of this._attrs.keys() ) {
+			if ( key != 'class' && key != 'style' ) {
+				yield key;
+			}
+		}
 	}
 
 	/**
@@ -207,14 +205,8 @@ export default class Element extends Node {
 	 * This format is accepted by native `Map` object and also can be passed in `Node` constructor.
 	 */
 	public* getAttributes(): IterableIterator<[ string, string ]> {
-		yield* this._attrs.entries();
-
-		if ( this._classes.size > 0 ) {
-			yield [ 'class', this.getAttribute( 'class' )! ];
-		}
-
-		if ( !this._styles.isEmpty ) {
-			yield [ 'style', this.getAttribute( 'style' )! ];
+		for ( const [ name, value ] of this._attrs.entries() ) {
+			yield [ name, String( value ) ];
 		}
 	}
 
@@ -225,21 +217,7 @@ export default class Element extends Node {
 	 * @returns Attribute value.
 	 */
 	public getAttribute( key: string ): string | undefined {
-		if ( key == 'class' ) {
-			if ( this._classes.size > 0 ) {
-				return [ ...this._classes ].join( ' ' );
-			}
-
-			return undefined;
-		}
-
-		if ( key == 'style' ) {
-			const inlineStyle = this._styles.toString();
-
-			return inlineStyle == '' ? undefined : inlineStyle;
-		}
-
-		return this._attrs.get( key );
+		return this._attrs.has( key ) ? String( this._attrs.get( key ) ) : undefined;
 	}
 
 	/**
@@ -248,16 +226,20 @@ export default class Element extends Node {
 	 * @param key Attribute key.
 	 * @returns `true` if attribute with the specified key exists in the element, `false` otherwise.
 	 */
-	public hasAttribute( key: string ): boolean {
-		if ( key == 'class' ) {
-			return this._classes.size > 0;
+	public hasAttribute( key: string, token?: string ): boolean {
+		if ( !this._attrs.has( key ) ) {
+			return false;
 		}
 
-		if ( key == 'style' ) {
-			return !this._styles.isEmpty;
+		if ( token !== undefined ) {
+			if ( usesStylesMap( this.name, key ) || usesTokenList( this.name, key ) ) {
+				return ( this._attrs.get( key ) as ViewElementAttributeValue ).has( token );
+			} else {
+				return this._attrs.get( key ) === token;
+			}
 		}
 
-		return this._attrs.has( key );
+		return true;
 	}
 
 	/**
@@ -265,8 +247,8 @@ export default class Element extends Node {
 	 * Both elements should have the same name and attributes to be considered as similar. Two similar elements
 	 * can contain different set of children nodes.
 	 */
-	public isSimilar( otherElement: Item ): boolean {
-		if ( !( otherElement instanceof Element ) ) {
+	public isSimilar( otherElement: ViewItem ): boolean {
+		if ( !( otherElement instanceof ViewElement ) ) {
 			return false;
 		}
 
@@ -281,31 +263,24 @@ export default class Element extends Node {
 		}
 
 		// Check number of attributes, classes and styles.
-		if ( this._attrs.size !== otherElement._attrs.size || this._classes.size !== otherElement._classes.size ||
-			this._styles.size !== otherElement._styles.size ) {
+		if ( this._attrs.size !== otherElement._attrs.size ) {
 			return false;
 		}
 
 		// Check if attributes are the same.
 		for ( const [ key, value ] of this._attrs ) {
-			if ( !otherElement._attrs.has( key ) || otherElement._attrs.get( key ) !== value ) {
+			const otherValue = otherElement._attrs.get( key );
+
+			if ( otherValue === undefined ) {
 				return false;
 			}
-		}
 
-		// Check if classes are the same.
-		for ( const className of this._classes ) {
-			if ( !otherElement._classes.has( className ) ) {
-				return false;
+			if ( typeof value == 'string' || typeof otherValue == 'string' ) {
+				if ( otherValue !== value ) {
+					return false;
+				}
 			}
-		}
-
-		// Check if styles are the same.
-		for ( const property of this._styles.getStyleNames() ) {
-			if (
-				!otherElement._styles.has( property ) ||
-				otherElement._styles.getAsString( property ) !== this._styles.getAsString( property )
-			) {
+			else if ( !value.isSimilar( otherValue ) ) {
 				return false;
 			}
 		}
@@ -324,7 +299,7 @@ export default class Element extends Node {
 	 */
 	public hasClass( ...className: Array<string> ): boolean {
 		for ( const name of className ) {
-			if ( !this._classes.has( name ) ) {
+			if ( !this._classes || !this._classes.has( name ) ) {
 				return false;
 			}
 		}
@@ -335,12 +310,19 @@ export default class Element extends Node {
 	/**
 	 * Returns iterator that contains all class names.
 	 */
-	public getClassNames(): Iterable<string> {
-		return this._classes.keys();
+	public getClassNames(): IterableIterator<string> {
+		const array = this._classes ? this._classes.keys() : [];
+
+		// This is overcomplicated because we need to be backward compatible for use cases when iterator is expected.
+		const iterator = array[ Symbol.iterator ]();
+
+		return Object.assign( array, {
+			next: iterator.next.bind( iterator )
+		} );
 	}
 
 	/**
-	 * Returns style value for the given property mae.
+	 * Returns style value for the given property name.
 	 * If the style does not exist `undefined` is returned.
 	 *
 	 * **Note**: This method can work with normalized style names if
@@ -351,7 +333,7 @@ export default class Element extends Node {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * const element = view.change( writer => {
 	 * 	const element = writer.createElement();
@@ -365,7 +347,7 @@ export default class Element extends Node {
 	 * ```
 	 */
 	public getStyle( property: string ): string | undefined {
-		return this._styles.getAsString( property );
+		return this._styles && this._styles.getAsString( property );
 	}
 
 	/**
@@ -402,17 +384,17 @@ export default class Element extends Node {
 	 *
 	 * @param property Name of CSS property
 	 */
-	public getNormalizedStyle( property: string ): StyleValue {
-		return this._styles.getNormalized( property );
+	public getNormalizedStyle( property: string ): StyleValue | undefined {
+		return this._styles && this._styles.getNormalized( property );
 	}
 
 	/**
-	 * Returns iterator that contains all style names.
+	 * Returns an array that contains all style names.
 	 *
 	 * @param expand Expand shorthand style properties and return all equivalent style representations.
 	 */
-	public getStyleNames( expand?: boolean ): Iterable<string> {
-		return this._styles.getStyleNames( expand );
+	public getStyleNames( expand?: boolean ): Array<string> {
+		return this._styles ? this._styles.getStyleNames( expand ) : [];
 	}
 
 	/**
@@ -426,7 +408,7 @@ export default class Element extends Node {
 	 */
 	public hasStyle( ...property: Array<string> ): boolean {
 		for ( const name of property ) {
-			if ( !this._styles.has( name ) ) {
+			if ( !this._styles || !this._styles.has( name ) ) {
 				return false;
 			}
 		}
@@ -442,7 +424,7 @@ export default class Element extends Node {
 	 * @param patterns Patterns used to match correct ancestor. See {@link module:engine/view/matcher~Matcher}.
 	 * @returns Found element or `null` if no matching ancestor was found.
 	 */
-	public findAncestor( ...patterns: Array<MatcherPattern | ( ( element: Element ) => boolean )> ): Element | null {
+	public findAncestor( ...patterns: Array<MatcherPattern | ( ( element: ViewElement ) => boolean )> ): ViewElement | null {
 		const matcher = new Matcher( ...patterns as any );
 		let parent = this.parent;
 
@@ -498,9 +480,12 @@ export default class Element extends Node {
 	 * **Note**: Classes, styles and other attributes are sorted alphabetically.
 	 */
 	public getIdentity(): string {
-		const classes = Array.from( this._classes ).sort().join( ',' );
-		const styles = this._styles.toString();
-		const attributes = Array.from( this._attrs ).map( i => `${ i[ 0 ] }="${ i[ 1 ] }"` ).sort().join( ' ' );
+		const classes = this._classes ? this._classes.keys().sort().join( ',' ) : '';
+		const styles = this._styles && String( this._styles );
+		const attributes = Array.from( this._attrs )
+			.filter( ( [ key ] ) => key != 'style' && key != 'class' )
+			.map( i => `${ i[ 0 ] }="${ i[ 1 ] }"` )
+			.sort().join( ' ' );
 
 		return this.name +
 			( classes == '' ? '' : ` class="${ classes }"` ) +
@@ -510,14 +495,40 @@ export default class Element extends Node {
 
 	/**
 	 * Decides whether an unsafe attribute is whitelisted and should be rendered in the editing pipeline even though filtering mechanisms
-	 * like {@link module:engine/view/domconverter~DomConverter#shouldRenderAttribute} say it should not.
+	 * like {@link module:engine/view/domconverter~ViewDomConverter#shouldRenderAttribute} say it should not.
 	 *
-	 * Unsafe attribute names can be specified when creating an element via {@link module:engine/view/downcastwriter~DowncastWriter}.
+	 * Unsafe attribute names can be specified when creating an element via {@link module:engine/view/downcastwriter~ViewDowncastWriter}.
 	 *
 	 * @param attributeName The name of the attribute to be checked.
 	 */
 	public shouldRenderUnsafeAttribute( attributeName: string ): boolean {
 		return this._unsafeAttributesToRender.includes( attributeName );
+	}
+
+	/**
+	 * Converts `ViewElement` to plain object and returns it.
+	 *
+	 * @returns `ViewElement` converted to plain object.
+	 */
+	public override toJSON(): unknown {
+		const json: any = super.toJSON();
+
+		json.name = this.name;
+		json.type = 'Element';
+
+		if ( this._attrs.size ) {
+			json.attributes = Object.fromEntries( this.getAttributes() );
+		}
+
+		if ( this._children.length > 0 ) {
+			json.children = [];
+
+			for ( const node of this._children ) {
+				json.children.push( node.toJSON() );
+			}
+		}
+
+		return json;
 	}
 
 	/**
@@ -529,7 +540,7 @@ export default class Element extends Node {
 	 * @returns Clone of this element.
 	 */
 	public _clone( deep = false ): this {
-		const childrenClone: Array<Node> = [];
+		const childrenClone: Array<ViewNode> = [];
 
 		if ( deep ) {
 			for ( const child of this.getChildren() ) {
@@ -537,13 +548,8 @@ export default class Element extends Node {
 			}
 		}
 
-		// ContainerElement and AttributeElement should be also cloned properly.
+		// ViewContainerElement and ViewAttributeElement should be also cloned properly.
 		const cloned = new ( this.constructor as any )( this.document, this.name, this._attrs, childrenClone );
-
-		// Classes and styles are cloned separately - this solution is faster than adding them back to attributes and
-		// parse once again in constructor.
-		cloned._classes = new Set( this._classes );
-		cloned._styles.set( this._styles.getNormalized() );
 
 		// Clone custom properties.
 		cloned._customProperties = new Map( this._customProperties );
@@ -560,16 +566,16 @@ export default class Element extends Node {
 	}
 
 	/**
-	 * {@link module:engine/view/element~Element#_insertChild Insert} a child node or a list of child nodes at the end of this node
+	 * {@link module:engine/view/element~ViewElement#_insertChild Insert} a child node or a list of child nodes at the end of this node
 	 * and sets the parent of these nodes to this element.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#insert
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#insert
 	 * @internal
 	 * @param items Items to be inserted.
 	 * @fires change
 	 * @returns Number of appended nodes.
 	 */
-	public _appendChild( items: Item | string | Iterable<Item | string> ): number {
+	public _appendChild( items: ViewItem | string | Iterable<ViewItem | string> ): number {
 		return this._insertChild( this.childCount, items );
 	}
 
@@ -578,14 +584,14 @@ export default class Element extends Node {
 	 * this element.
 	 *
 	 * @internal
-	 * @see module:engine/view/downcastwriter~DowncastWriter#insert
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#insert
 	 * @param index Position where nodes should be inserted.
 	 * @param items Items to be inserted.
 	 * @fires change
 	 * @returns Number of inserted nodes.
 	 */
-	public _insertChild( index: number, items: Item | string | Iterable<Item | string> ): number {
-		this._fireChange( 'children', this );
+	public _insertChild( index: number, items: ViewItem | string | Iterable<ViewItem | string> ): number {
+		this._fireChange( 'children', this, { index } );
 		let count = 0;
 
 		const nodes = normalize( this.document, items );
@@ -610,15 +616,15 @@ export default class Element extends Node {
 	/**
 	 * Removes number of child nodes starting at the given index and set the parent of these nodes to `null`.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#remove
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#remove
 	 * @internal
 	 * @param index Number of the first node to remove.
 	 * @param howMany Number of nodes to remove.
 	 * @fires change
 	 * @returns The array of removed nodes.
 	 */
-	public _removeChildren( index: number, howMany: number = 1 ): Array<Node> {
-		this._fireChange( 'children', this );
+	public _removeChildren( index: number, howMany: number = 1 ): Array<ViewNode> {
+		this._fireChange( 'children', this, { index } );
 
 		for ( let i = index; i < index + howMany; i++ ) {
 			( this._children[ i ] as any ).parent = null;
@@ -630,61 +636,80 @@ export default class Element extends Node {
 	/**
 	 * Adds or overwrite attribute with a specified key and value.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#setAttribute
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#setAttribute
 	 * @internal
 	 * @param key Attribute key.
 	 * @param value Attribute value.
+	 * @param overwrite Whether tokenized attribute should override the attribute value or just add a token.
 	 * @fires change
 	 */
-	public _setAttribute( key: string, value: unknown ): void {
-		const stringValue = String( value );
-
+	public _setAttribute( key: string, value: unknown, overwrite = true ): void {
 		this._fireChange( 'attributes', this );
 
-		if ( key == 'class' ) {
-			parseClasses( this._classes, stringValue );
-		} else if ( key == 'style' ) {
-			this._styles.setTo( stringValue );
-		} else {
-			this._attrs.set( key, stringValue );
+		if ( usesStylesMap( this.name, key ) || usesTokenList( this.name, key ) ) {
+			let currentValue = this._attrs.get( key ) as ViewElementAttributeValue | undefined;
+
+			if ( !currentValue ) {
+				currentValue = usesStylesMap( this.name, key ) ?
+					new StylesMap( this.document.stylesProcessor ) :
+					new ViewTokenList();
+
+				this._attrs.set( key, currentValue );
+			}
+
+			if ( overwrite ) {
+				// If reset is set then value have to be a string to tokenize.
+				currentValue.setTo( String( value ) );
+			}
+			else if ( usesStylesMap( this.name, key ) ) {
+				if ( Array.isArray( value ) ) {
+					currentValue.set( value[ 0 ], value[ 1 ] );
+				} else {
+					currentValue.set( value as Styles );
+				}
+			}
+			else { // TokenList.
+				currentValue.set( typeof value == 'string' ? value.split( /\s+/ ) : value as Array<string> );
+			}
+		}
+		else {
+			this._attrs.set( key, String( value ) );
 		}
 	}
 
 	/**
 	 * Removes attribute from the element.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#removeAttribute
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#removeAttribute
 	 * @internal
 	 * @param key Attribute key.
+	 * @param tokens Attribute value tokens to remove. The whole attribute is removed if not specified.
 	 * @returns Returns true if an attribute existed and has been removed.
 	 * @fires change
 	 */
-	public _removeAttribute( key: string ): boolean {
+	public _removeAttribute( key: string, tokens?: ArrayOrItem<string> ): boolean {
 		this._fireChange( 'attributes', this );
 
-		// Remove class attribute.
-		if ( key == 'class' ) {
-			if ( this._classes.size > 0 ) {
-				this._classes.clear();
+		if ( tokens !== undefined && ( usesStylesMap( this.name, key ) || usesTokenList( this.name, key ) ) ) {
+			const currentValue = this._attrs.get( key ) as ViewElementAttributeValue | undefined;
 
-				return true;
+			if ( !currentValue ) {
+				return false;
+			}
+
+			if ( usesTokenList( this.name, key ) && typeof tokens == 'string' ) {
+				tokens = tokens.split( /\s+/ );
+			}
+
+			currentValue.remove( tokens );
+
+			if ( currentValue.isEmpty ) {
+				return this._attrs.delete( key );
 			}
 
 			return false;
 		}
 
-		// Remove style attribute.
-		if ( key == 'style' ) {
-			if ( !this._styles.isEmpty ) {
-				this._styles.clear();
-
-				return true;
-			}
-
-			return false;
-		}
-
-		// Remove other attributes.
 		return this._attrs.delete( key );
 	}
 
@@ -696,16 +721,12 @@ export default class Element extends Node {
 	 * element._addClass( [ 'foo', 'bar' ] ); // Adds 'foo' and 'bar' classes.
 	 * ```
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#addClass
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#addClass
 	 * @internal
 	 * @fires change
 	 */
 	public _addClass( className: ArrayOrItem<string> ): void {
-		this._fireChange( 'attributes', this );
-
-		for ( const name of toArray( className ) ) {
-			this._classes.add( name );
-		}
+		this._setAttribute( 'class', className, false );
 	}
 
 	/**
@@ -716,16 +737,12 @@ export default class Element extends Node {
 	 * element._removeClass( [ 'foo', 'bar' ] ); // Removes both 'foo' and 'bar' classes.
 	 * ```
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#removeClass
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#removeClass
 	 * @internal
 	 * @fires change
 	 */
-	public _removeClass( className: string | Array<string> ): void {
-		this._fireChange( 'attributes', this );
-
-		for ( const name of toArray( className ) ) {
-			this._classes.delete( name );
-		}
+	public _removeClass( className: ArrayOrItem<string> ): void {
+		this._removeAttribute( 'class', className );
 	}
 
 	/**
@@ -739,14 +756,14 @@ export default class Element extends Node {
 	 * {@link module:engine/controller/datacontroller~DataController#addStyleProcessorRules a particular style processor rule is enabled}.
 	 * See {@link module:engine/view/stylesmap~StylesMap#set `StylesMap#set()`} for details.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#setStyle
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#setStyle
 	 * @label KEY_VALUE
 	 * @internal
 	 * @param property Property name.
 	 * @param value Value to set.
 	 * @fires change
 	 */
-	public _setStyle( property: string, value: string ): void;
+	public _setStyle( property: string, value: StyleValue ): void;
 
 	/**
 	 * Adds style to the element.
@@ -762,21 +779,19 @@ export default class Element extends Node {
 	 * {@link module:engine/controller/datacontroller~DataController#addStyleProcessorRules a particular style processor rule is enabled}.
 	 * See {@link module:engine/view/stylesmap~StylesMap#set `StylesMap#set()`} for details.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#setStyle
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#setStyle
 	 * @label OBJECT
 	 * @internal
 	 * @param properties Object with key - value pairs.
 	 * @fires change
 	 */
-	public _setStyle( properties: Record<string, string> ): void;
+	public _setStyle( properties: Record<string, StyleValue> ): void;
 
-	public _setStyle( property: string | Record<string, string>, value?: string ): void {
-		this._fireChange( 'attributes', this );
-
+	public _setStyle( property: string | Record<string, StyleValue>, value?: StyleValue ): void {
 		if ( typeof property != 'string' ) {
-			this._styles.set( property );
+			this._setAttribute( 'style', property, false );
 		} else {
-			this._styles.set( property, value! );
+			this._setAttribute( 'style', [ property, value! ], false );
 		}
 	}
 
@@ -792,15 +807,314 @@ export default class Element extends Node {
 	 * {@link module:engine/controller/datacontroller~DataController#addStyleProcessorRules a particular style processor rule is enabled}.
 	 * See {@link module:engine/view/stylesmap~StylesMap#remove `StylesMap#remove()`} for details.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#removeStyle
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#removeStyle
 	 * @internal
 	 * @fires change
 	 */
 	public _removeStyle( property: ArrayOrItem<string> ): void {
+		this._removeAttribute( 'style', property );
+	}
+
+	/**
+	 * Used by the {@link module:engine/view/matcher~Matcher Matcher} to collect matching attribute tuples
+	 * (attribute name and optional token).
+	 *
+	 * Normalized patterns can be used in following ways:
+	 * - to match any attribute name with any or no value:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ true, true ]
+	 * ]
+	 * ```
+	 *
+	 * - to match a specific attribute with any value:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ 'required', true ]
+	 * ]
+	 * ```
+	 *
+	 * - to match an attribute name with a RegExp with any value:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ /h[1-6]/, true ]
+	 * ]
+	 * ```
+	 *
+	 * 	- to match a specific attribute with the exact value:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ 'rel', 'nofollow' ]
+	 * ]
+	 * ```
+	 *
+	 * 	- to match a specific attribute with a value matching a RegExp:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ 'src', /^https/ ]
+	 * ]
+	 * ```
+	 *
+	 * 	- to match an attribute name with a RegExp and the exact value:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ /^data-property-/, 'foobar' ],
+	 * ]
+	 * ```
+	 *
+	 * 	- to match an attribute name with a RegExp and match a value with another RegExp:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ /^data-property-/, /^foo/ ]
+	 * ]
+	 * ```
+	 *
+	 * 	- to match a specific style property with the value matching a RegExp:
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ 'style', 'font-size', /px$/ ]
+	 * ]
+	 * ```
+	 *
+	 * 	- to match a specific class (class attribute is tokenized so it matches tokens individually):
+	 *
+	 * ```ts
+	 * patterns: [
+	 * 	[ 'class', 'foo' ]
+	 * ]
+	 * ```
+	 *
+	 * @internal
+	 * @param patterns An array of normalized patterns (tuples of 2 or 3 items depending on if tokenized attribute value match is needed).
+	 * @param match An array to populate with matching tuples.
+	 * @param exclude Array of attribute names to exclude from match.
+	 * @returns `true` if element matches all patterns. The matching tuples are pushed to the `match` array.
+	 */
+	public _collectAttributesMatch(
+		patterns: Array<NormalizedPropertyPattern>,
+		match: Array<[ string, string? ]>,
+		exclude?: Array<string>
+	): boolean {
+		for ( const [ keyPattern, tokenPattern, valuePattern ] of patterns ) {
+			let hasKey = false;
+			let hasValue = false;
+
+			for ( const [ key, value ] of this._attrs ) {
+				if ( exclude && exclude.includes( key ) || !isPatternMatched( keyPattern, key ) ) {
+					continue;
+				}
+
+				hasKey = true;
+
+				if ( typeof value == 'string' ) {
+					if ( isPatternMatched( tokenPattern, value ) ) {
+						match.push( [ key ] );
+						hasValue = true;
+					}
+					else if ( !( keyPattern instanceof RegExp ) ) {
+						return false;
+					}
+				} else {
+					const tokenMatch = value._getTokensMatch( tokenPattern, valuePattern || true );
+
+					if ( tokenMatch ) {
+						hasValue = true;
+
+						for ( const tokenMatchItem of tokenMatch ) {
+							match.push( [ key, tokenMatchItem ] );
+						}
+					} else if ( !( keyPattern instanceof RegExp ) ) {
+						return false;
+					}
+				}
+			}
+
+			if ( !hasKey || !hasValue ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Used by the {@link module:engine/conversion/viewconsumable~ViewConsumable} to collect the
+	 * {@link module:engine/view/element~ViewNormalizedConsumables} for the element.
+	 *
+	 * When `key` and `token` parameters are provided the output is filtered for the specified attribute and it's tokens and related tokens.
+	 *
+	 * @internal
+	 * @param key Attribute name.
+	 * @param token Reference token to collect all related tokens.
+	 */
+	public _getConsumables( key?: string, token?: string ): ViewNormalizedConsumables {
+		const attributes: Array<[string, string?]> = [];
+
+		if ( key ) {
+			const value = this._attrs.get( key );
+
+			if ( value !== undefined ) {
+				if ( typeof value == 'string' ) {
+					attributes.push( [ key ] );
+				} else {
+					for ( const prop of value._getConsumables( token ) ) {
+						attributes.push( [ key, prop ] );
+					}
+				}
+			}
+		} else {
+			for ( const [ key, value ] of this._attrs ) {
+				if ( typeof value == 'string' ) {
+					attributes.push( [ key ] );
+				} else {
+					for ( const prop of value._getConsumables() ) {
+						attributes.push( [ key, prop ] );
+					}
+				}
+			}
+		}
+
+		return {
+			name: !key,
+			attributes
+		};
+	}
+
+	/**
+	 * Verify if the given element can be merged without conflicts into the element.
+	 *
+	 * Note that this method is extended by the {@link module:engine/view/attributeelement~ViewAttributeElement} implementation.
+	 *
+	 * This method is used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to merge it with other ViewAttributeElement.
+	 *
+	 * @internal
+	 * @returns Returns `true` if elements can be merged.
+	 */
+	public _canMergeAttributesFrom( otherElement: ViewElement ): boolean {
+		if ( this.name != otherElement.name ) {
+			return false;
+		}
+
+		for ( const [ key, otherValue ] of otherElement._attrs ) {
+			const value = this._attrs.get( key );
+
+			if ( value === undefined ) {
+				continue;
+			}
+
+			if ( typeof value == 'string' || typeof otherValue == 'string' ) {
+				if ( value !== otherValue ) {
+					return false;
+				}
+			}
+			else if ( !value._canMergeFrom( otherValue ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Merges attributes of a given element into the element.
+	 * This includes also tokenized attributes like style and class.
+	 *
+	 * Note that you should make sure there are no conflicts before merging (see {@link #_canMergeAttributesFrom}).
+	 *
+	 * This method is used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to merge it with other ViewAttributeElement.
+	 *
+	 * @internal
+	 */
+	public _mergeAttributesFrom( otherElement: ViewElement ): void {
 		this._fireChange( 'attributes', this );
 
-		for ( const name of toArray( property ) ) {
-			this._styles.remove( name );
+		// Move all attributes/classes/styles from wrapper to wrapped ViewAttributeElement.
+		for ( const [ key, otherValue ] of otherElement._attrs ) {
+			const value = this._attrs.get( key );
+
+			if ( value === undefined || typeof value == 'string' || typeof otherValue == 'string' ) {
+				this._setAttribute( key, otherValue );
+			}
+			else {
+				value._mergeFrom( otherValue );
+			}
+		}
+	}
+
+	/**
+	 * Verify if the given element attributes can be fully subtracted from the element.
+	 *
+	 * Note that this method is extended by the {@link module:engine/view/attributeelement~ViewAttributeElement} implementation.
+	 *
+	 * This method is used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to unwrap the ViewAttributeElement.
+	 *
+	 * @internal
+	 * @returns Returns `true` if elements attributes can be fully subtracted.
+	 */
+	public _canSubtractAttributesOf( otherElement: ViewElement ): boolean {
+		if ( this.name != otherElement.name ) {
+			return false;
+		}
+
+		for ( const [ key, otherValue ] of otherElement._attrs ) {
+			const value = this._attrs.get( key );
+
+			if ( value === undefined ) {
+				return false;
+			}
+
+			if ( typeof value == 'string' || typeof otherValue == 'string' ) {
+				if ( value !== otherValue ) {
+					return false;
+				}
+			}
+			else if ( !value._isMatching( otherValue ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Removes (subtracts) corresponding attributes of the given element from the element.
+	 * This includes also tokenized attributes like style and class.
+	 * All attributes, classes and styles from given element should be present inside the element being unwrapped.
+	 *
+	 * Note that you should make sure all attributes could be subtracted before subtracting them (see {@link #_canSubtractAttributesOf}).
+	 *
+	 * This method is used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to unwrap the ViewAttributeElement.
+	 *
+	 * @internal
+	 */
+	public _subtractAttributesOf( otherElement: ViewElement ): void {
+		this._fireChange( 'attributes', this );
+
+		for ( const [ key, otherValue ] of otherElement._attrs ) {
+			const value = this._attrs.get( key )!;
+
+			if ( typeof value == 'string' || typeof otherValue == 'string' ) {
+				this._attrs.delete( key );
+			}
+			else {
+				value.remove( otherValue.keys() );
+
+				if ( value.isEmpty ) {
+					this._attrs.delete( key );
+				}
+			}
 		}
 	}
 
@@ -808,7 +1122,7 @@ export default class Element extends Node {
 	 * Sets a custom property. Unlike attributes, custom properties are not rendered to the DOM,
 	 * so they can be used to add special data to elements.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#setCustomProperty
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#setCustomProperty
 	 * @internal
 	 */
 	public _setCustomProperty( key: string | symbol, value: unknown ): void {
@@ -818,12 +1132,51 @@ export default class Element extends Node {
 	/**
 	 * Removes the custom property stored under the given key.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#removeCustomProperty
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#removeCustomProperty
 	 * @internal
 	 * @returns Returns true if property was removed.
 	 */
 	public _removeCustomProperty( key: string | symbol ): boolean {
 		return this._customProperties.delete( key );
+	}
+
+	/**
+	 * Parses attributes provided to the element constructor before they are applied to an element. If attributes are passed
+	 * as an object (instead of `Iterable`), the object is transformed to the map. Attributes with `null` value are removed.
+	 * Attributes with non-`String` value are converted to `String`.
+	 *
+	 * @param attrs Attributes to parse.
+	 * @returns Parsed attributes.
+	 */
+	private _parseAttributes( attrs?: ViewElementAttributes ) {
+		const attrsMap = toMap( attrs );
+
+		for ( const [ key, value ] of attrsMap ) {
+			if ( value === null ) {
+				attrsMap.delete( key );
+			}
+			else if ( usesStylesMap( this.name, key ) ) {
+				// This is either an element clone so we need to clone styles map, or a new instance which requires value to be parsed.
+				const newValue = value instanceof StylesMap ?
+					value._clone() :
+					new StylesMap( this.document.stylesProcessor ).setTo( String( value ) );
+
+				attrsMap.set( key, newValue );
+			}
+			else if ( usesTokenList( this.name, key ) ) {
+				// This is either an element clone so we need to clone token list, or a new instance which requires value to be parsed.
+				const newValue = value instanceof ViewTokenList ?
+					value._clone() :
+					new ViewTokenList().setTo( String( value ) );
+
+				attrsMap.set( key, newValue );
+			}
+			else if ( typeof value != 'string' ) {
+				attrsMap.set( key, String( value ) );
+			}
+		}
+
+		return attrsMap as Map<string, string | ViewElementAttributeValue>;
 	}
 
 	/**
@@ -860,80 +1213,217 @@ export default class Element extends Node {
 
 // The magic of type inference using `is` method is centralized in `TypeCheckable` class.
 // Proper overload would interfere with that.
-Element.prototype.is = function( type: string, name?: string ): boolean {
+ViewElement.prototype.is = function( this: ViewElement, type: string, name?: string ): boolean {
 	if ( !name ) {
 		return type === 'element' || type === 'view:element' ||
-			// From super.is(). This is highly utilised method and cannot call super. See ckeditor/ckeditor5#6529.
+			// From super.is(). This is highly utilised method and cannot call super. See https://github.com/ckeditor/ckeditor5/issues/6529.
 			type === 'node' || type === 'view:node';
 	} else {
 		return name === this.name && ( type === 'element' || type === 'view:element' );
 	}
-};
+} as any;
+
+/**
+ * Common interface for a {@link module:engine/view/tokenlist~ViewTokenList} and {@link module:engine/view/stylesmap~StylesMap}.
+ */
+export interface ViewElementAttributeValue {
+
+	/**
+	 * Returns `true` if attribute has no value set.
+	 */
+	get isEmpty(): boolean;
+
+	/**
+	 * Number of tokens (styles, classes or other tokens) defined.
+	 */
+	get size(): number;
+
+	/**
+	 * Checks if a given token (style, class, token) is set.
+	 */
+	has( name: string ): boolean;
+
+	/**
+	 * Returns all tokens (styles, classes, other tokens).
+	 */
+	keys(): Array<string>;
+
+	/**
+	 * Resets the value to the given one.
+	 */
+	setTo( value: string ): this;
+
+	/**
+	 * Sets a given style property and value.
+	 */
+	set( name: string, value: StyleValue ): void;
+
+	/**
+	 * Sets a given token (for style also a record of properties).
+	 */
+	set( stylesOrTokens: Styles | ArrayOrItem<string> ): void;
+
+	/**
+	 * Removes given token (style, class, other token).
+	 */
+	remove( tokens: ArrayOrItem<string> ): void;
+
+	/**
+	 * Removes all tokens.
+	 */
+	clear(): void;
+
+	/**
+	 * Returns a normalized tokens string (styles, classes, etc.).
+	 */
+	toString(): string;
+
+	/**
+	 * Returns `true` if both attributes have the same content.
+	 */
+	isSimilar( other: this ): boolean;
+
+	/**
+	 * Clones the attribute value.
+	 */
+	_clone(): this;
+
+	/**
+	 * Used by the {@link module:engine/view/matcher~Matcher Matcher} to collect matching attribute tokens.
+	 *
+	 * @param tokenPattern The matched token name pattern.
+	 * @param valuePattern The matched token value pattern.
+	 * @returns An array of matching tokens.
+	 */
+	_getTokensMatch(
+		tokenPattern: true | string | RegExp,
+		valuePattern?: true | string | RegExp
+	): Array<string> | undefined;
+
+	/**
+	 * Returns a list of consumables for the attribute. This includes related tokens
+	 * (for example other forms of notation of the same style property).
+	 *
+	 * Could be filtered by the given token name (class name, style property, etc.).
+	 */
+	_getConsumables( name?: string ): Array<string>;
+
+	/**
+	 * Used by {@link ~ViewElement#_canMergeAttributesFrom} to verify if the given attribute can be merged without
+	 * conflicts into the attribute.
+	 *
+	 * This method is indirectly used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to merge it with other ViewAttributeElement.
+	 */
+	_canMergeFrom( other: this ): boolean;
+
+	/**
+	 * Used by {@link ~ViewElement#_mergeAttributesFrom} to merge a given attribute into the attribute.
+	 *
+	 * This method is indirectly used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to merge it with other ViewAttributeElement.
+	 */
+	_mergeFrom( other: this ): void;
+
+	/**
+	 * Used by {@link ~ViewElement#_canSubtractAttributesOf} to verify if the given attribute can be fully subtracted from the attribute.
+	 *
+	 * This method is indirectly used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to unwrap the ViewAttributeElement.
+	 */
+	_isMatching( other: this ): boolean;
+}
 
 /**
  * Collection of attributes.
  */
-export type ElementAttributes = Record<string, unknown> | Iterable<[ string, unknown ]> | null;
+export type ViewElementAttributes = Record<string, unknown> | Iterable<[ string, unknown ]> | null;
 
 /**
- * Parses attributes provided to the element constructor before they are applied to an element. If attributes are passed
- * as an object (instead of `Iterable`), the object is transformed to the map. Attributes with `null` value are removed.
- * Attributes with non-`String` value are converted to `String`.
+ * Object describing all features of a view element that could be consumed and converted individually.
+ * This is a normalized form of {@link module:engine/conversion/viewconsumable~Consumables} generated from the view Element.
  *
- * @param attrs Attributes to parse.
- * @returns Parsed attributes.
- */
-function parseAttributes( attrs?: ElementAttributes ) {
-	const attrsMap = toMap( attrs );
-
-	for ( const [ key, value ] of attrsMap ) {
-		if ( value === null ) {
-			attrsMap.delete( key );
-		} else if ( typeof value != 'string' ) {
-			attrsMap.set( key, String( value ) );
-		}
-	}
-
-	return attrsMap as Map<string, string>;
-}
-
-/**
- * Parses class attribute and puts all classes into classes set.
- * Classes set s cleared before insertion.
+ * Example element:
  *
- * @param classesSet Set to insert parsed classes.
- * @param classesString String with classes to parse.
+ * ```html
+ * <a class="foo bar" style="color: red; margin: 5px" href="https://ckeditor.com" rel="nofollow noreferrer" target="_blank">
+ * ```
+ *
+ * The `ViewNormalizedConsumables` would include:
+ *
+ * ```json
+ * {
+ * 	name: true,
+ * 	attributes: [
+ * 		[ "class", "foo" ],
+ * 		[ "class", "bar" ],
+ * 		[ "style", "color" ],
+ * 		[ "style", "margin-top" ],
+ * 		[ "style", "margin-right" ],
+ * 		[ "style", "margin-bottom" ],
+ * 		[ "style", "margin-left" ],
+		[ "style", "margin" ],
+ * 		[ "href" ],
+ * 		[ "rel", "nofollow" ],
+ * 		[ "rel", "noreferrer" ],
+ * 		[ "target" ]
+ * 	]
+ * }
+ * ```
  */
-function parseClasses( classesSet: Set<string>, classesString: string ) {
-	const classArray = classesString.split( /\s+/ );
-	classesSet.clear();
-	classArray.forEach( name => classesSet.add( name ) );
+export interface ViewNormalizedConsumables {
+
+	/**
+	 * If set to `true` element's name will be included in a consumable.
+	 * Depending on the usage context it would be added as consumable, tested for being available for consume or consumed.
+	 */
+	name: boolean;
+
+	/**
+	 * Array of tuples - an attribute name, and optional token for tokenized attributes.
+	 * Note that there could be multiple entries for the same attribute with different tokens (class names or style properties).
+	 */
+	attributes: Array<[string, string?]>;
 }
 
 /**
  * Converts strings to Text and non-iterables to arrays.
  */
-function normalize( document: Document, nodes: string | Item | Iterable<string | Item> ): Array<Node> {
+function normalize( document: ViewDocument, nodes: string | ViewItem | Iterable<string | ViewItem> ): Array<ViewNode> {
 	// Separate condition because string is iterable.
 	if ( typeof nodes == 'string' ) {
-		return [ new Text( document, nodes ) ];
+		return [ new ViewText( document, nodes ) ];
 	}
 
 	if ( !isIterable( nodes ) ) {
 		nodes = [ nodes ];
 	}
 
-	// Array.from to enable .map() on non-arrays.
-	return Array.from( nodes )
-		.map( node => {
-			if ( typeof node == 'string' ) {
-				return new Text( document, node );
-			}
+	const normalizedNodes: Array<ViewNode> = [];
 
-			if ( node instanceof TextProxy ) {
-				return new Text( document, node.data );
-			}
+	for ( const node of nodes ) {
+		if ( typeof node == 'string' ) {
+			normalizedNodes.push( new ViewText( document, node ) );
+		} else if ( node instanceof ViewTextProxy ) {
+			normalizedNodes.push( new ViewText( document, node.data ) );
+		} else {
+			normalizedNodes.push( node );
+		}
+	}
 
-			return node;
-		} );
+	return normalizedNodes;
+}
+
+/**
+ * Returns `true` if an attribute on a given element should be handled as a TokenList.
+ */
+function usesTokenList( elementName: string, key: string ): boolean {
+	return key == 'class' || elementName == 'a' && key == 'rel';
+}
+
+/**
+ * Returns `true` if an attribute on a given element should be handled as a StylesMap.
+ */
+function usesStylesMap( elementName: string, key: string ): boolean {
+	return key == 'style';
 }

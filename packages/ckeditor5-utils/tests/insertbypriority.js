@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import insertToPriorityArray from '../src/inserttopriorityarray';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { insertToPriorityArray } from '../src/inserttopriorityarray.js';
 
 describe( 'insertToPriorityArray()', () => {
 	let objectsWithPriority;
@@ -19,7 +20,7 @@ describe( 'insertToPriorityArray()', () => {
 
 		insertToPriorityArray( objectsWithPriority, objectA );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 
 	it( 'should place object with highest priority at the first index of an array', () => {
@@ -31,7 +32,7 @@ describe( 'insertToPriorityArray()', () => {
 		insertToPriorityArray( objectsWithPriority, objectA );
 		insertToPriorityArray( objectsWithPriority, objectB );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 
 	it( 'should place object with highest priority at the first index of an array even if inserted later', () => {
@@ -43,7 +44,7 @@ describe( 'insertToPriorityArray()', () => {
 		insertToPriorityArray( objectsWithPriority, objectA );
 		insertToPriorityArray( objectsWithPriority, objectB );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 
 	it( 'should correctly insert items by priority', () => {
@@ -61,7 +62,7 @@ describe( 'insertToPriorityArray()', () => {
 		insertToPriorityArray( objectsWithPriority, objectD );
 		insertToPriorityArray( objectsWithPriority, objectE );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 
 	it( 'should place first inserted object at the first index of an array when there are multiple highest priority objects', () => {
@@ -73,7 +74,7 @@ describe( 'insertToPriorityArray()', () => {
 		insertToPriorityArray( objectsWithPriority, objectA );
 		insertToPriorityArray( objectsWithPriority, objectB );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 
 	it( 'first inserted object of given priority should be closest to start of an array', () => {
@@ -87,7 +88,7 @@ describe( 'insertToPriorityArray()', () => {
 		insertToPriorityArray( objectsWithPriority, objectB );
 		insertToPriorityArray( objectsWithPriority, objectC );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 
 	it( 'should place object with lowest priorirty at the end of an array', () => {
@@ -101,6 +102,6 @@ describe( 'insertToPriorityArray()', () => {
 		insertToPriorityArray( objectsWithPriority, objectB );
 		insertToPriorityArray( objectsWithPriority, objectC );
 
-		expect( objectsWithPriority ).to.deep.equal( expectedOutput );
+		expect( objectsWithPriority ).toEqual( expectedOutput );
 	} );
 } );

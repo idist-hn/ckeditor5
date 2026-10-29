@@ -1,19 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module special-characters/specialcharactersessentials
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import SpecialCharactersCurrency from './specialcharacterscurrency';
-import SpecialCharactersMathematical from './specialcharactersmathematical';
-import SpecialCharactersArrows from './specialcharactersarrows';
-import SpecialCharactersLatin from './specialcharacterslatin';
-import SpecialCharactersText from './specialcharacterstext';
+import { SpecialCharactersCurrency } from './specialcharacterscurrency.js';
+import { SpecialCharactersMathematical } from './specialcharactersmathematical.js';
+import { SpecialCharactersArrows } from './specialcharactersarrows.js';
+import { SpecialCharactersLatin } from './specialcharacterslatin.js';
+import { SpecialCharactersText } from './specialcharacterstext.js';
 
 /**
  * A plugin combining a basic set of characters for the special characters plugin.
@@ -27,7 +27,7 @@ import SpecialCharactersText from './specialcharacterstext';
  *   .catch( ... );
  * ```
  */
-export default class SpecialCharactersEssentials extends Plugin {
+export class SpecialCharactersEssentials extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -38,13 +38,26 @@ export default class SpecialCharactersEssentials extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[
+		SpecialCharactersCurrency,
+		SpecialCharactersText,
+		SpecialCharactersMathematical,
+		SpecialCharactersArrows,
+		SpecialCharactersLatin
+	]> {
 		return [
 			SpecialCharactersCurrency,
 			SpecialCharactersText,
 			SpecialCharactersMathematical,
 			SpecialCharactersArrows,
 			SpecialCharactersLatin
-		] as const;
+		];
 	}
 }

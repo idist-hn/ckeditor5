@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -13,8 +13,10 @@
  * @param text The plain text to convert.
  * @returns HTML generated from the plain text.
  */
-export default function plainTextToHtml( text: string ): string {
+export function plainTextToHtml( text: string ): string {
 	text = text
+		// Encode &.
+		.replace( /&/g, '&amp;' )
 		// Encode <>.
 		.replace( /</g, '&lt;' )
 		.replace( />/g, '&gt;' )

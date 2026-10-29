@@ -1,28 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import DeleteObserver from '../src/deleteobserver';
+import { DeleteObserver } from '../src/deleteobserver.js';
 
-import View from '@ckeditor/ckeditor5-engine/src/view/view';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import createViewRoot from '@ckeditor/ckeditor5-engine/tests/view/_utils/createroot';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import env from '@ckeditor/ckeditor5-utils/src/env';
-import { getCode } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import { fireBeforeInputDomEvent } from './_utils/utils';
-import { setData as viewSetData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
+import { EditingView, ViewDocumentDomEventData, _setViewData, StylesProcessor } from '@ckeditor/ckeditor5-engine';
+import { createViewRoot } from '@ckeditor/ckeditor5-engine/tests/view/_utils/createroot.js';
+import { env, getCode } from '@ckeditor/ckeditor5-utils';
+import { fireBeforeInputDomEvent } from './_utils/utils.js';
 
 describe( 'Delete', () => {
 	describe( 'DeleteObserver', () => {
 		let view, domRoot, viewRoot, viewDocument;
 		let deleteSpy;
-
-		testUtils.createSinonSandbox();
 
 		beforeEach( () => {
 			domRoot = document.createElement( 'div' );
@@ -30,13 +23,13 @@ describe( 'Delete', () => {
 
 			document.body.appendChild( domRoot );
 
-			view = new View();
+			view = new EditingView();
 			viewDocument = view.document;
 			viewRoot = createViewRoot( viewDocument );
 			view.attachDomRoot( domRoot );
 			view.addObserver( DeleteObserver );
 
-			deleteSpy = testUtils.sinon.spy();
+			deleteSpy = vi.fn();
 			viewDocument.on( 'delete', deleteSpy );
 		} );
 
@@ -50,24 +43,24 @@ describe( 'Delete', () => {
 			expect( () => {
 				const newDomRoot = document.createElement( 'div' );
 
-				view = new View( new StylesProcessor() );
+				view = new EditingView( new StylesProcessor() );
 				viewDocument = view.document;
 
 				createViewRoot( viewDocument );
 				view.attachDomRoot( newDomRoot );
 
 				newDomRoot.remove();
-			} ).to.not.throw();
+			} ).not.toThrow();
 		} );
 
 		it( 'should increment the sequence with every keydown event', () => {
-			const deleteSpy = sinon.spy();
+			const deleteSpy = vi.fn();
 
 			viewDocument.on( 'delete', deleteSpy );
 
 			// Simulate that the user keeps pressing the "Delete" key.
 			for ( let i = 0; i < 5; ++i ) {
-				viewDocument.fire( 'keydown', new DomEventData( viewDocument, getDomEvent(), {
+				viewDocument.fire( 'keydown', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 					keyCode: getCode( 'delete' )
 				} ) );
 
@@ -76,18 +69,18 @@ describe( 'Delete', () => {
 				} );
 			}
 
-			sinon.assert.callCount( deleteSpy, 5 );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 0 ), {}, { sequence: 1 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 1 ), {}, { sequence: 2 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 2 ), {}, { sequence: 3 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 3 ), {}, { sequence: 4 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 4 ), {}, { sequence: 5 } );
+			expect( deleteSpy ).toHaveBeenCalledTimes( 5 );
+			expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 1 } ) );
+			expect( deleteSpy.mock.calls[ 1 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 2 } ) );
+			expect( deleteSpy.mock.calls[ 2 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 3 } ) );
+			expect( deleteSpy.mock.calls[ 3 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 4 } ) );
+			expect( deleteSpy.mock.calls[ 4 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 5 } ) );
 		} );
 
 		it( 'should reset the sequence on keyup event', () => {
 			// Simulate that the user keeps pressing the "Delete" key.
 			for ( let i = 0; i < 5; ++i ) {
-				viewDocument.fire( 'keydown', new DomEventData( viewDocument, getDomEvent(), {
+				viewDocument.fire( 'keydown', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 					keyCode: getCode( 'delete' )
 				} ) );
 
@@ -96,11 +89,11 @@ describe( 'Delete', () => {
 				} );
 			}
 
-			viewDocument.fire( 'keyup', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'keyup', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				keyCode: getCode( 'delete' )
 			} ) );
 
-			viewDocument.fire( 'keydown', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'keydown', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				keyCode: getCode( 'delete' )
 			} ) );
 
@@ -108,13 +101,13 @@ describe( 'Delete', () => {
 				inputType: 'deleteContentForward'
 			} );
 
-			sinon.assert.callCount( deleteSpy, 6 );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 0 ), {}, { sequence: 1 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 1 ), {}, { sequence: 2 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 2 ), {}, { sequence: 3 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 3 ), {}, { sequence: 4 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 4 ), {}, { sequence: 5 } );
-			sinon.assert.calledWithMatch( deleteSpy.getCall( 5 ), {}, { sequence: 1 } );
+			expect( deleteSpy ).toHaveBeenCalledTimes( 6 );
+			expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 1 } ) );
+			expect( deleteSpy.mock.calls[ 1 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 2 } ) );
+			expect( deleteSpy.mock.calls[ 2 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 3 } ) );
+			expect( deleteSpy.mock.calls[ 3 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 4 } ) );
+			expect( deleteSpy.mock.calls[ 4 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 5 } ) );
+			expect( deleteSpy.mock.calls[ 5 ][ 1 ] ).toEqual( expect.objectContaining( { sequence: 1 } ) );
 		} );
 
 		it( 'should stop the beforeinput event propagation if delete event was stopped', () => {
@@ -132,7 +125,7 @@ describe( 'Delete', () => {
 				inputType: 'deleteContentBackward'
 			} );
 
-			expect( interceptedEventInfo.stop.called ).to.be.true;
+			expect( interceptedEventInfo.stop.called ).toBe( true );
 		} );
 
 		it( 'should not stop the beforeinput event propagation if delete event was not stopped', () => {
@@ -146,22 +139,23 @@ describe( 'Delete', () => {
 				inputType: 'deleteContentBackward'
 			} );
 
-			expect( interceptedEventInfo.stop.called ).to.be.undefined;
+			expect( interceptedEventInfo.stop.called ).toBeUndefined();
 		} );
 
 		it( 'should never preventDefault() the beforeinput event', () => {
 			let interceptedEventData;
+			let preventDefaultSpy;
 
 			viewDocument.on( 'beforeinput', ( evt, data ) => {
 				interceptedEventData = data;
-				sinon.spy( interceptedEventData, 'preventDefault' );
+				preventDefaultSpy = vi.spyOn( interceptedEventData, 'preventDefault' );
 			}, { priority: Number.POSITIVE_INFINITY } );
 
 			fireBeforeInputDomEvent( domRoot, {
 				inputType: 'deleteContentBackward'
 			} );
 
-			sinon.assert.notCalled( interceptedEventData.preventDefault );
+			expect( preventDefaultSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not work if the observer is disabled', () => {
@@ -171,13 +165,13 @@ describe( 'Delete', () => {
 				inputType: 'deleteContentBackward'
 			} );
 
-			sinon.assert.notCalled( deleteSpy );
+			expect( deleteSpy ).not.toHaveBeenCalled();
 		} );
 
 		describe( 'beforeinput event types handling', () => {
 			describe( 'backward delete event types', () => {
 				it( 'should handle the deleteContent event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -187,20 +181,20 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'selection',
 						direction: 'backward',
 						sequence: 0
-					} );
+					} ) );
 
-					const range = deleteSpy.firstCall.args[ 1 ].selectionToRemove.getFirstRange();
+					const range = deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove.getFirstRange();
 
-					expect( range.isEqual( viewRange ) ).to.be.true;
+					expect( range.isEqual( viewRange ) ).toBe( true );
 				} );
 
 				it( 'should handle the deleteContentBackward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -210,19 +204,20 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'codePoint',
 						direction: 'backward',
-						sequence: 0,
-						selectionToRemove: undefined
-					} );
+						sequence: 0
+					} ) );
+
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 				} );
 
 				it( 'should handle the deleteContentBackward event type and fire the delete event on Android', () => {
-					testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+					vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
-					viewSetData( view, '<p>f{o}o</p>' );
+					_setViewData( view, '<p>f{o}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -232,17 +227,18 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'codePoint',
 						direction: 'backward',
-						sequence: 1,
-						selectionToRemove: undefined
-					} );
+						sequence: 1
+					} ) );
+
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 				} );
 
 				it( 'should handle the deleteWordBackward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -252,17 +248,18 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'word',
 						direction: 'backward',
-						sequence: 0,
-						selectionToRemove: undefined
-					} );
+						sequence: 0
+					} ) );
+
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 				} );
 
 				it( 'should handle the deleteHardLineBackward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -272,20 +269,20 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'selection',
 						direction: 'backward',
 						sequence: 0
-					} );
+					} ) );
 
-					const range = deleteSpy.firstCall.args[ 1 ].selectionToRemove.getFirstRange();
+					const range = deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove.getFirstRange();
 
-					expect( range.isEqual( viewRange ) ).to.be.true;
+					expect( range.isEqual( viewRange ) ).toBe( true );
 				} );
 
 				it( 'should handle the deleteSoftLineBackward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -295,22 +292,22 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'selection',
 						direction: 'backward',
 						sequence: 0
-					} );
+					} ) );
 
-					const range = deleteSpy.firstCall.args[ 1 ].selectionToRemove.getFirstRange();
+					const range = deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove.getFirstRange();
 
-					expect( range.isEqual( viewRange ) ).to.be.true;
+					expect( range.isEqual( viewRange ) ).toBe( true );
 				} );
 			} );
 
 			describe( 'forward delete event types', () => {
 				it( 'should handle the deleteContentForward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -320,17 +317,18 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'character',
 						direction: 'forward',
-						sequence: 0,
-						selectionToRemove: undefined
-					} );
+						sequence: 0
+					} ) );
+
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 				} );
 
 				it( 'should handle the deleteWordForward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -340,17 +338,18 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'word',
 						direction: 'forward',
-						sequence: 0,
-						selectionToRemove: undefined
-					} );
+						sequence: 0
+					} ) );
+
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 				} );
 
 				it( 'should handle the deleteHardLineForward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -360,20 +359,20 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'selection',
 						direction: 'forward',
 						sequence: 0
-					} );
+					} ) );
 
-					const range = deleteSpy.firstCall.args[ 1 ].selectionToRemove.getFirstRange();
+					const range = deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove.getFirstRange();
 
-					expect( range.isEqual( viewRange ) ).to.be.true;
+					expect( range.isEqual( viewRange ) ).toBe( true );
 				} );
 
 				it( 'should handle the deleteSoftLineForward event type and fire the delete event', () => {
-					viewSetData( view, '<p>fo{}o</p>' );
+					_setViewData( view, '<p>fo{}o</p>' );
 
 					const viewRange = view.document.selection.getFirstRange();
 					const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -383,23 +382,23 @@ describe( 'Delete', () => {
 						ranges: [ domRange ]
 					} );
 
-					sinon.assert.calledOnce( deleteSpy );
-					sinon.assert.calledWithMatch( deleteSpy, {}, {
+					expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+					expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 						unit: 'selection',
 						direction: 'forward',
 						sequence: 0
-					} );
+					} ) );
 
-					const range = deleteSpy.firstCall.args[ 1 ].selectionToRemove.getFirstRange();
+					const range = deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove.getFirstRange();
 
-					expect( range.isEqual( viewRange ) ).to.be.true;
+					expect( range.isEqual( viewRange ) ).toBe( true );
 				} );
 			} );
 		} );
 
 		describe( 'using event target ranges (deleteContentBackward)', () => {
 			it( 'should not use target ranges if it should remove a single character', () => {
-				viewSetData( view, '<p>fo{o}</p>' );
+				_setViewData( view, '<container:p>fo{o}</container:p>' );
 
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
@@ -409,17 +408,18 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'codePoint',
 					direction: 'backward',
-					sequence: 0,
-					selectionToRemove: undefined
-				} );
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 			} );
 
 			it( 'should not use target ranges if it should remove a single code point from a combined symbol', () => {
-				viewSetData( view, '<p>foo{a&#771;}</p>' );
+				_setViewData( view, '<container:p>foo{a&#771;}</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -428,17 +428,18 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'codePoint',
 					direction: 'backward',
-					sequence: 0,
-					selectionToRemove: undefined
-				} );
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 			} );
 
 			it( 'should set selectionToRemove if target ranges include more than a single character', () => {
-				viewSetData( view, '<p>f{oo}</p>' );
+				_setViewData( view, '<container:p>f{oo}</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -447,25 +448,25 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'selection',
 					direction: 'backward',
 					sequence: 0
-				} );
+				} ) );
 
-				const data = deleteSpy.args[ 0 ][ 1 ];
+				const data = deleteSpy.mock.calls[ 0 ][ 1 ];
 				const range = data.selectionToRemove.getFirstRange();
 				const viewText = viewRoot.getChild( 0 ).getChild( 0 );
 
-				expect( range.start.offset ).to.equal( 1 );
-				expect( range.start.parent ).to.equal( viewText );
-				expect( range.end.offset ).to.equal( 3 );
-				expect( range.end.parent ).to.equal( viewText );
+				expect( range.start.offset ).toBe( 1 );
+				expect( range.start.parent ).toBe( viewText );
+				expect( range.end.offset ).toBe( 3 );
+				expect( range.end.parent ).toBe( viewText );
 			} );
 
 			it( 'should not use target ranges if it should remove a single emoji sequence', () => {
-				viewSetData( view, '<p>foo{👨‍👩‍👧‍👧}</p>' );
+				_setViewData( view, '<container:p>foo{👨‍👩‍👧‍👧}</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -474,17 +475,18 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'codePoint',
 					direction: 'backward',
-					sequence: 0,
-					selectionToRemove: undefined
-				} );
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 			} );
 
 			it( 'should use target ranges if it should remove more than a emoji sequence', () => {
-				viewSetData( view, '<p>foo{👨‍👩‍👧‍👧👨‍👩‍👧‍👧}</p>' );
+				_setViewData( view, '<container:p>foo{👨‍👩‍👧‍👧👨‍👩‍👧‍👧}</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -493,25 +495,25 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'selection',
 					direction: 'backward',
 					sequence: 0
-				} );
+				} ) );
 
-				const data = deleteSpy.args[ 0 ][ 1 ];
+				const data = deleteSpy.mock.calls[ 0 ][ 1 ];
 				const range = data.selectionToRemove.getFirstRange();
 				const viewText = viewRoot.getChild( 0 ).getChild( 0 );
 
-				expect( range.start.offset ).to.equal( 3 );
-				expect( range.start.parent ).to.equal( viewText );
-				expect( range.end.offset ).to.equal( 25 );
-				expect( range.end.parent ).to.equal( viewText );
+				expect( range.start.offset ).toBe( 3 );
+				expect( range.start.parent ).toBe( viewText );
+				expect( range.end.offset ).toBe( 25 );
+				expect( range.end.parent ).toBe( viewText );
 			} );
 
 			it( 'should not use target ranges if it is collapsed', () => {
-				viewSetData( view, '<p>foo{}</p>' );
+				_setViewData( view, '<container:p>foo{}</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -520,17 +522,18 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'codePoint',
 					direction: 'backward',
-					sequence: 0,
-					selectionToRemove: undefined
-				} );
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 			} );
 
 			it( 'should not use target ranges if there is more than one range', () => {
-				viewSetData( view, '<p>foo{}</p>' );
+				_setViewData( view, '<container:p>foo{}</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -539,17 +542,21 @@ describe( 'Delete', () => {
 					ranges: [ domRange, domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'codePoint',
 					direction: 'backward',
-					sequence: 0,
-					selectionToRemove: undefined
-				} );
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 			} );
 
 			it( 'should set selectionToRemove if target ranges spans different parent nodes', () => {
-				viewSetData( view, '<p>fo{o</p><p>]bar</p>' );
+				_setViewData( view,
+					'<container:p>fo{o</container:p>' +
+					'<container:p>]bar</container:p>'
+				);
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -558,24 +565,24 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'selection',
 					direction: 'backward',
 					sequence: 0
-				} );
+				} ) );
 
-				const data = deleteSpy.args[ 0 ][ 1 ];
+				const data = deleteSpy.mock.calls[ 0 ][ 1 ];
 				const range = data.selectionToRemove.getFirstRange();
 
-				expect( range.start.offset ).to.equal( 2 );
-				expect( range.start.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( range.end.offset ).to.equal( 0 );
-				expect( range.end.parent ).to.equal( viewRoot.getChild( 1 ) );
+				expect( range.start.offset ).toBe( 2 );
+				expect( range.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( range.end.offset ).toBe( 0 );
+				expect( range.end.parent ).toBe( viewRoot.getChild( 1 ) );
 			} );
 
 			it( 'should set selectionToRemove if target ranges spans a single character and an element', () => {
-				viewSetData( view, '<p>fo{o<br/>]</p>' );
+				_setViewData( view, '<container:p>fo{o<empty:br/>]</container:p>' );
 				const viewRange = view.document.selection.getFirstRange();
 				const domRange = view.domConverter.viewRangeToDom( viewRange );
 
@@ -584,33 +591,112 @@ describe( 'Delete', () => {
 					ranges: [ domRange ]
 				} );
 
-				sinon.assert.calledOnce( deleteSpy );
-				sinon.assert.calledWithMatch( deleteSpy, {}, {
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
 					unit: 'selection',
 					direction: 'backward',
 					sequence: 0
-				} );
+				} ) );
 
-				const data = deleteSpy.args[ 0 ][ 1 ];
+				const data = deleteSpy.mock.calls[ 0 ][ 1 ];
 				const range = data.selectionToRemove.getFirstRange();
 
-				expect( range.start.offset ).to.equal( 2 );
-				expect( range.start.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( range.end.offset ).to.equal( 2 );
-				expect( range.end.parent ).to.equal( viewRoot.getChild( 0 ) );
+				expect( range.start.offset ).toBe( 2 );
+				expect( range.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( range.end.offset ).toBe( 2 );
+				expect( range.end.parent ).toBe( viewRoot.getChild( 0 ) );
+			} );
+
+			it( 'should not set selectionToRemove if target ranges spans between <p> and <li>', () => {
+				_setViewData( view,
+					'<container:p>[</container:p>' +
+					'<attribute:ul>' +
+						'<attribute:li>]</attribute:li>' +
+					'</attribute:ul>'
+				);
+				const viewRange = view.document.selection.getFirstRange();
+				const domRange = view.domConverter.viewRangeToDom( viewRange );
+
+				fireBeforeInputDomEvent( domRoot, {
+					inputType: 'deleteContentBackward',
+					ranges: [ domRange ]
+				} );
+
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+					unit: 'codePoint',
+					direction: 'backward',
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
+			} );
+
+			it( 'should not set selectionToRemove if target ranges spans between <p> and bogus paragraph in <li>', () => {
+				_setViewData( view,
+					'<container:p>[</container:p>' +
+					'<attribute:ul>' +
+						'<attribute:li>' +
+							'<container:span>]</container:span>' +
+						'</attribute:li>' +
+					'</attribute:ul>'
+				);
+				const viewRange = view.document.selection.getFirstRange();
+				const domRange = view.domConverter.viewRangeToDom( viewRange );
+
+				fireBeforeInputDomEvent( domRoot, {
+					inputType: 'deleteContentBackward',
+					ranges: [ domRange ]
+				} );
+
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+					unit: 'codePoint',
+					direction: 'backward',
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
+			} );
+
+			it( 'should not set selectionToRemove if target ranges spans between <p> and paragraph in <li>', () => {
+				_setViewData( view,
+					'<container:p>[</container:p>' +
+					'<attribute:ul>' +
+						'<attribute:li>' +
+							'<container:p>]</container:p>' +
+						'</attribute:li>' +
+					'</attribute:ul>'
+				);
+				const viewRange = view.document.selection.getFirstRange();
+				const domRange = view.domConverter.viewRangeToDom( viewRange );
+
+				fireBeforeInputDomEvent( domRoot, {
+					inputType: 'deleteContentBackward',
+					ranges: [ domRange ]
+				} );
+
+				expect( deleteSpy ).toHaveBeenCalledTimes( 1 );
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+					unit: 'codePoint',
+					direction: 'backward',
+					sequence: 0
+				} ) );
+
+				expect( deleteSpy.mock.calls[ 0 ][ 1 ].selectionToRemove ).toBeUndefined();
 			} );
 		} );
 
 		it( 'should implement empty #stopObserving() method', () => {
 			expect( () => {
 				view.getObserver( DeleteObserver ).stopObserving();
-			} ).to.not.throw();
+			} ).not.toThrow();
 		} );
 	} );
 
 	function getDomEvent() {
 		return {
-			preventDefault: sinon.spy()
+			preventDefault: vi.fn()
 		};
 	}
 } );

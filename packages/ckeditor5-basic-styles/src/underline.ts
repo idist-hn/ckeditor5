@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/underline
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import UnderlineEditing from './underline/underlineediting';
-import UnderlineUI from './underline/underlineui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { UnderlineEditing } from './underline/underlineediting.js';
+import { UnderlineUI } from './underline/underlineui.js';
 
 /**
  * The underline feature.
@@ -20,12 +20,12 @@ import UnderlineUI from './underline/underlineui';
  * This is a "glue" plugin which loads the {@link module:basic-styles/underline/underlineediting~UnderlineEditing} and
  * {@link module:basic-styles/underline/underlineui~UnderlineUI} plugins.
  */
-export default class Underline extends Plugin {
+export class Underline extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ UnderlineEditing, UnderlineUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ UnderlineEditing, UnderlineUI ]> {
+		return [ UnderlineEditing, UnderlineUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class Underline extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Underline' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module block-quote/blockquotecommand
  */
 
-import { Command } from 'ckeditor5/src/core';
-import { first } from 'ckeditor5/src/utils';
-import type { DocumentFragment, Element, Position, Range, Schema, Writer } from 'ckeditor5/src/engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { first } from '@ckeditor/ckeditor5-utils';
+import type { ModelDocumentFragment, ModelElement, ModelPosition, ModelRange, ModelSchema, ModelWriter } from '@ckeditor/ckeditor5-engine';
 
 /**
  * The block quote command plugin.
  *
  * @extends module:core/command~Command
  */
-export default class BlockQuoteCommand extends Command {
+export class BlockQuoteCommand extends Command {
 	/**
 	 * Whether the selection starts in a block quote.
 	 *
@@ -108,18 +108,18 @@ export default class BlockQuoteCommand extends Command {
 	 * start it or end it, then the quote will be split (if needed) and the blocks
 	 * will be moved out of it, so other quoted blocks remained quoted.
 	 */
-	private _removeQuote( writer: Writer, blocks: Array<Element> ): void {
+	private _removeQuote( writer: ModelWriter, blocks: Array<ModelElement> ): void {
 		// Unquote all groups of block. Iterate in the reverse order to not break following ranges.
 		getRangesOfBlockGroups( writer, blocks ).reverse().forEach( groupRange => {
 			if ( groupRange.start.isAtStart && groupRange.end.isAtEnd ) {
-				writer.unwrap( groupRange.start.parent as Element );
+				writer.unwrap( groupRange.start.parent as ModelElement );
 
 				return;
 			}
 
 			// The group of blocks are at the beginning of an <bQ> so let's move them left (out of the <bQ>).
 			if ( groupRange.start.isAtStart ) {
-				const positionBefore = writer.createPositionBefore( groupRange.start.parent as Element );
+				const positionBefore = writer.createPositionBefore( groupRange.start.parent as ModelElement );
 
 				writer.move( groupRange, positionBefore );
 
@@ -134,7 +134,7 @@ export default class BlockQuoteCommand extends Command {
 
 			// Now we are sure that groupRange.end.isAtEnd is true, so let's move the blocks right.
 
-			const positionAfter = writer.createPositionAfter( groupRange.end.parent as Element );
+			const positionAfter = writer.createPositionAfter( groupRange.end.parent as ModelElement );
 
 			writer.move( groupRange, positionAfter );
 		} );
@@ -143,8 +143,8 @@ export default class BlockQuoteCommand extends Command {
 	/**
 	 * Applies the quote to given blocks.
 	 */
-	private _applyQuote( writer: Writer, blocks: Array<Element> ): void {
-		const quotesToMerge: Array<Element | DocumentFragment> = [];
+	private _applyQuote( writer: ModelWriter, blocks: Array<ModelElement> ): void {
+		const quotesToMerge: Array<ModelElement | ModelDocumentFragment> = [];
 
 		// Quote all groups of block. Iterate in the reverse order to not break following ranges.
 		getRangesOfBlockGroups( writer, blocks ).reverse().forEach( groupRange => {
@@ -175,7 +175,7 @@ export default class BlockQuoteCommand extends Command {
 	}
 }
 
-function findQuote( elementOrPosition: Element | Position ): Element | DocumentFragment | null {
+function findQuote( elementOrPosition: ModelElement | ModelPosition ): ModelElement | ModelDocumentFragment | null {
 	return elementOrPosition.parent!.name == 'blockQuote' ? elementOrPosition.parent : null;
 }
 
@@ -186,7 +186,7 @@ function findQuote( elementOrPosition: Element | Position ): Element | DocumentF
  * blocks:          [ a, b, d, f, g, h ]
  * output ranges:   [ab]c[d]e[fgh]
  */
-function getRangesOfBlockGroups( writer: Writer, blocks: Array<Element> ): Array<Range> {
+function getRangesOfBlockGroups( writer: ModelWriter, blocks: Array<ModelElement> ): Array<ModelRange> {
 	let startPosition;
 	let i = 0;
 	const ranges = [];
@@ -213,10 +213,19 @@ function getRangesOfBlockGroups( writer: Writer, blocks: Array<Element> ): Array
 /**
  * Checks whether <bQ> can wrap the block.
  */
-function checkCanBeQuoted( schema: Schema, block: Element ): boolean {
+function checkCanBeQuoted( schema: ModelSchema, block: ModelElement ): boolean {
 	// TMP will be replaced with schema.checkWrap().
-	const isBQAllowed = schema.checkChild( block.parent as Element, 'blockQuote' );
-	const isBlockAllowedInBQ = schema.checkChild( [ '$root', 'blockQuote' ], block );
+	const parentContext = schema.createContext( block.parent as ModelElement );
 
-	return isBQAllowed && isBlockAllowedInBQ;
+	// Is block-quote allowed in parent of block.
+	if ( !schema.checkChild( parentContext, 'blockQuote' ) ) {
+		return false;
+	}
+
+	// Is block allowed inside block-quote.
+	if ( !schema.checkChild( parentContext.push( 'blockQuote' ), block ) ) {
+		return false;
+	}
+
+	return true;
 }

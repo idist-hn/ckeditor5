@@ -1,13 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, window */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { getOptimalPosition } from '../../src/dom/position';
-import Rect from '../../src/dom/rect';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { getOptimalPosition, getConstrainedViewportRect } from '../../src/dom/position.js';
+import { Rect } from '../../src/dom/rect.js';
 
 let element, target, limiter;
 
@@ -119,11 +118,8 @@ const allPositions = [
 ];
 
 describe( 'getOptimalPosition()', () => {
-	testUtils.createSinonSandbox();
-
 	beforeEach( () => {
-		testUtils.sinon.stub( window, 'getComputedStyle' );
-		window.getComputedStyle.callThrough();
+		vi.spyOn( window, 'getComputedStyle' );
 
 		stubWindow( {
 			innerWidth: 10000,
@@ -156,8 +152,8 @@ describe( 'getOptimalPosition()', () => {
 			positions: [ attachWithoutArrow ]
 		} );
 
-		expect( position.config ).to.be.an( 'object' );
-		expect( position.config.withArrow ).to.be.false;
+		expect( position.config ).toBeTypeOf( 'object' );
+		expect( position.config.withArrow ).toBe( false );
 	} );
 
 	it( 'should work when the target is a Function', () => {
@@ -194,6 +190,12 @@ describe( 'getOptimalPosition()', () => {
 		const range = document.createRange();
 
 		range.selectNode( document.body );
+
+		// Pin the geometry of the range (the rect of `<body>` on the Karma test page) because the Vitest
+		// test page renders the `<body>` element differently.
+		vi.spyOn( range, 'getClientRects' ).mockReturnValue( [
+			{ top: 8, right: 792, bottom: 8, left: 8, width: 784, height: 0 }
+		] );
 
 		assertPosition( {
 			element,
@@ -247,11 +249,12 @@ describe( 'getOptimalPosition()', () => {
 					scrollY: 1000
 				} );
 
+				// The parent scrolls with the page, so its viewport rect is shifted by the window scroll.
 				parent = getElement( {
-					top: 1000,
-					right: 1010,
-					bottom: 1010,
-					left: 1000,
+					top: 0,
+					right: 10,
+					bottom: 10,
+					left: 0,
 					width: 10,
 					height: 10
 				}, {
@@ -307,8 +310,54 @@ describe( 'getOptimalPosition()', () => {
 				parent.scrollTop = 100;
 
 				assertPosition( { element, target, positions: [ attachLeftBottom ] }, {
-					top: 1200,
-					left: 1280,
+					top: 200,
+					left: 280,
+					name: 'left-bottom'
+				} );
+			} );
+		} );
+
+		describe( 'positioned element parent reached through a slot', () => {
+			let host;
+
+			afterEach( () => {
+				host.remove();
+			} );
+
+			it( 'should return coordinates', () => {
+				// The same geometry and the same expectation as "positioned element parent" above, except the
+				// positioned parent wraps a `<slot>` in a shadow tree and the element is assigned to it. The
+				// element renders inside that parent while staying a child of the host in the node tree, so a
+				// node-tree lookup finds no positioned ancestor and leaves the coordinates uncompensated.
+				stubWindow( {
+					innerWidth: 10000,
+					innerHeight: 10000,
+					scrollX: 1000,
+					scrollY: 1000
+				} );
+
+				host = document.createElement( 'div' );
+				document.body.appendChild( host );
+
+				const parent = getElement( {
+					top: 0,
+					right: 10,
+					bottom: 10,
+					left: 0,
+					width: 10,
+					height: 10
+				}, {
+					position: 'absolute'
+				} );
+
+				parent.appendChild( document.createElement( 'slot' ) );
+				host.attachShadow( { mode: 'open' } ).appendChild( parent );
+
+				host.appendChild( element );
+
+				assertPosition( { element, target, positions: [ attachLeftBottom ] }, {
+					top: 100,
+					left: 80,
 					name: 'left-bottom'
 				} );
 			} );
@@ -680,7 +729,9 @@ describe( 'getOptimalPosition()', () => {
 	} );
 
 	describe( 'with scrollable ancestors', () => {
-		let parentWithOverflow, limiter, target, element, parentAncestorWithOverflow;
+		let parentWithOverflow, limiter, target, element;
+		// eslint-disable-next-line no-unassigned-vars -- Only assigned in some scenarios; guarded before use.
+		let parentAncestorWithOverflow;
 
 		beforeEach( () => {
 			limiter = getElement( {
@@ -882,6 +933,12 @@ describe( 'getOptimalPosition()', () => {
 			const target = document.createRange();
 			target.selectNode( document.body );
 
+			// Pin the geometry of the range (the rect of `<body>` on the Karma test page) because the Vitest
+			// test page renders the `<body>` element differently.
+			vi.spyOn( target, 'getClientRects' ).mockReturnValue( [
+				{ top: 8, right: 792, bottom: 8, left: 8, width: 784, height: 0 }
+			] );
+
 			const element = getElement( {
 				top: 0,
 				right: 100,
@@ -908,23 +965,63 @@ describe( 'getOptimalPosition()', () => {
 	} );
 } );
 
+describe( 'getConstrainedViewportRect()', () => {
+	beforeEach( () => {
+		stubWindow( {
+			innerWidth: 10000,
+			innerHeight: 10000,
+			scrollX: 0,
+			scrollY: 0
+		} );
+	} );
+
+	it( 'should return viewport rect', () => {
+		const result = getConstrainedViewportRect();
+
+		expect( result.top ).toBe( 0 );
+		expect( result.left ).toBe( 0 );
+		expect( result.width ).toBe( 10000 );
+		expect( result.height ).toBe( 10000 );
+		expect( result.right ).toBe( 10000 );
+		expect( result.bottom ).toBe( 10000 );
+	} );
+
+	it( 'should accept viewport offsets', () => {
+		const viewportOffsetConfig = {
+			top: 50,
+			left: 60,
+			bottom: 70,
+			right: 80
+		};
+
+		const result = getConstrainedViewportRect( viewportOffsetConfig );
+
+		expect( result.top ).toBe( 50 );
+		expect( result.left ).toBe( 60 );
+		expect( result.width ).toBe( 9860 );
+		expect( result.height ).toBe( 9880 );
+		expect( result.right ).toBe( 9920 );
+		expect( result.bottom ).toBe( 9930 );
+	} );
+} );
+
 function assertPosition( options, expected ) {
 	const position = getOptimalPosition( options );
 	const { top, left, name } = position;
 
-	expect( { top, left, name } ).to.deep.equal( expected );
+	expect( { top, left, name } ).toEqual( expected );
 }
 
 function assertPositionName( options, expected ) {
 	const position = getOptimalPosition( options );
 
-	expect( position.name ).to.equal( expected );
+	expect( position.name ).toBe( expected );
 }
 
 function assertNullPosition( options ) {
 	const position = getOptimalPosition( options );
 
-	expect( position ).to.be.null;
+	expect( position ).toBeNull();
 }
 
 // Returns a synthetic element.
@@ -933,13 +1030,13 @@ function assertNullPosition( options ) {
 // @param {Object} properties A set of properties for the element.
 // @param {Object} styles A set of styles in `window.getComputedStyle()` format.
 function getElement( rect = {}, styles = {} ) {
-	expect( rect.right - rect.left ).to.equal( rect.width, 'getElement incorrect horizontal values' );
-	expect( rect.bottom - rect.top ).to.equal( rect.height, 'getElement incorrect vertical values' );
+	expect( rect.right - rect.left, 'getElement incorrect horizontal values' ).toBe( rect.width );
+	expect( rect.bottom - rect.top, 'getElement incorrect vertical values' ).toBe( rect.height );
 
 	const element = document.createElement( 'div' );
 	document.body.appendChild( element );
 
-	sinon.stub( element, 'getBoundingClientRect' ).returns( rect );
+	vi.spyOn( element, 'getBoundingClientRect' ).mockReturnValue( rect );
 
 	if ( !styles.borderLeftWidth ) {
 		styles.borderLeftWidth = '0px';
@@ -960,7 +1057,7 @@ function getElement( rect = {}, styles = {} ) {
 // @param {Object} properties A set of properties the window should have.
 function stubWindow( properties ) {
 	for ( const p in properties ) {
-		testUtils.sinon.stub( window, p ).value( properties[ p ] );
+		vi.spyOn( window, p, 'get' ).mockReturnValue( properties[ p ] );
 	}
 }
 

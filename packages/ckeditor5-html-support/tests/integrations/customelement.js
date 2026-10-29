@@ -1,28 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import CodeBlock from '@ckeditor/ckeditor5-code-block/src/codeblock';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
 import { Link } from '@ckeditor/ckeditor5-link';
-import { getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import { INLINE_FILLER } from '@ckeditor/ckeditor5-engine/src/view/filler';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { _getModelData, _getViewData, _VIEW_INLINE_FILLER } from '@ckeditor/ckeditor5-engine';
 
-import GeneralHtmlSupport from '../../src/generalhtmlsupport';
-import { getModelDataWithAttributes } from '../_utils/utils';
-
-/* global document, console */
+import { GeneralHtmlSupport } from '../../src/generalhtmlsupport.js';
+import { getModelDataWithAttributes } from '../_utils/utils.js';
+import { CustomElementSupport } from '../../src/integrations/customelement.js';
 
 describe( 'CustomElementSupport', () => {
 	let editor, model, editorElement, dataFilter;
 
 	const excludeAttributes = [ 'htmlContent', 'htmlElementName' ];
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
@@ -46,22 +41,45 @@ describe( 'CustomElementSupport', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( CustomElementSupport.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( CustomElementSupport.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should be named', () => {
-		expect( editor.plugins.has( 'CustomElementSupport' ) ).to.be.true;
+		expect( editor.plugins.has( 'CustomElementSupport' ) ).toBe( true );
 	} );
 
 	it( 'should allow unknown custom element', () => {
 		dataFilter.allowElement( /.*/ );
 		editor.setData( '<custom-foo-element>bar</custom-foo-element>' );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 			data: '<htmlCustomElement' +
-				' htmlContent="<custom-foo-element>bar</custom-foo-element>"' +
+				' htmlContent="bar"' +
 				' htmlElementName="custom-foo-element"></htmlCustomElement>',
 			attributes: {}
 		} );
 
-		expect( editor.getData() ).to.equal( '<custom-foo-element>bar</custom-foo-element>' );
+		expect( editor.getData() ).toBe( '<custom-foo-element>bar</custom-foo-element>' );
+	} );
+
+	// See https://github.com/ckeditor/ckeditor5/issues/14933.
+	it( 'should allow <template> element', () => {
+		dataFilter.allowElement( /.*/ );
+		editor.setData( '<template>bar</template>' );
+
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
+			data: '<htmlCustomElement' +
+				' htmlContent="bar"' +
+				' htmlElementName="template"></htmlCustomElement>',
+			attributes: {}
+		} );
+
+		expect( editor.getData() ).toBe( '<template>bar</template>' );
 	} );
 
 	it( 'should not allow unknown custom element if allow-all is not enabled', () => {
@@ -69,12 +87,12 @@ describe( 'CustomElementSupport', () => {
 		dataFilter.allowElement( /custom-foo-element/ );
 		editor.setData( '<custom-foo-element>bar</custom-foo-element>' );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 			data: '<paragraph>bar</paragraph>',
 			attributes: {}
 		} );
 
-		expect( editor.getData() ).to.equal( '<p>bar</p>' );
+		expect( editor.getData() ).toBe( '<p>bar</p>' );
 	} );
 
 	it( 'should convert only unknown elements (not defined in DataSchema)', () => {
@@ -82,42 +100,42 @@ describe( 'CustomElementSupport', () => {
 
 		editor.setData( '<article>abc</article>' );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 			data: '<paragraph>abc</paragraph>',
 			attributes: {}
 		} );
 
-		expect( editor.getData() ).to.equal( '<p>abc</p>' );
+		expect( editor.getData() ).toBe( '<p>abc</p>' );
 	} );
 
 	it( 'should render in the editing view as an unsafe element', () => {
 		dataFilter.allowElement( /.*/ );
 		editor.setData( '<custom-foo-element>bar</custom-foo-element><custom-foo-element>baz</custom-foo-element>' );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 			data: '<htmlCustomElement' +
-				' htmlContent="<custom-foo-element>bar</custom-foo-element>"' +
+				' htmlContent="bar"' +
 				' htmlElementName="custom-foo-element"></htmlCustomElement>' +
 				'<htmlCustomElement' +
-				' htmlContent="<custom-foo-element>baz</custom-foo-element>"' +
+				' htmlContent="baz"' +
 				' htmlElementName="custom-foo-element"></htmlCustomElement>',
 			attributes: {}
 		} );
 
-		expect( editor.getData() ).to.equal(
+		expect( editor.getData() ).toBe(
 			'<custom-foo-element>bar</custom-foo-element>' +
 			'<custom-foo-element>baz</custom-foo-element>'
 		);
-		expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+		expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 			'<custom-foo-element></custom-foo-element>' +
 			'<custom-foo-element></custom-foo-element>'
 		);
-		expect( editor.editing.view.domConverter.unsafeElements ).include( 'custom-foo-element' );
+		expect( editor.editing.view.domConverter.unsafeElements ).toContain( 'custom-foo-element' );
 		expect( editor.editing.view.domConverter.unsafeElements )
-			.deep.equal( Array.from( new Set( editor.editing.view.domConverter.unsafeElements ).values() ) );
+			.toEqual( Array.from( new Set( editor.editing.view.domConverter.unsafeElements ).values() ) );
 
-		expect( editor.editing.view.getDomRoot().innerHTML ).equal(
-			INLINE_FILLER +
+		expect( editor.editing.view.getDomRoot().innerHTML ).toBe(
+			_VIEW_INLINE_FILLER +
 			'<span data-ck-unsafe-element="custom-foo-element"></span>' +
 			'<span data-ck-unsafe-element="custom-foo-element"></span>'
 		);
@@ -131,24 +149,24 @@ describe( 'CustomElementSupport', () => {
 		);
 
 		// Note: Some white spaces were trimmed in the data processor but this is still better than injecting NBSPs instead of white spaces.
-		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 			data:
 				'<htmlCustomElement' +
-				' htmlContent="<custom-foo-element><nested>a </nested></custom-foo-element>"' +
+				' htmlContent="<nested>a </nested>"' +
 				' htmlElementName="custom-foo-element"></htmlCustomElement>' +
 				'<htmlCustomElement' +
-				' htmlContent="<custom-foo-element><nested>b</nested></custom-foo-element>"' +
+				' htmlContent="<nested>b</nested>"' +
 				' htmlElementName="custom-foo-element"></htmlCustomElement>',
 			attributes: {}
 		} );
 
-		expect( editor.getData() ).to.equal(
+		expect( editor.getData() ).toBe(
 			'<custom-foo-element><nested>a </nested></custom-foo-element>' +
 			'<custom-foo-element><nested>b</nested></custom-foo-element>'
 		);
-		expect( editor.data.htmlProcessor.domConverter.preElements ).include( 'custom-foo-element' );
+		expect( editor.data.htmlProcessor.domConverter.preElements ).toContain( 'custom-foo-element' );
 		expect( editor.data.htmlProcessor.domConverter.preElements )
-			.deep.equal( Array.from( new Set( editor.data.htmlProcessor.domConverter.preElements ).values() ) );
+			.toEqual( Array.from( new Set( editor.data.htmlProcessor.domConverter.preElements ).values() ) );
 	} );
 
 	describe( 'element position', () => {
@@ -161,7 +179,7 @@ describe( 'CustomElementSupport', () => {
 						'<paragraph>' +
 							'Foo' +
 							'<htmlCustomElement' +
-								' htmlContent="<custom-foo-element>abc</custom-foo-element>"' +
+								' htmlContent="abc"' +
 								' htmlElementName="custom-foo-element">' +
 							'</htmlCustomElement>' +
 							'Bar' +
@@ -176,7 +194,7 @@ describe( 'CustomElementSupport', () => {
 					'<htmlSection>' +
 						'<paragraph>Foo</paragraph>' +
 						'<htmlCustomElement' +
-							' htmlContent="<custom-foo-element>abc</custom-foo-element>"' +
+							' htmlContent="abc"' +
 							' htmlElementName="custom-foo-element">' +
 						'</htmlCustomElement>' +
 					'</htmlSection>' +
@@ -190,7 +208,7 @@ describe( 'CustomElementSupport', () => {
 						'<paragraph>Foo</paragraph>' +
 					'</htmlSection>' +
 					'<htmlCustomElement' +
-						' htmlContent="<custom-foo-element>abc</custom-foo-element>"' +
+						' htmlContent="abc"' +
 						' htmlElementName="custom-foo-element">' +
 					'</htmlCustomElement>' +
 				'</htmlArticle>'
@@ -204,7 +222,7 @@ describe( 'CustomElementSupport', () => {
 					'</htmlSection>' +
 				'</htmlArticle>' +
 				'<htmlCustomElement' +
-					' htmlContent="<custom-foo-element>abc</custom-foo-element>"' +
+					' htmlContent="abc"' +
 					' htmlElementName="custom-foo-element">' +
 				'</htmlCustomElement>'
 		} ];
@@ -215,9 +233,9 @@ describe( 'CustomElementSupport', () => {
 
 				editor.setData( data );
 
-				expect( getModelData( model, { withoutSelection: true, excludeAttributes } ) ).to.equal( modelData );
+				expect( _getModelData( model, { withoutSelection: true, excludeAttributes } ) ).toBe( modelData );
 
-				expect( editor.getData() ).to.equal( data );
+				expect( editor.getData() ).toBe( data );
 			} );
 		}
 	} );
@@ -227,31 +245,49 @@ describe( 'CustomElementSupport', () => {
 			dataFilter.allowElement( /.*/ );
 			editor.setData( 'foo <custom>  this is <p>some content</p> and more of it  </custom> bar' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data:
 					'<paragraph>foo ' +
 					'<htmlCustomElement' +
-					' htmlContent="<custom>this is <p>some content</p>and more of it </custom>"' +
+					' htmlContent="this is <p>some content</p>and more of it "' +
 					' htmlElementName="custom"></htmlCustomElement>' +
 					'bar</paragraph>',
 				attributes: {}
 			} );
 
-			expect( editor.getData() ).to.equal( '<p>foo <custom>this is <p>some content</p>and more of it </custom>bar</p>' );
+			expect( editor.getData() ).toBe( '<p>foo <custom>this is <p>some content</p>and more of it </custom>bar</p>' );
+		} );
+
+		// See https://github.com/ckeditor/ckeditor5/issues/14933.
+		it( 'should preserve <`template> element content', () => {
+			dataFilter.allowElement( /.*/ );
+			editor.setData( 'foo <template>this is <p>some content</p> and more of it</template> bar' );
+
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
+				data:
+					'<paragraph>foo ' +
+					'<htmlCustomElement' +
+					' htmlContent="this is <p>some content</p> and more of it"' +
+					' htmlElementName="template"></htmlCustomElement> ' +
+					'bar</paragraph>',
+				attributes: {}
+			} );
+
+			expect( editor.getData() ).toBe( '<p>foo&nbsp;<template>this is <p>some content</p> and more of it</template> bar</p>' );
 		} );
 
 		it( 'should not inject nbsp in the element content', () => {
 			dataFilter.allowElement( /.*/ );
 			editor.setData( '<custom><custom2> c </custom2></custom>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom><custom2>c</custom2></custom>"' +
+					' htmlContent="<custom2>c</custom2>"' +
 					' htmlElementName="custom"></htmlCustomElement>',
 				attributes: {}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom><custom2>c</custom2></custom>' );
+			expect( editor.getData() ).toBe( '<custom><custom2>c</custom2></custom>' );
 		} );
 	} );
 
@@ -262,9 +298,9 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element data-foo="foo">bar</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element data-foo="foo">bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlCustomElementAttributes="(1)"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {
@@ -276,7 +312,7 @@ describe( 'CustomElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element data-foo="foo">bar</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element data-foo="foo">bar</custom-foo-element>' );
 		} );
 
 		it( 'should allow attributes without `data-` prefix', () => {
@@ -285,9 +321,9 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element foo="bar">baz</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element foo="bar">baz</custom-foo-element>"' +
+					' htmlContent="baz"' +
 					' htmlCustomElementAttributes="(1)"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {
@@ -299,20 +335,20 @@ describe( 'CustomElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element foo="bar">baz</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element foo="bar">baz</custom-foo-element>' );
 		} );
 
 		it( 'should ignore attributes with invalid name', () => {
-			const consoleWarnStub = sinon.stub( console, 'warn' );
+			const consoleWarnStub = vi.spyOn( console, 'warn' );
 
 			dataFilter.allowElement( /.*/ );
 			dataFilter.allowAttributes( { attributes: /.*/ } );
 
-			editor.setData( '<custom-foo-element 200-abc="invalid" data-foo="bar">baz</custom-foo-element>' );
+			editor.setData( '<custom-foo-element \n="invalid" data-foo="bar">baz</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element data-foo="bar">baz</custom-foo-element>"' +
+					' htmlContent="baz"' +
 					' htmlCustomElementAttributes="(1)"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {
@@ -324,10 +360,10 @@ describe( 'CustomElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element data-foo="bar">baz</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element data-foo="bar">baz</custom-foo-element>' );
 
-			expect( consoleWarnStub.calledOnce ).to.equal( true );
-			expect( consoleWarnStub.firstCall.args[ 0 ] ).to.match( /domconverter-invalid-attribute-detected/ );
+			expect( consoleWarnStub ).toHaveBeenCalledOnce();
+			expect( consoleWarnStub.mock.calls[ 0 ][ 0 ] ).toMatch( /domconverter-invalid-attribute-detected/ );
 		} );
 
 		it( 'should allow attributes (classes)', () => {
@@ -336,9 +372,9 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element class="foo">bar</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element class="foo">bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlCustomElementAttributes="(1)"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {
@@ -348,7 +384,7 @@ describe( 'CustomElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element class="foo">bar</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element class="foo">bar</custom-foo-element>' );
 		} );
 
 		it( 'should allow attributes (styles)', () => {
@@ -357,9 +393,9 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element style="background: red">bar</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element style="background:red;">bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlCustomElementAttributes="(1)"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {
@@ -371,7 +407,7 @@ describe( 'CustomElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element style="background:red;">bar</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element style="background:red;">bar</custom-foo-element>' );
 		} );
 
 		it( 'should allow linking custom element', () => {
@@ -379,16 +415,16 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<a href="bar"><custom-foo-element>bar</custom-foo-element></a>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element>bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlElementName="custom-foo-element"' +
 					' linkHref="bar"' +
 					'></htmlCustomElement>',
 				attributes: {}
 			} );
 
-			expect( editor.getData() ).to.equal( '<a href="bar"><custom-foo-element>bar</custom-foo-element></a>' );
+			expect( editor.getData() ).toBe( '<a href="bar"><custom-foo-element>bar</custom-foo-element></a>' );
 		} );
 
 		it( 'should disallow attributes', () => {
@@ -398,14 +434,14 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element data-foo="foo">bar</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element data-foo="foo">bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element>bar</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element>bar</custom-foo-element>' );
 		} );
 
 		it( 'should disallow attributes (classes)', () => {
@@ -415,14 +451,14 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element class="foo">bar</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element class="foo">bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element>bar</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element>bar</custom-foo-element>' );
 		} );
 
 		it( 'should disallow attributes (styles)', () => {
@@ -432,14 +468,14 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( '<custom-foo-element style="background: red">bar</custom-foo-element>' );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
 				data: '<htmlCustomElement' +
-					' htmlContent="<custom-foo-element style="background:red;">bar</custom-foo-element>"' +
+					' htmlContent="bar"' +
 					' htmlElementName="custom-foo-element"></htmlCustomElement>',
 				attributes: {}
 			} );
 
-			expect( editor.getData() ).to.equal( '<custom-foo-element>bar</custom-foo-element>' );
+			expect( editor.getData() ).toBe( '<custom-foo-element>bar</custom-foo-element>' );
 		} );
 	} );
 
@@ -449,19 +485,18 @@ describe( 'CustomElementSupport', () => {
 		editor.data.processor.skipComments = false;
 		editor.setData( '<!-- foo --><custom>bar</custom>' );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).to.deep.equal( {
-			data: '<htmlCustomElement htmlContent="<custom>bar</custom>" htmlElementName="custom"></htmlCustomElement>',
+		expect( getModelDataWithAttributes( model, { withoutSelection: true, excludeAttributes } ) ).toEqual( {
+			data: '<htmlCustomElement htmlContent="bar" htmlElementName="custom"></htmlCustomElement>',
 			attributes: {}
 		} );
 
-		expect( editor.getData() ).to.equal( '<custom>bar</custom>' );
+		expect( editor.getData() ).toBe( '<custom>bar</custom>' );
 	} );
 
 	const INVALID_ELEMENTS_TEST_DATA = [
-		[ '<p', '' ],
-		[ '<p ', '' ],
-		[ '<xyz?abc>foo</xyz?abc>', 'foo' ],
-		[ '<a!>bar</a!>', 'bar' ]
+		[ '</tag', '' ],
+		[ '</p>', '' ],
+		[ '<p ', '' ]
 	];
 
 	for ( const [ data, text ] of INVALID_ELEMENTS_TEST_DATA ) {
@@ -470,24 +505,40 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( data );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal( `<paragraph>${ text }</paragraph>` );
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe( `<paragraph>${ text }</paragraph>` );
 
-			expect( editor.getData() ).to.equal( text == '' ? '' : `<p>${ text }</p>` );
+			expect( editor.getData() ).toBe( text == '' ? '' : `<p>${ text }</p>` );
 		} );
 	}
 
 	const VALID_ELEMENTS_TEST_DATA = [
 		[
 			'<xmlfoo>bar</xmlfoo>',
-			'<htmlCustomElement htmlContent="<xmlfoo>bar</xmlfoo>" htmlElementName="xmlfoo"></htmlCustomElement>'
+			'<htmlCustomElement htmlContent="bar" htmlElementName="xmlfoo"></htmlCustomElement>'
 		],
 		[
 			'<foo:bar>baz</foo:bar>',
-			'<htmlCustomElement htmlContent="<foo:bar>baz</foo:bar>" htmlElementName="foo:bar"></htmlCustomElement>'
+			'<htmlCustomElement htmlContent="baz" htmlElementName="foo:bar"></htmlCustomElement>'
 		],
 		[
 			'<foo-bar>baz</foo-bar>',
-			'<htmlCustomElement htmlContent="<foo-bar>baz</foo-bar>" htmlElementName="foo-bar"></htmlCustomElement>'
+			'<htmlCustomElement htmlContent="baz" htmlElementName="foo-bar"></htmlCustomElement>'
+		],
+		[
+			'<foo-bar><h2>abc</h2></foo-bar>',
+			'<htmlCustomElement htmlContent="<h2>abc</h2>" htmlElementName="foo-bar"></htmlCustomElement>'
+		],
+		[
+			'<foo-bar>123<h2>abc</h2></foo-bar>',
+			'<htmlCustomElement htmlContent="123<h2>abc</h2>" htmlElementName="foo-bar"></htmlCustomElement>'
+		],
+		[
+			'<foo-bar><h2>abc</h2>456</foo-bar>',
+			'<htmlCustomElement htmlContent="<h2>abc</h2>456" htmlElementName="foo-bar"></htmlCustomElement>'
+		],
+		[
+			'<foo-bar>123<h2>abc</h2>456</foo-bar>',
+			'<htmlCustomElement htmlContent="123<h2>abc</h2>456" htmlElementName="foo-bar"></htmlCustomElement>'
 		]
 	];
 
@@ -497,9 +548,9 @@ describe( 'CustomElementSupport', () => {
 
 			editor.setData( data );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal( modelData );
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe( modelData );
 
-			expect( editor.getData() ).to.equal( data );
+			expect( editor.getData() ).toBe( data );
 		} );
 	}
 } );

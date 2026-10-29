@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/ui/utils
  */
 
-import type { PositionOptions } from 'ckeditor5/src/utils';
-import type { Editor } from 'ckeditor5/src/core';
-import { BalloonPanelView, type ContextualBalloon } from 'ckeditor5/src/ui';
+import type { DomOptimalPositionOptions } from '@ckeditor/ckeditor5-utils';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import { BalloonPanelView, type ContextualBalloon } from '@ckeditor/ckeditor5-ui';
 
-import type ImageUtils from '../../imageutils';
+import { type ImageUtils } from '../../imageutils.js';
 
 /**
  * A helper utility that positions the
@@ -19,6 +19,7 @@ import type ImageUtils from '../../imageutils';
  * with respect to the image in the editor content, if one is selected.
  *
  * @param editor The editor instance.
+ * @internal
  */
 export function repositionContextualBalloon( editor: Editor ): void {
 	const balloon: ContextualBalloon = editor.plugins.get( 'ContextualBalloon' );
@@ -37,8 +38,9 @@ export function repositionContextualBalloon( editor: Editor ): void {
  * to the selected element in the editor content.
  *
  * @param editor The editor instance.
+ * @internal
  */
-export function getBalloonPositionData( editor: Editor ): Partial<PositionOptions> {
+export function getBalloonPositionData( editor: Editor ): Partial<DomOptimalPositionOptions> {
 	const editingView = editor.editing.view;
 	const defaultPositions = BalloonPanelView.defaultPositions;
 	const imageUtils: ImageUtils = editor.plugins.get( 'ImageUtils' );
@@ -48,12 +50,19 @@ export function getBalloonPositionData( editor: Editor ): Partial<PositionOption
 			imageUtils.getClosestSelectedImageWidget( editingView.document.selection )!
 		) as HTMLElement,
 		positions: [
+			// Prefer centering the balloon on the image (unchanged for centered or inline images).
 			defaultPositions.northArrowSouth,
-			defaultPositions.northArrowSouthWest,
-			defaultPositions.northArrowSouthEast,
+			// When centering would overflow the editable (e.g. a left- or right-aligned image that
+			// leaves little room on one side), hug the image's near edge instead of drifting toward
+			// the editable center: its left edge for left-aligned images, its right edge for
+			// right-aligned ones. `getOptimalPosition` picks the first candidate that fully fits, so
+			// it self-selects the correct side based on where the image sits.
+			defaultPositions.northWestArrowSouthWest,
+			defaultPositions.northEastArrowSouthEast,
+			// The same set, below the image.
 			defaultPositions.southArrowNorth,
-			defaultPositions.southArrowNorthWest,
-			defaultPositions.southArrowNorthEast,
+			defaultPositions.southWestArrowNorthWest,
+			defaultPositions.southEastArrowNorthEast,
 			defaultPositions.viewportStickyNorth
 		]
 	};

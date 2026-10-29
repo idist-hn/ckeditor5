@@ -1,7 +1,7 @@
 <div class="document-container">
 	<div id="toolbar-container" class="toolbar-container"></div>
 	<div class="minimap-wrapper">
-		<div class="editor-container">
+		<div class="editor-container ck-rounded-corners">
 			<div id="editor">
 				<h2>APPENDIX C&nbsp;</h2>
 				<h3>
@@ -909,11 +909,61 @@
 				</ul>
 			</div>
 		</div>
-		<div class="minimap-container"></div>
+		<div class="minimap-container ck-rounded-corners"></div>
 	</div>
 </div>
 
 <style>
+	@import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600&display=swap");
+
+	.minimap-wrapper .ck-content {
+		--ck-content-font-family: "Source Sans Pro",system-ui,Roboto,"Helvetica Neue","Helvetica",Arial,sans-serif;
+		--ck-content-font-size: 15px;
+		--ck-content-line-height: 1.6;
+		font-weight: 400;
+	}
+
+	.ck.ck-content h2 {
+		font-size: 2.06em;
+		font-weight: 400;
+		line-height: 1.58em;
+		padding-top: 0.455em;
+		margin-bottom: 0.333em;
+		padding-bottom: .2em;
+		border-bottom: 1px solid hsl( 0, 0%, 90% );
+	}
+
+	.ck.ck-content h3 {
+		font-size: 1.75em;
+		font-weight: 400;
+		line-height: 1.86em;
+		padding-top: 0.571em;
+		margin-bottom: 0.357em;
+	}
+
+	.ck.ck-content h4 {
+		font-size: 1.44em;
+		font-weight: 400;
+		line-height: 1.13em;
+		padding-top: 0.217em;
+		margin-bottom: 0.913em;
+	}
+
+	.ck.ck-content h5 {
+		font-size: 1.19em;
+		font-weight: 400;
+		line-height: 1.37em;
+		padding-top: 0.368em;
+		margin-bottom: 1.00em;
+	}
+
+	.ck.ck-content p {
+		font-size: 1.00em;
+		line-height: 1.63em;
+		padding-top: 0.500em;
+		margin-bottom: 1.13em;
+	}
+
 	.minimap-wrapper {
 		display: flex;
 		flex-direction: row;
@@ -927,10 +977,11 @@
 	.minimap-container {
 		width: 120px;
 		flex: 0 0 auto;
-		border: 1px solid var(--ck-color-toolbar-border);
+		border: 1px solid var(--ck-toolbar-border-color);
 		position: relative;
 		overflow: hidden;
 		max-height: 100%;
+		border-bottom-right-radius: var(--ck-editor-outer-radius);
 	}
 
 	.document-container {
@@ -947,6 +998,11 @@
 		width: 100%;
 	}
 
+	.toolbar-container .ck.ck-toolbar {
+		border-bottom-left-radius: 0;
+		border-bottom-right-radius: 0;
+	}
+
 	.editor-container {
 		width: 100%;
 		border: 1px solid hsl(0, 0%, 80%);
@@ -955,6 +1011,7 @@
 		box-sizing: border-box;
 		position: relative;
 		overflow: auto;
+		border-bottom-left-radius: var(--ck-editor-outer-radius);
 	}
 
 	#editor {

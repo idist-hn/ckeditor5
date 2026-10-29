@@ -1,28 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/attributecommand
  */
 
-import { Command, type Editor } from 'ckeditor5/src/core';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { ModelDocumentSelection, type ModelRange, type ModelElement } from '@ckeditor/ckeditor5-engine';
 
 /**
  * An extension of the base {@link module:core/command~Command} class, which provides utilities for a command
  * that toggles a single attribute on a text or an element.
  *
- * `AttributeCommand` uses {@link module:engine/model/document~Document#selection}
+ * `AttributeCommand` uses {@link module:engine/model/document~ModelDocument#selection}
  * to decide which nodes (if any) should be changed, and applies or removes the attribute from them.
  *
  * The command checks the {@link module:engine/model/model~Model#schema} to decide if it can be enabled
  * for the current selection and to which nodes the attribute can be applied.
  */
-export default class AttributeCommand extends Command {
+export class AttributeCommand extends Command {
 	/**
 	 * Flag indicating whether the command is active. The command is active when the
-	 * {@link module:engine/model/selection~Selection#hasAttribute selection has the attribute} which means that:
+	 * {@link module:engine/model/selection~ModelSelection#hasAttribute selection has the attribute} which means that:
 	 *
 	 * * If the selection is not empty &ndash; That the attribute is set on the first node in the selection that allows this attribute.
 	 * * If the selection is empty &ndash; That the selection has the attribute itself (which means that newly typed
@@ -59,16 +60,16 @@ export default class AttributeCommand extends Command {
 	}
 
 	/**
-	 * Executes the command &mdash; applies the attribute to the selection or removes it from the selection.
+	 * Executes the command &ndash; applies the attribute to the selection or removes it from the selection.
 	 *
 	 * If the command is active (`value == true`), it will remove attributes. Otherwise, it will set attributes.
 	 *
-	 * The execution result differs, depending on the {@link module:engine/model/document~Document#selection}:
+	 * The execution result differs, depending on the {@link module:engine/model/document~ModelDocument#selection}:
 	 *
 	 * * If the selection is on a range, the command applies the attribute to all nodes in that range
-	 * (if they are allowed to have this attribute by the {@link module:engine/model/schema~Schema schema}).
+	 * (if they are allowed to have this attribute by the {@link module:engine/model/schema~ModelSchema schema}).
 	 * * If the selection is collapsed in a non-empty node, the command applies the attribute to the
-	 * {@link module:engine/model/document~Document#selection} itself (note that typed characters copy attributes from the selection).
+	 * {@link module:engine/model/document~ModelDocument#selection} itself (note that typed characters copy attributes from the selection).
 	 * * If the selection is collapsed in an empty node, the command applies the attribute to the parent node of the selection (note
 	 * that the selection inherits all attributes from a node if it is in an empty node).
 	 *
@@ -92,13 +93,23 @@ export default class AttributeCommand extends Command {
 					writer.removeSelectionAttribute( this.attributeKey );
 				}
 			} else {
-				const ranges = model.schema.getValidRanges( selection.getRanges(), this.attributeKey );
+				const ranges = model.schema.getValidRanges( selection.getRanges(), this.attributeKey, {
+					includeEmptyRanges: true
+				} );
 
 				for ( const range of ranges ) {
+					let itemOrRange: ModelRange | ModelElement = range;
+					let attributeKey = this.attributeKey;
+
+					if ( range.isCollapsed ) {
+						itemOrRange = range.start.parent as ModelElement;
+						attributeKey = ModelDocumentSelection._getStoreAttributeKey( this.attributeKey );
+					}
+
 					if ( value ) {
-						writer.setAttribute( this.attributeKey, value, range );
+						writer.setAttribute( attributeKey, value, itemOrRange );
 					} else {
-						writer.removeAttribute( this.attributeKey, range );
+						writer.removeAttribute( attributeKey, itemOrRange );
 					}
 				}
 			}

@@ -1,65 +1,9 @@
 {
   "name": "@ckeditor/ckeditor5-clipboard",
-  "version": "39.0.2",
+  "version": "49.0.1",
   "description": "Clipboard integration feature for CKEditor 5.",
-  "keywords": [
-    "ckeditor",
-    "ckeditor5",
-    "ckeditor 5",
-    "ckeditor5-feature",
-    "ckeditor5-plugin",
-    "ckeditor5-dll"
-  ],
-  "main": "src/index.ts",
-  "dependencies": {
-    "@ckeditor/ckeditor5-core": "39.0.2",
-    "@ckeditor/ckeditor5-engine": "39.0.2",
-    "@ckeditor/ckeditor5-ui": "39.0.2",
-    "@ckeditor/ckeditor5-utils": "39.0.2",
-    "@ckeditor/ckeditor5-widget": "39.0.2",
-    "lodash-es": "4.17.21"
-  },
-  "devDependencies": {
-    "@ckeditor/ckeditor5-alignment": "39.0.2",
-    "@ckeditor/ckeditor5-autoformat": "39.0.2",
-    "@ckeditor/ckeditor5-basic-styles": "39.0.2",
-    "@ckeditor/ckeditor5-block-quote": "39.0.2",
-    "@ckeditor/ckeditor5-cloud-services": "39.0.2",
-    "@ckeditor/ckeditor5-code-block": "39.0.2",
-    "@ckeditor/ckeditor5-easy-image": "39.0.2",
-    "@ckeditor/ckeditor5-editor-balloon": "39.0.2",
-    "@ckeditor/ckeditor5-editor-classic": "39.0.2",
-    "@ckeditor/ckeditor5-editor-decoupled": "39.0.2",
-    "@ckeditor/ckeditor5-enter": "39.0.2",
-    "@ckeditor/ckeditor5-essentials": "39.0.2",
-    "@ckeditor/ckeditor5-find-and-replace": "39.0.2",
-    "@ckeditor/ckeditor5-font": "39.0.2",
-    "@ckeditor/ckeditor5-heading": "39.0.2",
-    "@ckeditor/ckeditor5-highlight": "39.0.2",
-    "@ckeditor/ckeditor5-horizontal-line": "39.0.2",
-    "@ckeditor/ckeditor5-html-embed": "39.0.2",
-    "@ckeditor/ckeditor5-html-support": "39.0.2",
-    "@ckeditor/ckeditor5-image": "39.0.2",
-    "@ckeditor/ckeditor5-indent": "39.0.2",
-    "@ckeditor/ckeditor5-language": "39.0.2",
-    "@ckeditor/ckeditor5-link": "39.0.2",
-    "@ckeditor/ckeditor5-list": "39.0.2",
-    "@ckeditor/ckeditor5-mention": "39.0.2",
-    "@ckeditor/ckeditor5-page-break": "39.0.2",
-    "@ckeditor/ckeditor5-paragraph": "39.0.2",
-    "@ckeditor/ckeditor5-paste-from-office": "39.0.2",
-    "@ckeditor/ckeditor5-remove-format": "39.0.2",
-    "@ckeditor/ckeditor5-source-editing": "39.0.2",
-    "@ckeditor/ckeditor5-style": "39.0.2",
-    "@ckeditor/ckeditor5-table": "39.0.2",
-    "@ckeditor/ckeditor5-typing": "39.0.2",
-    "@ckeditor/ckeditor5-undo": "39.0.2",
-    "typescript": "^4.8.4",
-    "webpack": "^5.58.1",
-    "webpack-cli": "^4.9.0"
-  },
+  "license": "SEE LICENSE IN LICENSE.md",
   "author": "CKSource (http://cksource.com/)",
-  "license": "GPL-2.0-or-later",
   "homepage": "https://ckeditor.com/ckeditor-5",
   "bugs": "https://github.com/ckeditor/ckeditor5/issues",
   "repository": {
@@ -67,15 +11,85 @@
     "url": "https://github.com/ckeditor/ckeditor5.git",
     "directory": "packages/ckeditor5-clipboard"
   },
-  "files": [
-    "lang",
-    "src/**/*.js",
-    "src/**/*.d.ts",
-    "theme",
-    "ckeditor5-metadata.json",
-    "CHANGELOG.md"
+  "keywords": [
+    "ckeditor",
+    "ckeditor5",
+    "ckeditor 5",
+    "ckeditor5-feature",
+    "ckeditor5-plugin"
   ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./dist/*": "./src/*",
+    "./*": "./*"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": "./dist/index.js",
+      "./dist/*": "./dist/*",
+      "./package.json": "./package.json"
+    }
+  },
+  "dependencies": {
+    "@ckeditor/ckeditor5-core": "workspace:*",
+    "@ckeditor/ckeditor5-engine": "workspace:*",
+    "@ckeditor/ckeditor5-ui": "workspace:*",
+    "@ckeditor/ckeditor5-utils": "workspace:*",
+    "@ckeditor/ckeditor5-widget": "workspace:*",
+    "es-toolkit": "1.52.0"
+  },
+  "devDependencies": {
+    "@ckeditor/ckeditor5-alignment": "workspace:*",
+    "@ckeditor/ckeditor5-autoformat": "workspace:*",
+    "@ckeditor/ckeditor5-basic-styles": "workspace:*",
+    "@ckeditor/ckeditor5-block-quote": "workspace:*",
+    "@ckeditor/ckeditor5-cloud-services": "workspace:*",
+    "@ckeditor/ckeditor5-code-block": "workspace:*",
+    "@ckeditor/ckeditor5-easy-image": "workspace:*",
+    "@ckeditor/ckeditor5-editor-balloon": "workspace:*",
+    "@ckeditor/ckeditor5-editor-classic": "workspace:*",
+    "@ckeditor/ckeditor5-editor-decoupled": "workspace:*",
+    "@ckeditor/ckeditor5-enter": "workspace:*",
+    "@ckeditor/ckeditor5-essentials": "workspace:*",
+    "@ckeditor/ckeditor5-find-and-replace": "workspace:*",
+    "@ckeditor/ckeditor5-font": "workspace:*",
+    "@ckeditor/ckeditor5-heading": "workspace:*",
+    "@ckeditor/ckeditor5-highlight": "workspace:*",
+    "@ckeditor/ckeditor5-horizontal-line": "workspace:*",
+    "@ckeditor/ckeditor5-html-embed": "workspace:*",
+    "@ckeditor/ckeditor5-html-support": "workspace:*",
+    "@ckeditor/ckeditor5-image": "workspace:*",
+    "@ckeditor/ckeditor5-indent": "workspace:*",
+    "@ckeditor/ckeditor5-language": "workspace:*",
+    "@ckeditor/ckeditor5-link": "workspace:*",
+    "@ckeditor/ckeditor5-list": "workspace:*",
+    "@ckeditor/ckeditor5-mention": "workspace:*",
+    "@ckeditor/ckeditor5-page-break": "workspace:*",
+    "@ckeditor/ckeditor5-paragraph": "workspace:*",
+    "@ckeditor/ckeditor5-paste-from-office": "workspace:*",
+    "@ckeditor/ckeditor5-remove-format": "workspace:*",
+    "@ckeditor/ckeditor5-source-editing": "workspace:*",
+    "@ckeditor/ckeditor5-style": "workspace:*",
+    "@ckeditor/ckeditor5-table": "workspace:*",
+    "@ckeditor/ckeditor5-typing": "workspace:*",
+    "@ckeditor/ckeditor5-undo": "workspace:*",
+    "@vitest/browser-playwright": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
   "scripts": {
-    "build": "tsc -p ./tsconfig.json"
-  }
+    "build": "node ../../scripts/nim/build-package.mjs",
+    "coverage": "pnpm run test --coverage",
+    "test": "vitest run",
+    "test:debug": "vitest --browser.headless=false",
+    "test:browser": "vitest run --browser.headless=false"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ]
 }

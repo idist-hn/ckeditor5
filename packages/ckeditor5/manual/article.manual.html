@@ -1,0 +1,51 @@
+<!doctype html>
+<head>
+	<meta charset="utf-8" />
+	<title>Article</title>
+	<style>
+		.container {
+			max-width: 800px;
+			margin: 20px auto;
+		}
+	</style>
+	<script type="module" src="./article.ts"></script>
+</head>
+
+<ck-manual-header>
+	<h1>Article plugin set</h1>
+	<p>Check whether all the available features work together.</p>
+	<p>
+		Use the picker to rebuild the editor inside an open or a closed shadow root. The light DOM is the default
+		here – this is a general-purpose test that happens to offer the shadow modes, not a test of them.
+	</p>
+</ck-manual-header>
+
+<ck-manual-shadow-mode default="none" overlay-container></ck-manual-shadow-mode>
+
+<div class="container">
+	<div id="editor">
+		<h2>Heading 1</h2>
+		<p>Paragraph</p>
+		<p><strong>Bold</strong> <i>Italic</i> <a href="https://ckeditor.com">Link</a></p>
+		<ul>
+			<li>UL List item 1</li>
+			<li>UL List item 2</li>
+		</ul>
+		<ol>
+			<li>OL List item 1</li>
+			<li>OL List item 2</li>
+		</ol>
+		<figure class="image image-style-side">
+			<img alt="bar" src="/images/sample.jpg" />
+			<figcaption>Caption</figcaption>
+		</figure>
+		<blockquote>
+			<p>Quote</p>
+			<ul>
+				<li>Quoted UL List item 1</li>
+				<li>Quoted UL List item 2</li>
+			</ul>
+			<p>Quote</p>
+		</blockquote>
+	</div>
+</div>

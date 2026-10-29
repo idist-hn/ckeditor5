@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/bindings/submithandler
  */
 
-import type View from '../view';
+import { type View } from '../view.js';
 
 /**
  * A handler useful for {@link module:ui/view~View views} working as HTML forms. It intercepts a native DOM
@@ -16,7 +16,7 @@ import type View from '../view';
  * {@link module:utils/dom/emittermixin~DomEmitter emitter}, e.g. to serialize the form data.
  *
  * ```ts
- * import submitHandler from '@ckeditor/ckeditor5-ui/src/bindings/submithandler';
+ * import { submitHandler } from '@ckeditor/ckeditor5-ui/src/bindings/submithandler';
  *
  * // ...
  *
@@ -46,7 +46,7 @@ import type View from '../view';
  * @param options Configuration options.
  * @param options.view The view which DOM `submit` events should be handled.
  */
-export default function submitHandler( { view }: { view: View } ): void {
+export function submitHandler( { view }: { view: View } ): void {
 	view.listenTo( view.element!, 'submit', ( evt, domEvt ) => {
 		domEvt.preventDefault();
 		view.fire<SubmitHandlerEvent>( 'submit' );

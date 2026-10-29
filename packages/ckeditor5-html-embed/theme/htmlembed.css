@@ -1,10 +1,26 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+:root,
+:host {
+	--ck-html-embed-content-width: calc(100% - 1.5 * var(--ck-icon-size));
+	--ck-html-embed-source-height: 10em;
+	--ck-html-embed-unfocused-outline-width: 1px;
+	--ck-html-embed-content-min-height: calc(var(--ck-icon-size) + var(--ck-spacing-standard, var(--ck-spacing-base)));
+
+	--ck-html-embed-background: var(--ck-color-surface-subtle);
+	--ck-html-embed-button-hover-background: var(--ck-color-interactive-primary-surface-muted);
+	--ck-html-embed-source-disabled-background: var(--ck-color-surface-subtle);
+	--ck-html-embed-source-disabled-color: var(--ck-color-text-disabled);
+}
+
 /* The feature container. */
+
 .ck-widget.raw-html-embed {
+	font-size: var(--ck-font-size-normal, var(--ck-font-size-base));
+	background-color: var(--ck-html-embed-background);
 	/* Give the embed some air. */
 	/* The first value should be equal to --ck-spacing-large variable if used in the editor context
 	to avoid the content jumping (See https://github.com/ckeditor/ckeditor5/issues/9825). */
@@ -16,34 +32,147 @@
 	from being "squashed" in tight spaces, e.g. in table cells (https://github.com/ckeditor/ckeditor5/issues/8331) */
 	min-width: 15em;
 
-	/* Don't inherit the style, e.g. when in a block quote. */
-	font-style: normal;
+	&:not(.ck-widget_selected):not(:hover) {
+		outline: var(--ck-html-embed-unfocused-outline-width) dashed var(--ck-color-widget-blurred-border, var(--ck-widget-blurred-border-color));
+	}
 
-	/* ----- Emebed label in the upper left corner ----------------------------------------------- */
+	/* HTML embed widget itself should respect UI language direction */
+	&[dir="ltr"] {
+		text-align: left;
+	}
+
+	&[dir="rtl"] {
+		text-align: right;
+	}
+
+	/* ----- Embed label in the upper left corner ----------------------------------------------- */
 
 	&::before {
+		content: attr(data-html-embed-label);
+		top: calc(-1 * var(--ck-html-embed-unfocused-outline-width));
+		left: var(--ck-spacing-standard, var(--ck-spacing-base));
+		background: var(--ck-color-base-text-light);
+		transition: background var(--ck-widget-handler-animation-duration) var(--ck-widget-handler-animation-curve);
+		padding: calc(var(--ck-spacing-tiny, var(--ck-spacing-xs)) + var(--ck-html-embed-unfocused-outline-width)) var(--ck-spacing-small, var(--ck-spacing-sm)) var(--ck-spacing-tiny, var(--ck-spacing-xs));
+		border-radius: var(--ck-widget-label-border-radius);
+		color: var(--ck-color-base-background);
+		font-size: var(--ck-font-size-tiny, var(--ck-font-size-xs));
+		font-family: var(--ck-font-face, var(--ck-font-family));
 		position: absolute;
 
 		/* Make sure the content does not cover the label. */
 		z-index: 1;
 	}
 
+	&[dir="rtl"]::before {
+		left: auto;
+		right: var(--ck-spacing-standard, var(--ck-spacing-base));
+	}
+
+	/* Make space for label but it only collides in LTR languages */
+	&[dir="ltr"] .ck-widget__type-around .ck-widget__type-around__button.ck-widget__type-around__button_before {
+		margin-left: 50px;
+	}
+
+	.ck.ck-editor__editable.ck-blurred &.ck-widget_selected::before {
+		top: 0px;
+		padding: var(--ck-spacing-tiny, var(--ck-spacing-xs)) var(--ck-spacing-small, var(--ck-spacing-sm));
+	}
+
+	.ck.ck-editor__editable:not(.ck-blurred) &.ck-widget_selected::before {
+		top: 0;
+		padding: var(--ck-spacing-tiny, var(--ck-spacing-xs)) var(--ck-spacing-small, var(--ck-spacing-sm));
+		background: var(--ck-color-focus-border, var(--ck-color-interactive-focus-border));
+	}
+
+	.ck.ck-editor__editable &:not(.ck-widget_selected):hover::before {
+		top: 0px;
+		padding: var(--ck-spacing-tiny, var(--ck-spacing-xs)) var(--ck-spacing-small, var(--ck-spacing-sm));
+	}
+
 	/* ----- Emebed internals --------------------------------------------------------------------- */
+
+	& .raw-html-embed__content-wrapper {
+		padding: var(--ck-spacing-standard, var(--ck-spacing-base));
+	}
 
 	/* The switch mode button wrapper. */
 	& .raw-html-embed__buttons-wrapper {
+		top: var(--ck-spacing-standard, var(--ck-spacing-base));
+		right: var(--ck-spacing-standard, var(--ck-spacing-base));
 		position: absolute;
 		display: flex;
-		flex-direction: column;
+
+		/* The muted hover applies to all action buttons (save, cancel, edit). The token has to be
+		set on the button itself because `.ck.ck-button` declares its own `--ck-button-hover-background`. */
+		& .ck-button {
+			--ck-button-hover-background: var(--ck-html-embed-button-hover-background);
+		}
+
+		& .ck-button.raw-html-embed__save-button {
+			color: var(--ck-color-button-save, var(--ck-button-save-color));
+		}
+
+		& .ck-button.raw-html-embed__cancel-button {
+			color: var(--ck-color-button-cancel, var(--ck-button-cancel-color));
+		}
+
+		& .ck-button:not(:first-child) {
+			margin-top: var(--ck-spacing-small, var(--ck-spacing-sm));
+		}
+		flex-direction: column
 	}
 
+	&[dir="rtl"] .raw-html-embed__buttons-wrapper {
+		left: var(--ck-spacing-standard, var(--ck-spacing-base));
+		right: auto;
+	}
+
+	/* The edit source element. */
+	& .raw-html-embed__source {
+		box-sizing: border-box;
+		height: var(--ck-html-embed-source-height);
+		width: var(--ck-html-embed-content-width);
+		resize: none;
+		min-width: 0;
+		padding: var(--ck-spacing-standard, var(--ck-spacing-base));
+
+		font-family: monospace;
+		tab-size: 4;
+		white-space: pre-wrap;
+		font-size: var(--ck-font-size-normal, var(--ck-font-size-base)); /* Safari needs this. */
+
+		/* HTML code is direction–agnostic. */
+		text-align: left;
+		direction: ltr;
+
+		&[disabled] {
+			background: var(--ck-html-embed-source-disabled-background);
+			color: var(--ck-html-embed-source-disabled-color);
+
+			/* Safari needs this for the proper text color in disabled input (https://github.com/ckeditor/ckeditor5/issues/8320). */
+			-webkit-text-fill-color: var(--ck-html-embed-source-disabled-color);
+			opacity: 1;
+		}
+	}
+
+	/* The preview data container. */
 	& .raw-html-embed__preview {
+		min-height: var(--ck-html-embed-content-min-height);
+		width: var(--ck-html-embed-content-width);
 		position: relative;
 		overflow: hidden;
-		display: flex;
+
+		/* Disable all mouse interaction as long as the editor is not read–only. */
+		.ck-editor__editable:not(.ck-read-only) & {
+			pointer-events: none;
+		}
+		display: flex
 	}
 
 	& .raw-html-embed__preview-content {
+		box-sizing: border-box;
+		background-color: var(--ck-color-surface-subtle);
 		width: 100%;
 		position: relative;
 		margin: auto;
@@ -51,10 +180,16 @@
 		/* Gives spacing to the small renderable elements, so they always cover the placeholder. */
 		display: table;
 		border-collapse: separate;
-		border-spacing: 7px;
+
+		& > * {
+			margin-left: auto;
+			margin-right: auto;
+		}
+		border-spacing: 7px
 	}
 
 	& .raw-html-embed__preview-placeholder {
+		color: var(--ck-html-embed-source-disabled-color);
 		position: absolute;
 		left: 0;
 		top: 0;
@@ -63,6 +198,15 @@
 
 		display: flex;
 		align-items: center;
-		justify-content: center;
+		justify-content: center
 	}
+
+	/* Don't inherit the style, e.g. when in a block quote. */
+	font-style: normal
+
+	/* ----- Emebed label in the upper left corner ----------------------------------------------- */
+
+	/* ----- Emebed internals --------------------------------------------------------------------- */
+
+	/* The switch mode button wrapper. */
 }

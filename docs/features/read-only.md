@@ -2,11 +2,10 @@
 category: features
 modified_at: 2021-11-15
 meta-title: Read-only support | CKEditor 5 Documentation
+meta-descritpion: Learn how to make CKEditor 5 read-only to prevent content editing. Enable, toggle, and configure read-only mode for specific use cases.
 ---
 
 # Read-only support
-
-{@snippet features/read-only-build}
 
 CKEditor&nbsp;5 offers an out-of-the-box read-only mode. You can use it to prevent users under certain circumstances from editing your content.
 
@@ -14,21 +13,20 @@ CKEditor&nbsp;5 offers an out-of-the-box read-only mode. You can use it to preve
 
 Use the button below to toggle the read-only mode. Some features, like exports or search, are still functional in the read-only mode. Others, like the replace function, are disabled.
 
+<br />
+<ck:button id="snippet-read-only-toggle">Switch to read-only mode</ck:button>
+
 {@snippet features/read-only}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 <info-box>
 	You can see that after switching to read-only mode, some of the toolbar items are still active and functional. It happens thanks to the {@link module:core/command~Command#affectsData `affectsData` property}. For most of the plugins, it is set to `true` by default, which makes them inactive when entering read-only mode. However, for those plugins that do not make any changes in the model &ndash; do not affect the content &ndash; it is set to `false`, thus allowing to still make use of them in modes with restricted user write permissions.
 </info-box>
 
 ## Additional feature information
-
-<info-box info>
-	This feature is available in all {@link installation/getting-started/predefined-builds#available-builds predefined builds}.
-</info-box>
 
 The feature does not require any additional plugin and the editor can be set into a read-only mode using the editor's {@link module:core/editor/editor~Editor#enableReadOnlyMode `Editor#enableReadOnlyMode()`} method.
 
@@ -48,7 +46,7 @@ Some use cases might require hiding the editor toolbar when entering the read-on
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
 		// The editor's configuration.
 		// ...
 	} )
@@ -71,6 +69,9 @@ ClassicEditor
 When the button is clicked, the `editor.enableReadOnlyMode()` creates a lock that sets the read-only mode on the editor. This triggers the code showed above, which in turn hides the toolbar using CSS styles. After clicking the button once more, the `editor.disableReadOnlyMode()` is called, which removes the read-only lock and the editor's and the toolbar is visible again. This approach will work both for classic and decoupled editors.
 
 Use the demo below to see this code in action. Toggle the read-only mode with the button. You will see that the toolbar disappears in the read-only mode.
+
+<br />
+<ck:button id="snippet-read-only-toggle-toolbar">Switch to read-only mode</ck:button>
 
 {@snippet features/read-only-hide-toolbar}
 

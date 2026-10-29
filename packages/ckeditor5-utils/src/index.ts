@@ -1,24 +1,44 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
- * @module utils
+ * @module utils/index
  */
 
-export { default as env } from './env';
-export { default as diff, type DiffResult } from './diff';
-export { default as fastDiff } from './fastdiff';
-export { default as diffToChanges } from './difftochanges';
+export {
+	env,
+	getUserAgent as _getUserAgent,
+	isMac as _isMac,
+	isWindows as _isWindows,
+	isGecko as _isGecko,
+	isSafari as _isSafari,
+	isiOS as _isiOS,
+	isAndroid as _isAndroid,
+	isBlink as _isBlink,
+	isRegExpUnicodePropertySupported as _isRegExpUnicodePropertySupported,
+	isMediaForcedColors as _isMediaForcedColors,
+	isMotionReduced as _isMotionReduced,
+	type EnvType,
+	type EnvFeaturesType
+} from './env.js';
 
-export { default as mix } from './mix';
+export { diff, type Diff, type DiffResult } from './diff.js';
+export { fastDiff } from './fastdiff.js';
+export { diffToChanges, type InsertChange, type DeleteChange, type Change } from './difftochanges.js';
 
-export type { Constructor, Mixed } from './mix';
+export { areConnectedThroughProperties } from './areconnectedthroughproperties.js';
+
+export type { Constructor, Mixed } from './mix.js';
 
 export {
-	default as EmitterMixin,
+	_getEmitterListenedTo,
+	_setEmitterId,
+	_getEmitterId,
+	EmitterMixin,
 	type Emitter,
+	type EmitterMixinConstructor,
 	type BaseEvent,
 	type CallbackOptions,
 	type EmitterMixinDelegateChain,
@@ -26,70 +46,166 @@ export {
 	type GetCallbackOptions,
 	type GetEventInfo,
 	type GetNameOrEventInfo
-} from './emittermixin';
+} from './emittermixin.js';
 
-export { default as EventInfo } from './eventinfo';
+export { EventInfo } from './eventinfo.js';
 
 export {
-	default as ObservableMixin,
+	ObservableMixin,
 	type Observable,
+	type ObservableMixinConstructor,
 	type DecoratedMethodEvent,
 	type ObservableChangeEvent,
-	type ObservableSetEvent
-} from './observablemixin';
+	type ObservableSetEvent,
+	type ObservableSingleBindChain,
+	type ObservableDualBindChain,
+	type ObservableMultiBindChain,
+	type ObservableWithProperty
+} from './observablemixin.js';
 
-export { default as CKEditorError, logError, logWarning } from './ckeditorerror';
+export { CKEditorError, logError, logWarning, DOCUMENTATION_URL } from './ckeditorerror.js';
 
-export { default as ElementReplacer } from './elementreplacer';
-
-export { default as count } from './count';
-export { default as compareArrays } from './comparearrays';
-export { default as createElement } from './dom/createelement';
-export { default as Config } from './config';
-export { default as isIterable } from './isiterable';
-export { default as DomEmitterMixin, type DomEmitter } from './dom/emittermixin';
-export { default as findClosestScrollableAncestor } from './dom/findclosestscrollableancestor';
-export { default as global } from './dom/global';
-export { default as getAncestors } from './dom/getancestors';
-export { default as getDataFromElement } from './dom/getdatafromelement';
-export { default as getBorderWidths } from './dom/getborderwidths';
-export { default as isText } from './dom/istext';
-export { default as Rect, type RectSource } from './dom/rect';
-export { default as ResizeObserver } from './dom/resizeobserver';
-export { default as setDataInElement } from './dom/setdatainelement';
-export { default as toUnit } from './dom/tounit';
-export { default as indexOf } from './dom/indexof';
-export { default as insertAt } from './dom/insertat';
-export { default as isComment } from './dom/iscomment';
-export { default as isNode } from './dom/isnode';
-export { default as isRange } from './dom/isrange';
-export { default as isValidAttributeName } from './dom/isvalidattributename';
-export { default as isVisible } from './dom/isvisible';
-export { getOptimalPosition, type Options as PositionOptions, type PositioningFunction, type Position } from './dom/position';
-export { default as remove } from './dom/remove';
-export * from './dom/scroll';
-
-export * from './keyboard';
-export * from './language';
-export { default as Locale, type LocaleTranslate } from './locale';
+export { ElementReplacer } from './elementreplacer.js';
+export { abortableDebounce, type AbortableFunc } from './abortabledebounce.js';
+export { count } from './count.js';
+export { compareArrays, type ArrayRelation } from './comparearrays.js';
+export { createElement, type HTMLElementAttributes, type SVGElementAttributes, type ChildrenElements } from './dom/createelement.js';
+export { Config, type GetSubConfig, type OnlyObject } from './config.js';
+export { isIterable } from './isiterable.js';
+export { DomEmitterMixin, type DomEmitter, type DomEmitterMixinConstructor, type DomEventMap } from './dom/emittermixin.js';
+export { findClosestScrollableAncestor } from './dom/findclosestscrollableancestor.js';
+export { global, type GlobalType } from './dom/global.js';
+export { containsNode } from './dom/containsnode.js';
+export { getLayoutParentNode } from './dom/getlayoutparentnode.js';
+export { getLayoutParentElement } from './dom/getlayoutparentelement.js';
+export { getAncestors } from './dom/getancestors.js';
+export { getDataFromElement } from './dom/getdatafromelement.js';
+export { getBorderWidths, type BorderWidths } from './dom/getborderwidths.js';
+export { getRangeFromMouseEvent } from './dom/getrangefrommouseevent.js';
+export { getElementFromPoint } from './dom/getelementfrompoint.js';
+export { getPositionedAncestor } from './dom/getpositionedancestor.js';
+export { getActiveElement } from './dom/getactiveelement.js';
+export { getShadowRoots } from './dom/getshadowroots.js';
+export { getEventRoots } from './dom/geteventroots.js';
+export { DomTargetsListener, type DomTargetsListenerOptions } from './dom/domtargetslistener.js';
+export { getOverlayMountRoot } from './dom/getoverlaymountroot.js';
+export { adoptGlobalStyleSheet } from './dom/adoptglobalstylesheet.js';
+export { getParentElement } from './dom/getparentelement.js';
+export { getParentNode } from './dom/getparentnode.js';
+export { getSelection, ShadowSelection } from './dom/getselection.js';
+export { isText } from './dom/istext.js';
+export { isWindow } from './dom/iswindow.js';
+export { Rect, type RectSource, type DomRectLike } from './dom/rect.js';
+export { ResizeObserver } from './dom/resizeobserver.js';
+export { setDataInElement } from './dom/setdatainelement.js';
+export { trustedHtml, isTrustedTypesEnforced, _trustedAttributeValue, _clearTrustedTypesCache } from './dom/trustedtypes.js';
+export { toUnit, type ToUnitHelper } from './dom/tounit.js';
+export { indexOf } from './dom/indexof.js';
+export { insertAt } from './dom/insertat.js';
+export { isComment } from './dom/iscomment.js';
+export { isProcessingInstruction } from './dom/isprocessinginstruction.js';
+export { isDomSelectionBackward } from './dom/isdomselectionbackward.js';
+export { isOffline } from './dom/isoffline.js';
+export { isNode } from './dom/isnode.js';
+export { isRange } from './dom/isrange.js';
+export { isShadowRoot } from './dom/isshadowroot.js';
+export { isShadowHostOf } from './dom/isshadowhostof.js';
+export { whenElementConnected } from './dom/whenelementconnected.js';
 export {
-	default as Collection,
+	ShadowRootRegistry,
+	listenToShadowRoots,
+	listenToEventRoots,
+	type ShadowRootRegistryAddEvent,
+	type ShadowRootRegistryRemoveEvent,
+	type ShadowRootRegistryChangeEventRootsEvent
+} from './dom/shadowrootregistry.js';
+export { isValidAttributeName } from './dom/isvalidattributename.js';
+export { isVisible } from './dom/isvisible.js';
+export {
+	getOptimalPosition,
+	getConstrainedViewportRect,
+	type DomOptimalPositionOptions,
+	type PositioningFunction,
+	type DomPoint,
+	type DomPositioningFunctionResult
+} from './dom/position.js';
+export { remove } from './dom/remove.js';
+export { getVisualViewportOffset } from './dom/getvisualviewportoffset.js';
+
+export {
+	scrollAncestorsToShowTarget,
+	scrollViewportToShowTarget,
+	type IfTrue
+} from './dom/scroll.js';
+
+export {
+	type ArrowKeyCodeDirection,
+	type KeystrokeInfo,
+	keyCodes,
+	getCode,
+	parseKeystroke,
+	getEnvKeystrokeText,
+	isArrowKeyCode,
+	getLocalizedArrowKeyCodeDirection,
+	isForwardArrowKeyCode
+} from './keyboard.js';
+
+export { type LanguageDirection, getLanguageDirection } from './language.js';
+export { Locale, type LocaleTranslate, type Translations } from './locale.js';
+export {
+	Collection,
 	type CollectionAddEvent,
 	type CollectionChangeEvent,
-	type CollectionRemoveEvent
-} from './collection';
-export { default as first } from './first';
-export { default as FocusTracker } from './focustracker';
-export { default as KeystrokeHandler } from './keystrokehandler';
-export { default as toArray, type ArrayOrItem, type ReadonlyArrayOrItem } from './toarray';
-export { default as toMap } from './tomap';
-export { default as priorities, type PriorityString } from './priorities';
-export { default as insertToPriorityArray } from './inserttopriorityarray';
-export { default as spliceArray } from './splicearray';
+	type CollectionRemoveEvent,
+	type CollectionChangeEventData,
+	type CollectionBindToChain
+} from './collection.js';
+export { first } from './first.js';
+export { nth } from './nth.js';
+export { FocusTracker, type ViewWithFocusTracker, isViewWithFocusTracker } from './focustracker.js';
+export { KeystrokeHandler, type KeystrokeHandlerOptions } from './keystrokehandler.js';
+export { toArray, type ArrayOrItem, type ReadonlyArrayOrItem } from './toarray.js';
+export { toMap } from './tomap.js';
+export { mapsEqual } from './mapsequal.js';
+export { objectToMap } from './objecttomap.js';
+export {
+	add,
+	_translate,
+	_clear as _clearTranslations,
+	_unifyTranslations,
+	type Message
+} from './translation-service.js';
 
-export { default as uid } from './uid';
-export { default as delay, type DelayedFunc } from './delay';
-export { default as verifyLicense } from './verifylicense';
-export * from './unicode';
+export { priorities, type PriorityString, type PrioritiesType } from './priorities.js';
+export { retry, exponentialDelay } from './retry.js';
+export { insertToPriorityArray, type ObjectWithPriority } from './inserttopriorityarray.js';
+export { spliceArray } from './splicearray.js';
 
-export { default as version, releaseDate } from './version';
+export { uid } from './uid.js';
+export { delay, type DelayedFunc } from './delay.js';
+export { wait } from './wait.js';
+export { parseBase64EncodedObject } from './parsebase64encodedobject.js';
+export { crc32, type CRCData, type CRCValue } from './crc32.js';
+export { collectStylesheets } from './collectstylesheets.js';
+export { formatHtml } from './formathtml.js';
+export { spy } from './spy.js';
+
+export {
+	isCombiningMark,
+	isHighSurrogateHalf,
+	isLowSurrogateHalf,
+	isInsideSurrogatePair,
+	isInsideCombinedSymbol,
+	isInsideEmojiSequence
+} from './unicode.js';
+
+export { decodeLicenseKey } from './decodelicensekey.js';
+export { isFeatureBlockedByLicenseKey } from './isfeatureblockedbylicensekey.js';
+
+export {
+	tryParseDimensionWithUnit as _tryParseDimensionWithUnit,
+	tryCastDimensionsToUnit as _tryCastDimensionsToUnit,
+	type DimensionWithUnit as _DimensionWithUnit
+} from './parsedimensionwithunit.js';
+
+export { version, releaseDate } from './version.js';

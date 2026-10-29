@@ -1,19 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import Table from '../../../src/table';
-import TableCellProperties from '../../../src/tablecellproperties';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { Table } from '../../../src/table.js';
+import { TableCellProperties } from '../../../src/tablecellproperties.js';
+import { global, Collection } from '@ckeditor/ckeditor5-utils';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { View, ButtonView, LabeledFieldView, ToolbarView } from '@ckeditor/ckeditor5-ui';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
 
-import LabeledFieldView from '@ckeditor/ckeditor5-ui/src/labeledfield/labeledfieldview';
-import ColorInputView from '../../../src/ui/colorinputview';
-import ToolbarView from '@ckeditor/ckeditor5-ui/src/toolbar/toolbarview';
+import { ColorInputView } from '../../../src/ui/colorinputview.js';
 
 import {
 	getBorderStyleDefinitions,
@@ -23,16 +21,14 @@ import {
 	lengthFieldValidator,
 	lineWidthFieldValidator,
 	colorFieldValidator,
+	defaultColors,
 	fillToolbar,
 	getLabeledColorInputCreator
-} from '../../../src/utils/ui/table-properties';
-import Collection from '@ckeditor/ckeditor5-utils/src/collection';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+} from '../../../src/utils/ui/table-properties.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'table utils', () => {
 	let editor, editorElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = global.document.createElement( 'div' );
@@ -40,7 +36,7 @@ describe( 'table utils', () => {
 
 		return ClassicEditor
 			.create( editorElement, {
-				plugins: [ Table, TableCellProperties, Paragraph ]
+				plugins: [ Table, TableCellProperties, Paragraph, ClipboardPipeline ]
 			} )
 			.then( newEditor => {
 				editor = newEditor;
@@ -58,7 +54,7 @@ describe( 'table utils', () => {
 			it( 'should return labels for different border styles', () => {
 				const t = string => string;
 
-				expect( getBorderStyleLabels( t ) ).to.deep.equal( {
+				expect( getBorderStyleLabels( t ) ).toEqual( {
 					none: 'None',
 					solid: 'Solid',
 					dotted: 'Dotted',
@@ -76,7 +72,7 @@ describe( 'table utils', () => {
 			it( 'should return the error text', () => {
 				const t = string => string;
 
-				expect( getLocalizedColorErrorText( t ) ).to.match( /^The color is invalid/ );
+				expect( getLocalizedColorErrorText( t ) ).toMatch( /^The color is invalid/ );
 			} );
 		} );
 
@@ -84,99 +80,105 @@ describe( 'table utils', () => {
 			it( 'should return the error text', () => {
 				const t = string => string;
 
-				expect( getLocalizedLengthErrorText( t ) ).to.match( /^The value is invalid/ );
+				expect( getLocalizedLengthErrorText( t ) ).toMatch( /^The value is invalid/ );
 			} );
 		} );
 
 		describe( 'colorFieldValidator()', () => {
 			it( 'should pass for an empty value', () => {
-				expect( colorFieldValidator( '' ) ).to.be.true;
+				expect( colorFieldValidator( '' ) ).toBe( true );
 			} );
 
 			it( 'should pass for white spaces', () => {
-				expect( colorFieldValidator( '  ' ) ).to.be.true;
+				expect( colorFieldValidator( '  ' ) ).toBe( true );
 			} );
 
 			it( 'should pass for colors', () => {
-				expect( colorFieldValidator( '#FFF' ) ).to.be.true;
-				expect( colorFieldValidator( '#FFAA11' ) ).to.be.true;
-				expect( colorFieldValidator( 'rgb(255,123,100)' ) ).to.be.true;
-				expect( colorFieldValidator( 'RGB(255,123,100)' ) ).to.be.true;
-				expect( colorFieldValidator( 'RED' ) ).to.be.true;
-				expect( colorFieldValidator( 'red' ) ).to.be.true;
+				expect( colorFieldValidator( '#FFF' ) ).toBe( true );
+				expect( colorFieldValidator( '#FFAA11' ) ).toBe( true );
+				expect( colorFieldValidator( 'rgb(255,123,100)' ) ).toBe( true );
+				expect( colorFieldValidator( 'RGB(255,123,100)' ) ).toBe( true );
+				expect( colorFieldValidator( 'RED' ) ).toBe( true );
+				expect( colorFieldValidator( 'red' ) ).toBe( true );
 			} );
 
 			it( 'should pass for colors surrounded by white spaces', () => {
-				expect( colorFieldValidator( ' #AAA ' ) ).to.be.true;
-				expect( colorFieldValidator( ' rgb(255,123,100) ' ) ).to.be.true;
+				expect( colorFieldValidator( ' #AAA ' ) ).toBe( true );
+				expect( colorFieldValidator( ' rgb(255,123,100) ' ) ).toBe( true );
+			} );
+
+			it( 'should pass for every color of the default palette', () => {
+				const invalidColors = defaultColors.filter( ( { color } ) => !colorFieldValidator( color ) );
+
+				expect( invalidColors ).toEqual( [] );
 			} );
 		} );
 
 		describe( 'lengthFieldValidator()', () => {
 			it( 'should pass for an empty value', () => {
-				expect( lengthFieldValidator( '' ) ).to.be.true;
+				expect( lengthFieldValidator( '' ) ).toBe( true );
 			} );
 
 			it( 'should pass for white spaces', () => {
-				expect( lengthFieldValidator( '  ' ) ).to.be.true;
+				expect( lengthFieldValidator( '  ' ) ).toBe( true );
 			} );
 
 			it( 'should pass for lengths', () => {
-				expect( lengthFieldValidator( '1px' ) ).to.be.true;
-				expect( lengthFieldValidator( '12em' ) ).to.be.true;
-				expect( lengthFieldValidator( ' 12em ' ) ).to.be.true;
-				expect( lengthFieldValidator( '45%' ) ).to.be.true;
+				expect( lengthFieldValidator( '1px' ) ).toBe( true );
+				expect( lengthFieldValidator( '12em' ) ).toBe( true );
+				expect( lengthFieldValidator( ' 12em ' ) ).toBe( true );
+				expect( lengthFieldValidator( '45%' ) ).toBe( true );
 			} );
 
 			it( 'should pass for number without unit', () => {
-				expect( lengthFieldValidator( '1' ) ).to.be.true;
-				expect( lengthFieldValidator( '12.1' ) ).to.be.true;
-				expect( lengthFieldValidator( '0.125 ' ) ).to.be.true;
+				expect( lengthFieldValidator( '1' ) ).toBe( true );
+				expect( lengthFieldValidator( '12.1' ) ).toBe( true );
+				expect( lengthFieldValidator( '0.125 ' ) ).toBe( true );
 			} );
 
 			it( 'should not pass for invalid number values', () => {
-				expect( lengthFieldValidator( '.1 ' ) ).to.be.false;
-				expect( lengthFieldValidator( '45. ' ) ).to.be.false;
-				expect( lengthFieldValidator( '45.1.1 ' ) ).to.be.false;
+				expect( lengthFieldValidator( '.1 ' ) ).toBe( false );
+				expect( lengthFieldValidator( '45. ' ) ).toBe( false );
+				expect( lengthFieldValidator( '45.1.1 ' ) ).toBe( false );
 			} );
 
 			it( 'should pass for lengths surrounded by white spaces', () => {
-				expect( lengthFieldValidator( '3px ' ) ).to.be.true;
-				expect( lengthFieldValidator( ' 12em ' ) ).to.be.true;
+				expect( lengthFieldValidator( '3px ' ) ).toBe( true );
+				expect( lengthFieldValidator( ' 12em ' ) ).toBe( true );
 			} );
 		} );
 
 		describe( 'lineWidthFieldValidator()', () => {
 			it( 'should pass for an empty value', () => {
-				expect( lineWidthFieldValidator( '' ) ).to.be.true;
+				expect( lineWidthFieldValidator( '' ) ).toBe( true );
 			} );
 
 			it( 'should pass for white spaces', () => {
-				expect( lineWidthFieldValidator( '  ' ) ).to.be.true;
+				expect( lineWidthFieldValidator( '  ' ) ).toBe( true );
 			} );
 
 			it( 'should pass for lengths', () => {
-				expect( lineWidthFieldValidator( '1px' ) ).to.be.true;
-				expect( lineWidthFieldValidator( '12em' ) ).to.be.true;
-				expect( lineWidthFieldValidator( ' 12em ' ) ).to.be.true;
+				expect( lineWidthFieldValidator( '1px' ) ).toBe( true );
+				expect( lineWidthFieldValidator( '12em' ) ).toBe( true );
+				expect( lineWidthFieldValidator( ' 12em ' ) ).toBe( true );
 			} );
 
 			it( 'should pass for number without unit', () => {
-				expect( lineWidthFieldValidator( '1' ) ).to.be.true;
-				expect( lineWidthFieldValidator( '12.1' ) ).to.be.true;
-				expect( lineWidthFieldValidator( '0.125 ' ) ).to.be.true;
+				expect( lineWidthFieldValidator( '1' ) ).toBe( true );
+				expect( lineWidthFieldValidator( '12.1' ) ).toBe( true );
+				expect( lineWidthFieldValidator( '0.125 ' ) ).toBe( true );
 			} );
 
 			it( 'should not pass for invalid number values', () => {
-				expect( lineWidthFieldValidator( '.1 ' ) ).to.be.false;
-				expect( lineWidthFieldValidator( '45. ' ) ).to.be.false;
-				expect( lineWidthFieldValidator( '45.1.1 ' ) ).to.be.false;
-				expect( lineWidthFieldValidator( '45%' ) ).to.be.false;
+				expect( lineWidthFieldValidator( '.1 ' ) ).toBe( false );
+				expect( lineWidthFieldValidator( '45. ' ) ).toBe( false );
+				expect( lineWidthFieldValidator( '45.1.1 ' ) ).toBe( false );
+				expect( lineWidthFieldValidator( '45%' ) ).toBe( false );
 			} );
 
 			it( 'should pass for lengths surrounded by white spaces', () => {
-				expect( lineWidthFieldValidator( '3px ' ) ).to.be.true;
-				expect( lineWidthFieldValidator( ' 12em ' ) ).to.be.true;
+				expect( lineWidthFieldValidator( '3px ' ) ).toBe( true );
+				expect( lineWidthFieldValidator( ' 12em ' ) ).toBe( true );
 			} );
 		} );
 
@@ -192,15 +194,15 @@ describe( 'table utils', () => {
 			} );
 
 			it( 'should return a collection', () => {
-				expect( definitions ).to.be.instanceOf( Collection );
+				expect( definitions ).toBeInstanceOf( Collection );
 			} );
 
 			it( 'should create a button definition for each style', () => {
-				expect( definitions.map( ( { type } ) => type ).every( item => item === 'button' ) ).to.be.true;
+				expect( definitions.map( ( { type } ) => type ).every( item => item === 'button' ) ).toBe( true );
 			} );
 
 			it( 'should set label of a button for each style', () => {
-				expect( definitions.map( ( { model: { label } } ) => label ) ).to.have.ordered.members( [
+				expect( definitions.map( ( { model: { label } } ) => label ) ).toEqual( [
 					'None',
 					'Solid',
 					'Dotted',
@@ -214,13 +216,13 @@ describe( 'table utils', () => {
 			} );
 
 			it( 'should set type of a button for each style', () => {
-				expect( definitions.map( ( { model: { withText } } ) => withText ).every( item => item === true ) ).to.be.true;
+				expect( definitions.map( ( { model: { withText } } ) => withText ).every( item => item === true ) ).toBe( true );
 			} );
 
 			it( 'should bind button\'s #isOn to the view #borderStyle property', () => {
 				view.borderStyle = 'dotted';
 
-				expect( definitions.map( ( { model: { isOn } } ) => isOn ) ).to.have.ordered.members( [
+				expect( definitions.map( ( { model: { isOn } } ) => isOn ) ).toEqual( [
 					false,
 					false,
 					true,
@@ -234,7 +236,7 @@ describe( 'table utils', () => {
 
 				view.borderStyle = 'inset';
 
-				expect( definitions.map( ( { model: { isOn } } ) => isOn ) ).to.have.ordered.members( [
+				expect( definitions.map( ( { model: { isOn } } ) => isOn ) ).toEqual( [
 					false,
 					false,
 					false,
@@ -248,7 +250,7 @@ describe( 'table utils', () => {
 			} );
 
 			it( 'should set role of a button for each style', () => {
-				expect( definitions.map( ( { model: { role } } ) => role ).every( item => item === 'menuitemradio' ) ).to.be.true;
+				expect( definitions.map( ( { model: { role } } ) => role ).every( item => item === 'menuitemradio' ) ).toBe( true );
 			} );
 		} );
 
@@ -285,66 +287,82 @@ describe( 'table utils', () => {
 			} );
 
 			it( 'should create buttons', () => {
-				expect( toolbar.items ).to.have.length( 3 );
-				expect( toolbar.items.first ).to.be.instanceOf( ButtonView );
-				expect( toolbar.items.get( 1 ) ).to.be.instanceOf( ButtonView );
-				expect( toolbar.items.last ).to.be.instanceOf( ButtonView );
+				expect( toolbar.items ).toHaveLength( 3 );
+				expect( toolbar.items.first ).toBeInstanceOf( ButtonView );
+				expect( toolbar.items.get( 1 ) ).toBeInstanceOf( ButtonView );
+				expect( toolbar.items.last ).toBeInstanceOf( ButtonView );
 			} );
 
 			it( 'should set button labels', () => {
-				expect( toolbar.items.first.label ).to.equal( 'Do something' );
-				expect( toolbar.items.get( 1 ).label ).to.equal( 'Do something else' );
-				expect( toolbar.items.last.label ).to.equal( 'Be default' );
+				expect( toolbar.items.first.label ).toBe( 'Do something' );
+				expect( toolbar.items.get( 1 ).label ).toBe( 'Do something else' );
+				expect( toolbar.items.last.label ).toBe( 'Be default' );
 			} );
 
 			it( 'should set button icons', () => {
-				expect( toolbar.items.first.icon ).to.equal( icons.first );
-				expect( toolbar.items.get( 1 ).icon ).to.equal( icons.second );
-				expect( toolbar.items.last.icon ).to.equal( icons.third );
+				expect( toolbar.items.first.icon ).toBe( icons.first );
+				expect( toolbar.items.get( 1 ).icon ).toBe( icons.second );
+				expect( toolbar.items.last.icon ).toBe( icons.third );
 			} );
 
 			it( 'should set button tooltips', () => {
-				expect( toolbar.items.first.tooltip ).to.equal( labels.first );
-				expect( toolbar.items.get( 1 ).tooltip ).to.equal( labels.second );
-				expect( toolbar.items.last.tooltip ).to.equal( labels.third );
+				expect( toolbar.items.first.tooltip ).toBe( labels.first );
+				expect( toolbar.items.get( 1 ).tooltip ).toBe( labels.second );
+				expect( toolbar.items.last.tooltip ).toBe( labels.third );
 			} );
 
 			it( 'should bind button #isOn to an observable property', () => {
-				expect( toolbar.items.first.isOn ).to.be.false;
-				expect( toolbar.items.get( 1 ).isOn ).to.be.false;
-				expect( toolbar.items.last.isOn ).to.be.false;
+				expect( toolbar.items.first.isOn ).toBe( false );
+				expect( toolbar.items.get( 1 ).isOn ).toBe( false );
+				expect( toolbar.items.last.isOn ).toBe( false );
 
 				view.someProperty = 'first';
 
-				expect( toolbar.items.first.isOn ).to.be.true;
-				expect( toolbar.items.get( 1 ).isOn ).to.be.false;
-				expect( toolbar.items.last.isOn ).to.be.false;
+				expect( toolbar.items.first.isOn ).toBe( true );
+				expect( toolbar.items.get( 1 ).isOn ).toBe( false );
+				expect( toolbar.items.last.isOn ).toBe( false );
 
 				view.someProperty = 'second';
 
-				expect( toolbar.items.first.isOn ).to.be.false;
-				expect( toolbar.items.get( 1 ).isOn ).to.be.true;
-				expect( toolbar.items.last.isOn ).to.be.false;
+				expect( toolbar.items.first.isOn ).toBe( false );
+				expect( toolbar.items.get( 1 ).isOn ).toBe( true );
+				expect( toolbar.items.last.isOn ).toBe( false );
 
 				view.someProperty = '';
 
-				expect( toolbar.items.first.isOn ).to.be.false;
-				expect( toolbar.items.get( 1 ).isOn ).to.be.false;
-				expect( toolbar.items.last.isOn ).to.be.true;
+				expect( toolbar.items.first.isOn ).toBe( false );
+				expect( toolbar.items.get( 1 ).isOn ).toBe( false );
+				expect( toolbar.items.last.isOn ).toBe( true );
 			} );
 
 			it( 'should make the buttons change the property value upon execution', () => {
 				toolbar.items.first.fire( 'execute' );
 
-				expect( view.someProperty ).to.equal( 'first' );
+				expect( view.someProperty ).toBe( 'first' );
 
 				toolbar.items.get( 1 ).fire( 'execute' );
 
-				expect( view.someProperty ).to.equal( 'second' );
+				expect( view.someProperty ).toBe( 'second' );
 
 				toolbar.items.last.fire( 'execute' );
 
-				expect( view.someProperty ).to.equal( '' );
+				expect( view.someProperty ).toBe( '' );
+			} );
+
+			it( 'should toggle the property value when an active button is clicked', () => {
+				// Set the property to match one of the button values.
+				view.someProperty = 'first';
+				expect( toolbar.items.first.isOn ).toBe( true );
+
+				// Click the active button.
+				toolbar.items.first.fire( 'execute' );
+
+				// The property should be reset to undefined.
+				expect( view.someProperty ).toBeUndefined();
+
+				// Clicking the button again should set the value back.
+				toolbar.items.first.fire( 'execute' );
+				expect( view.someProperty ).toBe( 'first' );
 			} );
 
 			describe( 'skipping "nameToValue" callback', () => {
@@ -369,15 +387,15 @@ describe( 'table utils', () => {
 				it( 'should make the buttons change the property value upon execution', () => {
 					toolbar.items.first.fire( 'execute' );
 
-					expect( view.someProperty ).to.equal( 'first' );
+					expect( view.someProperty ).toBe( 'first' );
 
 					toolbar.items.get( 1 ).fire( 'execute' );
 
-					expect( view.someProperty ).to.equal( 'second' );
+					expect( view.someProperty ).toBe( 'second' );
 
 					toolbar.items.last.fire( 'execute' );
 
-					expect( view.someProperty ).to.equal( 'third' );
+					expect( view.someProperty ).toBe( 'third' );
 				} );
 			} );
 
@@ -404,21 +422,21 @@ describe( 'table utils', () => {
 				it( 'should bind button #isOn to an observable property', () => {
 					view.someProperty = '';
 
-					expect( toolbar.items.first.isOn ).to.be.false;
-					expect( toolbar.items.get( 1 ).isOn ).to.be.false;
-					expect( toolbar.items.last.isOn ).to.be.true;
+					expect( toolbar.items.first.isOn ).toBe( false );
+					expect( toolbar.items.get( 1 ).isOn ).toBe( false );
+					expect( toolbar.items.last.isOn ).toBe( true );
 
 					view.someProperty = 'third';
 
-					expect( toolbar.items.first.isOn ).to.be.false;
-					expect( toolbar.items.get( 1 ).isOn ).to.be.false;
-					expect( toolbar.items.last.isOn ).to.be.true;
+					expect( toolbar.items.first.isOn ).toBe( false );
+					expect( toolbar.items.get( 1 ).isOn ).toBe( false );
+					expect( toolbar.items.last.isOn ).toBe( true );
 
 					view.someProperty = 'first';
 
-					expect( toolbar.items.first.isOn ).to.be.true;
-					expect( toolbar.items.get( 1 ).isOn ).to.be.false;
-					expect( toolbar.items.last.isOn ).to.be.false;
+					expect( toolbar.items.first.isOn ).toBe( true );
+					expect( toolbar.items.get( 1 ).isOn ).toBe( false );
+					expect( toolbar.items.last.isOn ).toBe( false );
 				} );
 			} );
 		} );
@@ -454,43 +472,43 @@ describe( 'table utils', () => {
 			} );
 
 			it( 'should return a function', () => {
-				expect( creator ).to.be.a( 'function' );
+				expect( creator ).toBeTypeOf( 'function' );
 			} );
 
 			it( 'should pass the options.colorConfig on', () => {
-				expect( labeledField.fieldView.options.colorDefinitions ).to.have.length( 2 );
+				expect( labeledField.fieldView.options.colorDefinitions ).toHaveLength( 2 );
 			} );
 
 			it( 'should pass the options.columns on', () => {
-				expect( labeledField.fieldView.options.columns ).to.equal( 3 );
+				expect( labeledField.fieldView.options.columns ).toBe( 3 );
 			} );
 
 			it( 'should return a ColorInputView instance', () => {
-				expect( labeledField.fieldView ).to.be.instanceOf( ColorInputView );
+				expect( labeledField.fieldView ).toBeInstanceOf( ColorInputView );
 			} );
 
 			it( 'should set ColorInputView#id', () => {
-				expect( labeledField.fieldView.inputView.id ).to.match( /^ck-labeled-field-view-.+/ );
+				expect( labeledField.fieldView.inputView.id ).toMatch( /^ck-labeled-field-view-.+/ );
 			} );
 
 			it( 'should set ColorInputView#ariaDescribedById', () => {
-				expect( labeledField.fieldView.inputView.ariaDescribedById ).to.match( /^ck-labeled-field-view-status-.+/ );
+				expect( labeledField.fieldView.inputView.ariaDescribedById ).toMatch( /^ck-labeled-field-view-status-.+/ );
 			} );
 
 			it( 'should bind ColorInputView#isReadOnly to LabeledFieldView#isEnabled', () => {
 				labeledField.isEnabled = true;
-				expect( labeledField.fieldView.isReadOnly ).to.be.false;
+				expect( labeledField.fieldView.isReadOnly ).toBe( false );
 
 				labeledField.isEnabled = false;
-				expect( labeledField.fieldView.isReadOnly ).to.be.true;
+				expect( labeledField.fieldView.isReadOnly ).toBe( true );
 			} );
 
 			it( 'should bind ColorInputView#hasError to LabeledFieldView#errorText', () => {
 				labeledField.errorText = 'foo';
-				expect( labeledField.fieldView.hasError ).to.be.true;
+				expect( labeledField.fieldView.hasError ).toBe( true );
 
 				labeledField.errorText = null;
-				expect( labeledField.fieldView.hasError ).to.be.false;
+				expect( labeledField.fieldView.hasError ).toBe( false );
 			} );
 
 			it( 'should clear labeld field view #errorText upon #input event', () => {
@@ -498,31 +516,33 @@ describe( 'table utils', () => {
 
 				labeledField.fieldView.fire( 'input' );
 
-				expect( labeledField.errorText ).to.be.null;
+				expect( labeledField.errorText ).toBeNull();
 			} );
 
 			it( 'should bind LabeledFieldView#isEmpty to the ColorInputView instance', () => {
 				labeledField.fieldView.isEmpty = true;
-				expect( labeledField.isEmpty ).to.be.true;
+				expect( labeledField.isEmpty ).toBe( true );
 
 				labeledField.fieldView.isEmpty = false;
-				expect( labeledField.isEmpty ).to.be.false;
+				expect( labeledField.isEmpty ).toBe( false );
 			} );
 
 			it( 'should bind LabeledFieldView#isFocused to the ColorInputView instance', () => {
 				labeledField.fieldView.isFocused = true;
-				expect( labeledField.isFocused ).to.be.true;
+				expect( labeledField.isFocused ).toBe( true );
 
 				labeledField.fieldView.isFocused = false;
-				expect( labeledField.isFocused ).to.be.false;
+				expect( labeledField.isFocused ).toBe( false );
 			} );
 
 			it( 'should have proper format in color picker', () => {
+				labeledField.fieldView.dropdownView.isOpen = true;
+
 				const panelView = labeledField.fieldView.dropdownView.panelView;
 				const colorPicker = panelView.children.get( 0 ).colorPickerFragmentView.colorPickerView;
 
 				colorPicker.color = 'hsl(180, 75%, 60%)';
-				expect( colorPicker.color ).to.equal( '#4CE6E6' );
+				expect( colorPicker.color ).toBe( '#4CE6E6' );
 			} );
 		} );
 	} );

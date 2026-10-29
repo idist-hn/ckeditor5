@@ -1,31 +1,40 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/imageblockediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { ClipboardPipeline, type ClipboardInputTransformationEvent } from 'ckeditor5/src/clipboard';
-import { UpcastWriter, type ViewElement } from 'ckeditor5/src/engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import {
+	ClipboardPipeline,
+	type ClipboardInputTransformationEvent,
+	type ClipboardContentInsertionEvent
+} from '@ckeditor/ckeditor5-clipboard';
+import {
+	ViewUpcastWriter,
+	type ViewElement
+} from '@ckeditor/ckeditor5-engine';
 
 import {
 	downcastImageAttribute,
 	downcastSrcsetAttribute,
+	upcastImg,
 	upcastImageFigure
-} from './converters';
+} from './converters.js';
 
-import ImageEditing from './imageediting';
-import ImageSizeAttributes from '../imagesizeattributes';
-import ImageTypeCommand from './imagetypecommand';
-import ImageUtils from '../imageutils';
+import { ImageEditing } from './imageediting.js';
+import { ImageSizeAttributes } from '../imagesizeattributes.js';
+import { ImageTypeCommand } from './imagetypecommand.js';
+import { ImageUtils } from '../imageutils.js';
 import {
-	getImgViewElementMatcher,
 	createBlockImageViewElement,
-	determineImageTypeForInsertionAtSelection
-} from '../image/utils';
+	determineImageTypeForInsertionAtSelection,
+	isImageTypePlaceable
+} from './utils.js';
+import { ImagePlaceholder } from './imageplaceholder.js';
 
 /**
  * The image block plugin.
@@ -37,12 +46,24 @@ import {
  * * {@link module:image/image/imagetypecommand~ImageTypeCommand `'imageTypeBlock'`} command that converts inline images into
  * block images.
  */
-export default class ImageBlockEditing extends Plugin {
+export class ImageBlockEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageEditing, ImageSizeAttributes, ImageUtils, ClipboardPipeline ] as const;
+	public static get requires(): PluginDependenciesOf<[
+		ImageEditing,
+		ImageSizeAttributes,
+		ImageUtils,
+		ImagePlaceholder,
+		ClipboardPipeline
+	]> {
+		return [
+			ImageEditing,
+			ImageSizeAttributes,
+			ImageUtils,
+			ImagePlaceholder,
+			ClipboardPipeline
+		];
 	}
 
 	/**
@@ -50,6 +71,13 @@ export default class ImageBlockEditing extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageBlockEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -105,13 +133,7 @@ export default class ImageBlockEditing extends Plugin {
 
 		// More image related upcasts are in 'ImageEditing' plugin.
 		conversion.for( 'upcast' )
-			.elementToElement( {
-				view: getImgViewElementMatcher( editor, 'imageBlock' ),
-				model: ( viewImage, { writer } ) => writer.createElement(
-					'imageBlock',
-					viewImage.hasAttribute( 'src' ) ? { src: viewImage.getAttribute( 'src' ) } : undefined
-				)
-			} )
+			.add( upcastImg( 'imageBlock', imageUtils ) )
 			.add( upcastImageFigure( imageUtils ) );
 	}
 
@@ -128,6 +150,8 @@ export default class ImageBlockEditing extends Plugin {
 	 * if they decided to put their image there.
 	 *
 	 * See the `ImageInlineEditing` for the similar integration that works in the opposite direction.
+	 *
+	 * The feature also sets image `width` and `height` attributes on paste.
 	 */
 	private _setupClipboardIntegration(): void {
 		const editor = this.editor;
@@ -163,9 +187,19 @@ export default class ImageBlockEditing extends Plugin {
 				const selection = model.createSelection( modelRange );
 
 				// Convert inline images into block images only when the currently selected block is empty
-				// (e.g. an empty paragraph) or some object is selected (to replace it).
-				if ( determineImageTypeForInsertionAtSelection( model.schema, selection ) === 'imageBlock' ) {
-					const writer = new UpcastWriter( editingView.document );
+				// (e.g. an empty paragraph) or some object is selected (to replace it). Additionally verify
+				// that `imageBlock` can actually land somewhere reachable from the drop target - inside
+				// `$inlineRoot` or another limit container that disallows block content the heuristic
+				// returns `'imageBlock'` for a blockless selection, but wrapping the pasted `<img>` would
+				// just be upcast-stripped.
+				const selectionPosition = selection.getFirstPosition();
+				const canPlaceBlock = !!selectionPosition && isImageTypePlaceable( model.schema, selectionPosition, 'imageBlock' );
+
+				if (
+					canPlaceBlock &&
+					determineImageTypeForInsertionAtSelection( model.schema, selection ) === 'imageBlock'
+				) {
+					const writer = new ViewUpcastWriter( editingView.document );
 
 					// Wrap <img ... /> -> <figure class="image"><img .../></figure>
 					const blockViewImages = docFragmentChildren.map(
@@ -174,6 +208,25 @@ export default class ImageBlockEditing extends Plugin {
 
 					data.content = writer.createDocumentFragment( blockViewImages );
 				}
+			} );
+
+		this.listenTo<ClipboardContentInsertionEvent>(
+			clipboardPipeline,
+			'contentInsertion',
+			( evt, data ) => {
+				if ( data.method !== 'paste' ) {
+					return;
+				}
+
+				model.change( writer => {
+					const range = writer.createRangeIn( data.content );
+
+					for ( const item of range.getItems() ) {
+						if ( item.is( 'element', 'imageBlock' ) ) {
+							imageUtils.setImageNaturalSizeAttributes( item );
+						}
+					}
+				} );
 			} );
 	}
 }

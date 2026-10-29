@@ -1,20 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/imagetypecommand
  */
 
-import type { Element } from 'ckeditor5/src/engine';
-import { Command, type Editor } from 'ckeditor5/src/core';
-import type ImageUtils from '../imageutils';
+import { type ModelElement } from '@ckeditor/ckeditor5-engine';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { type ImageUtils } from '../imageutils.js';
+import { isImageTypePlaceable } from './utils.js';
 
 /**
  * The image type command. It changes the type of a selected image, depending on the configuration.
  */
-export default class ImageTypeCommand extends Command {
+export class ImageTypeCommand extends Command {
 	/**
 	 * Model element name the command converts to.
 	 */
@@ -36,14 +37,29 @@ export default class ImageTypeCommand extends Command {
 	 */
 	public override refresh(): void {
 		const editor = this.editor;
+		const model = editor.model;
+		const schema = model.schema;
 		const imageUtils: ImageUtils = editor.plugins.get( 'ImageUtils' );
-		const element = imageUtils.getClosestSelectedImageElement( this.editor.model.document.selection );
+		const element = imageUtils.getClosestSelectedImageElement( model.document.selection );
 
-		if ( this._modelElementName === 'imageBlock' ) {
-			this.isEnabled = imageUtils.isInlineImage( element );
-		} else {
-			this.isEnabled = imageUtils.isBlockImage( element );
+		// The command converts the opposite image type into `_modelElementName`, so a matching source image
+		// must be selected.
+		const hasSourceImage = this._modelElementName === 'imageBlock' ?
+			imageUtils.isInlineImage( element ) :
+			imageUtils.isBlockImage( element );
+
+		if ( !hasSourceImage ) {
+			this.isEnabled = false;
+
+			return;
 		}
+
+		// The target type must also be placeable at the image's position. Otherwise the conversion would call
+		// `model.insertContent` with no valid landing spot (e.g. switching to `imageBlock` inside an `$inlineRoot`,
+		// or to `imageInline` inside a container that only accepts block images).
+		const position = model.createPositionBefore( element! );
+
+		this.isEnabled = isImageTypePlaceable( schema, position, this._modelElementName );
 	}
 
 	/**
@@ -56,7 +72,7 @@ export default class ImageTypeCommand extends Command {
 	 * (for before and after the change) so external integrations can hook into the decorated
 	 * `execute` event and handle this change. `null` if the type change failed.
 	 */
-	public override execute( options: { setImageSizes?: boolean } = {} ): { oldElement: Element; newElement: Element } | null {
+	public override execute( options: { setImageSizes?: boolean } = {} ): { oldElement: ModelElement; newElement: ModelElement } | null {
 		const editor = this.editor;
 		const model = this.editor.model;
 		const imageUtils: ImageUtils = editor.plugins.get( 'ImageUtils' );

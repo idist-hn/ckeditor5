@@ -1,12 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global Event */
-
-import preventDefault from '../../src/bindings/preventdefault';
-import View from '../../src/view';
+import { describe, it, expect, vi } from 'vitest';
+import { preventDefault } from '../../src/bindings/preventdefault.js';
+import { View } from '../../src/view.js';
 
 describe( 'preventDefault', () => {
 	it( 'prevents default of a native DOM event', () => {
@@ -21,13 +20,13 @@ describe( 'preventDefault', () => {
 		} );
 
 		const evt = new Event( 'foo', { bubbles: true } );
-		const spy = sinon.spy( evt, 'preventDefault' );
+		const spy = vi.spyOn( evt, 'preventDefault' );
 
 		// Render to enable bubbling.
 		view.render();
 
 		view.element.dispatchEvent( evt );
-		sinon.assert.calledOnce( spy );
+		expect( spy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'prevents only when target is view#element', () => {
@@ -51,12 +50,12 @@ describe( 'preventDefault', () => {
 		} );
 
 		const evt = new Event( 'foo', { bubbles: true } );
-		const spy = sinon.spy( evt, 'preventDefault' );
+		const spy = vi.spyOn( evt, 'preventDefault' );
 
 		// Render to enable bubbling.
 		view.render();
 
 		child.element.dispatchEvent( evt );
-		sinon.assert.notCalled( spy );
+		expect( spy ).not.toHaveBeenCalled();
 	} );
 } );

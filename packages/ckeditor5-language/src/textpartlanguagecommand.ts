@@ -1,20 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module language/textpartlanguagecommand
  */
 
-import type { LanguageDirection } from 'ckeditor5/src/utils';
-import { Command } from 'ckeditor5/src/core';
-import { stringifyLanguageAttribute } from './utils';
+import type { LanguageDirection } from '@ckeditor/ckeditor5-utils';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { ModelDocumentSelection, type ModelRange, type ModelElement } from '@ckeditor/ckeditor5-engine';
+import { stringifyLanguageAttribute } from './utils.js';
 
 /**
  * The text part language command plugin.
  */
-export default class TextPartLanguageCommand extends Command {
+export class TextPartLanguageCommand extends Command {
 	/**
 	 * If the selection starts in a language attribute, the value is set to
 	 * the value of that language in the following format:
@@ -54,12 +55,12 @@ export default class TextPartLanguageCommand extends Command {
 	 * If `languageCode` is set to `false` or a `null` value, it will remove attributes. Otherwise, it will set
 	 * the attribute in the `{@link #value value}` format.
 	 *
-	 * The execution result differs, depending on the {@link module:engine/model/document~Document#selection}:
+	 * The execution result differs, depending on the {@link module:engine/model/document~ModelDocument#selection}:
 	 *
 	 * * If the selection is on a range, the command applies the attribute to all nodes in that range
-	 * (if they are allowed to have this attribute by the {@link module:engine/model/schema~Schema schema}).
+	 * (if they are allowed to have this attribute by the {@link module:engine/model/schema~ModelSchema schema}).
 	 * * If the selection is collapsed in a non-empty node, the command applies the attribute to the
-	 * {@link module:engine/model/document~Document#selection} itself (note that typed characters copy attributes from the selection).
+	 * {@link module:engine/model/document~ModelDocument#selection} itself (note that typed characters copy attributes from the selection).
 	 * * If the selection is collapsed in an empty node, the command applies the attribute to the parent node of the selection (note
 	 * that the selection inherits all attributes from a node if it is in an empty node).
 	 *
@@ -85,13 +86,23 @@ export default class TextPartLanguageCommand extends Command {
 					writer.removeSelectionAttribute( 'language' );
 				}
 			} else {
-				const ranges = model.schema.getValidRanges( selection.getRanges(), 'language' );
+				const ranges = model.schema.getValidRanges( selection.getRanges(), 'language', {
+					includeEmptyRanges: true
+				} );
 
 				for ( const range of ranges ) {
+					let itemOrRange: ModelRange | ModelElement = range;
+					let attributeKey = 'language';
+
+					if ( range.isCollapsed ) {
+						itemOrRange = range.start.parent as ModelElement;
+						attributeKey = ModelDocumentSelection._getStoreAttributeKey( 'language' );
+					}
+
 					if ( value ) {
-						writer.setAttribute( 'language', value, range );
+						writer.setAttribute( attributeKey, value, itemOrRange );
 					} else {
-						writer.removeAttribute( 'language', range );
+						writer.removeAttribute( attributeKey, itemOrRange );
 					}
 				}
 			}

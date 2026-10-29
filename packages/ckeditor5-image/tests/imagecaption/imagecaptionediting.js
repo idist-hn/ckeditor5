@@ -1,21 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Plugin } from '@ckeditor/ckeditor5-core';
 
-import ImageCaptionEditing from '../../src/imagecaption/imagecaptionediting';
-import ImageBlockEditing from '../../src/image/imageblockediting';
-import ImageInlineEditing from '../../src/image/imageinlineediting';
-import ToggleImageCaptionCommand from '../../src/imagecaption/toggleimagecaptioncommand';
+import { ImageCaptionEditing } from '../../src/imagecaption/imagecaptionediting.js';
+import { ImageBlockEditing } from '../../src/image/imageblockediting.js';
+import { ImageInlineEditing } from '../../src/image/imageinlineediting.js';
+import { ToggleImageCaptionCommand } from '../../src/imagecaption/toggleimagecaptioncommand.js';
 
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { _getModelData, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'ImageCaptionEditing', () => {
 	let editor, model, doc, view;
@@ -48,8 +47,6 @@ describe( 'ImageCaptionEditing', () => {
 		}
 	}
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( async () => {
 		editor = await VirtualTestEditor.create( {
 			plugins: [
@@ -80,23 +77,31 @@ describe( 'ImageCaptionEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( ImageCaptionEditing.pluginName ).to.equal( 'ImageCaptionEditing' );
+		expect( ImageCaptionEditing.pluginName ).toBe( 'ImageCaptionEditing' );
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( ImageCaptionEditing ) ).to.be.instanceOf( ImageCaptionEditing );
+		expect( editor.plugins.get( ImageCaptionEditing ) ).toBeInstanceOf( ImageCaptionEditing );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageCaptionEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageCaptionEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'schema', () => {
 		it( 'should set proper schema rules for caption', () => {
-			expect( model.schema.checkChild( [ '$root', 'imageBlock' ], 'caption' ) ).to.be.true;
-			expect( model.schema.checkChild( [ '$root', 'imageBlock', 'caption' ], '$text' ) ).to.be.true;
-			expect( model.schema.isLimit( 'caption' ) ).to.be.true;
+			expect( model.schema.checkChild( [ '$root', 'imageBlock' ], 'caption' ) ).toBe( true );
+			expect( model.schema.checkChild( [ '$root', 'imageBlock', 'caption' ], '$text' ) ).toBe( true );
+			expect( model.schema.isLimit( 'caption' ) ).toBe( true );
 
-			expect( model.schema.checkChild( [ '$root', 'imageBlock', 'caption' ], 'caption' ) ).to.be.false;
+			expect( model.schema.checkChild( [ '$root', 'imageBlock', 'caption' ], 'caption' ) ).toBe( false );
 
 			model.schema.extend( '$block', { allowAttributes: 'aligmnent' } );
-			expect( model.schema.checkAttribute( [ '$root', 'imageBlock', 'caption' ], 'alignment' ) ).to.be.false;
+			expect( model.schema.checkAttribute( [ '$root', 'imageBlock', 'caption' ], 'alignment' ) ).toBe( false );
 		} );
 
 		it( 'should not set rules for image when ImageBlockEditing is not loaded', async () => {
@@ -104,7 +109,7 @@ describe( 'ImageCaptionEditing', () => {
 				plugins: [ ImageInlineEditing, ImageCaptionEditing ]
 			} );
 
-			expect( editor.model.schema.checkAttribute( [ '$root', 'imageBlock' ], 'caption' ) ).to.be.false;
+			expect( editor.model.schema.checkAttribute( [ '$root', 'imageBlock' ], 'caption' ) ).toBe( false );
 
 			return editor.destroy();
 		} );
@@ -114,7 +119,7 @@ describe( 'ImageCaptionEditing', () => {
 				plugins: [ ImageBlockEditing, ImageCaptionEditing ]
 			} );
 
-			expect( editor.model.schema.checkAttribute( [ '$root', 'imageInline' ], 'caption' ) ).to.be.false;
+			expect( editor.model.schema.checkAttribute( [ '$root', 'imageInline' ], 'caption' ) ).toBe( false );
 
 			return editor.destroy();
 		} );
@@ -124,7 +129,7 @@ describe( 'ImageCaptionEditing', () => {
 		it( 'should register the toggleImageCaption command', () => {
 			const command = editor.commands.get( 'toggleImageCaption' );
 
-			expect( command ).to.be.instanceOf( ToggleImageCaptionCommand );
+			expect( command ).toBeInstanceOf( ToggleImageCaptionCommand );
 		} );
 	} );
 
@@ -134,48 +139,48 @@ describe( 'ImageCaptionEditing', () => {
 				plugins: [ FakePlugin, ImageCaptionEditing, ImageBlockEditing, ImageInlineEditing, UndoEditing, Paragraph ]
 			} );
 
-		expect( model.schema.isRegistered( 'caption' ) ).to.be.true;
-		expect( model.schema.isLimit( 'caption' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'imageBlock' ], 'caption' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'caption' ) ).toBe( true );
+		expect( model.schema.isLimit( 'caption' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'imageBlock' ], 'caption' ) ).toBe( true );
 	} );
 
 	describe( 'data pipeline', () => {
 		describe( 'view to model (upcast)', () => {
 			it( 'should convert figcaption inside image figure', () => {
-				editor.setData( '<figure class="image"><img src="/assets/sample.png" /><figcaption>foo bar</figcaption></figure>' );
+				editor.setData( '<figure class="image"><img src="/sample.png" /><figcaption>foo bar</figcaption></figure>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<imageBlock src="/assets/sample.png"><caption>foo bar</caption></imageBlock>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toBe( '<imageBlock src="/sample.png"><caption>foo bar</caption></imageBlock>' );
 			} );
 
 			it( 'should not add an empty caption if there is no figcaption', () => {
-				editor.setData( '<figure class="image"><img src="/assets/sample.png" /></figure>' );
+				editor.setData( '<figure class="image"><img src="/sample.png" /></figure>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<imageBlock src="/assets/sample.png"></imageBlock>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toBe( '<imageBlock src="/sample.png"></imageBlock>' );
 			} );
 
 			it( 'should not convert figcaption inside other elements than image', () => {
 				editor.setData( '<widget><figcaption>foobar</figcaption></widget>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<widget>foobar</widget>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toBe( '<widget>foobar</widget>' );
 			} );
 		} );
 
 		describe( 'model to view (downcast)', () => {
 			it( 'should convert caption element to figcaption', () => {
-				setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
+				_setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<figure class="image"><img src="img.png"><figcaption>Foo bar baz.</figcaption></figure>'
 				);
 			} );
 
 			it( 'should not convert caption to figcaption if it\'s empty', () => {
-				setModelData( model, '<imageBlock src="img.png"><caption></caption></imageBlock>' );
+				_setModelData( model, '<imageBlock src="img.png"><caption></caption></imageBlock>' );
 
-				expect( editor.getData() ).to.equal( '<figure class="image"><img src="img.png"><figcaption>&nbsp;</figcaption></figure>' );
+				expect( editor.getData() ).toBe( '<figure class="image"><img src="img.png"><figcaption>&nbsp;</figcaption></figure>' );
 			} );
 
 			it( 'should not convert caption from other elements', () => {
@@ -185,9 +190,9 @@ describe( 'ImageCaptionEditing', () => {
 					}, { priority: 'lowest' } )
 				);
 
-				setModelData( model, '<widget>foo bar<caption></caption></widget>' );
+				_setModelData( model, '<widget>foo bar<caption></caption></widget>' );
 
-				expect( editor.getData() ).to.equal( '<widget>foo bar</widget>' );
+				expect( editor.getData() ).toBe( '<widget>foo bar</widget>' );
 			} );
 		} );
 	} );
@@ -195,13 +200,13 @@ describe( 'ImageCaptionEditing', () => {
 	describe( 'editing pipeline', () => {
 		describe( 'model to view', () => {
 			it( 'should convert caption element to figcaption contenteditable', () => {
-				setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
+				_setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
 
-				expect( getViewData( view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( view, { withoutSelection: true } ) ).toBe(
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src="img.png"></img>' +
 						'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-							'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+							'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 							'Foo bar baz.' +
 						'</figcaption>' +
 					'</figure>'
@@ -215,8 +220,8 @@ describe( 'ImageCaptionEditing', () => {
 					}, { priority: 'lowest' } )
 				);
 
-				setModelData( model, '<widget>foo bar<caption></caption></widget>' );
-				expect( getViewData( view, { withoutSelection: true } ) ).to.equal( '<widget>foo bar</widget>' );
+				_setModelData( model, '<widget>foo bar<caption></caption></widget>' );
+				expect( _getViewData( view, { withoutSelection: true } ) ).toBe( '<widget>foo bar</widget>' );
 			} );
 
 			it( 'should not convert when element is already consumed', () => {
@@ -235,15 +240,15 @@ describe( 'ImageCaptionEditing', () => {
 					{ priority: 'high' }
 				);
 
-				setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
+				_setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
 
-				expect( getViewData( view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( view, { withoutSelection: true } ) ).toBe(
 					'<figure class="ck-widget image" contenteditable="false"><img src="img.png"></img><span></span>Foo bar baz.</figure>'
 				);
 			} );
 
 			it( 'should show caption when something is inserted inside', () => {
-				setModelData( model, '<paragraph>foo</paragraph><imageBlock src="img.png"><caption></caption></imageBlock>' );
+				_setModelData( model, '<paragraph>foo</paragraph><imageBlock src="img.png"><caption></caption></imageBlock>' );
 
 				const image = doc.getRoot().getChild( 1 );
 				const caption = image.getChild( 0 );
@@ -252,12 +257,12 @@ describe( 'ImageCaptionEditing', () => {
 					writer.insertText( 'foo bar', caption );
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toBe(
 					'<p>{}foo</p>' +
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src="img.png"></img>' +
 						'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-							'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+							'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 							'foo bar' +
 						'</figcaption>' +
 					'</figure>'
@@ -265,7 +270,7 @@ describe( 'ImageCaptionEditing', () => {
 			} );
 
 			it( 'should not hide when everything is removed from caption', () => {
-				setModelData( model, '<paragraph>foo</paragraph><imageBlock src="img.png"><caption>foo bar baz</caption></imageBlock>' );
+				_setModelData( model, '<paragraph>foo</paragraph><imageBlock src="img.png"><caption>foo bar baz</caption></imageBlock>' );
 
 				const image = doc.getRoot().getChild( 1 );
 				const caption = image.getChild( 0 );
@@ -274,20 +279,20 @@ describe( 'ImageCaptionEditing', () => {
 					writer.remove( writer.createRangeIn( caption ) );
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toBe(
 					'<p>{}foo</p>' +
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src="img.png"></img>' +
 						'<figcaption aria-label="Caption for the image" ' +
 							'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-							'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+							'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 						'</figcaption>' +
 					'</figure>'
 				);
 			} );
 
 			it( 'should show when not everything is removed from caption', () => {
-				setModelData( model, '<paragraph>foo</paragraph><imageBlock src="img.png"><caption>foo bar baz</caption></imageBlock>' );
+				_setModelData( model, '<paragraph>foo</paragraph><imageBlock src="img.png"><caption>foo bar baz</caption></imageBlock>' );
 
 				const image = doc.getRoot().getChild( 1 );
 				const caption = image.getChild( 0 );
@@ -296,12 +301,12 @@ describe( 'ImageCaptionEditing', () => {
 					writer.remove( writer.createRange( writer.createPositionAt( caption, 0 ), writer.createPositionAt( caption, 8 ) ) );
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toBe(
 					'<p>{}foo</p>' +
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src="img.png"></img>' +
 						'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-							'contenteditable="true" data-placeholder="Enter image caption" role="textbox">baz</figcaption>' +
+							'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">baz</figcaption>' +
 					'</figure>'
 				);
 			} );
@@ -317,7 +322,7 @@ describe( 'ImageCaptionEditing', () => {
 					} )
 				} );
 
-				setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
+				_setModelData( model, '<imageBlock src="img.png"><caption>Foo bar baz.</caption></imageBlock>' );
 
 				const caption = doc.getRoot().getNodeByPath( [ 0, 0 ] );
 
@@ -330,15 +335,16 @@ describe( 'ImageCaptionEditing', () => {
 
 				const viewElement = editor.editing.mapper.toViewElement( caption );
 
-				expect( viewElement.getCustomProperty( 'addHighlight' ) ).to.be.a( 'function' );
-				expect( viewElement.getCustomProperty( 'removeHighlight' ) ).to.be.a( 'function' );
+				expect( typeof viewElement.getCustomProperty( 'addHighlight' ) ).toBe( 'function' );
+				expect( typeof viewElement.getCustomProperty( 'removeHighlight' ) ).toBe( 'function' );
 
-				expect( getViewData( view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( view, { withoutSelection: true } ) ).toBe(
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src="img.png"></img>' +
 						'<figcaption aria-label="Caption for the image" ' +
 							'class="ck-editor__editable ck-editor__nested-editable highlight-yellow" ' +
-							'contenteditable="true" data-foo="yellow" data-placeholder="Enter image caption" role="textbox">' +
+							'contenteditable="true" data-foo="yellow" data-placeholder="Enter image caption" role="textbox" ' +
+							'tabindex="-1">' +
 							'Foo bar baz.' +
 						'</figcaption>' +
 					'</figure>'
@@ -348,11 +354,11 @@ describe( 'ImageCaptionEditing', () => {
 					writer.removeMarker( 'marker:yellow' );
 				} );
 
-				expect( getViewData( view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( view, { withoutSelection: true } ) ).toBe(
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src="img.png"></img>' +
 						'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-								'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+								'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 							'Foo bar baz.' +
 						'</figcaption>' +
 					'</figure>'
@@ -367,11 +373,11 @@ describe( 'ImageCaptionEditing', () => {
 				writer.insertElement( 'imageBlock', { src: '', alt: '' }, doc.getRoot() );
 			} );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'[<imageBlock alt="" src=""></imageBlock>]<paragraph></paragraph>'
 			);
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img alt="" src=""></img>' +
 				'</figure>]' +
@@ -404,7 +410,7 @@ describe( 'ImageCaptionEditing', () => {
 				writer.insert( table, doc.getRoot() );
 			} );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'[<table>' +
 					'<tableRow>' +
 						'<tableCell><imageBlock alt="" src=""></imageBlock></tableCell>' +
@@ -414,7 +420,7 @@ describe( 'ImageCaptionEditing', () => {
 				'<paragraph></paragraph>'
 			);
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<table>' +
 					'<tr>' +
 						'<td>' +
@@ -443,15 +449,15 @@ describe( 'ImageCaptionEditing', () => {
 				writer.insert( image, doc.getRoot() );
 			} );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'[<imageBlock alt="" src=""><caption>foo bar</caption></imageBlock>]<paragraph></paragraph>'
 			);
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img alt="" src=""></img>' +
 					'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 						'foo bar' +
 					'</figcaption>' +
 				'</figure>]' +
@@ -472,23 +478,23 @@ describe( 'ImageCaptionEditing', () => {
 			} );
 
 			// Check whether caption fixer added redundant caption.
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'[<imageBlock alt="" src=""><caption></caption></imageBlock>]<paragraph></paragraph>'
 			);
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img alt="" src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox"></figcaption>' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1"></figcaption>' +
 				'</figure>]' +
 				'<p></p>'
 			);
 		} );
 
 		it( 'should do nothing for other changes than insert', () => {
-			setModelData( model, '<imageBlock src=""><caption>foo bar</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src=""><caption>foo bar</caption></imageBlock>' );
 
 			const image = doc.getRoot().getChild( 0 );
 
@@ -496,13 +502,13 @@ describe( 'ImageCaptionEditing', () => {
 				writer.setAttribute( 'alt', 'alt text', image );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 				'<imageBlock alt="alt text" src=""><caption>foo bar</caption></imageBlock>'
 			);
 		} );
 
 		it( 'should do nothing on $text insert', () => {
-			setModelData( model, '<imageBlock src=""><caption>foo bar</caption></imageBlock><paragraph>[]</paragraph>' );
+			_setModelData( model, '<imageBlock src=""><caption>foo bar</caption></imageBlock><paragraph>[]</paragraph>' );
 
 			const paragraph = doc.getRoot().getChild( 1 );
 
@@ -517,7 +523,7 @@ describe( 'ImageCaptionEditing', () => {
 				writer.insertText( 'oo', paragraph, 1 );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 				'<imageBlock src=""><caption>foo bar</caption></imageBlock><paragraph>foo</paragraph>'
 			);
 		} );
@@ -525,47 +531,47 @@ describe( 'ImageCaptionEditing', () => {
 
 	describe( 'editing view', () => {
 		it( 'image should have empty figcaption element when is selected', () => {
-			setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""><caption></caption></imageBlock>]' );
+			_setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""><caption></caption></imageBlock>]' );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<p>foo</p>' +
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 					'</figcaption>' +
 				'</figure>]'
 			);
 		} );
 
 		it( 'image should have empty figcaption element when not selected', () => {
-			setModelData( model, '<paragraph>[]foo</paragraph><imageBlock src=""><caption></caption></imageBlock>' );
+			_setModelData( model, '<paragraph>[]foo</paragraph><imageBlock src=""><caption></caption></imageBlock>' );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<p>{}foo</p>' +
 				'<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 					'</figcaption>' +
 				'</figure>'
 			);
 		} );
 
 		it( 'should keep the placeholder visible when the figcaption is focused', () => {
-			setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""></imageBlock>]' );
 
 			editor.execute( 'toggleImageCaption' );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<p>foo</p>' +
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 					'</figcaption>' +
 				'</figure>]'
 			);
@@ -579,63 +585,63 @@ describe( 'ImageCaptionEditing', () => {
 				writer.setSelection( writer.createRangeIn( caption ) );
 			} );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<p>foo</p>' +
 				'<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-editor__nested-editable_focused ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">[]' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">[]' +
 					'</figcaption>' +
 				'</figure>'
 			);
 		} );
 
 		it( 'should not add additional figcaption if one is already present', () => {
-			setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""><caption>foo bar</caption></imageBlock>]' );
+			_setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""><caption>foo bar</caption></imageBlock>]' );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<p>foo</p>' +
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">foo bar</figcaption>' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">foo bar</figcaption>' +
 				'</figure>]'
 			);
 		} );
 
 		it( 'should not alter the figcaption when the caption is empty and the image is no longer selected', () => {
-			setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""><caption></caption></imageBlock>]' );
+			_setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""><caption></caption></imageBlock>]' );
 
 			model.change( writer => {
 				writer.setSelection( null );
 			} );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<p>{}foo</p>' +
 				'<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 					'</figcaption>' +
 				'</figure>'
 			);
 		} );
 
 		it( 'should not remove figcaption when selection is inside it even when it is empty', () => {
-			setModelData( model, '<imageBlock src=""><caption>[foo bar]</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src=""><caption>[foo bar]</caption></imageBlock>' );
 
 			model.change( writer => {
 				writer.remove( doc.selection.getFirstRange() );
 			} );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 						'[]' +
 					'</figcaption>' +
 				'</figure>'
@@ -643,7 +649,7 @@ describe( 'ImageCaptionEditing', () => {
 		} );
 
 		it( 'should not remove figcaption when selection is moved from it to its image', () => {
-			setModelData( model, '<imageBlock src=""><caption>[foo bar]</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src=""><caption>[foo bar]</caption></imageBlock>' );
 			const image = doc.getRoot().getChild( 0 );
 
 			model.change( writer => {
@@ -651,18 +657,18 @@ describe( 'ImageCaptionEditing', () => {
 				writer.setSelection( writer.createRangeOn( image ) );
 			} );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox"></figcaption>' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1"></figcaption>' +
 				'</figure>]'
 			);
 		} );
 
 		it( 'should not remove figcaption when selection is moved from it to other image', () => {
-			setModelData( model, '<imageBlock src="">' +
+			_setModelData( model, '<imageBlock src="">' +
 				'<caption>[foo bar]</caption></imageBlock><imageBlock src=""><caption></caption>' +
 			'</imageBlock>' );
 			const image = doc.getRoot().getChild( 1 );
@@ -671,17 +677,17 @@ describe( 'ImageCaptionEditing', () => {
 				writer.setSelection( writer.createRangeOn( image ) );
 			} );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox">foo bar</figcaption>' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">foo bar</figcaption>' +
 				'</figure>' +
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img src=""></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
 						'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-						'contenteditable="true" data-placeholder="Enter image caption" role="textbox"></figcaption>' +
+						'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1"></figcaption>' +
 				'</figure>]'
 			);
 		} );
@@ -689,9 +695,9 @@ describe( 'ImageCaptionEditing', () => {
 		it( 'should show empty figcaption when image is selected but editor is in the readOnly mode', () => {
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			setModelData( model, '[<imageBlock src="img.png"><caption></caption></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="img.png"><caption></caption></imageBlock>]' );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<figure class="ck-widget image" contenteditable="false">' +
 					'<img src="img.png"></img>' +
 					'<figcaption aria-label="Caption for the image" ' +
@@ -703,7 +709,7 @@ describe( 'ImageCaptionEditing', () => {
 
 		describe( 'undo/redo integration', () => {
 			it( 'should create view element after redo', () => {
-				setModelData( model, '<paragraph>foo</paragraph><imageBlock src=""><caption>[foo bar baz]</caption></imageBlock>' );
+				_setModelData( model, '<paragraph>foo</paragraph><imageBlock src=""><caption>[foo bar baz]</caption></imageBlock>' );
 
 				const modelRoot = doc.getRoot();
 				const modelImage = modelRoot.getChild( 1 );
@@ -716,13 +722,13 @@ describe( 'ImageCaptionEditing', () => {
 				} );
 
 				// Check if there is no figcaption in the view.
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toBe(
 					'<p>{}foo</p>' +
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src=""></img>' +
 						'<figcaption aria-label="Caption for the image" ' +
 							'class="ck-editor__editable ck-editor__nested-editable ck-placeholder" ' +
-							'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+							'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 						'</figcaption>' +
 					'</figure>'
 				);
@@ -730,12 +736,12 @@ describe( 'ImageCaptionEditing', () => {
 				editor.execute( 'undo' );
 
 				// Check if figcaption is back with contents.
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toBe(
 					'<p>foo</p>' +
 					'<figure class="ck-widget image" contenteditable="false">' +
 						'<img src=""></img>' +
 						'<figcaption aria-label="Caption for the image" class="ck-editor__editable ck-editor__nested-editable" ' +
-							'contenteditable="true" data-placeholder="Enter image caption" role="textbox">' +
+							'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">' +
 							'{foo bar baz}' +
 						'</figcaption>' +
 					'</figure>'
@@ -743,28 +749,28 @@ describe( 'ImageCaptionEditing', () => {
 			} );
 
 			it( 'undo should work after inserting the image', () => {
-				setModelData( model, '<paragraph>foo[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 				model.change( writer => {
-					const image = writer.createElement( 'imageBlock', { src: '/assets/sample.png' } );
+					const image = writer.createElement( 'imageBlock', { src: '/sample.png' } );
 
 					writer.insert( image, doc.getRoot() );
 				} );
 
-				expect( getModelData( model ) ).to.equal(
-					'<imageBlock src="/assets/sample.png"></imageBlock><paragraph>foo[]</paragraph>'
+				expect( _getModelData( model ) ).toBe(
+					'<imageBlock src="/sample.png"></imageBlock><paragraph>foo[]</paragraph>'
 				);
 
 				editor.execute( 'undo' );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph>foo[]</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>foo[]</paragraph>' );
 			} );
 		} );
 
 		it( 'should reflect the change of image\'s alt attribute in caption\'s aria-label attribute', () => {
-			setModelData( model, '[<imageBlock alt="foo" src="img.png"><caption></caption></imageBlock>]' );
+			_setModelData( model, '[<imageBlock alt="foo" src="img.png"><caption></caption></imageBlock>]' );
 
-			expect( view.document.getRoot().getChild( 0 ).getChild( 1 ).getAttribute( 'aria-label' ) ).to.equal( 'Caption for image: foo' );
+			expect( view.document.getRoot().getChild( 0 ).getChild( 1 ).getAttribute( 'aria-label' ) ).toBe( 'Caption for image: foo' );
 
 			const image = doc.getRoot().getChild( 0 );
 
@@ -772,35 +778,35 @@ describe( 'ImageCaptionEditing', () => {
 				writer.setAttribute( 'alt', 'bar', image );
 			} );
 
-			expect( view.document.getRoot().getChild( 0 ).getChild( 1 ).getAttribute( 'aria-label' ) ).to.equal( 'Caption for image: bar' );
+			expect( view.document.getRoot().getChild( 0 ).getChild( 1 ).getAttribute( 'aria-label' ) ).toBe( 'Caption for image: bar' );
 		} );
 
 		it( 'should not try to update caption\'s aria-label attribute if the image does not have a caption', () => {
-			setModelData( model, '[<imageBlock alt="foo" src="img.png"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock alt="foo" src="img.png"></imageBlock>]' );
 
 			const image = doc.getRoot().getChild( 0 );
 
-			const spy = sinon.spy( editor.editing, 'reconvertItem' );
+			const spy = vi.spyOn( editor.editing, 'reconvertItem' );
 
 			model.change( writer => {
 				writer.setAttribute( 'alt', 'bar', image );
 			} );
 
-			expect( spy.called ).to.be.false;
+			expect( spy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not try to update caption\'s aria-label attribute if the image is not an imageBlock', () => {
-			setModelData( model, '<paragraph>[<imageInline alt="foo" src="img.png"></imageInline>]</paragraph>' );
+			_setModelData( model, '<paragraph>[<imageInline alt="foo" src="img.png"></imageInline>]</paragraph>' );
 
 			const image = doc.getRoot().getChild( 0 );
 
-			const spy = sinon.spy( editor.editing, 'reconvertItem' );
+			const spy = vi.spyOn( editor.editing, 'reconvertItem' );
 
 			model.change( writer => {
 				writer.setAttribute( 'alt', 'bar', image );
 			} );
 
-			expect( spy.called ).to.be.false;
+			expect( spy ).not.toHaveBeenCalled();
 		} );
 	} );
 } );

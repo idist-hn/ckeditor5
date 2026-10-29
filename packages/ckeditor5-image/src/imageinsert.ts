@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageinsert
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageUpload from './imageupload';
-import ImageInsertViaUrl from './imageinsertviaurl';
-import ImageInsertUI from './imageinsert/imageinsertui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageUpload } from './imageupload.js';
+import { ImageInsertViaUrl } from './imageinsertviaurl.js';
+import { ImageInsertUI } from './imageinsert/imageinsertui.js';
 
 /**
  * The image insert plugin.
@@ -24,7 +24,7 @@ import ImageInsertUI from './imageinsert/imageinsertui';
  * * {@link module:image/imageupload~ImageUpload}
  * * {@link module:image/imageinsert/imageinsertui~ImageInsertUI}
  */
-export default class ImageInsert extends Plugin {
+export class ImageInsert extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -35,7 +35,14 @@ export default class ImageInsert extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUpload, ImageInsertViaUrl, ImageInsertUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ImageUpload, ImageInsertViaUrl, ImageInsertUI ]> {
+		return [ ImageUpload, ImageInsertViaUrl, ImageInsertUI ];
 	}
 }

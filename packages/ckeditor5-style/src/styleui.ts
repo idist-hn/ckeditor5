@@ -1,21 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/styleui
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { createDropdown } from 'ckeditor5/src/ui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { createDropdown } from '@ckeditor/ckeditor5-ui';
 import type { DataSchema } from '@ckeditor/ckeditor5-html-support';
 
-import StylePanelView from './ui/stylepanelview';
-import StyleUtils from './styleutils';
-import type StyleCommand from './stylecommand';
-
-import '../theme/style.css';
+import { StylePanelView } from './ui/stylepanelview.js';
+import { StyleUtils } from './styleutils.js';
+import { type StyleCommand } from './stylecommand.js';
 
 /**
  * The UI plugin of the style feature .
@@ -23,7 +21,7 @@ import '../theme/style.css';
  * It registers the `'style'` UI dropdown in the editor's {@link module:ui/componentfactory~ComponentFactory component factory}
  * that displays a grid of styles and allows changing styles of the content.
  */
-export default class StyleUI extends Plugin {
+export class StyleUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -34,8 +32,15 @@ export default class StyleUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ StyleUtils ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ StyleUtils ]> {
+		return [ StyleUtils ];
 	}
 
 	/**
@@ -102,7 +107,8 @@ export default class StyleUI extends Plugin {
 
 			// Execute the command when a style is selected in the styles panel.
 			// Also focus the editable after executing the command.
-			// It overrides a default behaviour where the focus is moved to the dropdown button (#12125).
+			// It overrides a default behaviour where the focus is moved to the dropdown button.
+			// See https://github.com/ckeditor/ckeditor5/issues/12125.
 			dropdown.on( 'execute', evt => {
 				editor.execute( 'style', { styleName: ( evt.source as any ).styleDefinition.name } );
 				editor.editing.view.focus();

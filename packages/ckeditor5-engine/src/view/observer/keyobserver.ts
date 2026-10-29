@@ -1,22 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/observer/keyobserver
  */
 
-import DomEventObserver from './domeventobserver';
-import type DomEventData from './domeventdata';
+import { DomEventObserver } from './domeventobserver.js';
+import { type ViewDocumentDomEventData } from './domeventdata.js';
+import type { BubblingEvent } from './bubblingemittermixin.js';
 import { getCode, type KeystrokeInfo } from '@ckeditor/ckeditor5-utils';
 
 /**
  * Observer for events connected with pressing keyboard keys.
  *
- * Note that this observer is attached by the {@link module:engine/view/view~View} and is available by default.
+ * Note that this observer is attached by the {@link module:engine/view/view~EditingView} and is available by default.
  */
-export default class KeyObserver extends DomEventObserver<'keydown' | 'keyup', KeystrokeInfo & { keystroke: number }> {
+export class KeyObserver extends DomEventObserver<'keydown' | 'keyup', KeystrokeInfo & { keystroke: number }> {
 	/**
 	 * @inheritDoc
 	 */
@@ -49,15 +50,15 @@ export default class KeyObserver extends DomEventObserver<'keydown' | 'keyup', K
  * Introduced by {@link module:engine/view/observer/keyobserver~KeyObserver}.
  *
  * Note that because {@link module:engine/view/observer/keyobserver~KeyObserver} is attached by the
- * {@link module:engine/view/view~View} this event is available by default.
+ * {@link module:engine/view/view~EditingView} this event is available by default.
  *
  * @see module:engine/view/observer/keyobserver~KeyObserver
- * @eventName module:engine/view/document~Document#keydown
+ * @eventName module:engine/view/document~ViewDocument#keydown
  */
-export type ViewDocumentKeyDownEvent = {
+export type ViewDocumentKeyDownEvent = BubblingEvent<{
 	name: 'keydown';
-	args: [ data: KeyEventData ];
-};
+	args: [ data: ViewDocumentKeyEventData ];
+}>;
 
 /**
  * Fired when a key has been released.
@@ -65,20 +66,20 @@ export type ViewDocumentKeyDownEvent = {
  * Introduced by {@link module:engine/view/observer/keyobserver~KeyObserver}.
  *
  * Note that because {@link module:engine/view/observer/keyobserver~KeyObserver} is attached by the
- * {@link module:engine/view/view~View} this event is available by default.
+ * {@link module:engine/view/view~EditingView} this event is available by default.
  *
  * @see module:engine/view/observer/keyobserver~KeyObserver
- * @eventName module:engine/view/document~Document#keyup
+ * @eventName module:engine/view/document~ViewDocument#keyup
  */
-export type ViewDocumentKeyUpEvent = {
+export type ViewDocumentKeyUpEvent = BubblingEvent<{
 	name: 'keyup';
-	args: [ data: KeyEventData ];
-};
+	args: [ data: ViewDocumentKeyEventData ];
+}>;
 
 /**
  * The value of both events - {@link ~ViewDocumentKeyDownEvent} and {@link ~ViewDocumentKeyUpEvent}.
  */
-export interface KeyEventData extends DomEventData<KeyboardEvent>, KeystrokeInfo {
+export interface ViewDocumentKeyEventData extends ViewDocumentDomEventData<KeyboardEvent>, KeystrokeInfo {
 
 	/**
 	 * Code of the whole keystroke. See {@link module:utils/keyboard~getCode}.

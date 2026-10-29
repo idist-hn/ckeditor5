@@ -1,7 +1,8 @@
 ---
 category: framework-contributing
 meta-title: Package metadata | CKEditor 5 Framework Documentation
-order: 40
+meta-description: Understand CKEditor 5 package metadata, including configuration, dependencies, and guidelines for maintaining consistent package information.
+order: 50
 modified_at: 2021-06-07
 ---
 
@@ -9,7 +10,7 @@ modified_at: 2021-06-07
 
 The package metadata is a set of CKEditor&nbsp;5-related data describing plugins that the package delivers. It allows for the automated detection of plugins and building them by an external builder.
 
-In the case of official CKEditor&nbsp;5 packages (as well as some partner ones), this data is used by the [CKEditor&nbsp;5 Online Builder](https://ckeditor.com/ckeditor-5/online-builder/) and allows for building the {@link installation/plugins/features-html-output-overview Features' HTML output} page presenting a list of all official CKEditor&nbsp;5 plugins.
+In the case of official CKEditor&nbsp;5 packages (as well as some partner ones), this data is used by the [CKEditor&nbsp;5 Builder](https://builder.ckeditor.com/?redirect=docs) and allows for building the {@link framework/architecture/plugins#plugins-and-html-output Features' HTML output} page presenting a list of all official CKEditor&nbsp;5 plugins.
 
 The package metadata should be saved in the special `ckeditor5-metadata.json` file in the root of the package published on npm.
 
@@ -31,7 +32,7 @@ The `ckeditor5-metadata.json` file is a JSON object that holds the `plugins` arr
 * `uiComponents` &ndash; An array of objects that describes UI components exported by the plugin. Each object in this array may contain:
 	* `name` &ndash; The name of the component the plugin exports. It should match the actual UI name registered by the plugin.
 	* `type` &ndash; The component type: `Button`, `SplitButton` or `Dropdown`.
-	* `iconPath` &ndash; The path to the SVG icon for `Button` or `SplitButton`. The path can be either relative to the package or absolute &mdash; linking to a resource from another package.
+	* `iconName` &ndash; The exported icon identifier from `@ckeditor/ckeditor5-icons` (for example, `IconBold`, `IconTable`). Must match an export name from the icons package.
 	* `label` &ndash; Text content for `Dropdown` components.
 	* `toolbars` &ndash; An array of toolbar names that a given UI component can be added to. Some UI components may be added to multiple toolbars.
 * `htmlOutput` &ndash; An array of objects that defines all possible HTML elements which can be created by a given plugin. The main property in this object is `elements`. Other properties (like `classes`, `styles`, `attributes`) only apply to items defined in the `elements` property within a given object. The wildcard character `*` is used to mark any value. The full list of all these properties includes:
@@ -56,7 +57,7 @@ Below is an example showing how the `Bold` plugin can be documented using this f
 		{
 			"type": "Button",
 			"name": "bold",
-			"iconPath": "theme/icons/bold.svg"
+			"iconName": "IconBold"
 		}
 	],
 	"htmlOutput": [

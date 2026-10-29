@@ -1,25 +1,33 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module editor-classic/classiceditorui
  */
 
-import type { Editor, ElementApi } from 'ckeditor5/src/core';
-import { EditorUI, normalizeToolbarConfig, type EditorUIReadyEvent } from 'ckeditor5/src/ui';
+import { rootAcceptsBlocks, type Editor, type ElementApi } from '@ckeditor/ckeditor5-core';
 import {
-	enablePlaceholder,
+	EditorUI,
+	DialogView,
+	normalizeToolbarConfig,
+	type DialogViewMoveToEvent,
+	type Dialog,
+	type EditorUIReadyEvent,
+	type ContextualBalloonGetPositionOptionsEvent
+} from '@ckeditor/ckeditor5-ui';
+import {
+	enableViewPlaceholder,
 	type ViewScrollToTheSelectionEvent
-} from 'ckeditor5/src/engine';
-import { ElementReplacer, Rect, type EventInfo } from 'ckeditor5/src/utils';
-import type ClassicEditorUIView from './classiceditoruiview';
+} from '@ckeditor/ckeditor5-engine';
+import { ElementReplacer, Rect, type EventInfo } from '@ckeditor/ckeditor5-utils';
+import { type ClassicEditorUIView } from './classiceditoruiview.js';
 
 /**
  * The classic editor UI class.
  */
-export default class ClassicEditorUI extends EditorUI {
+export class ClassicEditorUI extends EditorUI {
 	/**
 	 * The main (top–most) view of the editor UI.
 	 */
@@ -46,6 +54,7 @@ export default class ClassicEditorUI extends EditorUI {
 
 		this.view = view;
 		this._toolbarConfig = normalizeToolbarConfig( editor.config.get( 'toolbar' ) );
+
 		this._elementReplacer = new ElementReplacer();
 
 		this.listenTo<ViewScrollToTheSelectionEvent>(
@@ -74,6 +83,15 @@ export default class ClassicEditorUI extends EditorUI {
 		// The editable UI and editing root should share the same name. Then name is used
 		// to recognize the particular editable, for instance in ARIA attributes.
 		editable.name = editingRoot.rootName;
+
+		// Resolved during UI init rather than in the editor constructor: by this point the plugin
+		// initialization phase has finished, so the schema is fully populated and the check below
+		// reflects any plugin-registered root types or additional content rules.
+		editable.isInlineRoot = !rootAcceptsBlocks( editor, editingRoot.rootName );
+
+		// Mark the main editing root (adds `ck-editor__editable_root`) so themes can target it without
+		// reaching secondary editables that share the `ck-editor__editable` class (comments, etc.).
+		editable.isMainFrameEditingRoot = true;
 
 		view.render();
 
@@ -107,6 +125,14 @@ export default class ClassicEditorUI extends EditorUI {
 
 		this._initPlaceholder();
 		this._initToolbar();
+
+		if ( view.menuBarView ) {
+			this.initMenuBar( view.menuBarView );
+		}
+
+		this._initDialogPluginIntegration();
+		this._initContextualBalloonIntegration();
+
 		this.fire<EditorUIReadyEvent>( 'ready' );
 	}
 
@@ -120,7 +146,11 @@ export default class ClassicEditorUI extends EditorUI {
 		const editingView = this.editor.editing.view;
 
 		this._elementReplacer.restore();
-		editingView.detachDomRoot( view.editable.name! );
+
+		if ( editingView.getDomRoot( view.editable.name! ) ) {
+			editingView.detachDomRoot( view.editable.name! );
+		}
+
 		view.destroy();
 	}
 
@@ -133,7 +163,7 @@ export default class ClassicEditorUI extends EditorUI {
 		// Set–up the sticky panel with toolbar.
 		view.stickyPanel.bind( 'isActive' ).to( this.focusTracker, 'isFocused' );
 		view.stickyPanel.limiterElement = view.element;
-		view.stickyPanel.bind( 'viewportTopOffset' ).to( this, 'viewportOffset', ( { top } ) => top || 0 );
+		view.stickyPanel.bind( 'viewportTopOffset' ).to( this, 'viewportOffset', ( { visualTop } ) => visualTop || 0 );
 
 		view.toolbar.fillFromConfig( this._toolbarConfig, this.componentFactory );
 
@@ -151,10 +181,10 @@ export default class ClassicEditorUI extends EditorUI {
 		const sourceElement = ( editor as Editor & ElementApi ).sourceElement;
 
 		let placeholderText;
-		const placeholder = editor.config.get( 'placeholder' );
+		const placeholder = editor.config.get( 'roots' )![ this.view.editable.name! ].placeholder;
 
 		if ( placeholder ) {
-			placeholderText = typeof placeholder === 'string' ? placeholder : placeholder[ this.view.editable.name! ];
+			placeholderText = placeholder;
 		}
 
 		if ( !placeholderText && sourceElement && sourceElement.tagName.toLowerCase() === 'textarea' ) {
@@ -165,12 +195,71 @@ export default class ClassicEditorUI extends EditorUI {
 			editingRoot.placeholder = placeholderText;
 		}
 
-		enablePlaceholder( {
+		enableViewPlaceholder( {
 			view: editingView,
 			element: editingRoot,
-			isDirectHost: false,
+			isDirectHost: this.view.editable.isInlineRoot,
 			keepOnFocus: true
 		} );
+	}
+
+	/**
+	 * Provides an integration between the sticky toolbar and {@link module:ui/panel/balloon/contextualballoon contextual balloon plugin}.
+	 * It allows the contextual balloon to consider the height of the
+	 * {@link module:editor-classic/classiceditoruiview~ClassicEditorUIView#stickyPanel}. It prevents the balloon from overlapping
+	 * the sticky toolbar by adjusting the balloon's position using viewport offset configuration.
+	 */
+	private _initContextualBalloonIntegration(): void {
+		if ( !this.editor.plugins.has( 'ContextualBalloon' ) ) {
+			return;
+		}
+
+		const { stickyPanel } = this.view;
+		const contextualBalloon = this.editor.plugins.get( 'ContextualBalloon' );
+
+		contextualBalloon.on<ContextualBalloonGetPositionOptionsEvent>( 'getPositionOptions', evt => {
+			const position = evt.return;
+
+			if ( !position || !stickyPanel.isSticky || !stickyPanel.element ) {
+				return;
+			}
+
+			// Measure toolbar (and menu bar) height.
+			const stickyPanelHeight = new Rect( stickyPanel.element ).height;
+
+			// Handle edge case when the target element is larger than the limiter.
+			// It's an issue because the contextual balloon can overlap top table cells when the table is larger than the viewport
+			// and it's placed at the top of the editor. It's better to overlap toolbar in that situation.
+			// Check this issue: https://github.com/ckeditor/ckeditor5/issues/15744
+			const target = typeof position.target === 'function' ? position.target() : position.target;
+			const limiter = typeof position.limiter === 'function' ? position.limiter() : position.limiter;
+
+			if ( target && limiter && new Rect( target ).height >= new Rect( limiter ).height - stickyPanelHeight ) {
+				return;
+			}
+
+			// Ensure that viewport offset is present, it can be undefined according to the typing.
+			const viewportOffsetConfig = { ...position.viewportOffsetConfig };
+			const newTopViewportOffset = ( viewportOffsetConfig.top || 0 ) + stickyPanelHeight;
+
+			evt.return = {
+				...position,
+				viewportOffsetConfig: {
+					...viewportOffsetConfig,
+					top: newTopViewportOffset
+				}
+			};
+		}, { priority: 'low' } );
+
+		// Update balloon position when the toolbar becomes sticky or when ui viewportOffset changes.
+		const updateBalloonPosition = () => {
+			if ( contextualBalloon.visibleView ) {
+				contextualBalloon.updatePosition();
+			}
+		};
+
+		this.listenTo( stickyPanel, 'change:isSticky', updateBalloonPosition );
+		this.listenTo( this.editor.ui, 'change:viewportOffset', updateBalloonPosition );
 	}
 
 	/**
@@ -208,5 +297,39 @@ export default class ClassicEditorUI extends EditorUI {
 			}, 20 );
 		}
 	}
-}
 
+	/**
+	 * Provides an integration between the sticky toolbar and {@link module:ui/dialog/dialog the Dialog plugin}.
+	 *
+	 * It moves the dialog down to ensure that the
+	 * {@link module:editor-classic/classiceditoruiview~ClassicEditorUIView#stickyPanel sticky panel}
+	 * used by the editor UI will not get obscured by the dialog when the dialog uses one of its automatic positions.
+	 */
+	private _initDialogPluginIntegration(): void {
+		if ( !this.editor.plugins.has( 'Dialog' ) ) {
+			return;
+		}
+
+		const stickyPanel = this.view.stickyPanel;
+		const dialogPlugin: Dialog = this.editor.plugins.get( 'Dialog' );
+
+		dialogPlugin.on( 'show', () => {
+			const dialogView = dialogPlugin.view!;
+
+			dialogView.on<DialogViewMoveToEvent>( 'moveTo', ( evt, data ) => {
+				// Engage only when the panel is sticky, and the dialog is using one of default positions.
+				// Ignore modals because they are displayed on top of the page (and overlay) and they do not collide with anything
+				// See (https://github.com/ckeditor/ckeditor5/issues/17339).
+				if ( !stickyPanel.isSticky || dialogView.wasMoved || dialogView.isModal ) {
+					return;
+				}
+
+				const stickyPanelContentRect = new Rect( stickyPanel.contentPanelElement );
+
+				if ( data[ 1 ] < stickyPanelContentRect.bottom + DialogView.defaultOffset ) {
+					data[ 1 ] = stickyPanelContentRect.bottom + DialogView.defaultOffset;
+				}
+			}, { priority: 'high' } );
+		}, { priority: 'low' } );
+	}
+}

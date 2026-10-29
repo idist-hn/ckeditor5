@@ -1,23 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import HtmlDataProcessor from '@ckeditor/ckeditor5-engine/src/dataprocessor/htmldataprocessor';
-import removeStyleBlock from '../../src/filters/removestyleblock';
-import UpcastWriter from '@ckeditor/ckeditor5-engine/src/view/upcastwriter';
-import Document from '@ckeditor/ckeditor5-engine/src/view/document';
-import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { HtmlDataProcessor, ViewUpcastWriter, ViewDocument, StylesProcessor } from '@ckeditor/ckeditor5-engine';
+import { removeStyleBlock } from '../../src/filters/removestyleblock.js';
 
 describe( 'PasteFromOffice - filters', () => {
-	const htmlDataProcessor = new HtmlDataProcessor( new Document( new StylesProcessor() ) );
+	const htmlDataProcessor = new HtmlDataProcessor( new ViewDocument( new StylesProcessor() ) );
 
 	describe( 'removeStyleBlock', () => {
 		let writer, viewDocument;
 
-		before( () => {
-			viewDocument = new Document();
-			writer = new UpcastWriter( viewDocument );
+		beforeAll( () => {
+			viewDocument = new ViewDocument();
+			writer = new ViewUpcastWriter( viewDocument );
 		} );
 
 		it( 'should remove <style> element', () => {
@@ -35,7 +33,7 @@ describe( 'PasteFromOffice - filters', () => {
 
 			removeStyleBlock( documentFragment, writer );
 
-			expect( htmlDataProcessor.toData( documentFragment ) ).to.equal( '<table><tbody><tr><td>123</td></tr></tbody></table>' );
+			expect( htmlDataProcessor.toData( documentFragment ) ).toBe( '<table><tbody><tr><td>123</td></tr></tbody></table>' );
 		} );
 
 		it( 'works with multiple consecutive <style> tags', () => {
@@ -55,7 +53,7 @@ describe( 'PasteFromOffice - filters', () => {
 
 			removeStyleBlock( documentFragment, writer );
 
-			expect( htmlDataProcessor.toData( documentFragment ) ).to.equal( '<table><tbody><tr><td>123</td></tr></tbody></table>' );
+			expect( htmlDataProcessor.toData( documentFragment ) ).toBe( '<table><tbody><tr><td>123</td></tr></tbody></table>' );
 		} );
 
 		it( 'works with multiple non-consecutive <style> tags', () => {
@@ -74,7 +72,7 @@ describe( 'PasteFromOffice - filters', () => {
 
 			removeStyleBlock( documentFragment, writer );
 
-			expect( htmlDataProcessor.toData( documentFragment ) ).to.equal( '<table><tbody><tr><td>123</td></tr></tbody></table>' );
+			expect( htmlDataProcessor.toData( documentFragment ) ).toBe( '<table><tbody><tr><td>123</td></tr></tbody></table>' );
 		} );
 	} );
 } );

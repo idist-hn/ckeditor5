@@ -1,115 +1,210 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine
  */
 
-export * from './view/placeholder';
+export type {
+	EngineConfig,
+	ExperimentalFlagsConfig
+} from './engineconfig.js';
+
+export {
+	type PlaceholderableViewElement,
+	disableViewPlaceholder,
+	enableViewPlaceholder,
+	hideViewPlaceholder,
+	needsViewPlaceholder,
+	showViewPlaceholder
+} from './view/placeholder.js';
 
 // Controller.
-export { default as EditingController } from './controller/editingcontroller';
+export { EditingController } from './controller/editingcontroller.js';
 export {
-	default as DataController,
+	DataController,
 	type DataControllerInitEvent,
 	type DataControllerSetEvent,
 	type DataControllerToModelEvent,
-	type DataControllerToViewEvent
-} from './controller/datacontroller';
+	type DataControllerToViewEvent,
+	type DataControllerReadyEvent,
+	type DataControllerGetEvent
+} from './controller/datacontroller.js';
 
 // Conversion.
-export { default as Conversion } from './conversion/conversion';
+export { Conversion, type ConversionType } from './conversion/conversion.js';
+export { ConversionHelpers } from './conversion/conversionhelpers.js';
+export {
+	DowncastDispatcher,
+	type DowncastDispatcherEventMap,
+	type DowncastAddMarkerEvent,
+	type DowncastAttributeEvent,
+	type DowncastConversionApi,
+	type DowncastInsertEvent,
+	type DowncastRemoveEvent,
+	type DowncastRemoveMarkerEvent,
+	type DowncastSelectionEvent,
+	type DowncastReduceChangesEvent,
+	type DowncastReduceChangesEventData,
+	type DowncastEvent,
+	type DowncastCleanSelectionEvent
+} from './conversion/downcastdispatcher.js';
+export {
+	UpcastDispatcher,
+	type UpcastConversionApi,
+	type UpcastConversionData,
+	type UpcastElementEvent,
+	type UpcastTextEvent,
+	type UpcastViewCleanupEvent,
+	type UpcastEvent,
+	type UpcastDocumentFragmentEvent
+} from './conversion/upcastdispatcher.js';
+export { UpcastHelpers } from './conversion/upcasthelpers.js';
+export {
+	DowncastHelpers,
+	type DowncastStructureCreatorFunction,
+	type DowncastAttributeElementCreatorFunction,
+	type DowncastElementCreatorFunction,
+	type DowncastHighlightDescriptor,
+	type DowncastSlotFilter,
+	type DowncastAttributeDescriptor,
+	type DowncastMarkerElementCreatorFunction,
+	type DowncastAddHighlightCallback,
+	type DowncastHighlightDescriptorCreatorFunction,
+	type DowncastRemoveHighlightCallback,
+	type DowncastMarkerDataCreatorFunction,
+	type DowncastAttributeCreatorFunction
+} from './conversion/downcasthelpers.js';
+
 export type {
-	default as DowncastDispatcher,
-	DowncastAddMarkerEvent,
-	DowncastAttributeEvent,
-	DowncastConversionApi,
-	DowncastInsertEvent,
-	DowncastRemoveEvent,
-	DowncastRemoveMarkerEvent,
-	DowncastSelectionEvent
-} from './conversion/downcastdispatcher';
-export type {
-	default as UpcastDispatcher,
-	UpcastConversionApi,
-	UpcastConversionData,
-	UpcastElementEvent,
-	UpcastTextEvent
-} from './conversion/upcastdispatcher';
-export type {
-	AddHighlightCallback,
-	AttributeDescriptor,
-	ElementCreatorFunction,
-	HighlightDescriptor,
-	RemoveHighlightCallback,
-	MarkerElementCreatorFunction,
-	SlotFilter
-} from './conversion/downcasthelpers';
-export type {
-	default as Mapper,
-	MapperModelToViewPositionEvent,
-	MapperViewToModelPositionEvent
-} from './conversion/mapper';
-export type { default as ModelConsumable } from './conversion/modelconsumable';
-export type { Consumables, default as ViewConsumable } from './conversion/viewconsumable';
+	UpcastElementCreatorFunction,
+	UpcastAttributeCreatorFunction,
+	UpcastMarkerFromElementCreatorFunction,
+	UpcastMarkerFromAttributeCreatorFunction
+} from './conversion/upcasthelpers.js';
+
+export {
+	Mapper,
+	type MapperModelToViewPositionEvent,
+	type MapperViewToModelPositionEvent,
+	type MapperModelToViewPositionEventData,
+	type MapperViewToModelPositionEventData
+} from './conversion/mapper.js';
+export { ModelConsumable } from './conversion/modelconsumable.js';
+export { type Consumables, ViewConsumable } from './conversion/viewconsumable.js';
 
 // DataProcessor.
-export type { default as DataProcessor } from './dataprocessor/dataprocessor';
-export { default as HtmlDataProcessor } from './dataprocessor/htmldataprocessor';
+export type { DataProcessor } from './dataprocessor/dataprocessor.js';
+export type { DataProcessorHtmlWriter } from './dataprocessor/htmlwriter.js';
+
+export { HtmlDataProcessor } from './dataprocessor/htmldataprocessor.js';
+export { XmlDataProcessor } from './dataprocessor/xmldataprocessor.js';
 
 // Model / Operation.
-export type { default as Operation } from './model/operation/operation';
-export { default as InsertOperation } from './model/operation/insertoperation';
-export { default as MoveOperation } from './model/operation/moveoperation';
-export { default as MergeOperation } from './model/operation/mergeoperation';
-export { default as SplitOperation } from './model/operation/splitoperation';
-export { default as MarkerOperation } from './model/operation/markeroperation';
-export { default as OperationFactory } from './model/operation/operationfactory';
-export { default as AttributeOperation } from './model/operation/attributeoperation';
-export { default as RenameOperation } from './model/operation/renameoperation';
-export { default as RootAttributeOperation } from './model/operation/rootattributeoperation';
-export { default as RootOperation } from './model/operation/rootoperation';
-export { default as NoOperation } from './model/operation/nooperation';
-export { transformSets } from './model/operation/transform';
+export { Operation } from './model/operation/operation.js';
+export { InsertOperation } from './model/operation/insertoperation.js';
+export { MoveOperation } from './model/operation/moveoperation.js';
+export { MergeOperation } from './model/operation/mergeoperation.js';
+export { SplitOperation } from './model/operation/splitoperation.js';
+export { MarkerOperation } from './model/operation/markeroperation.js';
+export { OperationFactory } from './model/operation/operationfactory.js';
+export { AttributeOperation } from './model/operation/attributeoperation.js';
+export { RenameOperation } from './model/operation/renameoperation.js';
+export { RootAttributeOperation } from './model/operation/rootattributeoperation.js';
+export { RootOperation } from './model/operation/rootoperation.js';
+export { NoOperation } from './model/operation/nooperation.js';
+export { transformOperationSets, type TransformOperationSetsResult } from './model/operation/transform.js';
 
 // Model.
-export { default as DocumentSelection, type DocumentSelectionChangeRangeEvent } from './model/documentselection';
-export { default as Range } from './model/range';
-export { default as LiveRange, type LiveRangeChangeRangeEvent } from './model/liverange';
-export { default as LivePosition } from './model/liveposition';
-export { default as Model } from './model/model';
-export { default as TreeWalker, type TreeWalkerValue } from './model/treewalker';
-export { default as Element } from './model/element';
-export { default as Position, type PositionOffset } from './model/position';
-export { default as DocumentFragment } from './model/documentfragment';
-export { default as History } from './model/history';
-export { default as Text } from './model/text';
-export { default as TextProxy } from './model/textproxy';
-export type { default as Document, ModelPostFixer } from './model/document';
-export type { Marker } from './model/markercollection';
-export type { default as Batch } from './model/batch';
-export type { default as Differ, DiffItem, DiffItemAttribute, DiffItemInsert, DiffItemRemove } from './model/differ';
-export type { default as Item } from './model/item';
-export type { default as Node, NodeAttributes } from './model/node';
-export type { default as RootElement } from './model/rootelement';
-export type {
-	default as Schema,
-	SchemaAttributeCheckCallback,
-	SchemaChildCheckCallback,
-	AttributeProperties,
-	SchemaItemDefinition
-} from './model/schema';
-export type { default as Selection, Selectable } from './model/selection';
-export type { default as TypeCheckable } from './model/typecheckable';
-export type { default as Writer } from './model/writer';
-
-export { findOptimalInsertionRange } from './model/utils/findoptimalinsertionrange';
+export {
+	ModelDocumentSelection,
+	type ModelDocumentSelectionChangeRangeEvent,
+	type ModelDocumentSelectionChangeMarkerEvent,
+	type ModelDocumentSelectionChangeAttributeEvent
+} from './model/documentselection.js';
+export { ModelRange } from './model/range.js';
+export {
+	ModelLiveRange,
+	type ModelLiveRangeChangeRangeEvent,
+	type ModelLiveRangeChangeContentEvent,
+	type ModelLiveRangeChangeEvent,
+	type ModelLiveRangeChangeDropEvent
+} from './model/liverange.js';
+export { ModelLivePosition, type ModelLivePositionChangeEvent } from './model/liveposition.js';
+export { Model } from './model/model.js';
+export {
+	ModelTreeWalker,
+	type ModelTreeWalkerValue,
+	type ModelTreeWalkerValueType,
+	type ModelTreeWalkerDirection,
+	type ModelTreeWalkerOptions
+} from './model/treewalker.js';
+export { ModelElement } from './model/element.js';
+export {
+	ModelPosition,
+	type ModelPositionOffset,
+	type ModelPositionRelation,
+	type ModelPositionStickiness
+} from './model/position.js';
+export { ModelDocumentFragment } from './model/documentfragment.js';
+export { ModelDocument, type ModelPostFixer } from './model/document.js';
+export { History } from './model/history.js';
+export { ModelText } from './model/text.js';
+export { ModelTextProxy } from './model/textproxy.js';
+export {
+	MarkerCollection,
+	Marker,
+	type MarkerData,
+	type MarkerChangeRangeEvent,
+	type MarkerCollectionChangeContentEvent,
+	type MarkerChangeEvent,
+	type MarkerCollectionUpdateEvent
+} from './model/markercollection.js';
+export { Batch, type BatchType } from './model/batch.js';
+export {
+	Differ,
+	type DifferItem,
+	type DifferItemAttribute,
+	type DifferItemInsert,
+	type DifferItemRemove,
+	type DifferItemAction,
+	type DifferItemReinsert,
+	type DifferItemRoot
+} from './model/differ.js';
+export type { ModelItem } from './model/item.js';
+export { ModelNode, type ModelNodeAttributes } from './model/node.js';
+export { ModelNodeList } from './model/nodelist.js';
+export { ModelRootElement } from './model/rootelement.js';
+export {
+	ModelSchema,
+	ModelSchemaContext,
+	type ModelSchemaCheckChildEvent,
+	type ModelSchemaCheckAttributeEvent,
+	type ModelSchemaAttributeCheckCallback,
+	type ModelSchemaChildCheckCallback,
+	type ModelAttributeProperties,
+	type ModelSchemaItemDefinition,
+	type ModelSchemaCompiledItemDefinition,
+	type ModelSchemaContextDefinition,
+	type ModelSchemaContextItem,
+	type ModelBlockAlignmentAttributesMapping
+} from './model/schema.js';
+export {
+	ModelSelection,
+	type ModelSelectionChangeEvent,
+	type ModelSelectionChangeRangeEvent,
+	type ModelSelectionChangeAttributeEvent,
+	type ModelSelectable,
+	type ModelPlaceOrOffset
+} from './model/selection.js';
+export { ModelTypeCheckable } from './model/typecheckable.js';
+export { ModelWriter } from './model/writer.js';
 
 // Model Events.
-export type { DocumentChangeEvent } from './model/document';
-export type { DocumentSelectionChangeEvent } from './model/documentselection';
+export type { ModelDocumentChangeEvent } from './model/document.js';
+export type { ModelDocumentSelectionChangeEvent } from './model/documentselection.js';
 export type {
 	ModelApplyOperationEvent,
 	ModelDeleteContentEvent,
@@ -118,79 +213,321 @@ export type {
 	ModelInsertObjectEvent,
 	ModelModifySelectionEvent,
 	ModelCanEditAtEvent
-} from './model/model';
-export type { SelectionChangeRangeEvent } from './model/selection';
+} from './model/model.js';
 
 // View.
-export { default as DataTransfer } from './view/datatransfer';
-export { default as DomConverter } from './view/domconverter';
-export { default as Renderer } from './view/renderer';
-export { default as View } from './view/view';
-export { default as ViewDocument } from './view/document';
-export { default as ViewText } from './view/text';
-export { default as ViewElement, type ElementAttributes as ViewElementAttributes } from './view/element';
-export { default as ViewContainerElement } from './view/containerelement';
-export { default as ViewEditableElement } from './view/editableelement';
-export { default as ViewRootEditableElement } from './view/rooteditableelement';
-export { default as ViewAttributeElement } from './view/attributeelement';
-export { default as ViewEmptyElement } from './view/emptyelement';
-export { default as ViewRawElement } from './view/rawelement';
-export { default as ViewUIElement } from './view/uielement';
-export { default as ViewDocumentFragment } from './view/documentfragment';
-export { default as ViewTreeWalker, type TreeWalkerValue as ViewTreeWalkerValue } from './view/treewalker';
-export type { default as ViewElementDefinition } from './view/elementdefinition';
-export type { default as ViewDocumentSelection } from './view/documentselection';
-export { default as AttributeElement } from './view/attributeelement';
-export type { default as ViewItem } from './view/item';
-export type { default as ViewNode } from './view/node';
-export type { default as ViewPosition, PositionOffset as ViewPositionOffset } from './view/position';
-export type { default as ViewRange } from './view/range';
-export type { default as ViewSelection, ViewSelectionChangeEvent, Selectable as ViewSelectable } from './view/selection';
-export type { default as ViewTypeCheckable } from './view/typecheckable';
+export { ViewDataTransfer, type ViewDropEffect, type ViewEffectAllowed } from './view/datatransfer.js';
+export { ViewDomConverter, type ViewBlockFillerMode } from './view/domconverter.js';
+export { ViewRenderer } from './view/renderer.js';
+export {
+	EditingView,
+	type ViewRenderEvent,
+	type ViewScrollToTheSelectionEvent,
+	type ViewScrollToTheSelectionEventData,
+	type AlwaysRegisteredViewObservers
+} from './view/view.js';
 
-export { getFillerOffset } from './view/containerelement';
+export { ViewDocument, type ViewDocumentPostFixer, type ViewDocumentChangeType } from './view/document.js';
+export { ViewText } from './view/text.js';
+export { ViewTextProxy } from './view/textproxy.js';
+export { ViewTokenList } from './view/tokenlist.js';
+export {
+	ViewElement,
+	type ViewElementAttributes,
+	type ViewElementAttributeValue,
+	type ViewNormalizedConsumables
+} from './view/element.js';
+
+export { ViewContainerElement, getViewFillerOffset } from './view/containerelement.js';
+export { ViewEditableElement } from './view/editableelement.js';
+export { ViewRootEditableElement } from './view/rooteditableelement.js';
+export { ViewAttributeElement } from './view/attributeelement.js';
+export { ViewEmptyElement } from './view/emptyelement.js';
+export { ViewRawElement } from './view/rawelement.js';
+export { ViewUIElement } from './view/uielement.js';
+export { ViewDocumentFragment } from './view/documentfragment.js';
+export type { ViewElementDefinition, ViewElementObjectDefinition } from './view/elementdefinition.js';
+export { ViewDocumentSelection, type ViewDocumentSelectionChangeEvent } from './view/documentselection.js';
+export type { ViewItem } from './view/item.js';
+export { ViewNode, type ViewNodeChangeEvent } from './view/node.js';
+export {
+	ViewPosition,
+	type ViewPositionOffset,
+	type ViewPositionRelation
+} from './view/position.js';
+
+export { ViewRange } from './view/range.js';
+export {
+	ViewSelection,
+	type ViewSelectionChangeEvent,
+	type ViewSelectable,
+	type ViewSelectionOptions,
+	type ViewPlaceOrOffset
+} from './view/selection.js';
+
+export {
+	ViewTreeWalker,
+	type ViewTreeWalkerValueType,
+	type ViewTreeWalkerValue,
+	type ViewTreeWalkerDirection,
+	type ViewTreeWalkerOptions
+} from './view/treewalker.js';
+
+export { ViewTypeCheckable } from './view/typecheckable.js';
 
 // View / Observer.
-export { default as Observer } from './view/observer/observer';
-export { default as ClickObserver } from './view/observer/clickobserver';
-export { default as DomEventObserver } from './view/observer/domeventobserver';
-export { default as MouseObserver } from './view/observer/mouseobserver';
-export { default as TabObserver } from './view/observer/tabobserver';
-export { default as FocusObserver } from './view/observer/focusobserver';
+export { Observer, type ObserverConstructor } from './view/observer/observer.js';
+export { ClickObserver } from './view/observer/clickobserver.js';
+export { DomEventObserver } from './view/observer/domeventobserver.js';
+export { MouseObserver } from './view/observer/mouseobserver.js';
+export { TabObserver } from './view/observer/tabobserver.js';
+export { TouchObserver } from './view/observer/touchobserver.js';
+export { PointerObserver } from './view/observer/pointerobserver.js';
+export { FakeSelectionObserver } from './view/observer/fakeselectionobserver.js';
+export {
+	KeyObserver,
+	type ViewDocumentKeyDownEvent,
+	type ViewDocumentKeyUpEvent,
+	type ViewDocumentKeyEventData
+} from './view/observer/keyobserver.js';
 
-export { default as DowncastWriter } from './view/downcastwriter';
-export { default as UpcastWriter } from './view/upcastwriter';
-export { default as Matcher, type MatcherPattern, type MatcherObjectPattern, type Match, type MatchResult } from './view/matcher';
+export {
+	MutationObserver,
+	type ViewDocumentMutationEventData,
+	type ObserverMutationData
+} from './view/observer/mutationobserver.js';
 
-export { default as BubblingEventInfo } from './view/observer/bubblingeventinfo';
-export { default as DomEventData } from './view/observer/domeventdata';
+export {
+	SelectionObserver,
+	type ViewDocumentObserverSelectionEventData
+} from './view/observer/selectionobserver.js';
+
+export { CompositionObserver, type ViewDocumentCompositionEventData } from './view/observer/compositionobserver.js';
+export {
+	InputObserver,
+	type ViewDocumentInputEventData,
+	type ViewDocumentInputEvent
+} from './view/observer/inputobserver.js';
+
+export {
+	FocusObserver,
+	type ViewDocumentBlurEvent,
+	type ViewDocumentFocusEvent
+} from './view/observer/focusobserver.js';
+
+export { ViewDowncastWriter } from './view/downcastwriter.js';
+export {
+	ViewUpcastWriter,
+	ViewUpcastWriter as UpcastWriter // TODO: Remove after MathType has been adjusted.
+} from './view/upcastwriter.js';
+
+export {
+	Matcher,
+	type MatcherPattern,
+	type MatcherObjectPattern,
+	type MatcherFunctionPattern,
+	type Match,
+	type MatchResult,
+	type MatchPropertyPatterns,
+	type MatchAttributePatterns,
+	type MatchStylePatterns,
+	type MatchClassPatterns
+} from './view/matcher.js';
+
+export { BubblingEventInfo, type BubblingEventPhase } from './view/observer/bubblingeventinfo.js';
+export { ViewDocumentDomEventData as ViewDocumentDomEventData } from './view/observer/domeventdata.js';
 
 // View / Events.
-export type { BubblingEvent } from './view/observer/bubblingemittermixin';
-export type { ViewDocumentArrowKeyEvent } from './view/observer/arrowkeysobserver';
+export {
+	type BubblingEvent,
+	type BubblingEmitter,
+	type BubblingEmitterMixinConstructor,
+	type BubblingEventContextFunction,
+	type BubblingCallbackOptions,
+	BubblingEmitterMixin
+} from './view/observer/bubblingemittermixin.js';
+
+export type { ViewDocumentArrowKeyEvent } from './view/observer/arrowkeysobserver.js';
 export type {
 	ViewDocumentCompositionStartEvent,
 	ViewDocumentCompositionUpdateEvent,
 	ViewDocumentCompositionEndEvent
-} from './view/observer/compositionobserver';
-export type { ViewDocumentInputEvent } from './view/observer/inputobserver';
-export type { ViewDocumentKeyDownEvent, ViewDocumentKeyUpEvent, KeyEventData } from './view/observer/keyobserver';
-export type { ViewDocumentLayoutChangedEvent } from './view/document';
+} from './view/observer/compositionobserver.js';
+export type { ViewDocumentMutationsEvent } from './view/observer/mutationobserver.js';
+export type { ViewDocumentLayoutChangedEvent } from './view/document.js';
 export type {
 	ViewDocumentMouseDownEvent,
 	ViewDocumentMouseUpEvent,
 	ViewDocumentMouseOverEvent,
 	ViewDocumentMouseOutEvent
-} from './view/observer/mouseobserver';
-export type { ViewDocumentTabEvent } from './view/observer/tabobserver';
-export type { ViewDocumentClickEvent } from './view/observer/clickobserver';
-export type { ViewDocumentSelectionChangeEvent } from './view/observer/selectionobserver';
-export type { ViewRenderEvent, ViewScrollToTheSelectionEvent } from './view/view';
+} from './view/observer/mouseobserver.js';
+export type {
+	ViewDocumentTouchEndEvent,
+	ViewDocumentTouchMoveEvent,
+	ViewDocumentTouchStartEvent
+} from './view/observer/touchobserver.js';
+export type {
+	ViewDocumentPointerDownEvent,
+	ViewDocumentPointerMoveEvent,
+	ViewDocumentPointerUpEvent
+} from './view/observer/pointerobserver.js';
+export type { ViewDocumentTabEvent } from './view/observer/tabobserver.js';
+export type { ViewDocumentClickEvent } from './view/observer/clickobserver.js';
+export type {
+	ViewDocumentObserverSelectionChangeEvent,
+	ViewDocumentObserverSelectionChangeDoneEvent
+} from './view/observer/selectionobserver.js';
 
 // View / Styles.
-export { StylesProcessor, type BoxSides } from './view/stylesmap';
-export * from './view/styles/background';
-export * from './view/styles/border';
-export * from './view/styles/margin';
-export * from './view/styles/padding';
-export * from './view/styles/utils';
+export {
+	StylesMap,
+	StylesProcessor,
+	type StyleValue,
+	type StylesNormalizer,
+	type StylesExtractor,
+	type StylesReducer,
+	type Styles,
+	type BoxStyleSides,
+	type StylePropertyDescriptor
+} from './view/stylesmap.js';
+
+export { addBackgroundStylesRules } from './view/styles/background.js';
+export { addBorderStylesRules } from './view/styles/border.js';
+export { addMarginStylesRules } from './view/styles/margin.js';
+export { addPaddingStylesRules } from './view/styles/padding.js';
+export {
+	isColorStyleValue,
+	isLineStyleValue,
+	isLengthStyleValue,
+	isPercentageStyleValue,
+	isRepeatStyleValue,
+	isPositionStyleValue,
+	isAttachmentStyleValue,
+	isURLStyleValue,
+	getBoxSidesStyleValues,
+	getBoxSidesStyleValueReducer,
+	getBoxSidesStyleShorthandValue,
+	getPositionStyleShorthandNormalizer,
+	getShorthandStylesValues
+} from './view/styles/utils.js';
+
+// Development / testing utils.
+export {
+	_getModelData,
+	_setModelData,
+	_parseModel,
+	_stringifyModel
+} from './dev-utils/model.js';
+
+export {
+	_getViewData,
+	_setViewData,
+	_parseView,
+	_stringifyView
+} from './dev-utils/view.js';
+
+export {
+	convertMapToTags as _convertMapToTags,
+	convertMapToStringifiedObject as _convertMapToStringifiedObject,
+	dumpTrees as _dumpTrees,
+	initDocumentDumping as _initDocumentDumping,
+	logDocument as _logDocument
+} from './dev-utils/utils.js';
+
+// Internals
+export {
+	insertText as _downcastInsertText,
+	insertAttributesAndChildren as _downcastInsertAttributesAndChildren,
+	remove as _downcastRemove,
+	createViewElementFromDowncastHighlightDescriptor as _downcastCreateViewElementFromDowncastHighlightDescriptor,
+	convertRangeSelection as _downcastConvertRangeSelection,
+	convertCollapsedSelection as _downcastConvertCollapsedSelection,
+	cleanSelection as _downcastCleanSelection,
+	wrap as _downcastWrap,
+	insertElement as _downcastInsertElement,
+	insertStructure as _downcastInsertStructure,
+	insertUIElement as _downcastInsertUIElement,
+	type ConsumerFunction as _DowncastConsumerFunction
+} from './conversion/downcasthelpers.js';
+
+export { MapperCache as _MapperCache } from './conversion/mapper.js';
+export {
+	convertToModelFragment as _upcastConvertToModelFragment,
+	convertText as _upcastConvertText,
+	convertSelectionChange as _upcastConvertSelectionChange
+} from './conversion/upcasthelpers.js';
+
+export {
+	ViewElementConsumables as _ViewElementConversionConsumables,
+	normalizeConsumables as _normalizeConversionConsumables
+} from './conversion/viewconsumable.js';
+
+export { BasicHtmlWriter as _DataProcessorBasicHtmlWriter } from './dataprocessor/basichtmlwriter.js';
+export { OperationReplayer as _OperationReplayer } from './dev-utils/operationreplayer.js';
+
+export type { DifferSnapshot as _DifferSnapshot } from './model/differ.js';
+export type {
+	BeforeChangesEvent as _ModelBeforeChangesEvent,
+	AfterChangesEvent as _ModelAfterChangesEvent
+} from './model/model.js';
+
+export { DetachOperation as _DetachOperation } from './model/operation/detachoperation.js';
+export {
+	transform as _operationTransform,
+	type TransformationContext as _OperationTransformationContext
+} from './model/operation/transform.js';
+
+export {
+	_insert as _insertIntoModelNodeList,
+	_remove as _removeFromModelNodeList,
+	_move as _moveInModelNodeList,
+	_setAttribute as _setAttributeInModelNodeList,
+	_normalizeNodes as _normalizeInModelNodeList,
+	type ModelNodeSet
+} from './model/operation/utils.js';
+
+export {
+	getTextNodeAtPosition as _getModelTextNodeAtPosition,
+	getNodeAfterPosition as _getModelNodeAfterPosition,
+	getNodeBeforePosition as _getModelNodeBeforePosition
+} from './model/position.js';
+
+export {
+	autoParagraphEmptyRoots as _autoParagraphEmptyModelRoots,
+	isParagraphable as _isParagraphableModelNode,
+	wrapInParagraph as _wrapInModelParagraph
+} from './model/utils/autoparagraphing.js';
+
+export { deleteContent as _deleteModelContent } from './model/utils/deletecontent.js';
+export { getSelectedContent as _getSelectedModelContent } from './model/utils/getselectedcontent.js';
+export { insertContent as _insertModelContent } from './model/utils/insertcontent.js';
+export { insertObject as _insertModelObject } from './model/utils/insertobject.js';
+export { modifySelection as _modifyModelSelection } from './model/utils/modifyselection.js';
+
+export {
+	injectSelectionPostFixer as _injectModelSelectionPostFixer,
+	tryFixingRange as _tryFixingModelRange,
+	mergeIntersectingRanges as _mergeIntersectingModelRanges
+} from './model/utils/selection-post-fixer.js';
+
+export {
+	NBSP_FILLER as _VIEW_NBSP_FILLER,
+	MARKED_NBSP_FILLER as _VIEW_MARKED_NBSP_FILLER,
+	BR_FILLER as _VIEW_BR_FILLER,
+	INLINE_FILLER_LENGTH as _VIEW_INLINE_FILLER_LENGTH,
+	INLINE_FILLER as _VIEW_INLINE_FILLER,
+	startsWithFiller as _startsWithViewFiller,
+	isInlineFiller as _isInlineViewFiller,
+	getDataWithoutFiller as _getDataWithoutViewFiller,
+	injectQuirksHandling as _injectViewQuirksHandling
+} from './view/filler.js';
+
+export {
+	isPatternMatched as _isViewPatternMatched,
+	type NormalizedPropertyPattern as _NormalizedViewPropertyPattern
+} from './view/matcher.js';
+
+export { injectUiElementHandling as _injectViewUIElementHandling } from './view/uielement.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';

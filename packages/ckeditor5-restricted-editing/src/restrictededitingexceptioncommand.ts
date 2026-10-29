@@ -1,19 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module restricted-editing/restrictededitingexceptioncommand
  */
 
-import { Command } from 'ckeditor5/src/core';
-import type { TreeWalkerValue } from 'ckeditor5/src/engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import type { ModelTreeWalkerValue } from '@ckeditor/ckeditor5-engine';
 
 /**
  * The command that toggles exceptions from the restricted editing on text.
  */
-export default class RestrictedEditingExceptionCommand extends Command {
+export class RestrictedEditingExceptionCommand extends Command {
 	/**
 	 * A flag indicating whether the command is active
 	 *
@@ -49,7 +49,7 @@ export default class RestrictedEditingExceptionCommand extends Command {
 				if ( valueToSet ) {
 					writer.setSelectionAttribute( 'restrictedEditingException', valueToSet );
 				} else {
-					const isSameException = ( value: TreeWalkerValue ) => {
+					const isSameException = ( value: ModelTreeWalkerValue ) => {
 						return value.item.getAttribute( 'restrictedEditingException' ) === this.value;
 					};
 

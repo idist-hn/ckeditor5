@@ -1,21 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* eslint-disable new-cap */
-
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { assertBinding, expectToThrowCKEditorError } from '../tests/_utils/utils';
-import ObservableMixin from '../src/observablemixin';
-import EmitterMixin from '../src/emittermixin';
-import EventInfo from '../src/eventinfo';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { assertBinding, expectToThrowCKEditorError } from '../tests/_utils/utils.js';
+import { ObservableMixin } from '../src/observablemixin.js';
+import { EmitterMixin } from '../src/emittermixin.js';
+import { EventInfo } from '../src/eventinfo.js';
 
 describe( 'ObservableMixin', () => {
 	const Observable = ObservableMixin();
 	const Emitter = EmitterMixin();
-
-	testUtils.createSinonSandbox();
 
 	it( 'exists', () => {
 		expect( ObservableMixin ).to.be.a( 'function' );
@@ -44,7 +40,7 @@ describe( 'ObservableMixin', () => {
 		const observable = new ObservableClass( 5 );
 
 		expect( observable ).to.be.instanceOf( TestClass );
-		expect( observable.value ).to.equal( 5 );
+		expect( observable.value ).toEqual( 5 );
 
 		for ( const key of [ 'set', 'bind', 'unbind' ] ) {
 			expect( observable ).to.have.property( key );
@@ -65,7 +61,7 @@ describe( 'ObservableMixin', () => {
 		const observable = new ObservableClass( 5 );
 
 		expect( observable ).to.be.instanceOf( TestClass );
-		expect( observable.value ).to.equal( 5 );
+		expect( observable.value ).toEqual( 5 );
 
 		for ( const key of [ 'set', 'bind', 'unbind' ] ) {
 			expect( observable ).to.have.property( key );
@@ -74,8 +70,6 @@ describe( 'ObservableMixin', () => {
 } );
 
 describe( 'Observable', () => {
-	testUtils.createSinonSandbox();
-
 	class BaseObservable extends ObservableMixin() {
 		constructor( properties ) {
 			super();
@@ -105,7 +99,7 @@ describe( 'Observable', () => {
 	it( 'should get correctly after set', () => {
 		car.color = 'blue';
 
-		expect( car.color ).to.equal( 'blue' );
+		expect( car.color ).toEqual( 'blue' );
 	} );
 
 	describe( 'set()', () => {
@@ -136,10 +130,10 @@ describe( 'Observable', () => {
 		} );
 
 		it( 'should fire the "change" event', () => {
-			const spy = sinon.spy();
-			const spyColor = sinon.spy();
-			const spyYear = sinon.spy();
-			const spyWheels = sinon.spy();
+			const spy = vi.fn();
+			const spyColor = vi.fn();
+			const spyYear = vi.fn();
+			const spyWheels = vi.fn();
 
 			car.on( 'change', spy );
 			car.on( 'change:color', spyColor );
@@ -152,32 +146,29 @@ describe( 'Observable', () => {
 			car.set( 'wheels', 4 );
 
 			// Check number of calls.
-			sinon.assert.calledThrice( spy );
-			sinon.assert.calledOnce( spyColor );
-			sinon.assert.calledOnce( spyYear );
-			sinon.assert.calledOnce( spyWheels );
+			expect( spy ).toHaveBeenCalledTimes( 3 );
+			expect( spyColor ).toHaveBeenCalledTimes( 1 );
+			expect( spyYear ).toHaveBeenCalledTimes( 1 );
+			expect( spyWheels ).toHaveBeenCalledTimes( 1 );
 
 			// Check context.
-			sinon.assert.alwaysCalledOn( spy, car );
-			sinon.assert.calledOn( spyColor, car );
-			sinon.assert.calledOn( spyYear, car );
-			sinon.assert.calledOn( spyWheels, car );
+			expect( spy.mock.contexts.every( context => context === car ) ).toBe( true );
+			expect( spyColor.mock.contexts[ 0 ] ).toBe( car );
+			expect( spyYear.mock.contexts[ 0 ] ).toBe( car );
+			expect( spyWheels.mock.contexts[ 0 ] ).toBe( car );
 
 			// Check params.
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'color', 'blue', 'red' );
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'year', 2003, 2015 );
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'wheels', 4, sinon.match.typeOf( 'undefined' ) );
-			sinon.assert.calledWithExactly( spyColor, sinon.match.instanceOf( EventInfo ), 'color', 'blue', 'red' );
-			sinon.assert.calledWithExactly( spyYear, sinon.match.instanceOf( EventInfo ), 'year', 2003, 2015 );
-			sinon.assert.calledWithExactly(
-				spyWheels, sinon.match.instanceOf( EventInfo ),
-				'wheels', 4, sinon.match.typeOf( 'undefined' )
-			);
+			expect( spy ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'color', 'blue', 'red' );
+			expect( spy ).toHaveBeenNthCalledWith( 2, expect.any( EventInfo ), 'year', 2003, 2015 );
+			expect( spy ).toHaveBeenNthCalledWith( 3, expect.any( EventInfo ), 'wheels', 4, undefined );
+			expect( spyColor ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'color', 'blue', 'red' );
+			expect( spyYear ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'year', 2003, 2015 );
+			expect( spyWheels ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'wheels', 4, undefined );
 		} );
 
 		it( 'should not fire the "change" event for the same property value', () => {
-			const spy = sinon.spy();
-			const spyColor = sinon.spy();
+			const spy = vi.fn();
+			const spyColor = vi.fn();
 
 			car.on( 'change', spy );
 			car.on( 'change:color', spyColor );
@@ -187,15 +178,15 @@ describe( 'Observable', () => {
 			car.set( 'color', 'red' );
 			car.set( { color: 'red' } );
 
-			sinon.assert.notCalled( spy );
-			sinon.assert.notCalled( spyColor );
+			expect( spy ).not.toHaveBeenCalled();
+			expect( spyColor ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should fire the "set" event', () => {
-			const spy = sinon.spy();
-			const spyColor = sinon.spy();
-			const spyYear = sinon.spy();
-			const spyWheels = sinon.spy();
+			const spy = vi.fn();
+			const spyColor = vi.fn();
+			const spyYear = vi.fn();
+			const spyWheels = vi.fn();
 
 			car.on( 'set', spy );
 			car.on( 'set:color', spyColor );
@@ -208,33 +199,30 @@ describe( 'Observable', () => {
 			car.set( 'wheels', 4 );
 
 			// Check number of calls.
-			sinon.assert.calledThrice( spy );
-			sinon.assert.calledOnce( spyColor );
-			sinon.assert.calledOnce( spyYear );
-			sinon.assert.calledOnce( spyWheels );
+			expect( spy ).toHaveBeenCalledTimes( 3 );
+			expect( spyColor ).toHaveBeenCalledTimes( 1 );
+			expect( spyYear ).toHaveBeenCalledTimes( 1 );
+			expect( spyWheels ).toHaveBeenCalledTimes( 1 );
 
 			// Check context.
-			sinon.assert.alwaysCalledOn( spy, car );
-			sinon.assert.calledOn( spyColor, car );
-			sinon.assert.calledOn( spyYear, car );
-			sinon.assert.calledOn( spyWheels, car );
+			expect( spy.mock.contexts.every( context => context === car ) ).toBe( true );
+			expect( spyColor.mock.contexts[ 0 ] ).toBe( car );
+			expect( spyYear.mock.contexts[ 0 ] ).toBe( car );
+			expect( spyWheels.mock.contexts[ 0 ] ).toBe( car );
 
 			// Check params.
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'color', 'blue', 'red' );
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'year', 2003, 2015 );
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'wheels', 4, sinon.match.typeOf( 'undefined' ) );
-			sinon.assert.calledWithExactly( spyColor, sinon.match.instanceOf( EventInfo ), 'color', 'blue', 'red' );
-			sinon.assert.calledWithExactly( spyYear, sinon.match.instanceOf( EventInfo ), 'year', 2003, 2015 );
-			sinon.assert.calledWithExactly(
-				spyWheels, sinon.match.instanceOf( EventInfo ),
-				'wheels', 4, sinon.match.typeOf( 'undefined' )
-			);
+			expect( spy ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'color', 'blue', 'red' );
+			expect( spy ).toHaveBeenNthCalledWith( 2, expect.any( EventInfo ), 'year', 2003, 2015 );
+			expect( spy ).toHaveBeenNthCalledWith( 3, expect.any( EventInfo ), 'wheels', 4, undefined );
+			expect( spyColor ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'color', 'blue', 'red' );
+			expect( spyYear ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'year', 2003, 2015 );
+			expect( spyWheels ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'wheels', 4, undefined );
 		} );
 
 		it( 'should use "set" return value as an observable new value', () => {
 			car.color = 'blue';
 
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			car.on( 'set:color', evt => {
 				evt.stop();
@@ -245,12 +233,12 @@ describe( 'Observable', () => {
 
 			car.color = 'pink';
 
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 'color', 'red', 'blue' );
+			expect( spy ).toHaveBeenNthCalledWith( 1, expect.any( EventInfo ), 'color', 'red', 'blue' );
 		} );
 
 		it( 'should fire the "set" event for the same property value', () => {
-			const spy = sinon.spy();
-			const spyColor = sinon.spy();
+			const spy = vi.fn();
+			const spyColor = vi.fn();
 
 			car.on( 'set', spy );
 			car.on( 'set:color', spyColor );
@@ -260,8 +248,8 @@ describe( 'Observable', () => {
 			car.set( 'color', 'red' );
 			car.set( { color: 'red' } );
 
-			sinon.assert.calledThrice( spy );
-			sinon.assert.calledThrice( spyColor );
+			expect( spy ).toHaveBeenCalledTimes( 3 );
+			expect( spyColor ).toHaveBeenCalledTimes( 3 );
 		} );
 
 		it( 'should throw when overriding already existing property', () => {
@@ -289,18 +277,18 @@ describe( 'Observable', () => {
 		} );
 
 		it( 'should allow setting properties with undefined value', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			car.on( 'change', spy );
 			car.set( 'seats', undefined );
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 			expect( car ).to.contain.keys( 'seats' );
-			expect( car.seats ).to.be.undefined;
+			expect( car.seats ).toBeUndefined();
 
 			car.set( 'seats', 5 );
 
-			sinon.assert.calledTwice( spy );
+			expect( spy ).toHaveBeenCalledTimes( 2 );
 			expect( car ).to.have.property( 'seats', 5 );
 		} );
 	} );
@@ -349,7 +337,7 @@ describe( 'Observable', () => {
 			it( 'should not chain', () => {
 				expect(
 					car.bind( 'color' ).to( new BaseObservable( { color: 'red' } ) )
-				).to.be.undefined;
+				).toBeUndefined();
 			} );
 
 			it( 'should throw when arguments are of invalid type - empty', () => {
@@ -836,7 +824,7 @@ describe( 'Observable', () => {
 			it( 'should fire a single change event per bound property', () => {
 				const vehicle = new Car();
 				const car = new Car( { color: 'red', year: 1943 } );
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				vehicle.on( 'change', spy );
 
@@ -846,7 +834,7 @@ describe( 'Observable', () => {
 				car.custom = 'foo';
 				car.year = 2001;
 
-				expect( spy.args.map( args => args[ 1 ] ) )
+				expect( spy.mock.calls.map( args => args[ 1 ] ) )
 					.to.have.members( [ 'color', 'year', 'color', 'year' ] );
 			} );
 		} );
@@ -862,7 +850,7 @@ describe( 'Observable', () => {
 			it( 'should not chain', () => {
 				expect(
 					car.bind( 'color' ).toMany( [ new BaseObservable( { color: 'red' } ) ], 'color', () => {} )
-				).to.be.undefined;
+				).toBeUndefined();
 			} );
 
 			it( 'should throw when binding multiple properties', () => {
@@ -892,19 +880,19 @@ describe( 'Observable', () => {
 					return !areEnabled.every( isTyrePressureOK => isTyrePressureOK );
 				} );
 
-				expect( car.showTyrePressureWarning ).to.be.false;
+				expect( car.showTyrePressureWarning ).toBe( false );
 
 				wheels[ 0 ].isTyrePressureOK = false;
 
-				expect( car.showTyrePressureWarning ).to.be.true;
+				expect( car.showTyrePressureWarning ).toBe( true );
 
 				wheels[ 0 ].isTyrePressureOK = true;
 
-				expect( car.showTyrePressureWarning ).to.be.false;
+				expect( car.showTyrePressureWarning ).toBe( false );
 
 				wheels[ 1 ].isTyrePressureOK = false;
 
-				expect( car.showTyrePressureWarning ).to.be.true;
+				expect( car.showTyrePressureWarning ).toBe( true );
 			} );
 		} );
 	} );
@@ -913,7 +901,7 @@ describe( 'Observable', () => {
 		it( 'should not fail when unbinding a fresh observable', () => {
 			const observable = new BaseObservable();
 
-			observable.unbind();
+			expect( () => observable.unbind() ).to.not.throw();
 		} );
 
 		it( 'should not fail when unbinding property that is not bound', () => {
@@ -999,7 +987,7 @@ describe( 'Observable', () => {
 
 	describe( 'decorate()', () => {
 		it( 'makes the method fire an event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			class Foo extends BaseObservable {
 				method() {}
@@ -1013,8 +1001,8 @@ describe( 'Observable', () => {
 
 			foo.method( 1, 2 );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( spy.args[ 0 ][ 1 ] ).to.deep.equal( [ 1, 2 ] );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( [ 1, 2 ] );
 		} );
 
 		it( 'executes the original method in a listener with the default priority', () => {
@@ -1035,7 +1023,7 @@ describe( 'Observable', () => {
 
 			foo.method();
 
-			expect( calls ).to.deep.equal( [ 'high', 'original', 'low' ] );
+			expect( calls ).toEqual( [ 'high', 'original', 'low' ] );
 		} );
 
 		it( 'supports overriding return values', () => {
@@ -1050,18 +1038,18 @@ describe( 'Observable', () => {
 			foo.decorate( 'method' );
 
 			foo.on( 'method', evt => {
-				expect( evt.return ).to.equal( 1 );
+				expect( evt.return ).toEqual( 1 );
 
 				evt.return = 2;
 			} );
 
-			expect( foo.method() ).to.equal( 2 );
+			expect( foo.method() ).toEqual( 2 );
 		} );
 
 		it( 'supports overriding arguments', () => {
 			class Foo extends BaseObservable {
 				method( a ) {
-					expect( a ).to.equal( 2 );
+					expect( a ).toEqual( 2 );
 				}
 			}
 
@@ -1091,7 +1079,8 @@ describe( 'Observable', () => {
 				evt.stop();
 			}, { priority: 'high' } );
 
-			foo.method();
+			// The original method would throw if it was executed.
+			expect( () => foo.method() ).to.not.throw();
 		} );
 
 		it( 'throws when trying to decorate non existing method', () => {
@@ -1105,8 +1094,8 @@ describe( 'Observable', () => {
 		} );
 
 		it( 'should allow decorating multiple methods', () => {
-			const spyFoo = sinon.spy();
-			const spyBar = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyBar = vi.fn();
 
 			class Foo extends BaseObservable {
 				methodFoo() {}
@@ -1124,11 +1113,11 @@ describe( 'Observable', () => {
 			foo.methodFoo( 'abc' );
 			foo.methodBar( '123' );
 
-			expect( spyFoo.calledOnce ).to.be.true;
-			expect( spyFoo.args[ 0 ][ 1 ] ).to.deep.equal( [ 'abc' ] );
+			expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyFoo.mock.calls[ 0 ][ 1 ] ).toEqual( [ 'abc' ] );
 
-			expect( spyBar.calledOnce ).to.be.true;
-			expect( spyBar.args[ 0 ][ 1 ] ).to.deep.equal( [ '123' ] );
+			expect( spyBar ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar.mock.calls[ 0 ][ 1 ] ).toEqual( [ '123' ] );
 		} );
 
 		it( 'should reverts decorated methods to the original method on stopListening for all events', () => {
@@ -1142,11 +1131,11 @@ describe( 'Observable', () => {
 
 			foo.decorate( 'method' );
 
-			expect( foo.method ).to.not.equal( originalMethod );
+			expect( foo.method ).not.toBe( originalMethod );
 
 			foo.stopListening();
 
-			expect( foo.method ).to.equal( originalMethod );
+			expect( foo.method ).toEqual( originalMethod );
 		} );
 
 		it( 'should not revert decorated methods to the original method on stopListening for specific emitter', () => {
@@ -1160,11 +1149,11 @@ describe( 'Observable', () => {
 
 			foo.decorate( 'method' );
 
-			expect( foo.method ).to.not.equal( originalMethod );
+			expect( foo.method ).not.toBe( originalMethod );
 
-			foo.stopListening( Object.create( ObservableMixin ) );
+			foo.stopListening( new ( ObservableMixin() )() );
 
-			expect( foo.method ).to.not.equal( originalMethod );
+			expect( foo.method ).not.toBe( originalMethod );
 		} );
 	} );
 } );

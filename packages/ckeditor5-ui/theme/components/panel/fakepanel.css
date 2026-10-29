@@ -1,23 +1,65 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
+
+
+/* Let's use `.ck-balloon-panel` appearance. See: balloonpanel.css. */
+
+.ck .ck-fake-panel div {
+	/* Backward compatibility: falls back to legacy --ck-drop-shadow if overridden. */
+	box-shadow: var(--ck-drop-shadow, var(--ck-shadow-surface-floating)), 0 0;
+
+	min-height: 15px;
+
+	background: var(--ck-color-panel-background, var(--ck-balloon-panel-background-color));
+	border: var(--ck-balloon-panel-border, var(--ck-balloon-border-width, var(--ck-border-width-surface)) solid var(--ck-color-panel-border, var(--ck-balloon-panel-border-color)));
+	border-radius: var(--ck-border-radius-surface);
+
+	width: 100%;
+	height: 100%;
+	position: absolute;
+}
+
+.ck .ck-fake-panel div:nth-child( 1 ) {
+	/* Backward compatibility: falls back to legacy --ck-balloon-fake-panel-offset-* if overridden. */
+	margin-left: var(--ck-balloon-fake-panel-offset-horizontal, 6px);
+	margin-top: var(--ck-balloon-fake-panel-offset-vertical, 6px);
+	z-index: 2;
+}
+
+.ck .ck-fake-panel div:nth-child( 2 ) {
+	margin-left: calc(2 * var(--ck-balloon-fake-panel-offset-horizontal, 6px));
+	margin-top: calc(2 * var(--ck-balloon-fake-panel-offset-vertical, 6px));
+	z-index: 1;
+}
+
+.ck .ck-fake-panel div:nth-child( 3 ) {
+	margin-left: calc(3 * var(--ck-balloon-fake-panel-offset-horizontal, 6px));
+	margin-top: calc(3 * var(--ck-balloon-fake-panel-offset-vertical, 6px));
+}
 
 .ck .ck-fake-panel {
 	position: absolute;
 
 	/* Fake panels should be placed under main balloon content. */
-	z-index: calc(var(--ck-z-modal) - 1);
+	z-index: var(--ck-layer-panel-below);
 }
 
-.ck .ck-fake-panel div {
-	position: absolute;
-}
+/* If balloon is positioned above element, we need to move fake panel to the top. */
 
-.ck .ck-fake-panel div:nth-child( 1 ) {
-	z-index: 2;
-}
+.ck .ck-balloon-panel_arrow_s + .ck-fake-panel div,
+.ck .ck-balloon-panel_arrow_se + .ck-fake-panel div,
+.ck .ck-balloon-panel_arrow_sw + .ck-fake-panel div {
+	&:nth-child( 1 ) {
+		margin-top: calc(-1 * var(--ck-balloon-fake-panel-offset-vertical, 6px));
+	}
 
-.ck .ck-fake-panel div:nth-child( 2 ) {
-	z-index: 1;
+	&:nth-child( 2 ) {
+		margin-top: calc(-2 * var(--ck-balloon-fake-panel-offset-vertical, 6px));
+	}
+
+	&:nth-child( 3 ) {
+		margin-top: calc(-3 * var(--ck-balloon-fake-panel-offset-vertical, 6px));
+	}
 }

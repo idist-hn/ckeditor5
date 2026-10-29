@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module special-characters/ui/characterinfoview
  */
 
-import type { Locale } from 'ckeditor5/src/utils';
-import { View } from 'ckeditor5/src/ui';
-
-import '../../theme/characterinfo.css';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
+import { View } from '@ckeditor/ckeditor5-ui';
 
 /**
  * The view displaying detailed information about a special character glyph, e.g. upon
  * hovering it with a mouse.
+ *
+ * @internal
  */
-export default class CharacterInfoView extends View<HTMLDivElement> {
+export class CharacterInfoView extends View<HTMLDivElement> {
 	/**
 	 * The character whose information is displayed by the view. For instance, "∑" or "¿".
 	 *

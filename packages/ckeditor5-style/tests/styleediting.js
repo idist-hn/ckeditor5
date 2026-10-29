@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import GeneralHtmlSupport from '@ckeditor/ckeditor5-html-support/src/generalhtmlsupport';
-import StyleEditing from '../src/styleediting';
-import StyleCommand from '../src/stylecommand';
-import StyleUtils from '../src/styleutils';
-import DocumentListStyleSupport from '../src/integrations/documentlist';
-import TableStyleSupport from '../src/integrations/table';
-import LinkStyleSupport from '../src/integrations/link';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { StyleEditing } from '../src/styleediting.js';
+import { StyleCommand } from '../src/stylecommand.js';
+import { StyleUtils } from '../src/styleutils.js';
+import { ListStyleSupport } from '../src/integrations/list.js';
+import { TableStyleSupport } from '../src/integrations/table.js';
+import { LinkStyleSupport } from '../src/integrations/link.js';
 
 describe( 'StyleEditing', () => {
 	let editor, editorElement;
@@ -68,17 +67,25 @@ describe( 'StyleEditing', () => {
 	} );
 
 	it( 'should have a name', () => {
-		expect( StyleEditing.pluginName ).to.equal( 'StyleEditing' );
+		expect( StyleEditing.pluginName ).toBe( 'StyleEditing' );
 	} );
 
-	it( 'should soft-require the GHS plugin, and require utils, and integrations', () => {
-		expect( StyleEditing.requires ).to.deep.equal( [
-			'GeneralHtmlSupport', StyleUtils, DocumentListStyleSupport, TableStyleSupport, LinkStyleSupport
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( StyleEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( StyleEditing.isPremiumPlugin ).toBe( false );
+	} );
+
+	it( 'should require the GHS plugin, and require utils, and integrations', () => {
+		expect( StyleEditing.requires ).toEqual( [
+			GeneralHtmlSupport, StyleUtils, ListStyleSupport, TableStyleSupport, LinkStyleSupport
 		] );
 	} );
 
 	it( 'should register the "style" command', () => {
-		expect( editor.commands.get( 'style' ) ).to.be.instanceOf( StyleCommand );
+		expect( editor.commands.get( 'style' ) ).toBeInstanceOf( StyleCommand );
 	} );
 
 	describe( 'integration with the GHS DataFilter', () => {
@@ -86,14 +93,14 @@ describe( 'StyleEditing', () => {
 			const data = '<h2 class="big-heading red-heading">foo</h2>';
 
 			editor.setData( data );
-			expect( editor.getData() ).to.equal( data );
+			expect( editor.getData() ).toBe( data );
 		} );
 
 		it( 'should allow inline styles configuration', () => {
 			const data = '<p>foo<span class="marker typewriter deleted class-one class-two">bar</span></p>';
 
 			editor.setData( data );
-			expect( editor.getData() ).to.equal( data );
+			expect( editor.getData() ).toBe( data );
 		} );
 	} );
 } );

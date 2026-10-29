@@ -1,0 +1,489 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { ListEditing } from '../../src/list/listediting.js';
+
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
+import { IndentEditing } from '@ckeditor/ckeditor5-indent';
+import { TableEditing } from '@ckeditor/ckeditor5-table';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { AlignmentEditing } from '@ckeditor/ckeditor5-alignment';
+import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
+
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _getModelData, _setModelData, _parseModel, _getViewData } from '@ckeditor/ckeditor5-engine';
+
+import { ListIndentCommand } from '../../src/list/listindentcommand.js';
+import { ListSplitCommand } from '../../src/list/listsplitcommand.js';
+
+import { stubUid } from './_utils/uid.js';
+import { prepareTest } from './_utils/utils.js';
+
+describe( 'ListEditing (multiBlock=false)', () => {
+	let editor, model, view;
+
+	beforeEach( async () => {
+		editor = await VirtualTestEditor.create( {
+			list: {
+				multiBlock: false
+			},
+			plugins: [ Paragraph, ClipboardPipeline, BoldEditing, ListEditing, UndoEditing,
+				BlockQuoteEditing, TableEditing, HeadingEditing, AlignmentEditing ]
+		} );
+
+		model = editor.model;
+		view = editor.editing.view;
+
+		model.schema.extend( 'paragraph', {
+			allowAttributes: 'foo'
+		} );
+
+		// Stub `view.scrollToTheSelection` as it will fail on VirtualTestEditor without DOM.
+		vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+		stubUid();
+	} );
+
+	afterEach( async () => {
+		await editor.destroy();
+	} );
+
+	it( 'should set proper schema rules', () => {
+		expect( model.schema.checkAttribute( [ '$root', 'listItem' ], 'listItemId' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$root', 'listItem' ], 'listIndent' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$root', 'listItem' ], 'listType' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$root', 'paragraph' ], 'listItemId' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'paragraph' ], 'listIndent' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'paragraph' ], 'listType' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'heading1' ], 'listItemId' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'heading1' ], 'listIndent' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'heading1' ], 'listType' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'blockQuote' ], 'listItemId' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'blockQuote' ], 'listIndent' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'blockQuote' ], 'listType' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'listItemId' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'listIndent' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'listType' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'listItemId' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'listIndent' ) ).toBe( false );
+		expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'listType' ) ).toBe( false );
+	} );
+
+	describe( 'commands', () => {
+		it( 'should register indent list command', () => {
+			const command = editor.commands.get( 'indentList' );
+
+			expect( command ).toBeInstanceOf( ListIndentCommand );
+		} );
+
+		it( 'should register outdent list command', () => {
+			const command = editor.commands.get( 'outdentList' );
+
+			expect( command ).toBeInstanceOf( ListIndentCommand );
+		} );
+
+		it( 'should register the splitListItemBefore command', () => {
+			const command = editor.commands.get( 'splitListItemBefore' );
+
+			expect( command ).toBeInstanceOf( ListSplitCommand );
+		} );
+
+		it( 'should register the splitListItemAfter command', () => {
+			const command = editor.commands.get( 'splitListItemAfter' );
+
+			expect( command ).toBeInstanceOf( ListSplitCommand );
+		} );
+
+		it( 'should add indent list command to indent command', async () => {
+			const editor = await VirtualTestEditor.create( {
+				plugins: [ Paragraph, IndentEditing, ListEditing ]
+			} );
+
+			const indentListCommand = editor.commands.get( 'indentList' );
+			const indentCommand = editor.commands.get( 'indent' );
+
+			const spy = vi.spyOn( indentListCommand, 'execute' ).mockImplementation( () => {} );
+
+			indentListCommand.isEnabled = true;
+			indentCommand.execute();
+
+			expect( spy ).toHaveBeenCalledOnce();
+
+			await editor.destroy();
+		} );
+
+		it( 'should add outdent list command to outdent command', async () => {
+			const editor = await VirtualTestEditor.create( {
+				plugins: [ Paragraph, IndentEditing, ListEditing ]
+			} );
+
+			const outdentListCommand = editor.commands.get( 'outdentList' );
+			const outdentCommand = editor.commands.get( 'outdent' );
+
+			const spy = vi.spyOn( outdentListCommand, 'execute' ).mockImplementation( () => {} );
+
+			outdentListCommand.isEnabled = true;
+			outdentCommand.execute();
+
+			expect( spy ).toHaveBeenCalledOnce();
+
+			await editor.destroy();
+		} );
+	} );
+
+	describe( 'post fixer', () => {
+		describe( 'insert', () => {
+			function testList( input, inserted, output ) {
+				const selection = prepareTest( model, input );
+
+				model.change( () => {
+					model.change( writer => {
+						writer.insert( _parseModel( inserted, model.schema ), selection.getFirstPosition() );
+					} );
+				} );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe( output );
+			}
+
+			it( 'should make sure that all list items have a unique IDs (insert after)', () => {
+				testList(
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'[]',
+
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">x</listItem>',
+
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="0" listItemId="a00" listType="bulleted">x</listItem>'
+				);
+			} );
+
+			it( 'should make sure that all list items have a unique IDs (insert before)', () => {
+				testList(
+					'[]' +
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>',
+
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">x</listItem>',
+
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">x</listItem>' +
+					'<listItem listIndent="0" listItemId="a00" listType="bulleted">a</listItem>'
+				);
+			} );
+		} );
+
+		describe( 'rename', () => {
+			it( 'to element that does not allow list attributes', () => {
+				const modelBefore =
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="1" listItemId="b" listType="bulleted">b</listItem>' +
+					'[<listItem listIndent="2" listItemId="c" listType="bulleted" foo="123">c</listItem>]' +
+					'<listItem listIndent="2" listItemId="d" listType="bulleted">d</listItem>' +
+					'<listItem listIndent="3" listItemId="e" listType="bulleted">e</listItem>' +
+					'<listItem listIndent="1" listItemId="f" listType="bulleted">f</listItem>' +
+					'<listItem listIndent="2" listItemId="g" listType="bulleted">g</listItem>' +
+					'<listItem listIndent="1" listItemId="h" listType="bulleted">h</listItem>' +
+					'<listItem listIndent="2" listItemId="i" listType="bulleted">i</listItem>';
+
+				const expectedModel =
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="1" listItemId="b" listType="bulleted">b</listItem>' +
+					'<paragraph foo="123">c</paragraph>' +
+					'<listItem listIndent="0" listItemId="d" listType="bulleted">d</listItem>' +
+					'<listItem listIndent="1" listItemId="e" listType="bulleted">e</listItem>' +
+					'<listItem listIndent="0" listItemId="f" listType="bulleted">f</listItem>' +
+					'<listItem listIndent="1" listItemId="g" listType="bulleted">g</listItem>' +
+					'<listItem listIndent="0" listItemId="h" listType="bulleted">h</listItem>' +
+					'<listItem listIndent="1" listItemId="i" listType="bulleted">i</listItem>';
+
+				const selection = prepareTest( model, modelBefore );
+
+				model.change( writer => {
+					writer.rename( selection.getFirstPosition().nodeAfter, 'paragraph' );
+				} );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe( expectedModel );
+			} );
+		} );
+
+		describe( 'changing list attributes', () => {
+			it( 'remove list attributes', () => {
+				const modelBefore =
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="1" listItemId="b" listType="bulleted">b</listItem>' +
+					'[<listItem listIndent="2" listItemId="c" listType="bulleted">c</listItem>]' +
+					'<listItem listIndent="2" listItemId="d" listType="bulleted">d</listItem>' +
+					'<listItem listIndent="3" listItemId="e" listType="bulleted">e</listItem>' +
+					'<listItem listIndent="1" listItemId="f" listType="bulleted">f</listItem>' +
+					'<listItem listIndent="2" listItemId="g" listType="bulleted">g</listItem>' +
+					'<listItem listIndent="1" listItemId="h" listType="bulleted">h</listItem>' +
+					'<listItem listIndent="2" listItemId="i" listType="bulleted">i</listItem>';
+
+				const expectedModel =
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="1" listItemId="b" listType="bulleted">b</listItem>' +
+					'<paragraph>c</paragraph>' +
+					'<listItem listIndent="0" listItemId="d" listType="bulleted">d</listItem>' +
+					'<listItem listIndent="1" listItemId="e" listType="bulleted">e</listItem>' +
+					'<listItem listIndent="0" listItemId="f" listType="bulleted">f</listItem>' +
+					'<listItem listIndent="1" listItemId="g" listType="bulleted">g</listItem>' +
+					'<listItem listIndent="0" listItemId="h" listType="bulleted">h</listItem>' +
+					'<listItem listIndent="1" listItemId="i" listType="bulleted">i</listItem>';
+
+				const selection = prepareTest( model, modelBefore );
+				const element = selection.getFirstPosition().nodeAfter;
+
+				model.change( writer => {
+					writer.removeAttribute( 'listItemId', element );
+					writer.removeAttribute( 'listIndent', element );
+					writer.removeAttribute( 'listType', element );
+				} );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( expectedModel );
+			} );
+
+			it( 'add list attributes', () => {
+				const modelBefore =
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="1" listItemId="b" listType="bulleted">b</listItem>' +
+					'[<paragraph>c</paragraph>]' +
+					'<listItem listIndent="0" listItemId="d" listType="bulleted">d</listItem>' +
+					'<listItem listIndent="1" listItemId="e" listType="bulleted">e</listItem>' +
+					'<listItem listIndent="2" listItemId="f" listType="bulleted">f</listItem>' +
+					'<listItem listIndent="1" listItemId="g" listType="bulleted">g</listItem>';
+
+				const expectedModel =
+					'<listItem listIndent="0" listItemId="a" listType="bulleted">a</listItem>' +
+					'<listItem listIndent="1" listItemId="b" listType="bulleted">b</listItem>' +
+					'<listItem listIndent="2" listItemId="c" listType="bulleted">c</listItem>' +
+					'<listItem listIndent="2" listItemId="d" listType="bulleted">d</listItem>' +
+					'<listItem listIndent="1" listItemId="e" listType="bulleted">e</listItem>' +
+					'<listItem listIndent="2" listItemId="f" listType="bulleted">f</listItem>' +
+					'<listItem listIndent="1" listItemId="g" listType="bulleted">g</listItem>';
+
+				const selection = prepareTest( model, modelBefore );
+				const element = selection.getFirstPosition().nodeAfter;
+
+				model.change( writer => {
+					writer.setAttribute( 'listItemId', 'c', element );
+					writer.setAttribute( 'listIndent', 2, element );
+					writer.setAttribute( 'listType', 'bulleted', element );
+					writer.setAttribute( 'listIndent', 2, element.nextSibling );
+				} );
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( expectedModel );
+			} );
+		} );
+	} );
+
+	describe( 'upcast', () => {
+		it( 'should split multi block to a separate list items', () => {
+			editor.setData(
+				'<ul>' +
+					'<li>' +
+						'<p>foo</p>' +
+						'<p>bar</p>' +
+					'</li>' +
+				'</ul>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
+				'<listItem listIndent="0" listItemId="a00" listType="bulleted">foo</listItem>' +
+				'<listItem listIndent="0" listItemId="a01" listType="bulleted">bar</listItem>'
+			);
+		} );
+
+		it( 'should split multi block nested list to a separate list items', () => {
+			editor.setData(
+				'<ul>' +
+					'<li>' +
+						'<ul>' +
+							'<li>' +
+								'<p>foo</p>' +
+								'<p>bar</p>' +
+							'</li>' +
+						'</ul>' +
+					'</li>' +
+				'</ul>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
+				'<listItem listIndent="0" listItemId="a01" listType="bulleted"></listItem>' +
+				'<listItem listIndent="1" listItemId="a00" listType="bulleted">foo</listItem>' +
+				'<listItem listIndent="1" listItemId="a02" listType="bulleted">bar</listItem>'
+			);
+		} );
+
+		it( 'should split multi block nested block to a separate list items', () => {
+			editor.setData(
+				'<ul>' +
+					'<li>' +
+						'<p>foo</p>' +
+						'<ul>' +
+							'<li>' +
+								'<p>a</p>' +
+								'<p>b</p>' +
+							'</li>' +
+						'</ul>' +
+						'<p>bar</p>' +
+					'</li>' +
+				'</ul>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
+				'<listItem listIndent="0" listItemId="a01" listType="bulleted">foo</listItem>' +
+				'<listItem listIndent="1" listItemId="a00" listType="bulleted">a</listItem>' +
+				'<listItem listIndent="1" listItemId="a02" listType="bulleted">b</listItem>' +
+				'<listItem listIndent="0" listItemId="a03" listType="bulleted">bar</listItem>'
+			);
+		} );
+
+		it( 'should upcast `data-list-item-id` attribute as listItemId', () => {
+			editor.setData(
+				'<ul>' +
+					'<li data-list-item-id="c">' +
+						'<p>foo</p>' +
+					'</li>' +
+				'</ul>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
+				'<listItem listIndent="0" listItemId="c" listType="bulleted">foo</listItem>'
+			);
+		} );
+
+		it( 'should consume `data-list-item-id` attribute', () => {
+			editor.conversion.for( 'upcast' ).add( dispatcher => {
+				dispatcher.on(
+					'element:li', ( evt, data, conversionApi ) => {
+						const viewElement = data.viewItem;
+						const attributeName = 'secondListItemId';
+
+						if ( !data.modelRange ) {
+							Object.assign( data, conversionApi.convertChildren( data.viewItem, data.modelCursor ) );
+						}
+
+						if ( conversionApi.consumable.test( viewElement, { attributes: 'data-list-item-id' } ) ) {
+							for ( const item of data.modelRange.getItems( { shallow: true } ) ) {
+								conversionApi.writer.setAttribute( attributeName, viewElement.getAttribute( 'data-list-item-id' ), item );
+							}
+						}
+					}, { priority: 'low' }
+				);
+			} );
+
+			editor.setData(
+				'<ul>' +
+					'<li data-list-item-id="c">' +
+						'<p>foo</p>' +
+					'</li>' +
+				'</ul>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
+				'<listItem listIndent="0" listItemId="c" listType="bulleted">foo</listItem>'
+			);
+		} );
+	} );
+
+	describe( 'downcast - editing', () => {
+		it( 'should use bogus paragraph', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted">foo</listItem>'
+			);
+
+			expect( _getViewData( view, { withoutSelection: true } ) ).toEqualMarkup(
+				'<ul>' +
+					'<li><span class="ck-list-bogus-paragraph">foo</span></li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should use paragraph if there are any non-list attributes on the block', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted" alignment="center">foo</listItem>'
+			);
+
+			expect( _getViewData( view, { withoutSelection: true } ) ).toEqualMarkup(
+				'<ul>' +
+					'<li><p style="text-align:center">foo</p></li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should refresh item after adding non-list attribute', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted">foo</listItem>'
+			);
+
+			editor.execute( 'alignment', { value: 'center' } );
+
+			expect( _getViewData( view, { withoutSelection: true } ) ).toEqualMarkup(
+				'<ul>' +
+					'<li><p style="text-align:center">foo</p></li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should refresh item after removing non-list attribute', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted" alignment="center">foo</listItem>'
+			);
+
+			editor.execute( 'alignment', { value: 'left' } );
+
+			expect( _getViewData( view, { withoutSelection: true } ) ).toEqualMarkup(
+				'<ul>' +
+					'<li><span class="ck-list-bogus-paragraph">foo</span></li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should add `data-list-item-id` attribute', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted" alignment="center">foo</listItem>'
+			);
+
+			editor.execute( 'alignment', { value: 'left' } );
+
+			expect( _getViewData( view, { withoutSelection: true, skipListItemIds: false } ) ).toEqualMarkup(
+				'<ul>' +
+					'<li data-list-item-id="a"><span class="ck-list-bogus-paragraph">foo</span></li>' +
+				'</ul>'
+			);
+		} );
+	} );
+
+	describe( 'downcast - data', () => {
+		it( 'should add `data-list-item-id` attribute', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted" alignment="center">foo</listItem>'
+			);
+
+			editor.execute( 'alignment', { value: 'left' } );
+
+			expect( editor.getData() ).toEqualMarkup(
+				'<ul>' +
+					'<li data-list-item-id="a">foo</li>' +
+				'</ul>'
+			);
+		} );
+
+		it( 'should not add `data-list-item-id` attribute if `skipListItemIds` flag was used', () => {
+			_setModelData( model,
+				'<listItem listIndent="0" listItemId="a" listType="bulleted" alignment="center">foo</listItem>'
+			);
+
+			editor.execute( 'alignment', { value: 'left' } );
+
+			expect( editor.getData( { skipListItemIds: true } ) ).toEqualMarkup(
+				'<ul>' +
+					'<li>foo</li>' +
+				'</ul>'
+			);
+		} );
+	} );
+} );

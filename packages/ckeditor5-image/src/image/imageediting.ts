@@ -1,18 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/imageediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { ViewElement } from 'ckeditor5/src/engine';
-import ImageLoadObserver from './imageloadobserver';
-import InsertImageCommand from './insertimagecommand';
-import ReplaceImageSourceCommand from './replaceimagesourcecommand';
-import ImageUtils from '../imageutils';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageLoadObserver } from './imageloadobserver.js';
+import { InsertImageCommand } from './insertimagecommand.js';
+import { ReplaceImageSourceCommand } from './replaceimagesourcecommand.js';
+import { ImageUtils } from '../imageutils.js';
 
 /**
  * The image engine plugin. This module loads common code shared between
@@ -21,12 +20,12 @@ import ImageUtils from '../imageutils';
  *
  * This plugin registers the {@link module:image/image/insertimagecommand~InsertImageCommand 'insertImage'} command.
  */
-export default class ImageEditing extends Plugin {
+export class ImageEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageUtils ]> {
+		return [ ImageUtils ];
 	}
 
 	/**
@@ -34,6 +33,13 @@ export default class ImageEditing extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

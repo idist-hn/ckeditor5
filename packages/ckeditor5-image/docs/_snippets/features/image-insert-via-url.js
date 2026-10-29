@@ -1,19 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals ClassicEditor, console, window, document */
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { ImageEditor } from './build-image-source.js';
 
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config.js';
-
-// const toolbarItems = [ ...ClassicEditor.defaultConfig.toolbar.items ];
+// const toolbarItems = [ ...ImageEditor.defaultConfig.toolbar.items ];
 
 // toolbarItems.splice( toolbarItems.indexOf( 'uploadImage' ), 1, 'insertImage' );
 
-ClassicEditor
-	.create( document.querySelector( '#snippet-image-insert-via-url' ), {
-		removePlugins: [ 'ArticlePluginSet', 'ImageToolbar', 'ImageCaption', 'ImageStyle', 'ImageResize', 'LinkImage', 'AutoImage' ],
+ImageEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-image-insert-via-url' ),
+		removePlugins: [ 'ArticlePluginSet', 'ImageCaption', 'LinkImage', 'AutoImage' ],
 		toolbar: {
 			items: [
 				'undo', 'redo',
@@ -25,10 +28,26 @@ ClassicEditor
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		},
-		cloudServices: CS_CONFIG
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
+		},
+		image: {
+			toolbar: [
+				'imageStyle:inline',
+				'imageStyle:wrapText',
+				'imageStyle:breakText',
+				'|',
+				'ckboxImageEdit'
+			],
+			insert: {
+				integrations: [ 'url' ]
+			}
+		}
 	} )
 	.then( editor => {
 		window.editorInsertImageViaUrl = editor;

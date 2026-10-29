@@ -1,36 +1,32 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals setTimeout, document, console, Event */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-
-import ViewRange from '../../../src/view/range';
-import DocumentSelection from '../../../src/view/documentselection';
-import ViewSelection from '../../../src/view/selection';
-import View from '../../../src/view/view';
-import SelectionObserver from '../../../src/view/observer/selectionobserver';
-import FocusObserver from '../../../src/view/observer/focusobserver';
-import MutationObserver from '../../../src/view/observer/mutationobserver';
-import createViewRoot from '../_utils/createroot';
-import { parse } from '../../../src/dev-utils/view';
-import { StylesProcessor } from '../../../src/view/stylesmap';
-import env from '@ckeditor/ckeditor5-utils/src/env';
+import { ViewRange } from '../../../src/view/range.js';
+import { ViewDocumentSelection } from '../../../src/view/documentselection.js';
+import { ViewSelection } from '../../../src/view/selection.js';
+import { EditingView } from '../../../src/view/view.js';
+import { SelectionObserver } from '../../../src/view/observer/selectionobserver.js';
+import { FocusObserver } from '../../../src/view/observer/focusobserver.js';
+import { MutationObserver } from '../../../src/view/observer/mutationobserver.js';
+import { createViewRoot } from '../_utils/createroot.js';
+import { _parseView } from '../../../src/dev-utils/view.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
+import { env, priorities } from '@ckeditor/ckeditor5-utils';
 
 describe( 'SelectionObserver', () => {
 	let view, viewDocument, viewRoot, selectionObserver, domRoot, domMain, domDocument;
 
-	testUtils.createSinonSandbox();
-
-	beforeEach( done => {
+	beforeEach( () => {
 		domDocument = document;
 		domRoot = domDocument.createElement( 'div' );
 		domRoot.innerHTML = '<div contenteditable="true"></div><div contenteditable="true" id="additional"></div>';
 		domMain = domRoot.childNodes[ 0 ];
 		domDocument.body.appendChild( domRoot );
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 		createViewRoot( viewDocument );
 		view.attachDomRoot( domMain );
@@ -40,7 +36,7 @@ describe( 'SelectionObserver', () => {
 		viewRoot = viewDocument.getRoot();
 
 		view.change( writer => {
-			viewRoot._appendChild( parse(
+			viewRoot._appendChild( _parseView(
 				'<container:p>xxx<ui:span></ui:span></container:p>' +
 				'<container:p>yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy</container:p>' ) );
 
@@ -57,50 +53,105 @@ describe( 'SelectionObserver', () => {
 		selectionObserver.enable();
 
 		// Ensure selectionchange will not be fired.
-		setTimeout( () => done(), 100 );
+		return new Promise( resolve => setTimeout( resolve, 100 ) );
 	} );
 
 	afterEach( () => {
-		sinon.restore();
 		domRoot.parentElement.removeChild( domRoot );
 
 		view.destroy();
 	} );
 
-	it( 'should fire selectionChange when it is the only change', done => {
-		viewDocument.on( 'selectionChange', ( evt, data ) => {
-			expect( data ).to.have.property( 'domSelection' ).that.equals( domDocument.getSelection() );
+	it( 'does not throw on selectionchange after the observed editing root is detached', () => {
+		// The document-level `selectionchange` listener is registered once and closes over the first
+		// observed root. After that root is removed from the DOM, resolving the selection must fall back
+		// to the document instead of calling `getSelection()` with a disconnected element (which returns
+		// `null` and would throw).
+		domMain.remove();
 
-			expect( data ).to.have.property( 'oldSelection' ).that.is.instanceof( DocumentSelection );
-			expect( data.oldSelection.rangeCount ).to.equal( 0 );
-
-			expect( data ).to.have.property( 'newSelection' ).that.is.instanceof( ViewSelection );
-			expect( data.newSelection.rangeCount ).to.equal( 1 );
-
-			const newViewRange = data.newSelection.getFirstRange();
-			const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
-
-			expect( newViewRange.start.parent ).to.equal( viewFoo );
-			expect( newViewRange.start.offset ).to.equal( 2 );
-			expect( newViewRange.end.parent ).to.equal( viewFoo );
-			expect( newViewRange.end.offset ).to.equal( 2 );
-
-			done();
-		} );
-
-		changeDomSelection();
+		expect( () => {
+			domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+		} ).not.toThrow();
 	} );
 
-	it( 'should call focusObserver#flush when selection is changed', done => {
-		const flushSpy = testUtils.sinon.spy( selectionObserver.focusObserver, 'flush' );
+	it( 'does not throw on selectionchange when the editing root was observed while disconnected', () => {
+		// Supported detached `ClassicEditor` init path: `attachDomRoot()` (and thus `observe()`) runs
+		// before the UI is inserted into the DOM. The selection target must fall back to the document
+		// instead of the detached tree, so a document `selectionchange` resolves rather than throwing.
+		const detachedView = new EditingView( new StylesProcessor() );
+		const detachedMain = document.createElement( 'div' );
 
-		viewDocument.on( 'selectionChange', () => {
-			sinon.assert.calledOnce( flushSpy );
+		createViewRoot( detachedView.document );
+		detachedView.attachDomRoot( detachedMain );
 
-			done();
+		detachedView.getObserver( SelectionObserver ).enable();
+
+		expect( () => {
+			document.dispatchEvent( new Event( 'selectionchange' ) );
+		} ).not.toThrow();
+
+		detachedView.destroy();
+	} );
+
+	it( 'marks hasDomSelection false when the observed root is detached (no resolvable selection)', () => {
+		// A root observed while detached is not inside any document, so a `selectionchange` cannot resolve
+		// a selection for it.
+		const detachedView = new EditingView( new StylesProcessor() );
+		const detachedMain = document.createElement( 'div' );
+
+		createViewRoot( detachedView.document );
+		detachedView.attachDomRoot( detachedMain );
+		detachedView.getObserver( SelectionObserver ).enable();
+
+		detachedView.hasDomSelection = true;
+
+		document.dispatchEvent( new Event( 'selectionchange' ) );
+
+		expect( detachedView.hasDomSelection ).toBe( false );
+
+		detachedView.destroy();
+	} );
+
+	it( 'should fire selectionChange when it is the only change', () => {
+		return new Promise( resolve => {
+			viewDocument.on( 'selectionChange', ( evt, data ) => {
+				expect( data ).toHaveProperty( 'domSelection', domDocument.getSelection() );
+
+				expect( data ).toHaveProperty( 'oldSelection' );
+				expect( data.oldSelection ).toBeInstanceOf( ViewDocumentSelection );
+				expect( data.oldSelection.rangeCount ).toBe( 0 );
+
+				expect( data ).toHaveProperty( 'newSelection' );
+				expect( data.newSelection ).toBeInstanceOf( ViewSelection );
+				expect( data.newSelection.rangeCount ).toBe( 1 );
+
+				const newViewRange = data.newSelection.getFirstRange();
+				const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
+
+				expect( newViewRange.start.parent ).toBe( viewFoo );
+				expect( newViewRange.start.offset ).toBe( 2 );
+				expect( newViewRange.end.parent ).toBe( viewFoo );
+				expect( newViewRange.end.offset ).toBe( 2 );
+
+				resolve();
+			} );
+
+			changeDomSelection();
 		} );
+	} );
 
-		changeDomSelection();
+	it( 'should call focusObserver#flush when selection is changed', () => {
+		const flushSpy = vi.spyOn( selectionObserver.focusObserver, 'flush' );
+
+		return new Promise( resolve => {
+			viewDocument.on( 'selectionChange', () => {
+				expect( flushSpy ).toHaveBeenCalledOnce();
+
+				resolve();
+			} );
+
+			changeDomSelection();
+		} );
 	} );
 
 	// See https://github.com/ckeditor/ckeditor5/issues/14569.
@@ -114,208 +165,366 @@ describe( 'SelectionObserver', () => {
 
 		view.change( writer => writer.setSelection( viewPosition ) );
 
-		const flushSpy = testUtils.sinon.spy( selectionObserver.focusObserver, 'flush' );
+		const flushSpy = vi.spyOn( selectionObserver.focusObserver, 'flush' );
 
 		// Fire selection change without actually moving selection.
 		domDocument.dispatchEvent( new Event( 'selectionchange' ) );
 
-		sinon.assert.calledOnce( flushSpy );
+		expect( flushSpy ).toHaveBeenCalledOnce();
 	} );
 
-	it( 'should not fire selectionChange while user is composing', done => {
-		viewDocument.on( 'selectionChange', () => {
-			throw 'selectionChange fired while composing';
+	it( 'should not fire selectionChange while editable is not focused', () => {
+		const spy = vi.fn();
+
+		viewDocument.on( 'selectionChange', spy );
+
+		viewDocument.isFocused = false;
+		changeDomSelection();
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).not.toHaveBeenCalled();
+			resolve();
+		}, 100 ) );
+	} );
+
+	it( 'should fire selectionChange after editor is focused and there were pending selection changes', () => {
+		const spy = vi.fn();
+
+		return new Promise( resolve => {
+			viewDocument.on( 'selectionChange', () => {
+				spy();
+				resolve();
+			} );
+
+			viewDocument.isFocused = false;
+			changeDomSelection();
+
+			setTimeout( () => {
+				viewDocument.isFocused = true;
+			}, 100 );
+		} ).then( () => {
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
+	} );
+
+	it( 'should not fire selectionChange for a pending selection change flushed while the observer is disabled', () => {
+		const spy = vi.fn();
+
+		viewDocument.on( 'selectionChange', spy );
+
+		viewDocument.isFocused = false;
+		changeDomSelection();
+
+		return new Promise( resolve => setTimeout( () => {
+			// The change is now pending, waiting for the editable to regain focus. Disabling the observer here
+			// (as happens while the view renders) must prevent it from being fired once flushed, even though the
+			// flush calls `_handleSelectionChange()` directly, bypassing `_handleSelectionChangeInDomRoots()`.
+			selectionObserver.disable();
+			viewDocument.isFocused = true;
+
+			setTimeout( () => {
+				expect( spy ).not.toHaveBeenCalled();
+				resolve();
+			}, 100 );
+		}, 100 ) );
+	} );
+
+	// See https://github.com/ckeditor/ckeditor5/issues/18514.
+	it( 'should fire selectionChange while editable is not focused but the editor is in read-only mode', () => {
+		const spy = vi.fn();
+
+		viewDocument.on( 'selectionChange', spy );
+
+		viewDocument.isReadOnly = true;
+		viewDocument.isFocused = false;
+		changeDomSelection();
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).toHaveBeenCalledOnce();
+			resolve();
+		}, 100 ) );
+	} );
+
+	it( 'should not fire selectionChange while user is composing', () => {
+		const spy = vi.fn();
+
+		viewDocument.on( 'selectionChange', spy );
 
 		viewDocument.isComposing = true;
 		changeDomSelection();
 
-		setTimeout( done, 100 );
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).not.toHaveBeenCalled();
+			resolve();
+		}, 100 ) );
 	} );
 
-	it( 'should fire selectionChange while user is composing on Android', done => {
-		testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+	it( 'should fire selectionChange while user is composing on Android', () => {
+		vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 		viewDocument.isComposing = true;
 
-		viewDocument.on( 'selectionChange', ( evt, data ) => {
-			expect( data ).to.have.property( 'domSelection' ).that.equals( domDocument.getSelection() );
+		return new Promise( resolve => {
+			viewDocument.on( 'selectionChange', ( evt, data ) => {
+				expect( data ).toHaveProperty( 'domSelection', domDocument.getSelection() );
 
-			expect( data ).to.have.property( 'oldSelection' ).that.is.instanceof( DocumentSelection );
-			expect( data.oldSelection.rangeCount ).to.equal( 0 );
+				expect( data ).toHaveProperty( 'oldSelection' );
+				expect( data.oldSelection ).toBeInstanceOf( ViewDocumentSelection );
+				expect( data.oldSelection.rangeCount ).toBe( 0 );
 
-			expect( data ).to.have.property( 'newSelection' ).that.is.instanceof( ViewSelection );
-			expect( data.newSelection.rangeCount ).to.equal( 1 );
+				expect( data ).toHaveProperty( 'newSelection' );
+				expect( data.newSelection ).toBeInstanceOf( ViewSelection );
+				expect( data.newSelection.rangeCount ).toBe( 1 );
 
-			const newViewRange = data.newSelection.getFirstRange();
-			const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
+				const newViewRange = data.newSelection.getFirstRange();
+				const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
 
-			expect( newViewRange.start.parent ).to.equal( viewFoo );
-			expect( newViewRange.start.offset ).to.equal( 2 );
-			expect( newViewRange.end.parent ).to.equal( viewFoo );
-			expect( newViewRange.end.offset ).to.equal( 2 );
+				expect( newViewRange.start.parent ).toBe( viewFoo );
+				expect( newViewRange.start.offset ).toBe( 2 );
+				expect( newViewRange.end.parent ).toBe( viewFoo );
+				expect( newViewRange.end.offset ).toBe( 2 );
 
-			done();
+				resolve();
+			} );
+
+			changeDomSelection();
 		} );
-
-		changeDomSelection();
 	} );
 
 	it( 'should detect "restricted objects" in Firefox DOM ranges and prevent an error being thrown', () => {
-		testUtils.sinon.stub( env, 'isGecko' ).value( true );
+		vi.spyOn( env, 'isGecko', 'get' ).mockReturnValue( true );
 
 		changeDomSelection();
 		domDocument.dispatchEvent( new Event( 'selectionchange' ) );
 
-		expect( view.hasDomSelection ).to.be.true;
+		expect( view.hasDomSelection ).toBe( true );
 
 		const domFoo = domDocument.getSelection().anchorNode;
 
-		sinon.stub( domFoo, Symbol.toStringTag ).get( () => {
+		vi.spyOn( domFoo, Symbol.toStringTag, 'get' ).mockImplementation( () => {
 			throw new Error( 'Permission denied to access property Symbol.toStringTag' );
 		} );
 
 		domDocument.dispatchEvent( new Event( 'selectionchange' ) );
 
-		expect( view.hasDomSelection ).to.be.false;
+		expect( view.hasDomSelection ).toBe( false );
 	} );
 
-	it( 'should add only one #selectionChange listener to one document', done => {
+	it( 'should handle a DOM selection anchored in the editing root itself', () => {
+		const spy = vi.fn();
+
+		viewDocument.on( 'selectionChange', spy );
+
+		// A caret between blocks or next to a widget is anchored in the editable, not in a text node inside it.
+		// `Node#contains()` is inclusive, so such a selection is inside the editing root.
+		domDocument.getSelection().collapse( domMain, 0 );
+		domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+
+		expect( spy ).toHaveBeenCalledOnce();
+		expect( view.hasDomSelection ).toBe( true );
+	} );
+
+	it( 'should add only one #selectionChange listener to one document', () => {
+		const spy = vi.fn();
+
 		// Add second roots to ensure that listener is added once.
 		createViewRoot( viewDocument, 'div', 'additional' );
 		view.attachDomRoot( domDocument.getElementById( 'additional' ), 'additional' );
 
-		viewDocument.on( 'selectionChange', () => {
-			done();
-		} );
+		viewDocument.on( 'selectionChange', spy );
 
 		changeDomSelection();
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).toHaveBeenCalledOnce();
+			resolve();
+		}, 100 ) );
 	} );
 
-	it( 'should not fire selectionChange for ignored target', done => {
-		viewDocument.on( 'selectionChange', () => {
-			throw 'selectionChange fired in ignored elements';
+	it( 'should fire selectionChange synchronously on composition start event (at lowest priority)', () => {
+		let eventCount = 0;
+		let priorityCheck = 0;
+
+		viewDocument.on( 'selectionChange', ( evt, data ) => {
+			expect( data ).toHaveProperty( 'domSelection', domDocument.getSelection() );
+
+			expect( data ).toHaveProperty( 'oldSelection' );
+			expect( data.oldSelection ).toBeInstanceOf( ViewDocumentSelection );
+			expect( data.oldSelection.rangeCount ).toBe( 0 );
+
+			expect( data ).toHaveProperty( 'newSelection' );
+			expect( data.newSelection ).toBeInstanceOf( ViewSelection );
+			expect( data.newSelection.rangeCount ).toBe( 1 );
+
+			const newViewRange = data.newSelection.getFirstRange();
+			const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
+
+			expect( newViewRange.start.parent ).toBe( viewFoo );
+			expect( newViewRange.start.offset ).toBe( 2 );
+			expect( newViewRange.end.parent ).toBe( viewFoo );
+			expect( newViewRange.end.offset ).toBe( 2 );
+
+			expect( priorityCheck ).toBe( 1 );
+
+			eventCount++;
 		} );
+
+		viewDocument.on( 'compositionstart', () => {
+			priorityCheck++;
+		}, { priority: priorities.lowest + 1 } );
+
+		viewDocument.on( 'compositionstart', () => {
+			priorityCheck++;
+		}, { priority: priorities.lowest - 1 } );
+
+		changeDomSelection();
+
+		viewDocument.fire( 'compositionstart' );
+
+		expect( eventCount ).toBe( 1 );
+		expect( priorityCheck ).toBe( 2 );
+	} );
+
+	it( 'should not fire selectionChange for ignored target', () => {
+		const spy = vi.fn();
+
+		viewDocument.on( 'selectionChange', spy );
 
 		view.getObserver( MutationObserver ).disable();
 		domMain.childNodes[ 1 ].setAttribute( 'data-cke-ignore-events', 'true' );
 
 		changeDomSelection();
 
-		setTimeout( done, 100 );
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).not.toHaveBeenCalled();
+			resolve();
+		}, 100 ) );
 	} );
 
-	it( 'should not fire selectionChange on render', done => {
-		viewDocument.on( 'selectionChange', () => {
-			throw 'selectionChange on render';
-		} );
+	it( 'should not fire selectionChange on render', () => {
+		const spy = vi.fn();
 
-		setTimeout( done, 70 );
+		viewDocument.on( 'selectionChange', spy );
 
 		const viewBar = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
 
 		view.change( writer => {
 			writer.setSelection( ViewRange._createFromParentsAndOffsets( viewBar, 1, viewBar, 2 ) );
 		} );
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).not.toHaveBeenCalled();
+			resolve();
+		}, 70 ) );
 	} );
 
-	it( 'should not fire if observer is disabled', done => {
+	it( 'should not fire if observer is disabled', () => {
+		const spy = vi.fn();
+
 		view.getObserver( SelectionObserver ).disable();
 
-		viewDocument.on( 'selectionChange', () => {
-			throw 'selectionChange on render';
-		} );
-
-		setTimeout( done, 70 );
+		viewDocument.on( 'selectionChange', spy );
 
 		changeDomSelection();
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).not.toHaveBeenCalled();
+			resolve();
+		}, 70 ) );
 	} );
 
-	it( 'should not fire if the DOM selection was set outside editable', done => {
+	it( 'should not fire if the DOM selection was set outside editable', () => {
 		const viewFoo = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
 
 		view.change( writer => {
 			writer.setSelection( viewFoo, 0 );
 		} );
 
-		const spy = sinon.spy();
+		const spy = vi.fn();
 
 		viewDocument.on( 'selectionChange', spy );
-
-		setTimeout( () => {
-			expect( spy.called ).to.be.false;
-
-			done();
-		}, 70 );
 
 		const domSelection = domDocument.getSelection();
 		const editable = domRoot.childNodes[ 1 ];
 		editable.focus();
 
 		domSelection.collapse( editable, 0 );
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( spy ).not.toHaveBeenCalled();
+			resolve();
+		}, 70 ) );
 	} );
 
 	it( 'should not enter infinite loop', () => {
-		let counter = 70;
-
 		const viewFoo = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
 		view.change( writer => {
 			writer.setSelection( viewFoo, 0 );
 		} );
 
 		let wasInfiniteLoopDetected = false;
-		sinon.stub( selectionObserver, '_reportInfiniteLoop' ).callsFake( () => {
+		vi.spyOn( selectionObserver, '_reportInfiniteLoop' ).mockImplementation( () => {
 			wasInfiniteLoopDetected = true;
 		} );
-		const selectionChangeSpy = sinon.spy();
+		const selectionChangeSpy = vi.fn();
 
 		selectionObserver._clearInfiniteLoop();
 		viewDocument.on( 'selectionChange', selectionChangeSpy );
 
+		let counter = 70;
+
+		const simulateSelectionChanges = () => {
+			if ( !counter ) {
+				return;
+			}
+
+			changeDomSelection();
+			counter--;
+
+			setTimeout( simulateSelectionChanges, 10 );
+		};
+
 		return new Promise( resolve => {
 			viewDocument.on( 'selectionChangeDone', () => {
-				expect( wasInfiniteLoopDetected ).to.be.true;
-				expect( selectionChangeSpy.callCount ).to.equal( 60 );
+				expect( wasInfiniteLoopDetected ).toBe( true );
+				expect( selectionChangeSpy ).toHaveBeenCalledTimes( 60 );
 
+				counter = 0;
 				resolve();
 			} );
 
-			while ( counter > 0 ) {
-				changeDomSelection();
-				counter--;
-			}
+			simulateSelectionChanges();
 		} );
 	} );
 
 	it.skip( 'SelectionObserver#_reportInfiniteLoop() should throw an error', () => {
 		expect( () => {
 			selectionObserver._reportInfiniteLoop();
-		} ).to.throw( Error,
-			'Selection change observer detected an infinite rendering loop.\n\n' +
-			'⚠️⚠️ Report this error on https://github.com/ckeditor/ckeditor5/issues/11658.'
-		);
+		} ).toThrow( Error );
 	} );
 
-	it( 'should not be treated as an infinite loop if selection is changed only few times', done => {
+	it( 'should not be treated as an infinite loop if selection is changed only few times', () => {
 		const viewFoo = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
 		viewDocument.selection._setTo( ViewRange._createFromParentsAndOffsets( viewFoo, 0, viewFoo, 0 ) );
-		const consoleWarnSpy = sinon.spy( console, 'warn' );
+		const consoleWarnSpy = vi.spyOn( console, 'warn' );
 
-		viewDocument.on( 'selectionChangeDone', () => {
-			expect( consoleWarnSpy.called ).to.be.false;
-			done();
+		return new Promise( resolve => {
+			viewDocument.on( 'selectionChangeDone', () => {
+				expect( consoleWarnSpy ).not.toHaveBeenCalled();
+				resolve();
+			} );
+
+			for ( let i = 0; i < 10; i++ ) {
+				changeDomSelection();
+			}
 		} );
-
-		for ( let i = 0; i < 10; i++ ) {
-			changeDomSelection();
-		}
 	} );
 
 	it( 'should not be treated as an infinite loop if changes are not often', () => {
-		const clock = sinon.useFakeTimers( {
+		vi.useFakeTimers( {
 			toFake: [ 'setInterval', 'clearInterval' ]
 		} );
-		const consoleWarnStub = sinon.stub( console, 'warn' );
+		const consoleWarnStub = vi.spyOn( console, 'warn' );
 
 		// We need to recreate SelectionObserver, so it will use mocked setInterval.
 		selectionObserver.disable();
@@ -326,14 +535,14 @@ describe( 'SelectionObserver', () => {
 		return doChanges()
 			.then( doChanges )
 			.then( () => {
-				sinon.assert.notCalled( consoleWarnStub );
-				clock.restore();
+				expect( consoleWarnStub ).not.toHaveBeenCalled();
+				vi.useRealTimers();
 			} );
 
 		function doChanges() {
 			return new Promise( resolve => {
 				viewDocument.once( 'selectionChangeDone', () => {
-					clock.tick( 1100 );
+					vi.advanceTimersByTime( 1100 );
 					resolve();
 				} );
 
@@ -344,8 +553,8 @@ describe( 'SelectionObserver', () => {
 		}
 	} );
 
-	it( 'should fire `selectionChangeDone` event after selection stop changing', done => {
-		const spy = sinon.spy();
+	it( 'should fire `selectionChangeDone` event after selection stop changing', () => {
+		const spy = vi.fn();
 
 		viewDocument.on( 'selectionChangeDone', spy );
 
@@ -355,117 +564,300 @@ describe( 'SelectionObserver', () => {
 		// Change selection.
 		changeDomSelection();
 
-		// Wait 100ms.
-		setTimeout( () => {
-			// Check if spy was called.
-			expect( spy.notCalled ).to.true;
-
-			// Change selection one more time.
-			changeDomSelection();
-
-			// Wait 210ms (debounced function should be called).
+		return new Promise( resolve => {
+			// Wait 100ms.
 			setTimeout( () => {
-				const data = spy.firstCall.args[ 1 ];
+				// Check if spy was called.
+				expect( spy.mock.calls.length === 0 ).toBe( true );
 
-				expect( spy.calledOnce ).to.true;
-				expect( data ).to.have.property( 'domSelection' ).to.equal( domDocument.getSelection() );
+				// Change selection one more time.
+				changeDomSelection();
 
-				expect( data ).to.have.property( 'oldSelection' ).to.instanceof( DocumentSelection );
-				expect( data.oldSelection.rangeCount ).to.equal( 0 );
+				// Wait 210ms (debounced function should be called).
+				setTimeout( () => {
+					const data = spy.mock.calls[ 0 ][ 1 ];
 
-				expect( data ).to.have.property( 'newSelection' ).to.instanceof( ViewSelection );
-				expect( data.newSelection.rangeCount ).to.equal( 1 );
+					expect( spy ).toHaveBeenCalledOnce();
+					expect( data ).toHaveProperty( 'domSelection' );
+					expect( data.domSelection ).toBe( domDocument.getSelection() );
 
-				const newViewRange = data.newSelection.getFirstRange();
-				const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
+					expect( data ).toHaveProperty( 'oldSelection' );
+					expect( data.oldSelection ).toBeInstanceOf( ViewDocumentSelection );
+					expect( data.oldSelection.rangeCount ).toBe( 0 );
 
-				expect( newViewRange.start.parent ).to.equal( viewFoo );
-				expect( newViewRange.start.offset ).to.equal( 3 );
-				expect( newViewRange.end.parent ).to.equal( viewFoo );
-				expect( newViewRange.end.offset ).to.equal( 3 );
+					expect( data ).toHaveProperty( 'newSelection' );
+					expect( data.newSelection ).toBeInstanceOf( ViewSelection );
+					expect( data.newSelection.rangeCount ).toBe( 1 );
 
-				done();
-			}, 210 );
-		}, 100 );
+					const newViewRange = data.newSelection.getFirstRange();
+					const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
+
+					expect( newViewRange.start.parent ).toBe( viewFoo );
+					expect( newViewRange.start.offset ).toBe( 3 );
+					expect( newViewRange.end.parent ).toBe( viewFoo );
+					expect( newViewRange.end.offset ).toBe( 3 );
+
+					resolve();
+				}, 210 );
+			}, 100 );
+		} );
 	} );
 
-	it( 'should not fire `selectionChangeDone` event when observer will be destroyed', done => {
-		const spy = sinon.spy();
+	it( 'should not fire `selectionChangeDone` event when observer will be destroyed', () => {
+		const spy = vi.fn();
 
 		viewDocument.on( 'selectionChangeDone', spy );
 
 		// Change selection.
 		changeDomSelection();
 
-		// Wait 100ms.
-		setTimeout( () => {
-			// And destroy observer.
-			selectionObserver.destroy();
-
-			// Wait another 110ms.
+		return new Promise( resolve => {
+			// Wait 100ms.
 			setTimeout( () => {
-				// Check that event won't be called.
-				expect( spy.notCalled ).to.true;
+				// And destroy observer.
+				selectionObserver.destroy();
 
-				done();
-			}, 110 );
-		}, 100 );
+				// Wait another 110ms.
+				setTimeout( () => {
+					// Check that event won't be called.
+					expect( spy.mock.calls.length === 0 ).toBe( true );
+
+					resolve();
+				}, 110 );
+			}, 100 );
+		} );
 	} );
 
-	it( 'should re-render view if selections are similar if DOM selection is in incorrect place', done => {
+	it( 're-render view if selections are similar if DOM selection is in incorrect place', () => {
 		const sel = domDocument.getSelection();
 		const domParagraph = domMain.childNodes[ 0 ];
 		const domText = domParagraph.childNodes[ 0 ];
 		const domUI = domParagraph.childNodes[ 1 ];
-		const viewRenderSpy = sinon.spy();
+		const viewRenderSpy = vi.fn();
 
-		// Add rendering on selectionChange event to check this feature.
-		viewDocument.on( 'selectionChange', () => {
-			// Manually set selection because no handlers are set for selectionChange event in this test.
-			// Normally this is handled by view -> model -> view selection converters chain.
-			const viewAnchor = view.domConverter.domPositionToView( sel.anchorNode, sel.anchorOffset );
-			const viewFocus = view.domConverter.domPositionToView( sel.focusNode, sel.focusOffset );
+		return new Promise( resolve => {
+			// Add rendering on selectionChange event to check this feature.
+			viewDocument.on( 'selectionChange', () => {
+				// Manually set selection because no handlers are set for selectionChange event in this test.
+				// Normally this is handled by view -> model -> view selection converters chain.
+				const viewAnchor = view.domConverter.domPositionToView( sel.anchorNode, sel.anchorOffset );
+				const viewFocus = view.domConverter.domPositionToView( sel.focusNode, sel.focusOffset );
 
-			view.change( writer => {
-				writer.setSelection( viewAnchor );
-				writer.setSelectionFocus( viewFocus );
+				view.change( writer => {
+					writer.setSelection( viewAnchor );
+					writer.setSelectionFocus( viewFocus );
+				} );
 			} );
-		} );
 
-		viewDocument.once( 'selectionChange', () => {
-			// 2. Selection change has been handled.
+			viewDocument.once( 'selectionChange', () => {
+				// 2. Selection change has been handled.
 
-			selectionObserver.listenTo( domDocument, 'selectionchange', () => {
-				// 4. Check if view was re-rendered.
-				sinon.assert.calledOnce( viewRenderSpy );
+				selectionObserver.listenTo( domDocument, 'selectionchange', () => {
+					// 4. Check if view was re-rendered.
+					expect( viewRenderSpy ).toHaveBeenCalledOnce();
 
-				done();
+					resolve();
+				}, { priority: 'lowest' } );
+
+				// 3. Now, collapse selection in similar position, but in UI element.
+				// Current and new selection position are similar in view (but not equal!).
+				// Also add a spy to `viewDocument#render` to see if view will be re-rendered.
+				sel.collapse( domUI, 0 );
+				view.on( 'render', viewRenderSpy );
+
+				// Some browsers like Safari won't allow to put selection inside empty ui element.
+				// In that situation selection should stay in correct place.
+				const isSelectionInUiElement = sel.anchorNode === domUI;
+				const expectedAnchorNode = isSelectionInUiElement ? domUI : domText;
+				const expectedAnchorOffset = isSelectionInUiElement ? 0 : 3;
+
+				expect( sel.anchorNode ).toBe( expectedAnchorNode );
+				expect( sel.anchorOffset ).toBe( expectedAnchorOffset );
+				expect( sel.isCollapsed ).toBe( true );
+
+				if ( !isSelectionInUiElement ) {
+					resolve();
+				}
 			}, { priority: 'lowest' } );
 
-			// 3. Now, collapse selection in similar position, but in UI element.
-			// Current and new selection position are similar in view (but not equal!).
-			// Also add a spy to `viewDocument#render` to see if view will be re-rendered.
-			sel.collapse( domUI, 0 );
-			view.on( 'render', viewRenderSpy );
+			// 1. Collapse in a text node, before ui element, and wait for async selectionchange to fire selection change handling.
+			sel.collapse( domText, 3 );
+		} );
+	} );
 
-			// Some browsers like Safari won't allow to put selection inside empty ui element.
-			// In that situation selection should stay in correct place.
-			if ( sel.anchorNode !== domUI ) {
-				expect( sel.anchorNode ).to.equal( domText );
-				expect( sel.anchorOffset ).to.equal( 3 );
-				expect( sel.isCollapsed ).to.be.true;
+	// See: https://github.com/ckeditor/ckeditor5/issues/18744
+	it( 'should not crash even if domConverter returns view range with items detached from root', () => {
+		const { domConverter } = selectionObserver;
 
-				done();
-			}
-		}, { priority: 'lowest' } );
+		const forceRenderSpy = vi.spyOn( view, 'forceRender' ).mockImplementation( () => {} );
+		const originalDomSelectionToView = domConverter.domSelectionToView.bind( domConverter );
 
-		// 1. Collapse in a text node, before ui element, and wait for async selectionchange to fire selection change handling.
-		sel.collapse( domText, 3 );
+		vi.spyOn( domConverter, 'domSelectionToView' ).mockImplementation( ( ...args ) => {
+			const selection = originalDomSelectionToView( ...args );
+			const originalGetRanges = selection.getRanges.bind( selection );
+
+			vi.spyOn( selection, 'getRanges' ).mockImplementation( () => {
+				const ranges = [ ...originalGetRanges() ];
+
+				// Let's assume that domConverter returned ranges that are detached from the root.
+				// For example - when it's not fully synchronized with the DOM during some async events.
+				// It should not happen if mapper is used correctly, not during applying changes to the DOM.
+				ranges.forEach( range => {
+					vi.spyOn( range.start, 'root', 'get' ).mockReturnValue( null );
+					vi.spyOn( range.end, 'root', 'get' ).mockReturnValue( null );
+				} );
+
+				return ranges;
+			} );
+
+			return selection;
+		} );
+
+		changeDomSelection();
+		domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+
+		return new Promise( resolve => setTimeout( () => {
+			expect( forceRenderSpy ).toHaveBeenCalled();
+			resolve();
+		}, 70 ) );
+	} );
+
+	describe( 'shadow DOM', () => {
+		let shadowHost, shadowRoot, shadowMain, shadowView, shadowText;
+
+		beforeEach( () => {
+			shadowHost = domDocument.createElement( 'div' );
+			domDocument.body.appendChild( shadowHost );
+
+			shadowRoot = shadowHost.attachShadow( { mode: 'open' } );
+			shadowMain = domDocument.createElement( 'div' );
+
+			shadowView = new EditingView( new StylesProcessor() );
+
+			createViewRoot( shadowView.document );
+
+			shadowRoot.appendChild( shadowMain );
+			shadowView.attachDomRoot( shadowMain );
+
+			shadowView.getObserver( SelectionObserver ).enable();
+
+			appendContentTo( 'main', 'foo' );
+
+			shadowView.document.isFocused = true;
+			shadowView.document._isFocusChanging = false;
+
+			shadowText = shadowMain.childNodes[ 0 ].childNodes[ 0 ];
+		} );
+
+		afterEach( () => {
+			domDocument.getSelection().removeAllRanges();
+
+			shadowView.destroy();
+			shadowHost.remove();
+		} );
+
+		it( 'resolves the selection against the shadow root for an editing root in a shadow tree', () => {
+			// The selection of an editing root inside a shadow root has to be resolved against that shadow
+			// root, as the document-level selection only ever reports its host.
+			const spy = vi.fn();
+
+			shadowView.document.on( 'selectionChange', spy );
+
+			putSelectionIn( shadowText );
+
+			domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( shadowView.hasDomSelection ).toBe( true );
+		} );
+
+		it( 'resolves the selection against the tree of the root holding it, not the first observed root', () => {
+			// With one editing root per shadow tree, resolving the selection against the first observed root
+			// only (or against the DOM focus, which at this point still points at the previously focused
+			// editable) drops the change and leaves the view selection in the previous root.
+			const secondHost = domDocument.createElement( 'div' );
+
+			domDocument.body.appendChild( secondHost );
+
+			const secondShadowRoot = secondHost.attachShadow( { mode: 'open' } );
+			const secondDomRoot = domDocument.createElement( 'div' );
+
+			secondShadowRoot.appendChild( secondDomRoot );
+
+			createViewRoot( shadowView.document, 'div', 'second' );
+			shadowView.attachDomRoot( secondDomRoot, 'second' );
+
+			appendContentTo( 'second', 'bar' );
+
+			const spy = vi.fn();
+
+			shadowView.document.on( 'selectionChange', spy );
+
+			putSelectionIn( secondDomRoot.childNodes[ 0 ].childNodes[ 0 ] );
+
+			domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+
+			expect( spy ).toHaveBeenCalledOnce();
+
+			const [ , data ] = spy.mock.calls[ 0 ];
+
+			expect( data.newSelection.getFirstRange().start.root.rootName ).toEqual( 'second' );
+
+			secondHost.remove();
+		} );
+
+		it( 'ignores a selectionchange when no editing root holds the selection', () => {
+			const spy = vi.fn();
+
+			shadowView.document.on( 'selectionChange', spy );
+			shadowView.hasDomSelection = true;
+
+			domDocument.getSelection().removeAllRanges();
+
+			domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+
+			expect( spy ).not.toHaveBeenCalled();
+			expect( shadowView.hasDomSelection ).toBe( false );
+		} );
+
+		it( 'ignores a selectionchange when the selection is outside of the editing root', () => {
+			const spy = vi.fn();
+			const outsideText = domDocument.createTextNode( 'baz' );
+
+			shadowView.document.on( 'selectionChange', spy );
+			shadowView.hasDomSelection = true;
+
+			// A node in the same shadow tree, but not in the editing root.
+			shadowRoot.appendChild( outsideText );
+
+			putSelectionIn( outsideText );
+
+			domDocument.dispatchEvent( new Event( 'selectionchange' ) );
+
+			expect( spy ).not.toHaveBeenCalled();
+			expect( shadowView.hasDomSelection ).toBe( false );
+
+			outsideText.remove();
+		} );
+
+		function appendContentTo( rootName, text ) {
+			shadowView.change( writer => {
+				shadowView.document.getRoot( rootName )._appendChild( _parseView( `<container:p>${ text }</container:p>` ) );
+
+				writer.setSelection( null );
+			} );
+		}
+
+		// `Selection#setBaseAndExtent()` accepts nodes inside an open shadow tree and assigns the selection to
+		// that tree, which is what `getSelection( node )` resolves for a root living in it.
+		function putSelectionIn( domText ) {
+			domDocument.getSelection().setBaseAndExtent( domText, 0, domText, 0 );
+		}
 	} );
 
 	describe( 'stopListening()', () => {
 		it( 'should not fire selectionChange after stopped observing a DOM element', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'selectionChange', spy );
 
@@ -473,15 +865,15 @@ describe( 'SelectionObserver', () => {
 
 			changeDomSelection();
 
-			expect( spy.called ).to.be.false;
+			expect( spy ).not.toHaveBeenCalled();
 		} );
 	} );
 
 	describe( 'Management of view Document#isSelecting', () => {
 		it( 'should not set #isSelecting to true upon the "selectstart" event outside the DOM root', () => {
-			const selectStartChangedSpy = sinon.spy();
+			const selectStartChangedSpy = vi.fn();
 
-			expect( viewDocument.isSelecting ).to.be.false;
+			expect( viewDocument.isSelecting ).toBe( false );
 
 			// Make sure isSelecting was already updated by the listener with the highest priority.
 			// Note: The listener in SelectionObserver has the same priority but was attached first.
@@ -490,22 +882,22 @@ describe( 'SelectionObserver', () => {
 			// The event was fired somewhere else in DOM.
 			domDocument.dispatchEvent( new Event( 'selectstart' ) );
 
-			expect( viewDocument.isSelecting ).to.be.false;
-			sinon.assert.notCalled( selectStartChangedSpy );
+			expect( viewDocument.isSelecting ).toBe( false );
+			expect( selectStartChangedSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should set #isSelecting to true upon the "selectstart" event', () => {
-			expect( viewDocument.isSelecting ).to.be.false;
+			expect( viewDocument.isSelecting ).toBe( false );
 
 			// Make sure isSelecting was already updated by the listener with the highest priority.
 			// Note: The listener in SelectionObserver has the same priority but was attached first.
 			selectionObserver.listenTo( domMain, 'selectstart', () => {
-				expect( viewDocument.isSelecting ).to.be.true;
+				expect( viewDocument.isSelecting ).toBe( true );
 			}, { priority: 'highest' } );
 
 			domMain.dispatchEvent( new Event( 'selectstart' ) );
 
-			expect( viewDocument.isSelecting ).to.be.true;
+			expect( viewDocument.isSelecting ).toBe( true );
 		} );
 
 		it( 'should set #isSelecting to false upon the "mouseup" event', () => {
@@ -514,73 +906,80 @@ describe( 'SelectionObserver', () => {
 			// Make sure isSelecting was already updated by the listener with the highest priority.
 			// Note: The listener in SelectionObserver has the same priority but was attached first.
 			selectionObserver.listenTo( domDocument, 'mouseup', () => {
-				expect( viewDocument.isSelecting ).to.be.false;
+				expect( viewDocument.isSelecting ).toBe( false );
 			}, { priority: 'highest', useCapture: true } );
 
 			domDocument.dispatchEvent( new Event( 'mouseup' ) );
 
-			expect( viewDocument.isSelecting ).to.be.false;
+			expect( viewDocument.isSelecting ).toBe( false );
 		} );
 
-		it( 'should fire selectionChange event upon the "mouseup" event (if DOM selection differs from view selection', done => {
+		it( 'should fire selectionChange event upon the "mouseup" event (if DOM selection differs from view selection', () => {
+			return new Promise( resolve => {
+				// Disable DOM selectionchange event to make sure that mouseup triggered view event.
+				selectionObserver.listenTo( domDocument, 'selectionchange', evt => {
+					evt.stop();
+				}, { priority: 'highest' } );
+
+				viewDocument.on( 'selectionChange', ( evt, data ) => {
+					expect( data ).toHaveProperty( 'domSelection', domDocument.getSelection() );
+
+					expect( data ).toHaveProperty( 'oldSelection' );
+					expect( data.oldSelection ).toBeInstanceOf( ViewDocumentSelection );
+					expect( data.oldSelection.rangeCount ).toBe( 0 );
+
+					expect( data ).toHaveProperty( 'newSelection' );
+					expect( data.newSelection ).toBeInstanceOf( ViewSelection );
+					expect( data.newSelection.rangeCount ).toBe( 1 );
+
+					const newViewRange = data.newSelection.getFirstRange();
+					const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
+
+					expect( newViewRange.start.parent ).toBe( viewFoo );
+					expect( newViewRange.start.offset ).toBe( 2 );
+					expect( newViewRange.end.parent ).toBe( viewFoo );
+					expect( newViewRange.end.offset ).toBe( 2 );
+
+					// Make sure that selectionChange event was triggered before the isSelecting flag reset
+					// so that model and view selection could get updated before isSelecting is reset
+					// and renderer updates the DOM selection.
+					expect( viewDocument.isSelecting ).toBe( true );
+
+					resolve();
+				} );
+
+				viewDocument.isSelecting = true;
+
+				changeDomSelection();
+				domDocument.dispatchEvent( new Event( 'mouseup' ) );
+
+				expect( viewDocument.isSelecting ).toBe( false );
+			} );
+		} );
+
+		it( 'should not fire selectionChange event upon the "mouseup" event if it was not selecting', () => {
+			const spy = vi.fn();
+
 			// Disable DOM selectionchange event to make sure that mouseup triggered view event.
 			selectionObserver.listenTo( domDocument, 'selectionchange', evt => {
 				evt.stop();
 			}, { priority: 'highest' } );
 
-			viewDocument.on( 'selectionChange', ( evt, data ) => {
-				expect( data ).to.have.property( 'domSelection' ).that.equals( domDocument.getSelection() );
-
-				expect( data ).to.have.property( 'oldSelection' ).that.is.instanceof( DocumentSelection );
-				expect( data.oldSelection.rangeCount ).to.equal( 0 );
-
-				expect( data ).to.have.property( 'newSelection' ).that.is.instanceof( ViewSelection );
-				expect( data.newSelection.rangeCount ).to.equal( 1 );
-
-				const newViewRange = data.newSelection.getFirstRange();
-				const viewFoo = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
-
-				expect( newViewRange.start.parent ).to.equal( viewFoo );
-				expect( newViewRange.start.offset ).to.equal( 2 );
-				expect( newViewRange.end.parent ).to.equal( viewFoo );
-				expect( newViewRange.end.offset ).to.equal( 2 );
-
-				// Make sure that selectionChange event was triggered before the isSelecting flag reset
-				// so that model and view selection could get updated before isSelecting is reset
-				// and renderer updates the DOM selection.
-				expect( viewDocument.isSelecting ).to.be.true;
-
-				done();
-			} );
-
-			viewDocument.isSelecting = true;
-
-			changeDomSelection();
-			domDocument.dispatchEvent( new Event( 'mouseup' ) );
-
-			expect( viewDocument.isSelecting ).to.be.false;
-		} );
-
-		it( 'should not fire selectionChange event upon the "mouseup" event if it was not selecting', done => {
-			// Disable DOM selectionchange event to make sure that mouseup triggered view event.
-			selectionObserver.listenTo( domDocument, 'selectionchange', evt => {
-				evt.stop();
-			}, { priority: 'highest' } );
-
-			viewDocument.on( 'selectionChange', () => {
-				throw 'selectionChange fired';
-			} );
+			viewDocument.on( 'selectionChange', spy );
 
 			viewDocument.isSelecting = false;
 
 			changeDomSelection();
 			domDocument.dispatchEvent( new Event( 'mouseup' ) );
 
-			setTimeout( done, 100 );
+			return new Promise( resolve => setTimeout( () => {
+				expect( spy ).not.toHaveBeenCalled();
+				resolve();
+			}, 100 ) );
 		} );
 
 		it( 'should set #isSelecting to false upon the "mouseup" event only once (editor with multiple roots)', () => {
-			const isSelectingSetSpy = sinon.spy();
+			const isSelectingSetSpy = vi.fn();
 
 			createViewRoot( viewDocument, 'div', 'additional' );
 			view.attachDomRoot( domDocument.getElementById( 'additional' ), 'additional' );
@@ -590,12 +989,12 @@ describe( 'SelectionObserver', () => {
 			viewDocument.on( 'set:isSelecting', isSelectingSetSpy );
 
 			domDocument.dispatchEvent( new Event( 'mouseup' ) );
-			expect( viewDocument.isSelecting ).to.be.false;
-			sinon.assert.calledOnce( isSelectingSetSpy );
+			expect( viewDocument.isSelecting ).toBe( false );
+			expect( isSelectingSetSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should not set #isSelecting to false upon the "keydown" event outside the DOM root', () => {
-			const keydownSpy = sinon.spy();
+			const keydownSpy = vi.fn();
 
 			viewDocument.isSelecting = true;
 
@@ -605,8 +1004,8 @@ describe( 'SelectionObserver', () => {
 
 			domMain.dispatchEvent( new Event( 'keydown' ) );
 
-			expect( viewDocument.isSelecting ).to.be.false;
-			sinon.assert.notCalled( keydownSpy );
+			expect( viewDocument.isSelecting ).toBe( false );
+			expect( keydownSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should set #isSelecting to false upon the "keydown" event', () => {
@@ -615,16 +1014,16 @@ describe( 'SelectionObserver', () => {
 			// Make sure isSelecting was already updated by the listener with the highest priority.
 			// Note: The listener in SelectionObserver has the same priority but was attached first.
 			selectionObserver.listenTo( domMain, 'keydown', () => {
-				expect( viewDocument.isSelecting ).to.be.false;
+				expect( viewDocument.isSelecting ).toBe( false );
 			}, { priority: 'highest', useCapture: true } );
 
 			domMain.dispatchEvent( new Event( 'keydown' ) );
 
-			expect( viewDocument.isSelecting ).to.be.false;
+			expect( viewDocument.isSelecting ).toBe( false );
 		} );
 
 		it( 'should not set #isSelecting to false upon the "keyup" event outside the DOM root', () => {
-			const keyupSpy = sinon.spy();
+			const keyupSpy = vi.fn();
 
 			viewDocument.isSelecting = true;
 
@@ -634,8 +1033,8 @@ describe( 'SelectionObserver', () => {
 
 			domMain.dispatchEvent( new Event( 'keyup' ) );
 
-			expect( viewDocument.isSelecting ).to.be.false;
-			sinon.assert.notCalled( keyupSpy );
+			expect( viewDocument.isSelecting ).toBe( false );
+			expect( keyupSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should set #isSelecting to false upon the "keyup" event', () => {
@@ -644,19 +1043,17 @@ describe( 'SelectionObserver', () => {
 			// Make sure isSelecting was already updated by the listener with the highest priority.
 			// Note: The listener in SelectionObserver has the same priority but was attached first.
 			selectionObserver.listenTo( domMain, 'keyup', () => {
-				expect( viewDocument.isSelecting ).to.be.false;
+				expect( viewDocument.isSelecting ).toBe( false );
 			}, { priority: 'highest', useCapture: true } );
 
 			domMain.dispatchEvent( new Event( 'keyup' ) );
 
-			expect( viewDocument.isSelecting ).to.be.false;
+			expect( viewDocument.isSelecting ).toBe( false );
 		} );
 
 		describe( 'isSelecting restoring after a timeout', () => {
-			let clock;
-
 			beforeEach( () => {
-				clock = testUtils.sinon.useFakeTimers();
+				vi.useFakeTimers();
 
 				// We need to recreate SelectionObserver, so it will use mocked setTimeout.
 				selectionObserver.disable();
@@ -666,61 +1063,51 @@ describe( 'SelectionObserver', () => {
 			} );
 
 			afterEach( () => {
-				clock.restore();
+				vi.useRealTimers();
 			} );
 
-			it( 'should set #isSelecting to false after 5000ms since the selectstart event', done => {
-				expect( viewDocument.isSelecting ).to.be.false;
+			it( 'should set #isSelecting to false after 5000ms since the selectstart event', () => {
+				expect( viewDocument.isSelecting ).toBe( false );
 
 				domMain.dispatchEvent( new Event( 'selectstart' ) );
 
-				expect( viewDocument.isSelecting ).to.be.true;
+				expect( viewDocument.isSelecting ).toBe( true );
 
-				setTimeout( () => {
-					expect( viewDocument.isSelecting ).to.be.true;
-				}, 4500 );
+				vi.advanceTimersByTime( 4500 );
+				expect( viewDocument.isSelecting ).toBe( true );
 
-				setTimeout( () => {
-					expect( viewDocument.isSelecting ).to.be.false;
-					done();
-				}, 5500 );
-
-				clock.tick( 6000 );
+				vi.advanceTimersByTime( 1500 );
+				expect( viewDocument.isSelecting ).toBe( false );
 			} );
 
-			it( 'should postpone setting #isSelecting to false after 5000ms if "selectionchange" fired in the meantime', done => {
-				expect( viewDocument.isSelecting ).to.be.false;
+			it( 'should postpone setting #isSelecting to false after 5000ms if "selectionchange" fired in the meantime', () => {
+				expect( viewDocument.isSelecting ).toBe( false );
 
 				domMain.dispatchEvent( new Event( 'selectstart' ) );
 
-				expect( viewDocument.isSelecting ).to.be.true;
+				expect( viewDocument.isSelecting ).toBe( true );
 
-				setTimeout( () => {
-					expect( viewDocument.isSelecting ).to.be.true;
+				// Advance to 2500ms and fire selectionchange to postpone the timeout
+				vi.advanceTimersByTime( 2500 );
+				expect( viewDocument.isSelecting ).toBe( true );
+				// This will postpone the timeout by another 5000ms.
+				domDocument.dispatchEvent( new Event( 'selectionchange' ) );
 
-					// This will postpone the timeout by another 5000ms.
-					domDocument.dispatchEvent( new Event( 'selectionchange' ) );
-				}, 2500 );
+				// Advance to what would have been 5500ms (3000ms more) - but with the postpone it should still be true
+				vi.advanceTimersByTime( 3000 );
+				expect( viewDocument.isSelecting ).toBe( true );
 
-				setTimeout( () => {
-					// It would normally be false by now if not for the selectionchange event that was fired.
-					expect( viewDocument.isSelecting ).to.be.true;
-				}, 5500 );
-
-				setTimeout( () => {
-					expect( viewDocument.isSelecting ).to.be.false;
-					done();
-				}, 8000 );
-
-				clock.tick( 8000 );
+				// Advance by 5000ms more to complete the postponed timeout (total 10500ms from start)
+				vi.advanceTimersByTime( 5000 );
+				expect( viewDocument.isSelecting ).toBe( false );
 			} );
 
 			it( 'should cancel the 5000s timeout if the observer is destroyed', () => {
-				const spy = sinon.spy( selectionObserver._documentIsSelectingInactivityTimeoutDebounced, 'cancel' );
+				const spy = vi.spyOn( selectionObserver._documentIsSelectingInactivityTimeoutDebounced, 'cancel' );
 
 				selectionObserver.destroy();
 
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );

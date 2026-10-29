@@ -1,29 +1,44 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document */
+import {
+	ClassicEditor,
+	Code,
+	Strikethrough,
+	CloudServices,
+	CodeBlock,
+	CKBox,
+	CKBoxImageEdit,
+	Highlight,
+	HorizontalLine,
+	GeneralHtmlSupport,
+	PictureEditing,
+	Image,
+	ImageCaption,
+	ImageInsert,
+	ImageResize,
+	ImageStyle,
+	ImageToolbar,
+	ImageUpload,
+	Style
+} from 'ckeditor5';
 
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-
-import { Code, Strikethrough } from '@ckeditor/ckeditor5-basic-styles';
-import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
-import { EasyImage } from '@ckeditor/ckeditor5-easy-image';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import { Highlight } from '@ckeditor/ckeditor5-highlight';
-import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
-import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
-import { Image, ImageCaption, ImageResize, ImageStyle, ImageToolbar, ImageUpload } from '@ckeditor/ckeditor5-image';
-import { Style } from '@ckeditor/ckeditor5-style';
+import {
+	TOKEN_URL,
+	ArticlePluginSet,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
 ClassicEditor
-	.create( document.querySelector( '#snippet-styles' ), {
+	.create( {
+		attachTo: document.querySelector( '#snippet-styles' ),
 		plugins: [
-			ArticlePluginSet, CloudServices, EasyImage,
-			Image, ImageCaption, ImageResize, ImageStyle, ImageToolbar, ImageUpload,
+			ArticlePluginSet, CloudServices, CKBox, CKBoxImageEdit,
+			PictureEditing, Image, ImageCaption, ImageInsert, ImageResize, ImageStyle, ImageToolbar, ImageUpload,
 			Code, CodeBlock, Strikethrough, HorizontalLine, GeneralHtmlSupport, Style, Highlight
 		],
 		toolbar: {
@@ -31,7 +46,7 @@ ClassicEditor
 				'undo', 'redo',
 				'|', 'style', '|', 'heading',
 				'|', 'bold', 'italic', 'strikethrough', 'code',
-				'-', 'link', 'uploadImage', 'insertTable', 'highlight', 'codeBlock',
+				'-', 'link', 'insertImage', 'insertTable', 'highlight',
 				'blockQuote', 'mediaEmbed', 'codeBlock', 'horizontalLine',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 			],
@@ -88,7 +103,10 @@ ClassicEditor
 			]
 		},
 		image: {
-			toolbar: [ 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side', '|', 'toggleImageCaption', 'imageTextAlternative' ]
+			toolbar: [
+				'imageStyle:inline', 'imageStyle:block', 'imageStyle:wrapText', '|',
+				'toggleImageCaption', 'imageTextAlternative', 'ckboxImageEdit'
+			]
 		},
 		codeBlock: {
 			languages: [
@@ -98,19 +116,26 @@ ClassicEditor
 				{ language: 'php', label: 'PHP' }
 			]
 		},
-		cloudServices: CS_CONFIG,
+		list: {
+			enableSkipLevelLists: true
+		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		}
 	} )
 	.then( editor => {
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar,
-				item => item.buttonView && item.buttonView.label === 'Styles' ),
+		attachTourBalloon( {
+			target: findToolbarItem( editor.ui.view.toolbar,
+				item => item.buttonView && item.buttonView.label === 'Article category' ),
 			text: 'Click to apply styles.',
 			editor,
 			tippyOptions: {

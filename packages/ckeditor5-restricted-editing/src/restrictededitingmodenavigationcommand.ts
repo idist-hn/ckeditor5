@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module restricted-editing/restrictededitingmodenavigationcommand
  */
 
-import type { Model, Range } from 'ckeditor5/src/engine';
-import { Command, type Editor } from 'ckeditor5/src/core';
+import type { Model, ModelRange } from '@ckeditor/ckeditor5-engine';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { getExceptionRange } from './restrictededitingmode/utils.js';
 
 /**
  * The command that allows navigation across the exceptions in the edited document.
  */
-export default class RestrictedEditingModeNavigationCommand extends Command {
+export class RestrictedEditingModeNavigationCommand extends Command {
 	/**
 	 * The direction of the command.
 	 */
@@ -70,14 +71,14 @@ export default class RestrictedEditingModeNavigationCommand extends Command {
 /**
  * Returns the range of the exception marker closest to the last position of the model selection.
  */
-function getNearestExceptionRange( model: Model, direction: RestrictedEditingModeNavigationDirection ): Range | undefined {
+function getNearestExceptionRange( model: Model, direction: RestrictedEditingModeNavigationDirection ): ModelRange | undefined {
 	const selection = model.document.selection;
 	const selectionPosition = selection.getFirstPosition()!;
 	const markerRanges = [];
 
 	// Get all exception marker positions that start after/before the selection position.
 	for ( const marker of model.markers.getMarkersGroup( 'restrictedEditingException' ) ) {
-		const markerRange = marker.getRange();
+		const markerRange = getExceptionRange( marker, model );
 
 		// Checking parent because there two positions <paragraph>foo^</paragraph><paragraph>^bar</paragraph>
 		// are touching but they will represent different markers.

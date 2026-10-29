@@ -1,22 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+import { describe, it, expect } from 'vitest';
 import {
 	normalizeColorOptions,
-	getLocalizedColorOptions
-} from '../../src/colorgrid/utils';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+	getLocalizedColorOptions,
+	getLocalizedColorName
+} from '../../src/colorgrid/utils.js';
 
 describe( 'utils', () => {
-	testUtils.createSinonSandbox();
-
 	describe( 'normalizeColorOptions()', () => {
 		it( 'should return normalized config object from string', () => {
 			const normalizedOption = normalizeColorOptions( [ 'black' ] );
 
-			expect( normalizedOption ).to.deep.equal( [
+			expect( normalizedOption ).toEqual( [
 				{
 					model: 'black',
 					label: 'black',
@@ -34,7 +33,7 @@ describe( 'utils', () => {
 		it( 'should return normalized config object from object( color )', () => {
 			const normalizedOption = normalizeColorOptions( [ { color: 'black' } ] );
 
-			expect( normalizedOption ).to.deep.equal( [
+			expect( normalizedOption ).toEqual( [
 				{
 					model: 'black',
 					label: 'black',
@@ -57,7 +56,7 @@ describe( 'utils', () => {
 				}
 			] );
 
-			expect( normalizedOption ).to.deep.equal( [
+			expect( normalizedOption ).toEqual( [
 				{
 					model: 'black',
 					label: 'Black',
@@ -81,7 +80,7 @@ describe( 'utils', () => {
 				}
 			] );
 
-			expect( normalizedOption ).to.deep.equal( [
+			expect( normalizedOption ).toEqual( [
 				{
 					model: 'black',
 					label: 'Black',
@@ -104,7 +103,7 @@ describe( 'utils', () => {
 				}
 			] );
 
-			expect( normalizedOption ).to.deep.equal( [
+			expect( normalizedOption ).toEqual( [
 				{
 					model: 'black',
 					label: 'black',
@@ -117,6 +116,27 @@ describe( 'utils', () => {
 					}
 				}
 			] );
+		} );
+	} );
+
+	describe( 'getLocalizedColorName()', () => {
+		const locale = {
+			t: string => 'Localized:' + string
+		};
+
+		it( 'should translate a plain color name', () => {
+			expect( getLocalizedColorName( locale, 'Red' ) ).toBe( 'Localized:Red' );
+		} );
+
+		it( 'should translate the hue of a shaded color name and keep the shade', () => {
+			expect( getLocalizedColorName( locale, 'Amber 500' ) ).toBe( 'Localized:Amber 500' );
+			expect( getLocalizedColorName( locale, 'Blue grey 700' ) ).toBe( 'Localized:Blue grey 700' );
+		} );
+
+		it( 'should return an unknown color name unchanged', () => {
+			expect( getLocalizedColorName( locale, 'Unknown' ) ).toBe( 'Unknown' );
+			expect( getLocalizedColorName( locale, 'Unknown 600' ) ).toBe( 'Unknown 600' );
+			expect( getLocalizedColorName( locale, 'toString' ) ).toBe( 'toString' );
 		} );
 	} );
 
@@ -135,7 +155,7 @@ describe( 'utils', () => {
 					color: 'blue',
 					label: 'Blue'
 				}
-			] ) ).to.deep.equal( [
+			] ) ).toEqual( [
 				{
 					color: 'red',
 					label: 'Localized:Red'
@@ -147,7 +167,65 @@ describe( 'utils', () => {
 			] );
 		} );
 
-		it( 'should omit unknown color options', () => {
+		it( 'should localize the hue of a shaded color option and keep the shade', () => {
+			expect( getLocalizedColorOptions( locale, [
+				{
+					color: 'hsl(1, 77%, 55%)',
+					label: 'Red 600'
+				},
+				{
+					color: 'hsl(199, 18%, 33%)',
+					label: 'Blue grey 700'
+				}
+			] ) ).toEqual( [
+				{
+					color: 'hsl(1, 77%, 55%)',
+					label: 'Localized:Red 600'
+				},
+				{
+					color: 'hsl(199, 18%, 33%)',
+					label: 'Localized:Blue grey 700'
+				}
+			] );
+		} );
+
+		it( 'should leave a shaded color option with an unknown hue untouched', () => {
+			expect( getLocalizedColorOptions( locale, [
+				{
+					color: '#123456',
+					label: 'Unknown 600'
+				}
+			] ) ).toEqual( [
+				{
+					color: '#123456',
+					label: 'Unknown 600'
+				}
+			] );
+		} );
+
+		it( 'should leave labels matching inherited object properties untouched', () => {
+			expect( getLocalizedColorOptions( locale, [
+				{
+					color: '#123456',
+					label: 'toString'
+				},
+				{
+					color: '#654321',
+					label: 'constructor 500'
+				}
+			] ) ).toEqual( [
+				{
+					color: '#123456',
+					label: 'toString'
+				},
+				{
+					color: '#654321',
+					label: 'constructor 500'
+				}
+			] );
+		} );
+
+		it( 'should leave color options with unknown labels untouched', () => {
 			expect( getLocalizedColorOptions( locale, [
 				{
 					color: 'red',
@@ -157,7 +235,7 @@ describe( 'utils', () => {
 					color: 'unknown',
 					label: 'Unknown'
 				}
-			] ) ).to.deep.equal( [
+			] ) ).toEqual( [
 				{
 					color: 'red',
 					label: 'Localized:Red'

@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagecaption/toggleimagecaptioncommand
  */
 
-import type { Element, Writer } from 'ckeditor5/src/engine';
-import { Command } from 'ckeditor5/src/core';
+import type { ModelElement, ModelWriter } from '@ckeditor/ckeditor5-engine';
+import { Command } from '@ckeditor/ckeditor5-core';
 
-import ImageBlockEditing from '../image/imageblockediting';
-import type ImageCaptionUtils from './imagecaptionutils';
-import type ImageUtils from '../imageutils';
-import type ImageCaptionEditing from './imagecaptionediting';
+import { ImageBlockEditing } from '../image/imageblockediting.js';
+import { isImageTypePlaceable } from '../image/utils.js';
+import { type ImageCaptionUtils } from './imagecaptionutils.js';
+import { type ImageUtils } from '../imageutils.js';
+import { type ImageCaptionEditing } from './imagecaptionediting.js';
 
 /**
  * The toggle image caption command.
@@ -40,7 +41,7 @@ import type ImageCaptionEditing from './imagecaptionediting';
  * editor.execute( 'toggleImageCaption', { focusCaptionOnShow: true } );
  * ```
  */
-export default class ToggleImageCaptionCommand extends Command {
+export class ToggleImageCaptionCommand extends Command {
 	declare public value: boolean;
 
 	/**
@@ -74,6 +75,17 @@ export default class ToggleImageCaptionCommand extends Command {
 		// Block images support captions by default but the command should also be enabled for inline
 		// images because toggling the caption when one is selected should convert it into a block image.
 		this.isEnabled = imageUtils.isImage( selectedElement );
+
+		// For an inline image the toggle requires an inline → block conversion. Make sure that
+		// `imageBlock` can actually land somewhere reachable from the current position (e.g. inside
+		// `$inlineRoot` or another limit ancestor that disallows `imageBlock`, the conversion would
+		// otherwise be a no-op and the writer would still try to append the caption to the inline
+		// image - which the schema rejects).
+		if ( this.isEnabled && imageUtils.isInlineImage( selectedElement ) ) {
+			const position = editor.model.createPositionBefore( selectedElement );
+
+			this.isEnabled = isImageTypePlaceable( editor.model.schema, position, 'imageBlock' );
+		}
 
 		if ( !this.isEnabled ) {
 			this.value = false;
@@ -112,7 +124,7 @@ export default class ToggleImageCaptionCommand extends Command {
 	 * * it attempts to restore the caption content from the `ImageCaptionEditing` caption registry,
 	 * * it moves the selection to the caption right away, it the `focusCaptionOnShow` option was set.
 	 */
-	private _showImageCaption( writer: Writer, focusCaptionOnShow?: boolean ): void {
+	private _showImageCaption( writer: ModelWriter, focusCaptionOnShow?: boolean ): void {
 		const model = this.editor.model;
 		const selection = model.document.selection;
 		const imageCaptionEditing: ImageCaptionEditing = this.editor.plugins.get( 'ImageCaptionEditing' );
@@ -146,19 +158,19 @@ export default class ToggleImageCaptionCommand extends Command {
 	 * The content of the caption is stored in the `ImageCaptionEditing` caption registry to make this
 	 * a reversible action.
 	 */
-	private _hideImageCaption( writer: Writer ): void {
+	private _hideImageCaption( writer: ModelWriter ): void {
 		const editor = this.editor;
 		const selection = editor.model.document.selection;
 		const imageCaptionEditing: ImageCaptionEditing = editor.plugins.get( 'ImageCaptionEditing' );
 		const imageCaptionUtils: ImageCaptionUtils = editor.plugins.get( 'ImageCaptionUtils' );
 		let selectedImage = selection.getSelectedElement()!;
-		let captionElement: Element;
+		let captionElement: ModelElement;
 
 		if ( selectedImage ) {
 			captionElement = imageCaptionUtils.getCaptionFromImageModelElement( selectedImage )!;
 		} else {
 			captionElement = imageCaptionUtils.getCaptionFromModelSelection( selection )!;
-			selectedImage = captionElement!.parent as Element;
+			selectedImage = captionElement!.parent as ModelElement;
 		}
 
 		// Store the caption content so it can be restored quickly if the user changes their mind even if they toggle image<->imageInline.

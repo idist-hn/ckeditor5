@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,12 +8,12 @@
  */
 import type { HeadingCommand } from '@ckeditor/ckeditor5-heading';
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import type { Range, Writer } from 'ckeditor5/src/engine';
-import { Delete } from 'ckeditor5/src/typing';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ModelRange, ModelWriter } from '@ckeditor/ckeditor5-engine';
+import { Delete } from '@ckeditor/ckeditor5-typing';
 
-import blockAutoformatEditing from './blockautoformatediting';
-import inlineAutoformatEditing from './inlineautoformatediting';
+import { blockAutoformatEditing } from './blockautoformatediting.js';
+import { inlineAutoformatEditing } from './inlineautoformatediting.js';
 
 /**
  * Enables a set of predefined autoformatting actions.
@@ -21,12 +21,12 @@ import inlineAutoformatEditing from './inlineautoformatediting';
  * For a detailed overview, check the {@glink features/autoformat Autoformatting} feature guide
  * and the {@glink api/autoformat package page}.
  */
-export default class Autoformat extends Plugin {
+export class Autoformat extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ Delete ] as const;
+	public static get requires(): PluginDependenciesOf<[ Delete ]> {
+		return [ Delete ];
 	}
 
 	/**
@@ -39,13 +39,33 @@ export default class Autoformat extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public afterInit(): void {
+		const editor = this.editor;
+		const t = this.editor.t;
+
 		this._addListAutoformats();
 		this._addBasicStylesAutoformats();
 		this._addHeadingAutoformats();
 		this._addBlockQuoteAutoformats();
 		this._addCodeBlockAutoformats();
 		this._addHorizontalLineAutoformats();
+
+		// Add the information about the keystroke to the accessibility database.
+		editor.accessibility.addKeystrokeInfos( {
+			keystrokes: [
+				{
+					label: t( 'Revert autoformatting action' ),
+					keystroke: 'Backspace'
+				}
+			]
+		} );
 	}
 
 	/**
@@ -53,7 +73,10 @@ export default class Autoformat extends Plugin {
 	 *
 	 * When typed:
 	 * - `* ` or `- ` &ndash; A paragraph will be changed into a bulleted list.
-	 * - `1. ` or `1) ` &ndash; A paragraph will be changed into a numbered list ("1" can be any digit or a list of digits).
+	 * - `<number>. ` or `<number>) ` &ndash; A paragraph will be changed into a numbered list.
+	 * If the paragraph is adjacent to an existing list, the typed number is ignored and the item joins the list
+	 * as the next sequential item. Otherwise, a new list is created with the `listStart` attribute set to the typed number
+	 * (when the {@link module:list/listproperties~ListProperties start index feature} is enabled).
 	 * - `[] ` or `[ ] ` &ndash; A paragraph will be changed into a to-do list.
 	 * - `[x] ` or `[ x ] ` &ndash; A paragraph will be changed into a checked to-do list.
 	 */
@@ -65,7 +88,19 @@ export default class Autoformat extends Plugin {
 		}
 
 		if ( commands.get( 'numberedList' ) ) {
-			blockAutoformatEditing( this.editor, this, /^1[.|)]\s$/, 'numberedList' );
+			const numberedListCommand = commands.get( 'numberedList' )!;
+			const hasStartIndexFeature = !!commands.get( 'listStart' );
+
+			blockAutoformatEditing( this.editor, this, /^(\d+)[.|)]\s$/, ( { match } ) => {
+				if ( !numberedListCommand.isEnabled || numberedListCommand.value === true ) {
+					return false;
+				}
+
+				this.editor.execute( 'numberedList', hasStartIndexFeature ?
+					{ additionalAttributes: { listStart: parseInt( match[ 1 ] ) } } :
+					undefined
+				);
+			} );
 		}
 
 		if ( commands.get( 'todoList' ) ) {
@@ -207,7 +242,7 @@ export default class Autoformat extends Plugin {
  * Helper function for getting `inlineAutoformatEditing` callbacks that checks if command is enabled.
  */
 function getCallbackFunctionForInlineAutoformat( editor: Editor, attributeKey: string ) {
-	return ( writer: Writer, rangesToFormat: Array<Range> ): boolean | undefined => {
+	return ( writer: ModelWriter, rangesToFormat: Array<ModelRange> ): boolean | undefined => {
 		const command = editor.commands.get( attributeKey )!;
 
 		if ( !command.isEnabled ) {

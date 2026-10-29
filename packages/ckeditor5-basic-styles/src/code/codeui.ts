@@ -1,27 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/code/codeui
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-
-import type AttributeCommand from '../attributecommand';
-
-import codeIcon from '../../theme/icons/code.svg';
-
-import '../../theme/code.css';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { IconCode } from '@ckeditor/ckeditor5-icons';
+import { ButtonView, MenuBarMenuListItemButtonView } from '@ckeditor/ckeditor5-ui';
+import { getButtonCreator } from '../utils.js';
 
 const CODE = 'code';
 
 /**
  * The code UI feature. It introduces the Code button.
  */
-export default class CodeUI extends Plugin {
+export class CodeUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -32,31 +28,26 @@ export default class CodeUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
-		const t = editor.t;
+		const t = editor.locale.t;
+		const createButton = getButtonCreator( {
+			editor,
+			commandName: CODE,
+			plugin: this,
+			icon: IconCode,
+			label: t( 'Code' )
+		} );
 
 		// Add code button to feature components.
-		editor.ui.componentFactory.add( CODE, locale => {
-			const command: AttributeCommand = editor.commands.get( CODE )!;
-			const view = new ButtonView( locale );
-
-			view.set( {
-				label: t( 'Code' ),
-				icon: codeIcon,
-				tooltip: true,
-				isToggleable: true
-			} );
-
-			view.bind( 'isOn', 'isEnabled' ).to( command, 'value', 'isEnabled' );
-
-			// Execute command.
-			this.listenTo( view, 'execute', () => {
-				editor.execute( CODE );
-				editor.editing.view.focus();
-			} );
-
-			return view;
-		} );
+		editor.ui.componentFactory.add( CODE, () => createButton( ButtonView ) );
+		editor.ui.componentFactory.add( 'menuBar:' + CODE, () => createButton( MenuBarMenuListItemButtonView ) );
 	}
 }

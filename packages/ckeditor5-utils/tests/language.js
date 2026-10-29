@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { getLanguageDirection } from '../src/language';
+import { describe, expect, it } from 'vitest';
+import { getLanguageDirection } from '../src/language.js';
 
 describe( 'language', () => {
 	describe( 'getLanguageDirection()', () => {
@@ -32,10 +33,18 @@ describe( 'language', () => {
 
 			// Uighur, Uyghur
 			{ code: 'ug', textDirection: 'rtl' },
-			{ code: 'uig', textDirection: 'rtl' }
+			{ code: 'uig', textDirection: 'rtl' },
+
+			// Dhivehi, Divehi
+			{ code: 'dv', textDirection: 'rtl' },
+			{ code: 'div', textDirection: 'rtl' },
+
+			// Urdu
+			{ code: 'ur', textDirection: 'rtl' },
+			{ code: 'urd', textDirection: 'rtl' }
 		].forEach( ( { code, textDirection } ) => {
 			it( `determines the "${ code }" language direction`, () => {
-				expect( getLanguageDirection( code ) ).to.equal( textDirection );
+				expect( getLanguageDirection( code ) ).toEqual( textDirection );
 			} );
 		} );
 	} );

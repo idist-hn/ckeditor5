@@ -1,15 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import inlineHighlight from '../../src/utils/inlinehighlight';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { inlineHighlight } from '../../src/utils/inlinehighlight.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-
-/* global document */
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _getModelData, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'inlineHighlight', () => {
 	let element, editor, model, view;
@@ -45,46 +43,46 @@ describe( 'inlineHighlight', () => {
 
 	describe( 'attribute highlighting', () => {
 		it( 'should convert the highlight to a proper view classes', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>foo <$text linkHref="url">b{}ar</$text> baz</paragraph>'
 			);
 
-			expect( model.document.selection ).to.have.attribute( 'linkHref' );
-			expect( getViewData( view ) ).to.equal(
+			expect( model.document.selection.hasAttribute( 'linkHref' ) ).toBe( true );
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a class="ck-link_selected" href="url">b{}ar</a> baz</p>'
 			);
 		} );
 
 		it( 'should work whenever selection has linkHref attribute - link start', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>foo {}<$text linkHref="url">bar</$text> baz</paragraph>'
 			);
 
-			expect( model.document.selection ).to.not.have.attribute( 'linkHref' );
+			expect( model.document.selection.hasAttribute( 'linkHref' ) ).toBe( false );
 
 			model.change( writer => {
 				writer.setSelectionAttribute( 'linkHref', 'url' );
 			} );
 
-			expect( model.document.selection ).to.have.attribute( 'linkHref' );
-			expect( getViewData( view ) ).to.equal(
+			expect( model.document.selection.hasAttribute( 'linkHref' ) ).toBe( true );
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a class="ck-link_selected" href="url">{}bar</a> baz</p>'
 			);
 		} );
 
 		it( 'should work whenever selection has linkHref attribute - link end', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>foo <$text linkHref="url">bar</$text>{} baz</paragraph>'
 			);
 
-			expect( model.document.selection ).to.have.attribute( 'linkHref' );
-			expect( getViewData( view ) ).to.equal(
+			expect( model.document.selection.hasAttribute( 'linkHref' ) ).toBe( true );
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a class="ck-link_selected" href="url">bar{}</a> baz</p>'
 			);
 		} );
 
 		it( 'should render highlight correctly after splitting the link', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 			);
 
@@ -95,53 +93,53 @@ describe( 'inlineHighlight', () => {
 				writer.setSelection( splitPos.parent.nextSibling, 0 );
 			} );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toEqual(
 				'<paragraph>foo <$text linkHref="url">li</$text></paragraph>' +
 				'<paragraph><$text linkHref="url">[]nk</$text> baz</paragraph>'
 			);
 
-			expect( model.document.selection ).to.have.attribute( 'linkHref' );
-			expect( getViewData( view ) ).to.equal(
+			expect( model.document.selection.hasAttribute( 'linkHref' ) ).toBe( true );
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a href="url">li</a></p>' +
 				'<p><a class="ck-link_selected" href="url">{}nk</a> baz</p>'
 			);
 		} );
 
 		it( 'should remove classes when selection is moved out from the link', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 			);
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a class="ck-link_selected" href="url">li{}nk</a> baz</p>'
 			);
 
 			model.change( writer => writer.setSelection( model.document.getRoot().getChild( 0 ), 0 ) );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toEqual(
 				'<p>{}foo <a href="url">link</a> baz</p>'
 			);
 		} );
 
 		it( 'should work correctly when selection is moved inside link', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 			);
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a class="ck-link_selected" href="url">li{}nk</a> baz</p>'
 			);
 
 			model.change( writer => writer.setSelection( model.document.getRoot().getChild( 0 ), 5 ) );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toEqual(
 				'<p>foo <a class="ck-link_selected" href="url">l{}ink</a> baz</p>'
 			);
 		} );
 
 		describe( 'downcast conversion integration', () => {
 			it( 'works for the #insert event', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 				);
 
@@ -149,13 +147,13 @@ describe( 'inlineHighlight', () => {
 					writer.insertText( 'FOO', { linkHref: 'url' }, model.document.selection.getFirstPosition() );
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toEqual(
 					'<p>foo <a class="ck-link_selected" href="url">liFOO{}nk</a> baz</p>'
 				);
 			} );
 
 			it( 'works for the #remove event', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 				);
 
@@ -166,13 +164,13 @@ describe( 'inlineHighlight', () => {
 					) );
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toEqual(
 					'<p><a class="ck-link_selected" href="url">i{}nk</a> baz</p>'
 				);
 			} );
 
 			it( 'works for the #attribute event', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 				);
 
@@ -183,13 +181,13 @@ describe( 'inlineHighlight', () => {
 					);
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toEqual(
 					'<p>foo <a href="url">l</a><a class="ck-link_selected" href="new-url">i{}n</a><a href="url">k</a> baz</p>'
 				);
 			} );
 
 			it( 'works for the #selection event', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 				);
 
@@ -200,7 +198,7 @@ describe( 'inlineHighlight', () => {
 					);
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toEqual(
 					'<p>foo <a class="ck-link_selected" href="url">l{in}k</a> baz</p>'
 				);
 			} );
@@ -208,7 +206,7 @@ describe( 'inlineHighlight', () => {
 			it( 'works for the addMarker and removeMarker events', () => {
 				editor.conversion.for( 'editingDowncast' ).markerToHighlight( { model: 'fooMarker', view: {} } );
 
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph>foo <$text linkHref="url">li{}nk</$text> baz</paragraph>'
 				);
 
@@ -221,13 +219,13 @@ describe( 'inlineHighlight', () => {
 					writer.addMarker( 'fooMarker', { range, usingOperation: true } );
 				} );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toEqual(
 					'<p><span>foo </span><a class="ck-link_selected" href="url"><span>l</span>i{}nk</a> baz</p>'
 				);
 
 				model.change( writer => writer.removeMarker( 'fooMarker' ) );
 
-				expect( getViewData( view ) ).to.equal(
+				expect( _getViewData( view ) ).toEqual(
 					'<p>foo <a class="ck-link_selected" href="url">li{}nk</a> baz</p>'
 				);
 			} );

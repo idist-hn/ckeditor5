@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module block-quote/blockquote
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import BlockQuoteEditing from './blockquoteediting';
-import BlockQuoteUI from './blockquoteui';
+import { BlockQuoteEditing } from './blockquoteediting.js';
+import { BlockQuoteUI } from './blockquoteui.js';
 
 /**
  * The block quote plugin.
@@ -22,12 +22,12 @@ import BlockQuoteUI from './blockquoteui';
  *
  * @extends module:core/plugin~Plugin
  */
-export default class BlockQuote extends Plugin {
+export class BlockQuote extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ BlockQuoteEditing, BlockQuoteUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ BlockQuoteEditing, BlockQuoteUI ]> {
+		return [ BlockQuoteEditing, BlockQuoteUI ];
 	}
 
 	/**
@@ -35,5 +35,12 @@ export default class BlockQuote extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'BlockQuote' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

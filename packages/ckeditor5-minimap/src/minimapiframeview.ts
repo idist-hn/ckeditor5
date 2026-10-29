@@ -1,24 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module minimap/minimapiframeview
  */
 
-import { IframeView } from 'ckeditor5/src/ui';
-import { toUnit, type Locale } from 'ckeditor5/src/utils';
-import type { MinimapViewOptions } from './minimapview';
+import { IframeView } from '@ckeditor/ckeditor5-ui';
+import { toUnit, trustedHtml, type Locale } from '@ckeditor/ckeditor5-utils';
+import type { MinimapViewOptions } from './minimapview.js';
 
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * The internal `<iframe>` view that hosts the minimap content.
  *
  * @internal
  */
-export default class MinimapIframeView extends IframeView {
+export class MinimapIframeView extends IframeView {
 	/**
 	 * The CSS `top` used to scroll the minimap.
 	 *
@@ -54,6 +54,8 @@ export default class MinimapIframeView extends IframeView {
 
 		this.extendTemplate( {
 			attributes: {
+				tabindex: -1,
+				'aria-hidden': 'true',
 				class: [
 					'ck-minimap__iframe'
 				],
@@ -159,7 +161,9 @@ export default class MinimapIframeView extends IframeView {
 		</html>`;
 
 		iframeDocument.open();
-		iframeDocument.write( html );
+		// The policy is created in the document that hosts the editor, while this writes into the one inside the
+		// iframe. A `TrustedHTML` object is accepted across that boundary, so the iframe needs no policy of its own.
+		iframeDocument.write( trustedHtml( html ) );
 		iframeDocument.close();
 		iframeDocument.body.appendChild( domRootClone );
 	}

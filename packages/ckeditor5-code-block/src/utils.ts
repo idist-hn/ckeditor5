@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module code-block/utils
  */
 
-import type { Editor } from 'ckeditor5/src/core';
-import type { CodeBlockLanguageDefinition } from './codeblockconfig';
-import { first } from 'ckeditor5/src/utils';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import type { CodeBlockLanguageDefinition } from './codeblockconfig.js';
 import type {
-	DocumentSelection,
-	Element,
+	ModelDocumentSelection,
+	ModelElement,
 	Model,
-	Position,
-	Schema,
-	Text,
-	UpcastWriter,
+	ModelPosition,
+	ModelSchema,
+	ModelText,
+	ViewUpcastWriter,
 	ViewDocumentFragment,
 	ViewElement
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
+
+import { first, type LocaleTranslate } from '@ckeditor/ckeditor5-utils';
 
 /**
  * Returns code block languages as defined in `config.codeBlock.languages` but processed:
@@ -30,6 +31,8 @@ import type {
  * configuration is defined because the editor does not exist yet.
  * * To make sure each definition has a CSS class associated with it even if not specified
  * in the original configuration.
+ *
+ * @internal
  */
 export function getNormalizedAndLocalizedLanguageDefinitions( editor: Editor ): Array<CodeBlockLanguageDefinition> {
 	const t = editor.t;
@@ -85,6 +88,8 @@ export function getNormalizedAndLocalizedLanguageDefinitions( editor: Editor ): 
  * 	'javascript': 'JavaScript'
  * }
  * ```
+ *
+ * @internal
  */
 export function getPropertyAssociation(
 	languageDefs: Array<CodeBlockLanguageDefinition>,
@@ -110,8 +115,10 @@ export function getPropertyAssociation(
 /**
  * For a given model text node, it returns white spaces that precede other characters in that node.
  * This corresponds to the indentation part of the code block line.
+ *
+ * @internal
  */
-export function getLeadingWhiteSpaces( textNode: Text ): string {
+export function getLeadingWhiteSpaces( textNode: ModelText ): string {
 	return textNode.data.match( /^(\s*)/ )![ 0 ];
 }
 
@@ -137,8 +144,9 @@ export function getLeadingWhiteSpaces( textNode: Text ): string {
  * ```
  *
  * @param text The raw code text to be converted.
+ * @internal
  */
-export function rawSnippetTextToViewDocumentFragment( writer: UpcastWriter, text: string ): ViewDocumentFragment {
+export function rawSnippetTextToViewDocumentFragment( writer: ViewUpcastWriter, text: string ): ViewDocumentFragment {
 	const fragment = writer.createDocumentFragment();
 	const textLines = text.split( '\n' );
 
@@ -193,10 +201,12 @@ export function rawSnippetTextToViewDocumentFragment( writer: UpcastWriter, text
  * the writer inserts or removes elements at the same time.
  *
  * **Note:** The position is located after the leading white spaces in the text node.
+ *
+ * @internal
  */
-export function getIndentOutdentPositions( model: Model ): Array<Position> {
+export function getIndentOutdentPositions( model: Model ): Array<ModelPosition> {
 	const selection = model.document.selection;
-	const positions: Array<Position> = [];
+	const positions: Array<ModelPosition> = [];
 
 	// When the selection is collapsed, there's only one position we can indent or outdent.
 	if ( selection.isCollapsed ) {
@@ -215,21 +225,27 @@ export function getIndentOutdentPositions( model: Model ): Array<Position> {
 	} );
 
 	for ( const { item } of walker ) {
-		if ( !item.is( '$textProxy' ) ) {
+		let node = item.is( '$textProxy' ) ? item.textNode : item;
+		const parent = node.parent;
+
+		if ( !parent!.is( 'element', 'codeBlock' ) || node.is( 'element', 'softBreak' ) ) {
 			continue;
 		}
 
-		const { parent, startOffset } = item.textNode;
-
-		if ( !parent!.is( 'element', 'codeBlock' ) ) {
-			continue;
+		// For each item in code block, move backwards until the beginning of the line it is in is found.
+		while ( node.previousSibling && !node.previousSibling.is( 'element', 'softBreak' ) ) {
+			node = node.previousSibling;
 		}
 
-		const leadingWhiteSpaces = getLeadingWhiteSpaces( item.textNode );
-		// Make sure the position is after all leading whitespaces in the text node.
-		const position = model.createPositionAt( parent, startOffset! + leadingWhiteSpaces.length );
+		// Take the leading white spaces into account (only for text nodes).
+		const startOffset = !node.is( '$text' ) ? node.startOffset! : node.startOffset! + getLeadingWhiteSpaces( node ).length;
+		const position = model.createPositionAt( parent, startOffset );
 
-		positions.push( position );
+		// Do not add the same position twice. Unfortunately using set doesn't deduplicate positions because
+		// they are different objects.
+		if ( positions.every( pos => !pos.isEqual( position ) ) ) {
+			positions.push( position );
+		}
 	}
 
 	return positions;
@@ -237,24 +253,111 @@ export function getIndentOutdentPositions( model: Model ): Array<Position> {
 
 /**
  * Checks if any of the blocks within the model selection is a code block.
+ *
+ * @internal
  */
-export function isModelSelectionInCodeBlock( selection: DocumentSelection ): boolean {
+export function isModelSelectionInCodeBlock( selection: ModelDocumentSelection ): boolean {
 	const firstBlock = first( selection.getSelectedBlocks() );
 
 	return !!firstBlock && firstBlock.is( 'element', 'codeBlock' );
 }
 
 /**
- * Checks if an {@link module:engine/model/element~Element Element} can become a code block.
+ * Checks if an {@link module:engine/model/element~ModelElement Element} can become a code block.
  *
  * @param schema Model's schema.
  * @param element The element to be checked.
  * @returns Check result.
+ * @internal
  */
-export function canBeCodeBlock( schema: Schema, element: Element ): boolean {
+export function canBeCodeBlock( schema: ModelSchema, element: ModelElement ): boolean {
 	if ( element.is( 'rootElement' ) || schema.isLimit( element ) ) {
 		return false;
 	}
 
-	return schema.checkChild( element.parent as Element, 'codeBlock' );
+	return schema.checkChild( element.parent as ModelElement, 'codeBlock' );
+}
+
+/**
+ * Get the translated message read by the screen reader when you enter or exit an element with your cursor.
+ *
+ * @internal
+ */
+export function getCodeBlockAriaAnnouncement(
+	t: LocaleTranslate,
+	languageDefs: Array<CodeBlockLanguageDefinition>,
+	element: ModelElement,
+	direction: 'enter' | 'leave'
+): string {
+	const languagesToLabels = getPropertyAssociation( languageDefs, 'language', 'label' );
+	const codeBlockLanguage = element.getAttribute( 'language' ) as string;
+
+	if ( codeBlockLanguage in languagesToLabels ) {
+		const language = languagesToLabels[ codeBlockLanguage ];
+
+		if ( direction === 'enter' ) {
+			return t( 'Entering %0 code snippet', language );
+		}
+
+		return t( 'Leaving %0 code snippet', language );
+	}
+
+	if ( direction === 'enter' ) {
+		return t( 'Entering code snippet' );
+	}
+
+	return t( 'Leaving code snippet' );
+}
+
+/**
+ * For given position, finds the closest position that is at the beginning of a line of code and returns a text node that is at the
+ * beginning of the line (or `null` if there's no text node at the beginning of a given line).
+ *
+ * Line beings at the start of a code block element and after each `softBreak` element.
+ *
+ * Note: even though code block doesn't allow inline elements other than `<softBreak>` by default, some features may overwrite this rule,
+ * so such inline elements are taken into account.
+ *
+ * Some examples of expected results:
+ *
+ * ```
+ * <codeBlock>^</codeBlock>                                ->   null
+ * <codeBlock>^foobar</codeBlock>                          ->   <codeBlock>[foobar]</codeBlock>
+ * <codeBlock>foobar^</codeBlock>                          ->   <codeBlock>[foobar]</codeBlock>
+ * <codeBlock>foo^bar</codeBlock>                          ->   <codeBlock>[foobar]</codeBlock>
+ * <codeBlock>foo^<softBreak />bar</codeBlock>             ->   <codeBlock>[foo]<softBreak />bar</codeBlock>
+ * <codeBlock>foo<softBreak />bar^</codeBlock>             ->   <codeBlock>foo<softBreak />[bar]</codeBlock>
+ * <codeBlock>foo<softBreak />b^ar</codeBlock>             ->   <codeBlock>foo<softBreak />[bar]</codeBlock>
+ * <codeBlock>foo<softBreak />^bar</codeBlock>             ->   <codeBlock>foo<softBreak />[bar]</codeBlock>
+ * <codeBlock>^<element /></codeBlock>                     ->   null
+ * <codeBlock><element />^</codeBlock>                     ->   null
+ * <codeBlock>foo^<element /></codeBlock>                  ->   <codeBlock>[foo]<element /></codeBlock>
+ * <codeBlock>foo<element />^</codeBlock>                  ->   <codeBlock>[foo]<element /></codeBlock>
+ * <codeBlock>foo<element />bar^</codeBlock>               ->   <codeBlock>[foo]<element />bar</codeBlock>
+ * <codeBlock><element />bar^</codeBlock>                  ->   null
+ * <codeBlock>foo<softBreak />^<softBreak /></codeBlock>   ->   null
+ * <codeBlock>foo<softBreak />^<element /></codeBlock>     ->   null
+ * <codeBlock>foo<softBreak /><element />^</codeBlock>     ->   null
+ * <codeBlock>foo<softBreak />bar<element />^</codeBlock>  ->   <codeBlock>foo<softBreak />[bar]<element /></codeBlock>
+ * <codeBlock>foo<softBreak /><element />ba^r</codeBlock>  ->   null
+ * ```
+ *
+ * @internal
+ */
+export function getTextNodeAtLineStart( position: ModelPosition, model: Model ): ModelText | null {
+	// First, move position before a text node, if it is inside a text node.
+	if ( position.textNode ) {
+		position = model.createPositionBefore( position.textNode );
+	}
+
+	// Then, jump-back the position until it is before a `softBreak` or at the beginning of the `codeBlock`.
+	while ( position.nodeBefore && !position.nodeBefore.is( 'element', 'softBreak' ) ) {
+		position = model.createPositionBefore( position.nodeBefore );
+	}
+
+	// Now, the position is at the beginning of a line.
+	// Return a text node after the position, if there is one.
+	const nodeAtStart = position.nodeAfter;
+
+	return nodeAtStart && nodeAtStart.is( '$text' ) ? nodeAtStart : null;
 }

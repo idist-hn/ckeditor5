@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { testDataProcessor } from '../_utils/utils';
+import { describe, it } from 'vitest';
+import { testDataProcessor } from '../_utils/utils.js';
 
-describe( 'GFMDataProcessor', () => {
+describe( 'MarkdownGfmDataProcessor', () => {
 	describe( 'blockquotes', () => {
 		it( 'should process single blockquotes', () => {
 			testDataProcessor(
@@ -52,9 +53,9 @@ describe( 'GFMDataProcessor', () => {
 			testDataProcessor(
 				'> A list within a blockquote:\n' +
 				'>\n' +
-				'> *   asterisk 1\n' +
-				'> *   asterisk 2\n' +
-				'> *   asterisk 3',
+				'> * asterisk 1\n' +
+				'> * asterisk 2\n' +
+				'> * asterisk 3',
 
 				// GitHub is rendering as:
 				// <blockquote>

@@ -1,24 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Conversion from '../../src/conversion/conversion';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Conversion } from '../../src/conversion/conversion.js';
 
-import UpcastDispatcher from '../../src/conversion/upcastdispatcher';
+import { UpcastDispatcher } from '../../src/conversion/upcastdispatcher.js';
 
-import UpcastHelpers, { convertText, convertToModelFragment } from '../../src/conversion/upcasthelpers';
-import DowncastHelpers from '../../src/conversion/downcasthelpers';
+import { UpcastHelpers, convertText, convertToModelFragment } from '../../src/conversion/upcasthelpers.js';
+import { DowncastHelpers } from '../../src/conversion/downcasthelpers.js';
 
-import EditingController from '../../src/controller/editingcontroller';
+import { EditingController } from '../../src/controller/editingcontroller.js';
 
-import Model from '../../src/model/model';
+import { Model } from '../../src/model/model.js';
 
-import { parse as viewParse, stringify as viewStringify } from '../../src/dev-utils/view';
-import { stringify as modelStringify } from '../../src/dev-utils/model';
-import ConversionHelpers from '../../src/conversion/conversionhelpers';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import { StylesProcessor } from '../../src/view/stylesmap';
+import { _parseView, _stringifyView } from '../../src/dev-utils/view.js';
+import { _stringifyModel } from '../../src/dev-utils/model.js';
+import { ConversionHelpers } from '../../src/conversion/conversionhelpers.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
 
 describe( 'Conversion', () => {
 	let conversion, downcastDispA, upcastDispaA, downcastDispB;
@@ -49,8 +50,8 @@ describe( 'Conversion', () => {
 
 	describe( 'for()', () => {
 		it( 'should return ConversionHelpers', () => {
-			expect( conversion.for( 'upcast' ) ).to.be.instanceof( ConversionHelpers );
-			expect( conversion.for( 'downcast' ) ).to.be.instanceof( ConversionHelpers );
+			expect( conversion.for( 'upcast' ) ).toBeInstanceOf( ConversionHelpers );
+			expect( conversion.for( 'downcast' ) ).toBeInstanceOf( ConversionHelpers );
 		} );
 
 		it( 'should throw if non-existing group name has been used', () => {
@@ -60,15 +61,15 @@ describe( 'Conversion', () => {
 		} );
 
 		it( 'should return proper helpers for group', () => {
-			expect( conversion.for( 'upcast' ) ).to.be.instanceof( UpcastHelpers );
+			expect( conversion.for( 'upcast' ) ).toBeInstanceOf( UpcastHelpers );
 
 			conversion.addAlias( 'foo', upcastDispaA );
-			expect( conversion.for( 'foo' ) ).to.be.instanceof( UpcastHelpers );
+			expect( conversion.for( 'foo' ) ).toBeInstanceOf( UpcastHelpers );
 
-			expect( conversion.for( 'downcast' ) ).to.be.instanceof( DowncastHelpers );
+			expect( conversion.for( 'downcast' ) ).toBeInstanceOf( DowncastHelpers );
 
 			conversion.addAlias( 'bar', downcastDispB );
-			expect( conversion.for( 'bar' ) ).to.be.instanceof( DowncastHelpers );
+			expect( conversion.for( 'bar' ) ).toBeInstanceOf( DowncastHelpers );
 		} );
 	} );
 
@@ -76,45 +77,45 @@ describe( 'Conversion', () => {
 		let helperA, helperB;
 
 		beforeEach( () => {
-			helperA = sinon.stub();
-			helperB = sinon.stub();
+			helperA = vi.fn();
+			helperB = vi.fn();
 		} );
 
 		it( 'should be chainable', () => {
 			const helpers = conversion.for( 'upcast' );
 			const addResult = helpers.add( () => {} );
 
-			expect( addResult ).to.equal( helpers );
+			expect( addResult ).toBe( helpers );
 		} );
 
 		it( 'should fire given helper for every dispatcher in given group', () => {
 			conversion.for( 'downcast' ).add( helperA );
 
-			expect( helperA.calledWithExactly( downcastDispA ) ).to.be.true;
-			expect( helperA.calledWithExactly( downcastDispB ) ).to.be.true;
-			expect( helperA.calledWithExactly( upcastDispaA ) ).to.be.false;
+			expect( helperA ).toHaveBeenCalledWith( downcastDispA );
+			expect( helperA ).toHaveBeenCalledWith( downcastDispB );
+			expect( helperA ).not.toHaveBeenCalledWith( upcastDispaA );
 
 			conversion.for( 'upcast' ).add( helperB );
 
-			expect( helperB.calledWithExactly( downcastDispA ) ).to.be.false;
-			expect( helperB.calledWithExactly( downcastDispB ) ).to.be.false;
-			expect( helperB.calledWithExactly( upcastDispaA ) ).to.be.true;
+			expect( helperB ).not.toHaveBeenCalledWith( downcastDispA );
+			expect( helperB ).not.toHaveBeenCalledWith( downcastDispB );
+			expect( helperB ).toHaveBeenCalledWith( upcastDispaA );
 		} );
 	} );
 
 	it( 'constructor() should be able to take singular objects instead of arrays', () => {
-		const helperA = sinon.stub();
-		const helperB = sinon.stub();
+		const helperA = vi.fn();
+		const helperB = vi.fn();
 
 		conversion = new Conversion( downcastDispA, upcastDispaA );
 
 		conversion.for( 'downcast' ).add( helperA );
 
-		expect( helperA.calledWithExactly( downcastDispA ) ).to.be.true;
+		expect( helperA ).toHaveBeenCalledWith( downcastDispA );
 
 		conversion.for( 'upcast' ).add( helperB );
 
-		expect( helperB.calledWithExactly( upcastDispaA ) ).to.be.true;
+		expect( helperB ).toHaveBeenCalledWith( upcastDispaA );
 	} );
 
 	describe( 'converters', () => {
@@ -719,12 +720,12 @@ describe( 'Conversion', () => {
 		function testConversion( input, expectedModel, expectedView = null ) {
 			loadData( input );
 
-			expect( modelStringify( model.document.getRoot() ) ).to.equal( expectedModel );
-			expect( viewStringify( viewRoot, null, { ignoreRoot: true } ) ).to.equal( expectedView || input );
+			expect( _stringifyModel( model.document.getRoot() ) ).toBe( expectedModel );
+			expect( _stringifyView( viewRoot, null, { ignoreRoot: true } ) ).toBe( expectedView || input );
 		}
 
 		function loadData( input ) {
-			const parsedView = viewParse( input );
+			const parsedView = _parseView( input );
 			let convertedModel;
 
 			model.change( writer => {

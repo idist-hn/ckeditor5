@@ -1,25 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/htmlpagedataprocessor
  */
 
-import { HtmlDataProcessor, UpcastWriter, type ViewDocumentFragment } from 'ckeditor5/src/engine';
+import { HtmlDataProcessor, ViewUpcastWriter, type ViewDocumentFragment } from '@ckeditor/ckeditor5-engine';
 
 /**
  * The full page HTML data processor class.
  * This data processor implementation uses HTML as input and output data.
  */
-export default class HtmlPageDataProcessor extends HtmlDataProcessor {
+export class HtmlPageDataProcessor extends HtmlDataProcessor {
 	/**
 	 * @inheritDoc
 	 */
 	public override toView( data: string ): ViewDocumentFragment {
 		// Ignore content that is not a full page source.
-		if ( !data.match( /<(?:html|body|head|meta)(?:\s[^>]*)?>/i ) ) {
+		if ( !/<(?:html|body|head|meta)(?:\s[^>]*)?>/i.test( data.trim().slice( 0, 10_000 ) ) ) {
 			return super.toView( data );
 		}
 
@@ -27,14 +27,14 @@ export default class HtmlPageDataProcessor extends HtmlDataProcessor {
 		let docType = '';
 		let xmlDeclaration = '';
 
-		data = data.replace( /<!DOCTYPE[^>]*>/i, match => {
-			docType = match;
+		data = data.trim().replace( /<\?xml\s[^?]*\?>/i, match => {
+			xmlDeclaration = match;
 
 			return '';
 		} );
 
-		data = data.replace( /<\?xml\s[^?]*\?>/i, match => {
-			xmlDeclaration = match;
+		data = data.trim().replace( /^<!DOCTYPE\s[^>]*?>/i, match => {
+			docType = match;
 
 			return '';
 		} );
@@ -45,13 +45,28 @@ export default class HtmlPageDataProcessor extends HtmlDataProcessor {
 		// Convert DOM DocumentFragment to view DocumentFragment.
 		const viewFragment = this.domConverter.domToView(
 			domFragment,
-			{ skipComments: this.skipComments }
+			{
+				skipComments: this.skipComments,
+				skipProcessingInstructions: this.skipProcessingInstructions
+			}
 		) as ViewDocumentFragment;
 
-		const writer = new UpcastWriter( viewFragment.document );
+		const writer = new ViewUpcastWriter( viewFragment.document );
 
 		// Using the DOM document with body content extracted as a skeleton of the page.
 		writer.setCustomProperty( '$fullPageDocument', domFragment.ownerDocument.documentElement.outerHTML, viewFragment );
+
+		// List of `<style>` elements extracted from document's `<head>` element.
+		const headStylesElements: Array<FullPageHeadStyle> = Array
+			// eslint-disable-next-line ckeditor5-rules/no-shadow-unsafe-dom-apis
+			.from( domFragment.ownerDocument.querySelectorAll<HTMLStyleElement>( 'head style' ) )
+			.filter( item => !!item.textContent )
+			.map( item => ( {
+				css: item.textContent!,
+				attributes: extractSafeStyleAttributes( item )
+			} ) );
+
+		writer.setCustomProperty( '$fullPageHeadStyles', headStylesElements, viewFragment );
 
 		if ( docType ) {
 			writer.setCustomProperty( '$fullPageDocType', docType, viewFragment );
@@ -88,4 +103,37 @@ export default class HtmlPageDataProcessor extends HtmlDataProcessor {
 
 		return data;
 	}
+}
+
+/**
+ * Returns the allowlisted attributes of the given `<style>` element.
+ */
+function extractSafeStyleAttributes( styleElement: Element ): Record<string, string> {
+	return [ 'media', 'type', 'title' ].reduce<Record<string, string>>( ( attributes, name ) => {
+		const value = styleElement.getAttribute( name );
+
+		if ( value !== null ) {
+			attributes[ name ] = value;
+		}
+
+		return attributes;
+	}, Object.create( null ) );
+}
+
+/**
+ * A `<style>` element from the `<head>` of the full page data.
+ *
+ * @internal
+ */
+export interface FullPageHeadStyle {
+
+	/**
+	 * The CSS text of the element.
+	 */
+	css: string;
+
+	/**
+	 * The preserved attributes of the element.
+	 */
+	attributes: Record<string, string>;
 }

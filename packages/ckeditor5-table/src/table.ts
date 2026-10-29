@@ -1,23 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/table
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { Widget } from 'ckeditor5/src/widget';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Widget } from '@ckeditor/ckeditor5-widget';
 
-import TableEditing from './tableediting';
-import TableUI from './tableui';
-import TableSelection from './tableselection';
-import TableClipboard from './tableclipboard';
-import TableKeyboard from './tablekeyboard';
-import TableMouse from './tablemouse';
-
-import '../theme/table.css';
+import { TableEditing } from './tableediting.js';
+import { TableUI } from './tableui.js';
+import { TableSelection } from './tableselection.js';
+import { TableClipboard } from './tableclipboard.js';
+import { TableKeyboard } from './tablekeyboard.js';
+import { TableMouse } from './tablemouse.js';
 
 /**
  * The table plugin.
@@ -33,12 +31,28 @@ import '../theme/table.css';
  * * {@link module:table/tableclipboard~TableClipboard clipboard feature},
  * * {@link module:table/tableui~TableUI UI feature}.
  */
-export default class Table extends Plugin {
+export class Table extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ TableEditing, TableUI, TableSelection, TableMouse, TableKeyboard, TableClipboard, Widget ] as const;
+	public static get requires(): PluginDependenciesOf<[
+		TableEditing,
+		TableUI,
+		TableSelection,
+		TableMouse,
+		TableKeyboard,
+		TableClipboard,
+		Widget
+	]> {
+		return [
+			TableEditing,
+			TableUI,
+			TableSelection,
+			TableMouse,
+			TableKeyboard,
+			TableClipboard,
+			Widget
+		];
 	}
 
 	/**
@@ -46,5 +60,12 @@ export default class Table extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Table' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

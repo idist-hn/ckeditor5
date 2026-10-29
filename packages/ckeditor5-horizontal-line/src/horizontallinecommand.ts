@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module horizontal-line/horizontallinecommand
  */
 
-import type { DocumentSelection, Element, Model, Schema, Selection } from 'ckeditor5/src/engine';
-import { Command } from 'ckeditor5/src/core';
-import { findOptimalInsertionRange } from 'ckeditor5/src/widget';
+import type { ModelDocumentSelection, ModelElement, Model, ModelSchema, ModelSelection } from '@ckeditor/ckeditor5-engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { findOptimalInsertionRange } from '@ckeditor/ckeditor5-widget';
 
 /**
  * The horizontal line command.
@@ -22,7 +22,7 @@ import { findOptimalInsertionRange } from 'ckeditor5/src/widget';
  * editor.execute( 'horizontalLine' );
  * ```
  */
-export default class HorizontalLineCommand extends Command {
+export class HorizontalLineCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -55,7 +55,7 @@ export default class HorizontalLineCommand extends Command {
  *
  * @param model Model instance.
  */
-function isHorizontalLineAllowedInParent( selection: Selection | DocumentSelection, schema: Schema, model: Model ): boolean {
+function isHorizontalLineAllowedInParent( selection: ModelSelection | ModelDocumentSelection, schema: ModelSchema, model: Model ): boolean {
 	const parent = getInsertHorizontalLineParent( selection, model );
 
 	return schema.checkChild( parent, 'horizontalLine' );
@@ -67,13 +67,13 @@ function isHorizontalLineAllowedInParent( selection: Selection | DocumentSelecti
  *
  * @param model Model instance.
  */
-function getInsertHorizontalLineParent( selection: Selection | DocumentSelection, model: Model ): Element {
+function getInsertHorizontalLineParent( selection: ModelSelection | ModelDocumentSelection, model: Model ): ModelElement {
 	const insertionRange = findOptimalInsertionRange( selection, model );
 	const parent = insertionRange.start.parent;
 
-	if ( parent.isEmpty && !parent.is( 'element', '$root' ) ) {
-		return parent.parent! as Element;
+	if ( parent.isEmpty && !parent.is( 'rootElement' ) ) {
+		return parent.parent! as ModelElement;
 	}
 
-	return parent as Element;
+	return parent as ModelElement;
 }

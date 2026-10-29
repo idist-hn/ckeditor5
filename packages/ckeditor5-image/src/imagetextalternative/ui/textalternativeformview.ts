@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -10,26 +10,25 @@
 import {
 	ButtonView,
 	FocusCycler,
+	FormRowView,
+	FormHeaderView,
 	LabeledFieldView,
 	View,
 	ViewCollection,
 	createLabeledInputText,
 	submitHandler,
-	type InputView
-} from 'ckeditor5/src/ui';
-import { FocusTracker, KeystrokeHandler, type Locale } from 'ckeditor5/src/utils';
-import { icons } from 'ckeditor5/src/core';
-
-import '../../../theme/textalternativeform.css';
-
-// See: #8833.
-// eslint-disable-next-line ckeditor5-rules/ckeditor-imports
-import '@ckeditor/ckeditor5-ui/theme/components/responsive-form/responsiveform.css';
+	type InputView,
+	type FocusableView
+} from '@ckeditor/ckeditor5-ui';
+import { FocusTracker, KeystrokeHandler, type Locale } from '@ckeditor/ckeditor5-utils';
+import { IconPreviousArrow } from '@ckeditor/ckeditor5-icons';
 
 /**
  * The TextAlternativeFormView class.
+ *
+ * @internal
  */
-export default class TextAlternativeFormView extends View {
+export class TextAlternativeFormView extends View {
 	/**
 	 * Tracks information about the DOM focus in the form.
 	 */
@@ -46,19 +45,24 @@ export default class TextAlternativeFormView extends View {
 	public labeledInput: LabeledFieldView<InputView>;
 
 	/**
+	 * The Back button view displayed in the header.
+	 */
+	public backButtonView: ButtonView;
+
+	/**
 	 * A button used to submit the form.
 	 */
 	public saveButtonView: ButtonView;
 
 	/**
-	 * A button used to cancel the form.
+	 * A collection of child views.
 	 */
-	public cancelButtonView: ButtonView;
+	public readonly children: ViewCollection;
 
 	/**
 	 * A collection of views which can be focused in the form.
 	 */
-	protected readonly _focusables: ViewCollection;
+	protected readonly _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * Helps cycling over {@link #_focusables} in the form.
@@ -70,20 +74,39 @@ export default class TextAlternativeFormView extends View {
 	 */
 	constructor( locale: Locale ) {
 		super( locale );
-		const t = this.locale!.t;
 
 		this.focusTracker = new FocusTracker();
-
 		this.keystrokes = new KeystrokeHandler();
 
+		// Create buttons.
+		this.backButtonView = this._createBackButton();
+		this.saveButtonView = this._createSaveButton();
+
+		// Create input fields.
 		this.labeledInput = this._createLabeledInputView();
 
-		this.saveButtonView = this._createButton( t( 'Save' ), icons.check, 'ck-button-save' );
-		this.saveButtonView.type = 'submit';
-
-		this.cancelButtonView = this._createButton( t( 'Cancel' ), icons.cancel, 'ck-button-cancel', 'cancel' );
+		this.children = this.createCollection( [
+			this._createHeaderView()
+		] );
+		this.children.add( new FormRowView( locale, {
+			children: [
+				this.labeledInput,
+				this.saveButtonView
+			],
+			class: [
+				'ck-form__row_with-submit',
+				'ck-form__row_large-top-padding',
+				'ck-form__row_large-bottom-padding'
+			]
+		} ) );
 
 		this._focusables = new ViewCollection();
+
+		// Close the panel on esc key press when the **form has focus**.
+		this.keystrokes.set( 'Esc', ( data, cancel ) => {
+			this.fire<TextAlternativeFormViewCancelEvent>( 'cancel' );
+			cancel();
+		} );
 
 		this._focusCycler = new FocusCycler( {
 			focusables: this._focusables,
@@ -104,6 +127,7 @@ export default class TextAlternativeFormView extends View {
 			attributes: {
 				class: [
 					'ck',
+					'ck-form',
 					'ck-text-alternative-form',
 					'ck-responsive-form'
 				],
@@ -112,11 +136,7 @@ export default class TextAlternativeFormView extends View {
 				tabindex: '-1'
 			},
 
-			children: [
-				this.labeledInput,
-				this.saveButtonView,
-				this.cancelButtonView
-			]
+			children: this.children
 		} );
 	}
 
@@ -126,18 +146,25 @@ export default class TextAlternativeFormView extends View {
 	public override render(): void {
 		super.render();
 
+		submitHandler( {
+			view: this
+		} );
+
+		const childViews = [
+			this.backButtonView,
+			this.labeledInput,
+			this.saveButtonView
+		];
+
+		childViews.forEach( v => {
+			// Register the view as focusable.
+			this._focusables.add( v );
+
+			// Register the view in the focus tracker.
+			this.focusTracker.add( v.element! );
+		} );
+
 		this.keystrokes.listenTo( this.element! );
-
-		submitHandler( { view: this } );
-
-		[ this.labeledInput, this.saveButtonView, this.cancelButtonView ]
-			.forEach( v => {
-				// Register the view as focusable.
-				this._focusables.add( v );
-
-				// Register the view in the focus tracker.
-				this.focusTracker.add( v.element! );
-			} );
 	}
 
 	/**
@@ -151,34 +178,54 @@ export default class TextAlternativeFormView extends View {
 	}
 
 	/**
-	 * Creates the button view.
-	 *
-	 * @param label The button label
-	 * @param icon The button's icon.
-	 * @param className The additional button CSS class name.
-	 * @param eventName The event name that the ButtonView#execute event will be delegated to.
-	 * @returns The button view instance.
+	 * Creates a back button view that cancels the form.
 	 */
-	private _createButton( label: string, icon: string, className: string, eventName?: string ): ButtonView {
-		const button = new ButtonView( this.locale );
+	private _createBackButton(): ButtonView {
+		const t = this.locale!.t;
+		const backButton = new ButtonView( this.locale );
 
-		button.set( {
-			label,
-			icon,
+		backButton.set( {
+			class: 'ck-button-back',
+			label: t( 'Back' ),
+			icon: IconPreviousArrow,
 			tooltip: true
 		} );
 
-		button.extendTemplate( {
-			attributes: {
-				class: className
-			}
+		backButton.delegate( 'execute' ).to( this, 'cancel' );
+
+		return backButton;
+	}
+
+	/**
+	 * Creates a save button view that text alternative the image.
+	 */
+	private _createSaveButton(): ButtonView {
+		const t = this.locale!.t;
+		const saveButton = new ButtonView( this.locale );
+
+		saveButton.set( {
+			label: t( 'Save' ),
+			withText: true,
+			type: 'submit',
+			class: 'ck-button-action ck-button_standard'
 		} );
 
-		if ( eventName ) {
-			button.delegate( 'execute' ).to( this, eventName );
-		}
+		return saveButton;
+	}
 
-		return button;
+	/**
+	 * Creates a header view for the form.
+	 */
+	private _createHeaderView(): FormHeaderView {
+		const t = this.locale!.t;
+
+		const header = new FormHeaderView( this.locale, {
+			label: t( 'Text Alternative' )
+		} );
+
+		header.children.add( this.backButtonView, 0 );
+
+		return header;
 	}
 
 	/**
@@ -191,7 +238,30 @@ export default class TextAlternativeFormView extends View {
 		const labeledInput = new LabeledFieldView<InputView>( this.locale, createLabeledInputText );
 
 		labeledInput.label = t( 'Text alternative' );
+		labeledInput.class = 'ck-labeled-field-view_full-width';
 
 		return labeledInput;
 	}
 }
+
+/**
+ * Fired when the form view is submitted.
+ *
+ * @eventName ~TextAlternativeFormView#submit
+ * @internal
+ */
+export type TextAlternativeFormViewSubmitEvent = {
+	name: 'submit';
+	args: [];
+};
+
+/**
+ * Fired when the form view is canceled.
+ *
+ * @eventName ~TextAlternativeFormView#cancel
+ * @internal
+ */
+export type TextAlternativeFormViewCancelEvent = {
+	name: 'cancel';
+	args: [];
+};

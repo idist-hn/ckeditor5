@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -9,37 +9,44 @@
 
 import {
 	Editor,
-	Context,
-	DataApiMixin,
 	secureSourceElement,
+	normalizeRootsConfig,
+	normalizeMultiRootEditorConstructorParams,
+	normalizeViewRootElementDefinition,
+	registerAndInitializeRootConfigAttributes,
+	rootAcceptsBlocks,
+	verifyRootElements,
 	type EditorConfig,
-	type EditorReadyEvent
-} from 'ckeditor5/src/core';
+	type EditorReadyEvent,
+	type RootConfig,
+	type EditorRootAttributes,
+	type ViewRootElementDefinition
+} from '@ckeditor/ckeditor5-core';
 
 import {
 	CKEditorError,
-	getDataFromElement,
 	setDataInElement,
 	logWarning,
+	decodeLicenseKey,
+	isFeatureBlockedByLicenseKey,
 	type CollectionAddEvent,
-	type DecoratedMethodEvent
-} from 'ckeditor5/src/utils';
+	type DecoratedMethodEvent,
+	type Config
+} from '@ckeditor/ckeditor5-utils';
 
-import { ContextWatchdog, EditorWatchdog } from 'ckeditor5/src/watchdog';
+import { MultiRootEditorUI } from './multirooteditorui.js';
+import { MultiRootEditorUIView } from './multirooteditoruiview.js';
 
-import MultiRootEditorUI from './multirooteditorui';
-import MultiRootEditorUIView from './multirooteditoruiview';
-
-import { isElement as _isElement } from 'lodash-es';
+import { isElement as _isElement } from 'es-toolkit/compat';
 import {
-	type RootElement,
+	type ModelRootElement,
 	type ViewRootEditableElement,
-	type Writer,
+	type ModelWriter,
 	type ModelCanEditAtEvent
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
 /**
- * The {@glink installation/getting-started/predefined-builds#multi-root-editor multi-root editor} implementation.
+ * The multi-root editor implementation.
  *
  * The multi-root editor provides multiple inline editable elements and a toolbar. All editable areas are controlled by one editor
  * instance, which means that they share common configuration, document ID, or undo stack.
@@ -51,24 +58,15 @@ import {
  * {@link module:editor-multi-root/multirooteditor~MultiRootEditor.create `MultiRootEditor.create()`} method.
  *
  * Note that you will need to attach the editor toolbar to your web page manually, in a desired place, after the editor is initialized.
- *
- * # Multi-root editor and multi-root editor build
- *
- * The multi-root editor can be used directly from source (if you installed the
- * [`@ckeditor/ckeditor5-editor-multi-root`](https://www.npmjs.com/package/@ckeditor/ckeditor5-editor-multi-root) package)
- * but it is also available in the
- * {@glink installation/getting-started/predefined-builds#multi-root-editor multi-root editor build}.
- *
- * {@glink installation/getting-started/predefined-builds Builds} are ready-to-use editors with plugins bundled in.
- *
- * When using the editor from source you need to take care of loading all plugins by yourself
- * (through the {@link module:core/editor/editorconfig~EditorConfig#plugins `config.plugins`} option).
- * Using the editor from source gives much better flexibility and allows for easier customization.
- *
- * Read more about initializing the editor from source or as a build in
- * {@link module:editor-multi-root/multirooteditor~MultiRootEditor.create `MultiRootEditor.create()`}.
  */
-export default class MultiRootEditor extends DataApiMixin( Editor ) {
+export class MultiRootEditor extends Editor {
+	/**
+	 * @inheritDoc
+	 */
+	public static override get editorName(): 'MultiRootEditor' {
+		return 'MultiRootEditor';
+	}
+
 	/**
 	 * @inheritDoc
 	 */
@@ -78,12 +76,6 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * The elements on which the editor has been initialized.
 	 */
 	public readonly sourceElements: Record<string, HTMLElement>;
-
-	/**
-	 * Holds attributes keys that were passed in {@link module:core/editor/editorconfig~EditorConfig#rootsAttributes `rootsAttributes`}
-	 * config property and should be returned by {@link #getRootsAttributes}.
-	 */
-	private readonly _registeredRootsAttributesKeys = new Set<string>();
 
 	/**
 	 * A set of lock IDs for enabling or disabling particular root.
@@ -96,44 +88,68 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * **Note:** Do not use the constructor to create editor instances. Use the static
 	 * {@link module:editor-multi-root/multirooteditor~MultiRootEditor.create `MultiRootEditor.create()`} method instead.
 	 *
+	 * @param config The editor configuration.
+	 */
+	protected constructor( config: EditorConfig );
+
+	/**
+	 * Creates an instance of the multi-root editor.
+	 *
+	 * **Note:** Do not use the constructor to create editor instances. Use the static
+	 * {@link module:editor-multi-root/multirooteditor~MultiRootEditor.create `MultiRootEditor.create()`} method instead.
+	 *
+	 * **Note**: This constructor signature is deprecated and will be removed in the future release.
+	 *
+	 * @deprecated
 	 * @param sourceElementsOrData The DOM elements that will be the source for the created editor
 	 * or the editor's initial data. The editor will initialize multiple roots with names according to the keys in the passed object.
 	 * For more information see {@link module:editor-multi-root/multirooteditor~MultiRootEditor.create `MultiRootEditor.create()`}.
 	 * @param config The editor configuration.
 	 */
-	protected constructor( sourceElementsOrData: Record<string, HTMLElement> | Record<string, string>, config: EditorConfig = {} ) {
-		const rootNames = Object.keys( sourceElementsOrData );
-		const sourceIsData = rootNames.length === 0 || typeof sourceElementsOrData[ rootNames[ 0 ] ] === 'string';
+	protected constructor( sourceElementsOrData: Record<string, HTMLElement> | Record<string, string>, config: EditorConfig );
 
-		if ( sourceIsData && config.initialData !== undefined && Object.keys( config.initialData ).length > 0 ) {
-			// Documented in core/editor/editorconfig.jsdoc.
-			// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
-			throw new CKEditorError( 'editor-create-initial-data', null );
+	protected constructor( sourceElementsOrDataOrConfig: Record<string, HTMLElement> | Record<string, string>, config: EditorConfig = {} ) {
+		const {
+			sourceElementsOrData,
+			editorConfig
+		} = normalizeMultiRootEditorConstructorParams( sourceElementsOrDataOrConfig, config );
+
+		super( editorConfig );
+
+		normalizeRootsConfig( sourceElementsOrData, this.config, false );
+		normalizeRootsAttributesConfig( this.config );
+		normalizeRootEditableOptionsConfig( this.config );
+
+		if ( this.config.get( 'lazyRoots' ) ) {
+			/**
+			 * Using deprecated `config.lazyRoots` configuration option.
+			 * Use `config.roots.<rootName>.lazyLoad` instead.
+			 *
+			 * @error multi-root-editor-root-deprecated-config-lazy-roots
+			 */
+			throw new CKEditorError( 'multi-root-editor-root-deprecated-config-lazy-roots', null );
 		}
 
-		super( config );
+		// From this point use only normalized `roots.<rootName>.element`, etc.
+		const rootsConfig = Object.entries( this.config.get( 'roots' )! );
 
-		if ( !sourceIsData ) {
-			this.sourceElements = sourceElementsOrData as Record<string, HTMLElement>;
-		} else {
-			this.sourceElements = {};
-		}
+		this.sourceElements = {};
 
-		if ( this.config.get( 'initialData' ) === undefined ) {
-			// Create initial data object containing data from all roots.
-			const initialData: Record<string, string> = {};
+		const editableElements: Record<string, HTMLElement | ViewRootElementDefinition> = {};
 
-			for ( const rootName of rootNames ) {
-				initialData[ rootName ] = getInitialData( sourceElementsOrData[ rootName ] );
+		for ( const [ rootName, rootConfig ] of rootsConfig ) {
+			const editableElement = getRootEditableElement( rootConfig );
+
+			if ( !editableElement ) {
+				continue;
 			}
 
-			this.config.set( 'initialData', initialData );
-		}
-
-		if ( !sourceIsData ) {
-			for ( const rootName of rootNames ) {
-				secureSourceElement( this, sourceElementsOrData[ rootName ] as HTMLElement );
+			if ( isElement( editableElement ) ) {
+				this.sourceElements[ rootName ] = editableElement;
+				secureSourceElement( this, editableElement );
 			}
+
+			editableElements[ rootName ] = editableElement;
 		}
 
 		this.editing.view.document.roots.on<CollectionAddEvent<ViewRootEditableElement>>( 'add', ( evt, viewRoot ) => {
@@ -158,61 +174,29 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 			} );
 		} );
 
-		for ( const rootName of rootNames ) {
+		for ( const [ rootName, rootConfig ] of rootsConfig ) {
 			// Create root and `UIView` element for each editable container.
-			this.model.document.createRoot( '$root', rootName );
-		}
+			const root = this.model.document.createRoot( rootConfig.modelElement, rootName );
 
-		if ( this.config.get( 'lazyRoots' ) ) {
-			for ( const rootName of this.config.get( 'lazyRoots' )! ) {
-				const root = this.model.document.createRoot( '$root', rootName );
-
+			if ( rootConfig.lazyLoad ) {
 				root._isLoaded = false;
 			}
 		}
 
-		if ( this.config.get( 'rootsAttributes' ) ) {
-			const rootsAttributes = this.config.get( 'rootsAttributes' )!;
+		// Register `$rootEditableOptions` unconditionally, so it is always returned by `getRootAttributes()` (e.g. for RH).
+		// The value is set via `config.roots.<rootName>.modelAttributes.$rootEditableOptions` (see `normalizeRootEditableOptionsConfig`),
+		// which also makes it round-trip through RTC's initial-data path.
+		this.registerRootAttribute( '$rootEditableOptions' );
 
-			for ( const [ rootName, attributes ] of Object.entries( rootsAttributes ) ) {
-				if ( !this.model.document.getRoot( rootName ) ) {
-					/**
-					 * Trying to set attributes on a non-existing root.
-					 *
-					 * Roots specified in {@link module:core/editor/editorconfig~EditorConfig#rootsAttributes} do not match initial
-					 * editor roots.
-					 *
-					 * @error multi-root-editor-root-attributes-no-root
-					 */
-					throw new CKEditorError( 'multi-root-editor-root-attributes-no-root', null );
-				}
-
-				for ( const key of Object.keys( attributes ) ) {
-					this._registeredRootsAttributesKeys.add( key );
-				}
-			}
-
-			this.data.on( 'init', () => {
-				this.model.enqueueChange( { isUndoable: false }, writer => {
-					for ( const [ name, attributes ] of Object.entries( rootsAttributes ) ) {
-						const root = this.model.document.getRoot( name )!;
-
-						for ( const [ key, value ] of Object.entries( attributes ) ) {
-							if ( value !== null ) {
-								writer.setAttribute( key, value, root! );
-							}
-						}
-					}
-				} );
-			} );
-		}
+		registerAndInitializeRootConfigAttributes( this );
 
 		const options = {
 			shouldToolbarGroupWhenFull: !this.config.get( 'toolbar.shouldNotGroupWhenFull' ),
-			editableElements: sourceIsData ? undefined : sourceElementsOrData as Record<string, HTMLElement>
+			editableElements,
+			label: extractRootsConfigField( this.config.get( 'roots' )!, 'label' )
 		};
 
-		const view = new MultiRootEditorUIView( this.locale, this.editing.view, rootNames, options );
+		const view = new MultiRootEditorUIView( this.locale, this.editing.view, getNonLazyLoadRootsNames( rootsConfig ), options );
 
 		this.ui = new MultiRootEditorUI( this, view );
 
@@ -250,7 +234,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 			let selectionInReadOnlyRoot = false;
 
 			for ( const range of selection.getRanges() ) {
-				const root = range.root as RootElement;
+				const root = range.root as ModelRootElement;
 
 				if ( this._readOnlyRootLocks.has( root.rootName ) ) {
 					selectionInReadOnlyRoot = true;
@@ -291,6 +275,22 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 				evt.stop();
 			}
 		}, { priority: 'highest' } );
+
+		verifyLicenseKey( this );
+
+		function verifyLicenseKey( editor: MultiRootEditor ) {
+			const licenseKey = editor.config.get( 'licenseKey' );
+			const decodedPayload = decodeLicenseKey( licenseKey );
+
+			if ( !decodedPayload ) {
+				return;
+			}
+
+			if ( isFeatureBlockedByLicenseKey( decodedPayload, 'MRE' ) ) {
+				editor.enableReadOnlyMode( Symbol( 'invalidLicense' ) );
+				editor._showLicenseError( 'featureNotAllowed', 'Multi-root editor' );
+			}
+		}
 	}
 
 	/**
@@ -317,7 +317,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * } );
 	 * ```
 	 */
-	public override destroy(): Promise<unknown> {
+	public override async destroy(): Promise<unknown> {
 		const shouldUpdateSourceElement = this.config.get( 'updateSourceElementOnDestroy' );
 		// Cache the data and editable DOM elements, then destroy.
 		// It's safe to assume that the model->view conversion will not work after `super.destroy()`,
@@ -330,19 +330,22 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 
 		this.ui.destroy();
 
-		return super.destroy()
-			.then( () => {
-				for ( const rootName of Object.keys( this.sourceElements ) ) {
-					setDataInElement( this.sourceElements[ rootName ], data[ rootName ] );
-				}
-			} );
+		await super.destroy();
+
+		for ( const rootName of Object.keys( this.sourceElements ) ) {
+			setDataInElement( this.sourceElements[ rootName ], data[ rootName ] );
+		}
+
+		// To satisfy the return type and to keep it backward compatible.
+		// eslint-disable-next-line no-useless-return
+		return;
 	}
 
 	/**
 	 * Adds a new root to the editor.
 	 *
 	 * ```ts
-	 * editor.addRoot( 'myRoot', { data: '<p>Initial root data.</p>' } );
+	 * editor.addRoot( 'myRoot', { initialData: '<p>Initial root data.</p>' } );
 	 * ```
 	 *
 	 * After a root is added, you will be able to modify and retrieve its data.
@@ -383,12 +386,13 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * ```ts
 	 * // Add a collapsed root at fourth position from top.
 	 * // Keep in mind that these are just examples of attributes. You need to provide your own features that will handle the attributes.
-	 * editor.addRoot( 'myRoot', { attributes: { isCollapsed: true, index: 4 } } );
+	 * editor.addRoot( 'myRoot', { modelAttributes: { isCollapsed: true, index: 4 } } );
 	 * ```
 	 *
-	 * See also {@link module:core/editor/editorconfig~EditorConfig#rootsAttributes `rootsAttributes` configuration option}.
+	 * Note that attributes added together with a root are automatically registered.
 	 *
-	 * Note that attributes keys of attributes added in `attributes` option are also included in {@link #getRootsAttributes} return value.
+	 * See also {@link ~MultiRootEditor#registerRootAttribute `MultiRootEditor#registerRootAttribute()`} and
+	 * {@link module:core/editor/editorconfig~RootConfig#modelAttributes `config.roots.<rootName>.modelAttributes` configuration option}.
 	 *
 	 * By setting `isUndoable` flag to `true`, you can allow for detaching the root using the undo feature.
 	 *
@@ -407,33 +411,101 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * } );
 	 * ```
 	 *
+	 * @label ROOT_CONFIG
 	 * @param rootName Name of the root to add.
 	 * @param options Additional options for the added root.
 	 */
-	public addRoot(
-		rootName: string,
-		{ data = '', attributes = {}, elementName = '$root', isUndoable = false }: AddRootOptions = {}
-	): void {
-		const dataController = this.data;
-		const registeredKeys = this._registeredRootsAttributesKeys;
+	public addRoot( rootName: string, options?: AddRootRootConfig ): void;
 
-		if ( isUndoable ) {
+	/**
+	 * Adds a new root to the editor.
+	 *
+	 * ```ts
+	 * editor.addRoot( 'myRoot', { data: '<p>Initial root data.</p>' } );
+	 * ```
+	 *
+	 * **Note**: This method signature is deprecated and will be removed in one of the next releases.
+	 * Use the signature with root options object instead {@link #addRoot:ROOT_CONFIG `addRoot( rootName, options )`}.
+	 *
+	 * @deprecated
+	 * @label LEGACY_ADD_ROOT_OPTIONS
+	 * @param rootName Name of the root to add.
+	 * @param options Additional options for the added root.
+	 */
+	// eslint-disable-next-line @typescript-eslint/unified-signatures
+	public addRoot( rootName: string, options?: AddRootOptions ): void;
+
+	public addRoot( rootName: string, options: AddRootOptions & AddRootRootConfig = {} ): void {
+		const initialData: string = options.initialData || options.data || '';
+		const modelAttributes: EditorRootAttributes = { ...options.modelAttributes || options.attributes };
+		// eslint-disable-next-line ckeditor5-rules/no-literal-dollar-root -- public API default for `addRoot()`
+		const modelElement: string = options.modelElement || options.elementName || '$root';
+
+		if ( !this.model.schema.isLimit( modelElement ) ) {
+			/**
+			 * The model root element must be a {@link module:engine/model/schema~ModelSchemaItemDefinition#isLimit limit element}.
+			 * The element name specified in
+			 * {@link module:editor-multi-root/multirooteditor~MultiRootEditor#addRoot:ROOT_CONFIG `addRoot()`}
+			 * options must be registered in the schema
+			 * with `isLimit` set to `true`.
+			 *
+			 * @error multi-root-editor-add-root-element-is-not-limit
+			 * @param rootName The name of the root that uses a non-limit element.
+			 * @param elementName The name of the model element used for the root.
+			 */
+			throw new CKEditorError( 'multi-root-editor-add-root-element-is-not-limit', this, {
+				rootName,
+				elementName: modelElement
+			} );
+		}
+
+		if ( isElement( options.element ) ) {
+			/**
+			 * Passing an existing DOM element as the `element` option of
+			 * {@link module:editor-multi-root/multirooteditor~MultiRootEditor#addRoot:ROOT_CONFIG `addRoot()`}
+			 * is not supported and will be ignored. The
+			 * `addRoot()` method only registers the model root; the DOM editable is created later by
+			 * {@link module:editor-multi-root/multirooteditor~MultiRootEditor#createEditable `createEditable()`}.
+			 *
+			 * Pass a tag name string (e.g. `'h1'`) or a
+			 * {@link module:engine/view/elementdefinition~ViewElementDefinition view element definition}
+			 * instead, or omit the option to create a default `<div>`.
+			 *
+			 * @error multi-root-editor-add-root-element-option-ignored
+			 */
+			logWarning( 'multi-root-editor-add-root-element-option-ignored' );
+		}
+
+		// Persist editable options as a root attribute so they are available on other RTC clients.
+		setRootEditableOptions( modelAttributes, options );
+
+		// Store `description`/`title` as `$description`/`$title` root attributes (like the editable options above) so
+		// they are registered, set on the new root, and synced to other RTC clients.
+		if ( options.description != null && !( '$description' in modelAttributes ) ) {
+			modelAttributes.$description = options.description;
+		}
+
+		if ( options.title != null && !( '$title' in modelAttributes ) ) {
+			modelAttributes.$title = options.title;
+		}
+
+		const _addRoot = ( writer: ModelWriter ) => {
+			const root = writer.addRoot( rootName, modelElement );
+
+			if ( initialData ) {
+				writer.insert( this.data.parse( initialData, root ), root, 0 );
+			}
+
+			for ( const key of Object.keys( modelAttributes ) ) {
+				this.registerRootAttribute( key );
+				writer.setAttribute( key, modelAttributes[ key ], root );
+			}
+		};
+
+		if ( options.isUndoable ) {
 			this.model.change( _addRoot );
 		} else {
 			this.model.enqueueChange( { isUndoable: false }, _addRoot );
-		}
-
-		function _addRoot( writer: Writer ) {
-			const root = writer.addRoot( rootName, elementName );
-
-			if ( data ) {
-				writer.insert( dataController.parse( data, root ), root, 0 );
-			}
-
-			for ( const key of Object.keys( attributes ) ) {
-				registeredKeys.add( key );
-				writer.setAttribute( key, attributes[ key ], root );
-			}
 		}
 	}
 
@@ -448,7 +520,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 *
 	 * After a root is detached all its children are removed, all markers inside it are removed, and whenever something is inserted to it,
 	 * it is automatically removed as well. Finally, a detached root is not returned by
-	 * {@link module:engine/model/document~Document#getRootNames} by default.
+	 * {@link module:engine/model/document~ModelDocument#getRootNames} by default.
 	 *
 	 * It is possible to re-add a previously detached root calling {@link #addRoot}.
 	 *
@@ -500,19 +572,72 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	}
 
 	/**
+	 * Creates and returns a DOM editable element for the given root element.
+	 *
+	 * The DOM editable is attached to the model root and can be used to modify the root content.
+	 *
+	 * When `options.element` is an existing `HTMLElement`, the method uses it as-is and returns
+	 * the same element. Otherwise a fresh DOM element is created from `options.element`
+	 * (descriptor or tag name) — or a default `<div>` when the option is omitted — and the caller
+	 * is expected to append the returned element to the DOM.
+	 *
+	 * @label OPTIONS
+	 * @param root Root for which the editable element should be created.
+	 * @param options.placeholder Placeholder for the editable element. If not set, placeholder value from the
+	 * {@link module:core/editor/editorconfig~RootConfig#placeholder root configuration} will be used (if it was provided).
+	 * @param options.label The accessible label text describing the editable to the assistive technologies.
+	 * @param options.element Description of the editable element to create, or an existing `HTMLElement` to use as-is.
+	 * See {@link ~RootEditableOptions#element} for accepted forms and the real-time collaboration caveat.
+	 * @returns The DOM element for the editable.
+	 */
+	public createEditable( root: ModelRootElement, options?: RootEditableOptions ): HTMLElement;
+
+	/**
 	 * Creates and returns a new DOM editable element for the given root element.
 	 *
 	 * The new DOM editable is attached to the model root and can be used to modify the root content.
 	 *
+	 * **Note**: this method signature is deprecated and will be removed in one of the next releases.
+	 * Use the signature with options object instead {@link #createEditable:OPTIONS `createEditable( root, options )`}.
+	 *
+	 * @deprecated
+	 * @label LEGACY
 	 * @param root Root for which the editable element should be created.
 	 * @param placeholder Placeholder for the editable element. If not set, placeholder value from the
-	 * {@link module:core/editor/editorconfig~EditorConfig#placeholder editor configuration} will be used (if it was provided).
+	 * {@link module:core/editor/editorconfig~RootConfig#placeholder root configuration} will be used (if it was provided).
+	 * @param label The accessible label text describing the editable to the assistive technologies.
 	 * @returns The created DOM element. Append it in a desired place in your application.
 	 */
-	public createEditable( root: RootElement, placeholder?: string ): HTMLElement {
-		const editable = this.ui.view.createEditable( root.rootName );
+	public createEditable( root: ModelRootElement, placeholder?: string, label?: string ): HTMLElement;
 
-		this.ui.addEditable( editable, placeholder );
+	public createEditable( root: ModelRootElement, optionsOrPlaceholder?: RootEditableOptions | string, label?: string ): HTMLElement {
+		let placeholder: string | undefined;
+		let element: string | ViewRootElementDefinition | HTMLElement | undefined;
+
+		if ( !optionsOrPlaceholder || typeof optionsOrPlaceholder === 'string' ) {
+			placeholder = optionsOrPlaceholder;
+		} else {
+			placeholder = optionsOrPlaceholder?.placeholder;
+			label = optionsOrPlaceholder?.label;
+			element = optionsOrPlaceholder?.element;
+		}
+
+		const rootEditableConfig: RootEditableOptions = root.getAttribute( '$rootEditableOptions' ) || {};
+		// Both the call-site `element` and the stored `rootEditableConfig.element` may be a tag name string
+		// or an `HTMLElement` and need normalization - `setRootEditableOptions()` does this at write time, but
+		// callers can also pre-supply `$rootEditableOptions` directly without going through it.
+		const editableElement: HTMLElement | ViewRootElementDefinition | undefined =
+			normalizeViewRootElementDefinition( element || rootEditableConfig.element );
+
+		const editable = this.ui.view.createEditable(
+			root.rootName,
+			editableElement,
+			label || rootEditableConfig.label
+		);
+
+		editable.isInlineRoot = !rootAcceptsBlocks( this, root.rootName );
+
+		this.ui.addEditable( editable, placeholder || rootEditableConfig.placeholder );
 
 		this.editing.view.forceRender();
 
@@ -525,7 +650,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * @param root Root for which the editable element should be detached.
 	 * @returns The DOM element that was detached. You may want to remove it from your application DOM structure.
 	 */
-	public detachEditable( root: RootElement ): HTMLElement {
+	public detachEditable( root: ModelRootElement ): HTMLElement {
 		const rootName = root.rootName;
 		const editable = this.ui.view.editables[ rootName ];
 
@@ -536,19 +661,37 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	}
 
 	/**
-	 * Loads a root that has previously been declared in {@link module:core/editor/editorconfig~EditorConfig#lazyRoots `lazyRoots`}
-	 * configuration option.
+	 * Loads a root that has previously been declared in
+	 * {@link module:core/editor/editorconfig~EditorConfig#roots `config.roots.<rootName>.lazyLoad`} configuration option.
+	 *
+	 * **Important! Lazy roots loading is an experimental feature, and may become deprecated. Be advised of the following
+	 * known limitations:**
+	 *
+	 * * **Real-time collaboration integrations that use
+	 * [uploaded editor bundles](https://ckeditor.com/docs/cs/latest/guides/collaboration/editor-bundle.html) are not supported. Using
+	 * lazy roots will lead to unexpected behavior and data loss.**
+	 * * **Revision history feature will read and process the whole document on editor initialization, possibly defeating the purpose
+	 * of using the lazy roots loading. Additionally, when the document is loaded for the first time, all roots need to be loaded,
+	 * to make sure that the initial revision data includes all roots. Otherwise, you may experience data loss.**
+	 * * **Multiple features, that require full document data to be loaded, will produce incorrect or confusing results if not all
+	 * roots are loaded. These include: bookmarks, find and replace, word count, pagination, document exports, document outline,
+	 * and table of contents.**
 	 *
 	 * Only roots specified in the editor config can be loaded. A root cannot be loaded multiple times. A root cannot be unloaded and
 	 * loading a root cannot be reverted using the undo feature.
 	 *
 	 * When a root becomes loaded, it will be treated by the editor as though it was just added. This, among others, means that all
 	 * related events and mechanisms will be fired, including {@link ~MultiRootEditor#event:addRoot `addRoot` event},
-	 * {@link module:engine/model/document~Document#event:change `model.Document` `change` event}, model post-fixers and conversion.
+	 * {@link module:engine/model/document~ModelDocument#event:change `model.Document` `change` event}, model post-fixers and conversion.
 	 *
 	 * Until the root becomes loaded, all above mechanisms are suppressed.
 	 *
 	 * This method is {@link module:utils/observablemixin~Observable#decorate decorated}.
+	 *
+	 * Note that attributes loaded together with a root are automatically registered.
+	 *
+	 * See also {@link ~MultiRootEditor#registerRootAttribute `MultiRootEditor#registerRootAttribute()`} and
+	 * {@link module:core/editor/editorconfig~EditorConfig#roots `config.roots.<rootName>.modelAttributes` configuration option}.
 	 *
 	 * When this method is used in real-time collaboration environment, its effects become asynchronous as the editor will first synchronize
 	 * with the remote editing session, before the root is added to the editor.
@@ -572,7 +715,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 			}
 
 			for ( const key of Object.keys( attributes ) ) {
-				this._registeredRootsAttributesKeys.add( key );
+				this.registerRootAttribute( key );
 
 				writer.setAttribute( key, attributes[ key ], root );
 			}
@@ -606,38 +749,19 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	/**
 	 * Returns attributes for all attached roots.
 	 *
-	 * Note: only attributes specified in {@link module:core/editor/editorconfig~EditorConfig#rootsAttributes `rootsAttributes`}
-	 * configuration option will be returned.
+	 * Note: all and only {@link ~MultiRootEditor#registerRootAttribute registered} roots attributes will be returned.
+	 * If a registered root attribute is not set for a given root, `null` will be returned.
 	 *
 	 * @returns Object with roots attributes. Keys are roots names, while values are attributes set on given root.
 	 */
-	public getRootsAttributes(): Record<string, RootAttributes> {
-		const rootsAttributes: Record<string, RootAttributes> = {};
+	public getRootsAttributes(): Record<string, EditorRootAttributes> {
+		const rootsAttributes: Record<string, EditorRootAttributes> = {};
 
 		for ( const rootName of this.model.document.getRootNames() ) {
 			rootsAttributes[ rootName ] = this.getRootAttributes( rootName );
 		}
 
 		return rootsAttributes;
-	}
-
-	/**
-	 * Returns attributes for the specified root.
-	 *
-	 * Note: only attributes specified in {@link module:core/editor/editorconfig~EditorConfig#rootsAttributes `rootsAttributes`}
-	 * configuration option will be returned.
-	 *
-	 * @param rootName
-	 */
-	public getRootAttributes( rootName: string ): RootAttributes {
-		const rootAttributes: RootAttributes = {};
-		const root = this.model.document.getRoot( rootName )!;
-
-		for ( const key of this._registeredRootsAttributesKeys ) {
-			rootAttributes[ key ] = root.hasAttribute( key ) ? root.getAttribute( key ) : null;
-		}
-
-		return rootAttributes;
 	}
 
 	/**
@@ -742,6 +866,151 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 *
 	 * ```ts
 	 * MultiRootEditor.create( {
+	 * 	roots: {
+	 * 		intro: {
+	 * 			element: document.querySelector( '#editor-intro' )
+	 * 		},
+	 * 		content: {
+	 * 			element: document.querySelector( '#editor-content' )
+	 * 		},
+	 * 		sidePanelLeft: {
+	 * 			element: document.querySelector( '#editor-side-left' )
+	 * 		},
+	 * 		sidePanelRight: {
+	 * 			element: document.querySelector( '#editor-side-right' )
+	 * 		},
+	 * 		outro: {
+	 * 			element: document.querySelector( '#editor-outro' )
+	 * 		}
+	 * 	}
+	 * } )
+	 * .then( editor => {
+	 * 	console.log( 'Editor was initialized', editor );
+	 *
+	 * 	// Append the toolbar inside a provided DOM element.
+	 * 	document.querySelector( '#toolbar-container' ).appendChild( editor.ui.view.toolbar.element );
+	 * } )
+	 * .catch( err => {
+	 * 	console.error( err.stack );
+	 * } );
+	 * ```
+	 *
+	 * The elements' content will be used as the editor data and elements will become editable elements.
+	 *
+	 * # Creating a detached editor
+	 *
+	 * Alternatively, you can initialize the editor by passing the initial data directly as strings.
+	 * In this case, you will have to manually append both the toolbar element and the editable elements to your web page.
+	 *
+	 * ```ts
+	 * MultiRootEditor.create( {
+	 * 	roots: {
+	 * 		intro: {
+	 * 			initialData: '<p><strong>Exciting</strong> intro text to an article.</p>'
+	 * 		},
+	 * 		content: {
+	 * 			initialData: '<p>Lorem ipsum dolor sit amet.</p>'
+	 * 		},
+	 * 		sidePanelLeft: {
+	 * 			initialData: '<blockquote>Strong quotation from article.</blockquote>'
+	 * 		},
+	 * 		sidePanelRight: {
+	 * 			initialData: '<p>List of similar articles...</p>'
+	 * 		},
+	 * 		outro: {
+	 * 			initialData: '<p>Closing text.</p>'
+	 * 		}
+	 * 	}
+	 * } )
+	 * .then( editor => {
+	 * 	console.log( 'Editor was initialized', editor );
+	 *
+	 * 	// Append the toolbar inside a provided DOM element.
+	 * 	document.querySelector( '#toolbar-container' ).appendChild( editor.ui.view.toolbar.element );
+	 *
+	 * 	// Append DOM editable elements created by the editor.
+	 * 	const editables = editor.ui.view.editables;
+	 * 	const container = document.querySelector( '#editable-container' );
+	 *
+	 * 	container.appendChild( editables.intro.element );
+	 * 	container.appendChild( editables.content.element );
+	 * 	container.appendChild( editables.outro.element );
+	 * } )
+	 * .catch( err => {
+	 * 	console.error( err.stack );
+	 * } );
+	 * ```
+	 *
+	 * This lets you dynamically append the editor to your web page whenever it is convenient for you. You may use this method if your
+	 * web page content is generated on the client side and the DOM structure is not ready at the moment when you initialize the editor.
+	 *
+	 * # Using an existing DOM element (and data provided in `config.roots.<rootName>.initialData`)
+	 *
+	 * You can also mix these two ways by providing a DOM element to be used and passing the initial data through the configuration:
+	 *
+	 * ```ts
+	 * MultiRootEditor.create( {
+	 * 	roots: {
+	 * 		intro: {
+	 * 			element: document.querySelector( '#editor-intro' ),
+	 * 			initialData: '<p><strong>Exciting</strong> intro text to an article.</p>'
+	 * 		},
+	 * 		content: {
+	 * 			element: document.querySelector( '#editor-content' ),
+	 * 			initialData: '<p>Lorem ipsum dolor sit amet.</p>'
+	 * 		},
+	 * 		sidePanelLeft: {
+	 * 			element: document.querySelector( '#editor-side-left' ),
+	 * 			initialData: '<blockquote>Strong quotation from article.</blockquote>'
+	 * 		},
+	 * 		sidePanelRight: {
+	 * 			element: document.querySelector( '#editor-side-right' ),
+	 * 			initialData: '<p>List of similar articles...</p>'
+	 * 		},
+	 * 		outro: {
+	 * 			element: document.querySelector( '#editor-outro' ),
+	 * 			initialData: '<p>Closing text.</p>'
+	 * 		}
+	 * 	}
+	 * } )
+	 * .then( editor => {
+	 * 	console.log( 'Editor was initialized', editor );
+	 *
+	 * 	// Append the toolbar inside a provided DOM element.
+	 * 	document.querySelector( '#toolbar-container' ).appendChild( editor.ui.view.toolbar.element );
+	 * } )
+	 * .catch( err => {
+	 * 	console.error( err.stack );
+	 * } );
+	 * ```
+	 *
+	 * This method can be used to initialize the editor on an existing element with the specified content in case if your integration
+	 * makes it difficult to set the content of the source element.
+	 *
+	 * # Configuring the editor
+	 *
+	 * See the {@link module:core/editor/editorconfig~EditorConfig editor configuration documentation} to learn more about
+	 * customizing plugins, toolbar and more.
+	 *
+	 * @param config The editor configuration.
+	 * @returns A promise resolved once the editor is ready. The promise resolves with the created editor instance.
+	 */
+	public static override create( config: EditorConfig ): Promise<MultiRootEditor>;
+
+	/**
+	 * Creates a new multi-root editor instance.
+	 *
+	 * **Note**: This method signature is deprecated and will be removed in the future release.
+	 *
+	 * **Note:** remember that `MultiRootEditor` does not append the toolbar element to your web page, so you have to do it manually
+	 * after the editor has been initialized.
+	 *
+	 * There are a few different ways to initialize the multi-root editor.
+	 *
+	 * # Using existing DOM elements:
+	 *
+	 * ```ts
+	 * MultiRootEditor.create( {
 	 * 	intro: document.querySelector( '#editor-intro' ),
 	 * 	content: document.querySelector( '#editor-content' ),
 	 * 	sidePanelLeft: document.querySelector( '#editor-side-left' ),
@@ -796,7 +1065,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * This lets you dynamically append the editor to your web page whenever it is convenient for you. You may use this method if your
 	 * web page content is generated on the client side and the DOM structure is not ready at the moment when you initialize the editor.
 	 *
-	 * # Using an existing DOM element (and data provided in `config.initialData`)
+	 * # Using an existing DOM element (and data provided in `config.roots.<rootName>.initialData`)
 	 *
 	 * You can also mix these two ways by providing a DOM element to be used and passing the initial data through the configuration:
 	 *
@@ -808,12 +1077,22 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * 	sidePanelRight: document.querySelector( '#editor-side-right' ),
 	 * 	outro: document.querySelector( '#editor-outro' )
 	 * }, {
-	 * 	initialData: {
-	 * 		intro: '<p><strong>Exciting</strong> intro text to an article.</p>',
-	 * 		content: '<p>Lorem ipsum dolor sit amet.</p>',
-	 * 		sidePanelLeft '<blockquote>Strong quotation from article.</blockquote>':
-	 * 		sidePanelRight '<p>List of similar articles...</p>':
-	 * 		outro: '<p>Closing text.</p>'
+	 * 	roots: {
+	 * 		intro: {
+	 * 			initialData: '<p><strong>Exciting</strong> intro text to an article.</p>'
+	 * 		},
+	 * 		content: {
+	 * 			initialData: '<p>Lorem ipsum dolor sit amet.</p>'
+	 * 		},
+	 * 		sidePanelLeft: {
+	 * 			initialData: '<blockquote>Strong quotation from article.</blockquote>'
+	 * 		},
+	 * 		sidePanelRight: {
+	 * 			initialData: '<p>List of similar articles...</p>'
+	 * 		},
+	 * 		outro: {
+	 * 			initialData: '<p>Closing text.</p>'
+	 * 		}
 	 * 	}
 	 * } )
 	 * .then( editor => {
@@ -837,18 +1116,7 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 * See the {@link module:core/editor/editorconfig~EditorConfig editor configuration documentation} to learn more about
 	 * customizing plugins, toolbar and more.
 	 *
-	 * # Using the editor from source
-	 *
-	 * The code samples listed in the previous sections of this documentation assume that you are using an
-	 * {@glink installation/getting-started/predefined-builds editor build}
-	 * (for example – `@ckeditor/ckeditor5-build-multi-root`).
-	 *
-	 * If you want to use the multi-root editor from source (`@ckeditor/ckeditor5-editor-multi-root-editor/src/multirooteditor`),
-	 * you need to define the list of
-	 * {@link module:core/editor/editorconfig~EditorConfig#plugins plugins to be initialized} and
-	 * {@link module:core/editor/editorconfig~EditorConfig#toolbar toolbar items}. Read more about using the editor from
-	 * source in the {@glink installation/advanced/alternative-setups/integrating-from-source-webpack dedicated guide}.
-	 *
+	 * @deprecated
 	 * @param sourceElementsOrData The DOM elements that will be the source for the created editor
 	 * or the editor's initial data. The editor will initialize multiple roots with names according to the keys in the passed object.
 	 *
@@ -866,62 +1134,41 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 	 */
 	public static override create(
 		sourceElementsOrData: Record<string, HTMLElement> | Record<string, string>,
+		config: EditorConfig
+	): Promise<MultiRootEditor>;
+
+	public static override async create(
+		sourceElementsOrDataOrConfig: Record<string, HTMLElement> | Record<string, string>,
 		config: EditorConfig = {}
 	): Promise<MultiRootEditor> {
-		return new Promise( resolve => {
-			for ( const sourceItem of Object.values( sourceElementsOrData ) ) {
-				if ( isElement( sourceItem ) && sourceItem.tagName === 'TEXTAREA' ) {
-					// Documented in core/editor/editor.js
-					// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
-					throw new CKEditorError( 'editor-wrong-element', null );
-				}
-			}
+		const editor = new this( sourceElementsOrDataOrConfig as any, config );
 
-			const editor = new this( sourceElementsOrData, config );
+		await editor.initPlugins();
 
-			resolve(
-				editor.initPlugins()
-					.then( () => editor.ui.init() )
-					.then( () => {
-						// This is checked directly before setting the initial data,
-						// as plugins may change `EditorConfig#initialData` value.
-						editor._verifyRootsWithInitialData();
+		// Roots are created in the editor constructor (before plugins are loaded), but the schema is only fully
+		// built after plugins register their items during init(). Custom root element names (e.g. registered by a
+		// plugin) may not exist in the schema at construction time, so we defer this check until here.
+		verifyRootElements( editor );
 
-						return editor.data.init( editor.config.get( 'initialData' )! );
-					} )
-					.then( () => editor.fire<EditorReadyEvent>( 'ready' ) )
-					.then( () => editor )
-			);
-		} );
+		await editor.ui.init();
+
+		const initialData = extractRootsConfigField( editor.config.get( 'roots' )!, 'initialData' );
+
+		// This is checked directly before setting the initial data,
+		// as plugins may change `EditorConfig#initialData` value.
+		editor._verifyRootsWithInitialData( initialData );
+
+		await editor.data.init( initialData );
+
+		editor.fire<EditorReadyEvent>( 'ready' );
+
+		return editor;
 	}
-
-	/**
-	 * The {@link module:core/context~Context} class.
-	 *
-	 * Exposed as static editor field for easier access in editor builds.
-	 */
-	public static Context = Context;
-
-	/**
-	 * The {@link module:watchdog/editorwatchdog~EditorWatchdog} class.
-	 *
-	 * Exposed as static editor field for easier access in editor builds.
-	 */
-	public static EditorWatchdog = EditorWatchdog;
-
-	/**
-	 * The {@link module:watchdog/contextwatchdog~ContextWatchdog} class.
-	 *
-	 * Exposed as static editor field for easier access in editor builds.
-	 */
-	public static ContextWatchdog = ContextWatchdog;
 
 	/**
 	 * @internal
 	 */
-	private _verifyRootsWithInitialData(): void {
-		const initialData = this.config.get( 'initialData' ) as Record<string, string>;
-
+	private _verifyRootsWithInitialData( initialData: Record<string, unknown> ): void {
 		// Roots that are not in the initial data.
 		for ( const rootName of this.model.document.getRootNames() ) {
 			if ( !( rootName in initialData ) ) {
@@ -948,19 +1195,153 @@ export default class MultiRootEditor extends DataApiMixin( Editor ) {
 			const root = this.model.document.getRoot( rootName );
 
 			if ( !root || !root.isAttached() ) {
-				// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
 				throw new CKEditorError( 'multi-root-editor-root-initial-data-mismatch', null );
 			}
 		}
 	}
 }
 
-function getInitialData( sourceElementOrData: HTMLElement | string ): string {
-	return isElement( sourceElementOrData ) ? getDataFromElement( sourceElementOrData ) : sourceElementOrData;
+/**
+ * Returns names of roots that are not lazy-loaded.
+ */
+function getNonLazyLoadRootsNames(
+	rootsConfig: Array<[ string, RootConfig ]>
+): Array<string> {
+	return rootsConfig
+		.filter( ( [ , { lazyLoad } ] ) => !lazyLoad )
+		.map( ( [ rootName ] ) => rootName );
+}
+
+/**
+ * Collects a specific field from the editor configuration for all roots.
+ * Returns a simple map of root names and values of the specified field.
+ * If a root does not have the specified field defined, it is not included in the returned object.
+ */
+function extractRootsConfigField<K extends keyof RootConfig>(
+	rootsConfig: Record<string, RootConfig>,
+	key: K
+): Record<string, NonNullable<RootConfig[K]>> {
+	return Object.fromEntries(
+		Object.entries( rootsConfig )
+			.filter( ( [ , config ] ) => !config.lazyLoad )
+			.map( ( [ rootName, config ] ) => [ rootName, config[ key ] ] )
+			.filter( ( [ , value ] ) => value !== undefined )
+	);
+}
+
+/**
+ * Normalize legacy `config.rootsAttributes` config option to `config.roots.<rootName>.modelAttributes`.
+ */
+function normalizeRootsAttributesConfig( config: Config<EditorConfig> ): void {
+	if ( config.get( 'rootsAttributes' ) ) {
+		const rootsAttributes = config.get( 'rootsAttributes' )!;
+		const rootsConfig = config.get( 'roots' )!;
+
+		for ( const [ rootName, attributes ] of Object.entries( rootsAttributes ) ) {
+			const rootConfig = rootsConfig[ rootName ];
+
+			if ( !rootConfig ) {
+				/**
+				 * Trying to set attributes on a non-existing root.
+				 *
+				 * Roots specified in `config.rootsAttributes` do not match initial editor roots.
+				 *
+				 * @error multi-root-editor-root-attributes-no-root
+				 */
+				throw new CKEditorError( 'multi-root-editor-root-attributes-no-root', null );
+			}
+
+			if ( Object.keys( rootConfig.modelAttributes || {} ).length ) {
+				/**
+				 * Trying to set attributes using deprecated `config.rootsAttributes` on a root that has already
+				 * defined attributes using `config.roots.<rootName>.modelAttributes`.
+				 *
+				 * @error multi-root-editor-root-attributes-conflict
+				 */
+				throw new CKEditorError( 'multi-root-editor-root-attributes-conflict', null );
+			}
+
+			config.set( `roots.${ rootName }.modelAttributes`, attributes );
+		}
+	}
+}
+
+/**
+ * Normalize `placeholder` and `label` from `config.roots.<rootName>` into the `$rootEditableOptions` root model attribute,
+ * stored under `config.roots.<rootName>.modelAttributes`. This way the attribute is registered, set on initial data load
+ * and shipped through RTC initial-data path together with the rest of `modelAttributes`.
+ *
+ * This is also required by the revision history feature: on editor load, RH compares the latest revision data against
+ * `initialData` and `modelAttributes` passed to the editor and logs a warning if they do not match. Because `$rootEditableOptions`
+ * ends up in the revision data, it must also be present in `modelAttributes` (even as an empty object when no options
+ * are configured), otherwise the comparison reports a spurious mismatch.
+ */
+function normalizeRootEditableOptionsConfig( config: Config<EditorConfig> ): void {
+	const rootsConfig = config.get( 'roots' )!;
+
+	for ( const [ rootName, rootConfig ] of Object.entries( rootsConfig ) ) {
+		if ( rootConfig.modelAttributes?.$rootEditableOptions ) {
+			continue;
+		}
+
+		const modelAttributes: EditorRootAttributes = { ...rootConfig.modelAttributes };
+
+		setRootEditableOptions( modelAttributes, rootConfig );
+
+		config.set( `roots.${ rootName }.modelAttributes`, modelAttributes );
+	}
+}
+
+/**
+ * Mutates the given `modelAttributes` map by adding the `$rootEditableOptions` entry derived from `placeholder`, `label`
+ * and `element`. If `$rootEditableOptions` is already present, the map is left untouched.
+ *
+ * The `element` is normalized into canonical form ({@link module:core/editor/editorconfig~ViewRootElementDefinition})
+ * before being persisted. A raw DOM element is local to this editor instance - it cannot be replicated through
+ * RTC, so it is silently dropped here. Callers that want to surface a warning (e.g. `addRoot()`) should do so before
+ * invoking this function.
+ */
+function setRootEditableOptions(
+	modelAttributes: EditorRootAttributes,
+	{ placeholder, label, element }: {
+		placeholder?: string;
+		label?: string;
+		element?: HTMLElement | string | ViewRootElementDefinition;
+	}
+): void {
+	if ( '$rootEditableOptions' in modelAttributes ) {
+		return;
+	}
+
+	// In the `else` branch `element` cannot be an `HTMLElement`, but the normalizer's return type still
+	// includes it — the cast narrows it back to the canonical descriptor form.
+	const storageElement = isElement( element ) ?
+		undefined :
+		normalizeViewRootElementDefinition( element ) as ViewRootElementDefinition | undefined;
+
+	modelAttributes.$rootEditableOptions = {
+		...placeholder && { placeholder },
+		...label && { label },
+		...storageElement && { element: storageElement }
+	} satisfies RootEditableOptions;
 }
 
 function isElement( value: any ): value is Element {
 	return _isElement( value );
+}
+
+/**
+ * Returns the canonical editable element descriptor for the given root config.
+ *
+ * Falls back to `$rootEditableOptions.element` so remote RTC clients - which do not see the originator's
+ * `config.roots.<name>.element` - can recreate the configured editable shape from the model attributes
+ * they receive. The result is normalized here in case the attribute was pre-supplied without going
+ * through `setRootEditableOptions()` (e.g. a caller writing `modelAttributes.$rootEditableOptions` directly).
+ */
+function getRootEditableElement( rootConfig: RootConfig ): HTMLElement | ViewRootElementDefinition | undefined {
+	const rootEditableOptions = rootConfig.modelAttributes?.$rootEditableOptions as RootEditableOptions | undefined;
+
+	return normalizeViewRootElementDefinition( rootConfig.element || rootEditableOptions?.element );
 }
 
 /**
@@ -977,7 +1358,7 @@ function isElement( value: any ): value is Element {
  */
 export type AddRootEvent = {
 	name: 'addRoot';
-	args: [ root: RootElement ];
+	args: [ root: ModelRootElement ];
 };
 
 /**
@@ -994,7 +1375,7 @@ export type AddRootEvent = {
  */
 export type DetachRootEvent = {
 	name: 'detachRoot';
-	args: [ root: RootElement ];
+	args: [ root: ModelRootElement ];
 };
 
 /**
@@ -1010,6 +1391,8 @@ export type LoadRootEvent = DecoratedMethodEvent<MultiRootEditor, 'loadRoot'>;
 
 /**
  * Additional options available when adding a root.
+ *
+ * @deprecated
  */
 export type AddRootOptions = {
 
@@ -1021,7 +1404,7 @@ export type AddRootOptions = {
 	/**
 	 * Initial attributes for the root.
 	 */
-	attributes?: RootAttributes;
+	attributes?: EditorRootAttributes;
 
 	/**
 	 * Element name for the root element in the model. It can be used to set different schema rules for different roots.
@@ -1035,11 +1418,62 @@ export type AddRootOptions = {
 };
 
 /**
+ * Declares an additional options available when adding a root.
+ */
+export interface AddRootRootConfig extends RootConfig {
+
+	/**
+	 * A description of the editable root element to create. May be a tag name string (e.g. `'h1'`) or a
+	 * {@link module:core/editor/editorconfig~ViewRootElementDefinition} object.
+	 *
+	 * Passing an existing DOM element is not supported - `addRoot()` only registers the model root;
+	 * the DOM editable is created later by {@link ~MultiRootEditor#createEditable:OPTIONS `createEditable()`}.
+	 */
+	element?: string | ViewRootElementDefinition;
+
+	/**
+	 * Whether creating the root can be undone (using the undo feature) or not.
+	 */
+	isUndoable?: boolean;
+}
+
+/**
  * Additional options available when loading a root.
  */
 export type LoadRootOptions = Omit<AddRootOptions, 'elementName' | 'isUndoable'>;
 
 /**
- * Attributes set on a model root element.
+ * Additional options for the created editable element.
  */
-export type RootAttributes = Record<string, unknown>;
+export interface RootEditableOptions {
+
+	/**
+	 * Placeholder for the editable element. If not set, placeholder value from the
+	 * {@link module:core/editor/editorconfig~RootConfig#placeholder editor configuration} will be used (if it was provided).
+	 */
+	placeholder?: string;
+
+	/**
+	 * The accessible label text describing the editable to the assistive technologies.
+	 */
+	label?: string;
+
+	/**
+	 * A description of the editable root element to create, or an existing DOM element to use.
+	 *
+	 * Accepted forms:
+	 *
+	 * * A tag name string (e.g. `'h1'`).
+	 * * A {@link module:core/editor/editorconfig~ViewRootElementDefinition} object.
+	 * * An existing `HTMLElement`. The element is used as-is — `createEditable()` returns the same
+	 *   element instead of creating a new one, so callers do not need to append it to the DOM.
+	 *
+	 * When omitted, a default `<div>` is created.
+	 *
+	 * **Note**: an `HTMLElement` value is local to this client. It cannot be replicated through
+	 * real-time collaboration, so it is not persisted with the root. Other clients calling
+	 * `createEditable()` for the same root receive a fresh element built from the canonical
+	 * descriptor (or the default `<div>`), unless they pass their own `HTMLElement` as well.
+	 */
+	element?: string | ViewRootElementDefinition | HTMLElement;
+}

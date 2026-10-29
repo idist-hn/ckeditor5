@@ -1,15 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Markdown from '../src/markdown';
-import GFMDataProcessor from '../src/gfmdataprocessor';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { describe, it, expect } from 'vitest';
+import { Markdown } from '../src/markdown.js';
+import { MarkdownGfmDataProcessor } from '../src/gfmdataprocessor.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
 describe( 'Markdown', () => {
 	it( 'has proper name', () => {
-		expect( Markdown.pluginName ).to.equal( 'Markdown' );
+		expect( Markdown.pluginName ).toEqual( 'Markdown' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( Markdown.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( Markdown.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should set editor.data.processor', () => {
@@ -18,9 +27,9 @@ describe( 'Markdown', () => {
 				plugins: [ Markdown ]
 			} )
 			.then( editor => {
-				expect( editor.data.processor ).to.be.an.instanceof( GFMDataProcessor );
+				expect( editor.data.processor ).to.be.an.instanceof( MarkdownGfmDataProcessor );
 
-				editor.destroy(); // Tests cleanup.
+				return editor.destroy(); // Tests cleanup.
 			} );
 	} );
 } );

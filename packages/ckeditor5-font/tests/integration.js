@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, CustomEvent */
-
-import Font from '../src/font';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { getData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import Table from '@ckeditor/ckeditor5-table/src/table';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Font } from '../src/font.js';
+import { ArticlePluginSet } from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { Table } from '@ckeditor/ckeditor5-table';
 
 describe( 'Integration test Font', () => {
 	let element, editor, model;
@@ -39,14 +38,14 @@ describe( 'Integration test Font', () => {
 
 	describe( 'in-between font plugin features', () => {
 		it( 'should render one span element for all types of font features', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>' +
 					'<$text fontColor="#123456" fontBackgroundColor="rgb(10,20,30)" fontSize="big" ' +
 						'fontFamily="Arial, Helvetica, sans-serif">foo</$text>' +
 				'</paragraph>'
 			);
 
-			expect( editor.getData() ).to.equal(
+			expect( editor.getData() ).toEqual(
 				'<p>' +
 					'<span ' +
 						'class="text-big" ' +
@@ -78,7 +77,7 @@ describe( 'Integration test Font', () => {
 				.then( editor => {
 					const model = editor.model;
 
-					setModelData( model,
+					_setModelData( model,
 						'<paragraph>' +
 							'<$text fontColor="#123456" fontBackgroundColor="rgb(10,20,30)" ' +
 								'fontSize="48px" fontFamily="docs-Roboto"' +
@@ -87,7 +86,7 @@ describe( 'Integration test Font', () => {
 						'</paragraph>'
 					);
 
-					expect( editor.getData() ).to.equal(
+					expect( editor.getData() ).toEqual(
 						'<p>' +
 							'<span ' +
 								'style="background-color:rgb(10,20,30);color:#123456;font-family:docs-Roboto;font-size:48px;"' +
@@ -128,7 +127,7 @@ describe( 'Integration test Font', () => {
 						'</td></tr></table>'
 					);
 
-					expect( getData( editor.model, { withoutSelection: true } ) ).to.equal(
+					expect( _getModelData( editor.model, { withoutSelection: true } ) ).toEqual(
 						'<table>' +
 							'<tableRow>' +
 								'<tableCell>' +
@@ -150,13 +149,13 @@ describe( 'Integration test Font', () => {
 
 	describe( 'between font plugin and other', () => {
 		it( 'should render elements wrapped in proper order', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>' +
 					'<$text bold="true" linkHref="foo" fontColor="red" fontSize="big">foo</$text>' +
 				'</paragraph>'
 			);
 
-			expect( editor.getData() ).to.equal(
+			expect( editor.getData() ).toEqual(
 				'<p>' +
 					'<a href="foo">' +
 						'<span class="text-big" style="color:red;">' +
@@ -188,13 +187,13 @@ describe( 'Integration test Font', () => {
 				.then( editor => {
 					const model = editor.model;
 
-					setModelData( model,
+					_setModelData( model,
 						'<paragraph>' +
 							'<$text bold="true" linkHref="foo" fontColor="red" fontSize="18px">foo</$text>' +
 						'</paragraph>'
 					);
 
-					expect( editor.getData() ).to.equal(
+					expect( editor.getData() ).toEqual(
 						'<p>' +
 							'<a href="foo">' +
 								'<span style="color:red;font-size:18px;">' +
@@ -214,7 +213,7 @@ describe( 'Integration test Font', () => {
 
 	describe( 'color picker feature', () => {
 		it( 'should set colors in model in hsl format by default', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>' +
 					'<$text>[foo]</$text>' +
 				'</paragraph>'
@@ -232,7 +231,7 @@ describe( 'Integration test Font', () => {
 
 			dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.picker.dispatchEvent( event );
 
-			expect( getData( model ) ).to.equal( '<paragraph>[<$text fontColor="hsl( 150, 50%, 13% )">foo</$text>]</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>[<$text fontColor="hsl(150, 50%, 13%)">foo</$text>]</paragraph>' );
 		} );
 
 		it( 'should set colors in model in configured format', async () => {
@@ -248,7 +247,7 @@ describe( 'Integration test Font', () => {
 				}
 			} );
 
-			setModelData( editor.model,
+			_setModelData( editor.model,
 				'<paragraph>' +
 					'<$text>[foo]</$text>' +
 				'</paragraph>'
@@ -266,15 +265,15 @@ describe( 'Integration test Font', () => {
 
 			dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.picker.dispatchEvent( event );
 
-			expect( getData( editor.model ) ).to.equal( '<paragraph>[<$text fontColor="lab( 18% -17 7 )">foo</$text>]</paragraph>' );
+			expect( _getModelData( editor.model ) ).toEqual( '<paragraph>[<$text fontColor="lab(18% -17 7)">foo</$text>]</paragraph>' );
 
 			await editor.destroy();
 		} );
 
 		it( 'should properly discard changes', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>' +
-					'[<$text fontColor="hsl( 50, 10%, 23% )">foo</$text><$text fontColor="hsl( 150, 50%, 13% )">foo</$text>]' +
+					'[<$text fontColor="hsl(50, 10%, 23%)">foo</$text><$text fontColor="hsl(150, 50%, 13%)">foo</$text>]' +
 				'</paragraph>'
 			);
 
@@ -282,17 +281,17 @@ describe( 'Integration test Font', () => {
 
 			dropdown.isOpen = true;
 			dropdown.colorSelectorView.fire( 'colorPicker:show' );
-			dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.color = 'hsl( 100, 30%, 43% )';
+			dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.color = 'hsl(100, 30%, 43%)';
 
 			dropdown.colorSelectorView.colorPickerFragmentView.cancelButtonView.fire( 'execute' );
 
-			expect( getData( model ) ).to.equal( '<paragraph>' +
-			'[<$text fontColor="hsl( 50, 10%, 23% )">foo</$text><$text fontColor="hsl( 150, 50%, 13% )">foo</$text>]' +
+			expect( _getModelData( model ) ).toEqual( '<paragraph>' +
+			'[<$text fontColor="hsl(50, 10%, 23%)">foo</$text><$text fontColor="hsl(150, 50%, 13%)">foo</$text>]' +
 			'</paragraph>' );
 		} );
 
 		it( 'should undo all changes done in a batch with a single step', () => {
-			setModelData( model, '<paragraph>[foo]</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]</paragraph>' );
 
 			const dropdown = editor.ui.componentFactory.create( 'fontColor' );
 
@@ -306,7 +305,7 @@ describe( 'Integration test Font', () => {
 
 			editor.commands.get( 'undo' ).execute();
 
-			expect( getData( model ) ).to.equal( '<paragraph>[foo]</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>[foo]</paragraph>' );
 		} );
 	} );
 } );

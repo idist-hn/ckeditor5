@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-
-import { getData as getModelData } from '../../src/dev-utils/model';
-import { getData as getViewData } from '../../src/dev-utils/view';
+import { _getModelData } from '../../src/dev-utils/model.js';
+import { _getViewData } from '../../src/dev-utils/view.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'Bug ckeditor5-engine#699', () => {
 	let element;
@@ -30,8 +29,8 @@ describe( 'Bug ckeditor5-engine#699', () => {
 			.then( editor => {
 				editor.setData( '<widget></widget><p>foo</p>' );
 
-				expect( getModelData( editor.model ) ).to.equal( '[<widget></widget>]<paragraph>foo</paragraph>' );
-				expect( getViewData( editor.editing.view ) ).to.equal( '[<widget></widget>]<p>foo</p>' );
+				expect( _getModelData( editor.model ) ).toBe( '[<widget></widget>]<paragraph>foo</paragraph>' );
+				expect( _getViewData( editor.editing.view ) ).toBe( '[<widget></widget>]<p>foo</p>' );
 
 				return editor.destroy();
 			} );

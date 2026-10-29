@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import { Plugin } from '@ckeditor/ckeditor5-core';
-import { UpcastWriter } from '@ckeditor/ckeditor5-engine';
 import {
+	Plugin,
+	ViewUpcastWriter,
 	Widget,
 	toWidget,
 	viewToModelPositionOutsideModelElement
-} from '@ckeditor/ckeditor5-widget';
+} from 'ckeditor5';
 
 export class HCardEditing extends Plugin {
 	static get requires() {
@@ -136,7 +134,7 @@ export class HCardEditing extends Plugin {
 			const contact = JSON.parse( contactData );
 
 			// Translate the h-card data to a view fragment.
-			const writer = new UpcastWriter( viewDocument );
+			const writer = new ViewUpcastWriter( viewDocument );
 			const fragment = writer.createDocumentFragment();
 
 			writer.appendChild(

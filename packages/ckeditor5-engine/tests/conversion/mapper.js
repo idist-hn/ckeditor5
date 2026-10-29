@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Mapper from '../../src/conversion/mapper';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { Mapper, MapperCache } from '../../src/conversion/mapper.js';
 
-import ModelElement from '../../src/model/element';
-import ModelRootElement from '../../src/model/rootelement';
-import ModelText from '../../src/model/text';
-import ModelPosition from '../../src/model/position';
-import ModelRange from '../../src/model/range';
+import { ModelElement } from '../../src/model/element.js';
+import { ModelRootElement } from '../../src/model/rootelement.js';
+import { ModelText } from '../../src/model/text.js';
+import { ModelPosition } from '../../src/model/position.js';
+import { ModelRange } from '../../src/model/range.js';
 
-import ViewDocument from '../../src/view/document';
-import ViewElement from '../../src/view/element';
-import ViewUIElement from '../../src/view/uielement';
-import ViewText from '../../src/view/text';
-import ViewPosition from '../../src/view/position';
-import ViewRange from '../../src/view/range';
-import ViewDocumentFragment from '../../src/view/documentfragment';
-import { StylesProcessor } from '../../src/view/stylesmap';
+import { ViewDocument } from '../../src/view/document.js';
+import { ViewElement } from '../../src/view/element.js';
+import { ViewUIElement } from '../../src/view/uielement.js';
+import { ViewText } from '../../src/view/text.js';
+import { ViewPosition } from '../../src/view/position.js';
+import { ViewRange } from '../../src/view/range.js';
+import { ViewDocumentFragment } from '../../src/view/documentfragment.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
 
-import CKEditorError from '@ckeditor/ckeditor5-utils/src/ckeditorerror';
+import { ViewAttributeElement } from '../../src/index.js';
 
 describe( 'Mapper', () => {
 	let viewDocument;
@@ -52,29 +53,29 @@ describe( 'Mapper', () => {
 			mapper.bindElementToMarker( viewD, 'foo' );
 			mapper.bindElementToMarker( viewD, 'bar' );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toModelElement( viewB ) ).to.equal( modelB );
-			expect( mapper.toModelElement( viewC ) ).to.equal( modelC );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toModelElement( viewB ) ).toBe( modelB );
+			expect( mapper.toModelElement( viewC ) ).toBe( modelC );
 
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
-			expect( mapper.toViewElement( modelB ) ).to.equal( viewB );
-			expect( mapper.toViewElement( modelC ) ).to.equal( viewC );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
+			expect( mapper.toViewElement( modelB ) ).toBe( viewB );
+			expect( mapper.toViewElement( modelC ) ).toBe( viewC );
 
-			expect( Array.from( mapper.markerNameToElements( 'foo' ) ) ).to.deep.equal( [ viewA, viewD ] );
+			expect( Array.from( mapper.markerNameToElements( 'foo' ) ) ).toEqual( [ viewA, viewD ] );
 
 			mapper.unbindViewElement( viewD );
 			mapper.clearBindings();
 
-			expect( mapper.toModelElement( viewA ) ).to.be.undefined;
-			expect( mapper.toModelElement( viewB ) ).to.be.undefined;
-			expect( mapper.toModelElement( viewC ) ).to.be.undefined;
+			expect( mapper.toModelElement( viewA ) ).toBeUndefined();
+			expect( mapper.toModelElement( viewB ) ).toBeUndefined();
+			expect( mapper.toModelElement( viewC ) ).toBeUndefined();
 
-			expect( mapper.toViewElement( modelA ) ).to.be.undefined;
-			expect( mapper.toViewElement( modelB ) ).to.be.undefined;
-			expect( mapper.toViewElement( modelC ) ).to.be.undefined;
+			expect( mapper.toViewElement( modelA ) ).toBeUndefined();
+			expect( mapper.toViewElement( modelB ) ).toBeUndefined();
+			expect( mapper.toViewElement( modelC ) ).toBeUndefined();
 
-			expect( mapper.markerNameToElements( 'foo' ) ).to.be.null;
-			expect( mapper.flushUnboundMarkerNames() ).to.deep.equal( [] );
+			expect( mapper.markerNameToElements( 'foo' ) ).toBeNull();
+			expect( mapper.flushUnboundMarkerNames() ).toEqual( [] );
 		} );
 	} );
 
@@ -86,13 +87,13 @@ describe( 'Mapper', () => {
 			const mapper = new Mapper();
 			mapper.bindElements( modelA, viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
 
 			mapper.unbindModelElement( modelA );
 
-			expect( mapper.toModelElement( viewA ) ).to.be.undefined;
-			expect( mapper.toViewElement( modelA ) ).to.be.undefined;
+			expect( mapper.toModelElement( viewA ) ).toBeUndefined();
+			expect( mapper.toViewElement( modelA ) ).toBeUndefined();
 		} );
 
 		it( 'should not remove binding between view and model element if view element got rebound', () => {
@@ -105,12 +106,12 @@ describe( 'Mapper', () => {
 			mapper.bindElements( modelB, viewA );
 
 			// `modelA` is still bound to `viewA` even though `viewA` got rebound.
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
 
 			mapper.unbindModelElement( modelA );
 
-			expect( mapper.toViewElement( modelA ) ).to.be.undefined;
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelB );
+			expect( mapper.toViewElement( modelA ) ).toBeUndefined();
+			expect( mapper.toModelElement( viewA ) ).toBe( modelB );
 		} );
 	} );
 
@@ -122,13 +123,13 @@ describe( 'Mapper', () => {
 			const mapper = new Mapper();
 			mapper.bindElements( modelA, viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
 
 			mapper.unbindViewElement( viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.be.undefined;
-			expect( mapper.toViewElement( modelA ) ).to.be.undefined;
+			expect( mapper.toModelElement( viewA ) ).toBeUndefined();
+			expect( mapper.toViewElement( modelA ) ).toBeUndefined();
 		} );
 
 		it( 'should not remove binding between model and view element if model element got rebound', () => {
@@ -141,12 +142,12 @@ describe( 'Mapper', () => {
 			mapper.bindElements( modelA, viewB );
 
 			// `viewA` is still bound to `modelA`, even though `modelA` got rebound.
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
 
 			mapper.unbindViewElement( viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.be.undefined;
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewB );
+			expect( mapper.toModelElement( viewA ) ).toBeUndefined();
+			expect( mapper.toViewElement( modelA ) ).toBe( viewB );
 		} );
 
 		it( 'should allow deferred unbinding', () => {
@@ -156,18 +157,18 @@ describe( 'Mapper', () => {
 			const mapper = new Mapper();
 			mapper.bindElements( modelA, viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
 
 			mapper.unbindViewElement( viewA, { defer: true } );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
 
 			mapper.flushDeferredBindings();
 
-			expect( mapper.toModelElement( viewA ) ).to.be.undefined;
-			expect( mapper.toViewElement( modelA ) ).to.be.undefined;
+			expect( mapper.toModelElement( viewA ) ).toBeUndefined();
+			expect( mapper.toViewElement( modelA ) ).toBeUndefined();
 		} );
 
 		it( 'should not unbind if element was reused after deferred unbinding', () => {
@@ -180,27 +181,27 @@ describe( 'Mapper', () => {
 			const mapper = new Mapper();
 			mapper.bindElements( modelA, viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
-			expect( viewA.root ).to.equal( viewFragmentA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
+			expect( viewA.root ).toBe( viewFragmentA );
 
 			mapper.unbindViewElement( viewA, { defer: true } );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
-			expect( viewA.root ).to.equal( viewFragmentA );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
+			expect( viewA.root ).toBe( viewFragmentA );
 
 			viewFragmentB._appendChild( viewA );
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
-			expect( viewA.root ).to.equal( viewFragmentB );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
+			expect( viewA.root ).toBe( viewFragmentB );
 
 			mapper.flushDeferredBindings();
 
-			expect( mapper.toModelElement( viewA ) ).to.equal( modelA );
-			expect( mapper.toViewElement( modelA ) ).to.equal( viewA );
-			expect( viewA.root ).to.equal( viewFragmentB );
+			expect( mapper.toModelElement( viewA ) ).toBe( modelA );
+			expect( mapper.toViewElement( modelA ) ).toBe( viewA );
+			expect( viewA.root ).toBe( viewFragmentB );
 		} );
 	} );
 
@@ -290,17 +291,17 @@ describe( 'Mapper', () => {
 
 		describe( 'toModelElement', () => {
 			it( 'should return corresponding model element', () => {
-				expect( mapper.toModelElement( viewP ) ).to.equal( modelP );
-				expect( mapper.toModelElement( viewDiv ) ).to.equal( modelDiv );
-				expect( mapper.toModelElement( viewImg ) ).to.equal( modelImg );
+				expect( mapper.toModelElement( viewP ) ).toBe( modelP );
+				expect( mapper.toModelElement( viewDiv ) ).toBe( modelDiv );
+				expect( mapper.toModelElement( viewImg ) ).toBe( modelImg );
 			} );
 		} );
 
 		describe( 'toViewElement', () => {
 			it( 'should return corresponding view element', () => {
-				expect( mapper.toViewElement( modelP ) ).to.equal( viewP );
-				expect( mapper.toViewElement( modelDiv ) ).to.equal( viewDiv );
-				expect( mapper.toViewElement( modelImg ) ).to.equal( viewImg );
+				expect( mapper.toViewElement( modelP ) ).toBe( viewP );
+				expect( mapper.toViewElement( modelDiv ) ).toBe( viewDiv );
+				expect( mapper.toViewElement( modelImg ) ).toBe( viewImg );
 			} );
 		} );
 
@@ -310,7 +311,7 @@ describe( 'Mapper', () => {
 				const stub = {};
 
 				mapper.on( 'viewToModelPosition', ( evt, data ) => {
-					expect( data.viewPosition.isEqual( viewPosition ) ).to.be.true;
+					expect( data.viewPosition.isEqual( viewPosition ) ).toBe( true );
 
 					data.modelPosition = stub;
 					// Do not stop the event. Test whether default algorithm was not called if data.modelPosition is already set.
@@ -318,7 +319,7 @@ describe( 'Mapper', () => {
 
 				const result = mapper.toModelPosition( viewPosition );
 
-				expect( result ).to.equal( stub );
+				expect( result ).toBe( stub );
 			} );
 
 			it( 'should be possible to add custom position mapping callback after default callback', () => {
@@ -330,72 +331,72 @@ describe( 'Mapper', () => {
 				const stub = {};
 
 				mapper.on( 'viewToModelPosition', ( evt, data ) => {
-					expect( data.viewPosition.isEqual( viewPosition ) ).to.be.true;
-					expect( data.modelPosition.isEqual( modelPosition ) ).to.be.true;
+					expect( data.viewPosition.isEqual( viewPosition ) ).toBe( true );
+					expect( data.modelPosition.isEqual( modelPosition ) ).toBe( true );
 
 					data.modelPosition = stub;
 				}, { priority: 'low' } );
 
 				const result = mapper.toModelPosition( viewPosition );
 
-				expect( result ).to.equal( stub );
+				expect( result ).toBe( stub );
 			} );
 
 			// Default algorithm tests.
-			it( 'should transform viewDiv 0', () => createToModelTest( viewDiv, 0, modelDiv, 0 ) );
-			it( 'should transform viewDiv 1', () => createToModelTest( viewDiv, 1, modelDiv, 1 ) );
-			it( 'should transform viewDiv 2', () => createToModelTest( viewDiv, 2, modelDiv, 2 ) );
-			it( 'should transform viewDiv 3', () => createToModelTest( viewDiv, 3, modelDiv, 4 ) );
+			it( 'should transform viewDiv 0', () => testToModelPosition( viewDiv, 0, modelDiv, 0 ) );
+			it( 'should transform viewDiv 1', () => testToModelPosition( viewDiv, 1, modelDiv, 1 ) );
+			it( 'should transform viewDiv 2', () => testToModelPosition( viewDiv, 2, modelDiv, 2 ) );
+			it( 'should transform viewDiv 3', () => testToModelPosition( viewDiv, 3, modelDiv, 4 ) );
 
-			it( 'should transform viewTextX 0', () => createToModelTest( viewTextX, 0, modelDiv, 0 ) );
-			it( 'should transform viewTextX 1', () => createToModelTest( viewTextX, 1, modelDiv, 1 ) );
+			it( 'should transform viewTextX 0', () => testToModelPosition( viewTextX, 0, modelDiv, 0 ) );
+			it( 'should transform viewTextX 1', () => testToModelPosition( viewTextX, 1, modelDiv, 1 ) );
 
-			it( 'should transform viewP 0', () => createToModelTest( viewP, 0, modelP, 0 ) );
-			it( 'should transform viewP 1', () => createToModelTest( viewP, 1, modelP, 1 ) );
-			it( 'should transform viewP 2', () => createToModelTest( viewP, 2, modelP, 4 ) );
-			it( 'should transform viewP 3', () => createToModelTest( viewP, 3, modelP, 7 ) );
-			it( 'should transform viewP 4', () => createToModelTest( viewP, 4, modelP, 8 ) );
-			it( 'should transform viewP 5', () => createToModelTest( viewP, 5, modelP, 11 ) );
+			it( 'should transform viewP 0', () => testToModelPosition( viewP, 0, modelP, 0 ) );
+			it( 'should transform viewP 1', () => testToModelPosition( viewP, 1, modelP, 1 ) );
+			it( 'should transform viewP 2', () => testToModelPosition( viewP, 2, modelP, 4 ) );
+			it( 'should transform viewP 3', () => testToModelPosition( viewP, 3, modelP, 7 ) );
+			it( 'should transform viewP 4', () => testToModelPosition( viewP, 4, modelP, 8 ) );
+			it( 'should transform viewP 5', () => testToModelPosition( viewP, 5, modelP, 11 ) );
 
-			it( 'should transform viewTextY 0', () => createToModelTest( viewTextY, 0, modelP, 0 ) );
-			it( 'should transform viewTextY 1', () => createToModelTest( viewTextY, 1, modelP, 1 ) );
+			it( 'should transform viewTextY 0', () => testToModelPosition( viewTextY, 0, modelP, 0 ) );
+			it( 'should transform viewTextY 1', () => testToModelPosition( viewTextY, 1, modelP, 1 ) );
 
-			it( 'should transform viewB 0', () => createToModelTest( viewB, 0, modelP, 1 ) );
-			it( 'should transform viewB 1', () => createToModelTest( viewB, 1, modelP, 4 ) );
+			it( 'should transform viewB 0', () => testToModelPosition( viewB, 0, modelP, 1 ) );
+			it( 'should transform viewB 1', () => testToModelPosition( viewB, 1, modelP, 4 ) );
 
-			it( 'should transform viewI 0', () => createToModelTest( viewI, 0, modelP, 1 ) );
-			it( 'should transform viewI 1', () => createToModelTest( viewI, 1, modelP, 4 ) );
+			it( 'should transform viewI 0', () => testToModelPosition( viewI, 0, modelP, 1 ) );
+			it( 'should transform viewI 1', () => testToModelPosition( viewI, 1, modelP, 4 ) );
 
-			it( 'should transform viewTextFOO 0', () => createToModelTest( viewTextFOO, 0, modelP, 1 ) );
-			it( 'should transform viewTextFOO 1', () => createToModelTest( viewTextFOO, 1, modelP, 2 ) );
-			it( 'should transform viewTextFOO 2', () => createToModelTest( viewTextFOO, 2, modelP, 3 ) );
-			it( 'should transform viewTextFOO 3', () => createToModelTest( viewTextFOO, 3, modelP, 4 ) );
+			it( 'should transform viewTextFOO 0', () => testToModelPosition( viewTextFOO, 0, modelP, 1 ) );
+			it( 'should transform viewTextFOO 1', () => testToModelPosition( viewTextFOO, 1, modelP, 2 ) );
+			it( 'should transform viewTextFOO 2', () => testToModelPosition( viewTextFOO, 2, modelP, 3 ) );
+			it( 'should transform viewTextFOO 3', () => testToModelPosition( viewTextFOO, 3, modelP, 4 ) );
 
-			it( 'should transform viewTextBAR 0', () => createToModelTest( viewTextBAR, 0, modelP, 4 ) );
-			it( 'should transform viewTextBAR 1', () => createToModelTest( viewTextBAR, 1, modelP, 5 ) );
-			it( 'should transform viewTextBAR 2', () => createToModelTest( viewTextBAR, 2, modelP, 6 ) );
-			it( 'should transform viewTextBAR 3', () => createToModelTest( viewTextBAR, 3, modelP, 7 ) );
+			it( 'should transform viewTextBAR 0', () => testToModelPosition( viewTextBAR, 0, modelP, 4 ) );
+			it( 'should transform viewTextBAR 1', () => testToModelPosition( viewTextBAR, 1, modelP, 5 ) );
+			it( 'should transform viewTextBAR 2', () => testToModelPosition( viewTextBAR, 2, modelP, 6 ) );
+			it( 'should transform viewTextBAR 3', () => testToModelPosition( viewTextBAR, 3, modelP, 7 ) );
 
-			it( 'should transform viewU 0', () => createToModelTest( viewU, 0, modelP, 8 ) );
-			it( 'should transform viewU 1', () => createToModelTest( viewU, 1, modelP, 9 ) );
-			it( 'should transform viewU 2', () => createToModelTest( viewU, 2, modelP, 10 ) );
-			it( 'should transform viewU 3', () => createToModelTest( viewU, 3, modelP, 11 ) );
+			it( 'should transform viewU 0', () => testToModelPosition( viewU, 0, modelP, 8 ) );
+			it( 'should transform viewU 1', () => testToModelPosition( viewU, 1, modelP, 9 ) );
+			it( 'should transform viewU 2', () => testToModelPosition( viewU, 2, modelP, 10 ) );
+			it( 'should transform viewU 3', () => testToModelPosition( viewU, 3, modelP, 11 ) );
 
-			it( 'should transform viewTextB 0', () => createToModelTest( viewTextB, 0, modelP, 8 ) );
-			it( 'should transform viewTextB 1', () => createToModelTest( viewTextB, 1, modelP, 9 ) );
+			it( 'should transform viewTextB 0', () => testToModelPosition( viewTextB, 0, modelP, 8 ) );
+			it( 'should transform viewTextB 1', () => testToModelPosition( viewTextB, 1, modelP, 9 ) );
 
-			it( 'should transform viewSup 0', () => createToModelTest( viewSup, 0, modelP, 9 ) );
-			it( 'should transform viewSup 1', () => createToModelTest( viewSup, 1, modelP, 10 ) );
+			it( 'should transform viewSup 0', () => testToModelPosition( viewSup, 0, modelP, 9 ) );
+			it( 'should transform viewSup 1', () => testToModelPosition( viewSup, 1, modelP, 10 ) );
 
-			it( 'should transform viewTextO 0', () => createToModelTest( viewTextO, 0, modelP, 9 ) );
-			it( 'should transform viewTextO 1', () => createToModelTest( viewTextO, 1, modelP, 10 ) );
+			it( 'should transform viewTextO 0', () => testToModelPosition( viewTextO, 0, modelP, 9 ) );
+			it( 'should transform viewTextO 1', () => testToModelPosition( viewTextO, 1, modelP, 10 ) );
 
-			it( 'should transform viewTextM 0', () => createToModelTest( viewTextM, 0, modelP, 10 ) );
-			it( 'should transform viewTextM 1', () => createToModelTest( viewTextM, 1, modelP, 11 ) );
+			it( 'should transform viewTextM 0', () => testToModelPosition( viewTextM, 0, modelP, 10 ) );
+			it( 'should transform viewTextM 1', () => testToModelPosition( viewTextM, 1, modelP, 11 ) );
 
-			it( 'should transform viewTextZZ 0', () => createToModelTest( viewTextZZ, 0, modelDiv, 2 ) );
-			it( 'should transform viewTextZZ 1', () => createToModelTest( viewTextZZ, 1, modelDiv, 3 ) );
-			it( 'should transform viewTextZZ 2', () => createToModelTest( viewTextZZ, 2, modelDiv, 4 ) );
+			it( 'should transform viewTextZZ 0', () => testToModelPosition( viewTextZZ, 0, modelDiv, 2 ) );
+			it( 'should transform viewTextZZ 1', () => testToModelPosition( viewTextZZ, 1, modelDiv, 3 ) );
+			it( 'should transform viewTextZZ 2', () => testToModelPosition( viewTextZZ, 2, modelDiv, 4 ) );
 		} );
 
 		describe( 'toViewPosition', () => {
@@ -404,7 +405,7 @@ describe( 'Mapper', () => {
 				const stub = {};
 
 				mapper.on( 'modelToViewPosition', ( evt, data ) => {
-					expect( data.modelPosition.isEqual( modelPosition ) ).to.be.true;
+					expect( data.modelPosition.isEqual( modelPosition ) ).toBe( true );
 
 					data.viewPosition = stub;
 					// Do not stop the event. Test whether default algorithm was not called if data.viewPosition is already set.
@@ -412,7 +413,7 @@ describe( 'Mapper', () => {
 
 				const result = mapper.toViewPosition( modelPosition );
 
-				expect( result ).to.equal( stub );
+				expect( result ).toBe( stub );
 			} );
 
 			it( 'should be possible to add custom position mapping callback after default callback', () => {
@@ -424,15 +425,15 @@ describe( 'Mapper', () => {
 				const stub = {};
 
 				mapper.on( 'modelToViewPosition', ( evt, data ) => {
-					expect( data.modelPosition.isEqual( modelPosition ) ).to.be.true;
-					expect( data.viewPosition.isEqual( viewPosition ) ).to.be.true;
+					expect( data.modelPosition.isEqual( modelPosition ) ).toBe( true );
+					expect( data.viewPosition.isEqual( viewPosition ) ).toBe( true );
 
 					data.viewPosition = stub;
 				}, { priority: 'low' } );
 
 				const result = mapper.toViewPosition( modelPosition );
 
-				expect( result ).to.equal( stub );
+				expect( result ).toBe( stub );
 			} );
 
 			it( 'should throw an error on missing position parent view element', () => {
@@ -445,38 +446,192 @@ describe( 'Mapper', () => {
 
 				expect( () => {
 					mapper.toViewPosition( modelPosition );
-				} ).to.throw( CKEditorError, 'mapping-model-position-view-parent-not-found' );
+				} ).toThrow( /mapping-model-position-view-parent-not-found/ );
 			} );
 
 			// Default algorithm tests.
-			it( 'should transform modelDiv 0', () => createToViewTest( modelDiv, 0, viewTextX, 0 ) );
-			it( 'should transform modelDiv 1', () => createToViewTest( modelDiv, 1, viewTextX, 1 ) );
-			it( 'should transform modelDiv 2', () => createToViewTest( modelDiv, 2, viewTextZZ, 0 ) );
-			it( 'should transform modelDiv 3', () => createToViewTest( modelDiv, 3, viewTextZZ, 1 ) );
-			it( 'should transform modelDiv 4', () => createToViewTest( modelDiv, 4, viewTextZZ, 2 ) );
+			it( 'should transform modelDiv 0', () => testToViewPosition( modelDiv, 0, viewTextX, 0 ) );
+			it( 'should transform modelDiv 1', () => testToViewPosition( modelDiv, 1, viewTextX, 1 ) );
+			it( 'should transform modelDiv 2', () => testToViewPosition( modelDiv, 2, viewTextZZ, 0 ) );
+			it( 'should transform modelDiv 3', () => testToViewPosition( modelDiv, 3, viewTextZZ, 1 ) );
+			it( 'should transform modelDiv 4', () => testToViewPosition( modelDiv, 4, viewTextZZ, 2 ) );
 
-			it( 'should transform modelP 0', () => createToViewTest( modelP, 0, viewTextY, 0 ) );
-			it( 'should transform modelP 1', () => createToViewTest( modelP, 1, viewTextY, 1 ) );
-			it( 'should transform modelP 2', () => createToViewTest( modelP, 2, viewTextFOO, 1 ) );
-			it( 'should transform modelP 3', () => createToViewTest( modelP, 3, viewTextFOO, 2 ) );
-			it( 'should transform modelP 4', () => createToViewTest( modelP, 4, viewTextBAR, 0 ) );
-			it( 'should transform modelP 5', () => createToViewTest( modelP, 5, viewTextBAR, 1 ) );
-			it( 'should transform modelP 6', () => createToViewTest( modelP, 6, viewTextBAR, 2 ) );
-			it( 'should transform modelP 7', () => createToViewTest( modelP, 7, viewTextBAR, 3 ) );
-			it( 'should transform modelP 8', () => createToViewTest( modelP, 8, viewP, 4 ) );
-			it( 'should transform modelP 9', () => createToViewTest( modelP, 9, viewTextB, 1 ) );
-			it( 'should transform modelP 10', () => createToViewTest( modelP, 10, viewTextM, 0 ) );
-			it( 'should transform modelP 11', () => createToViewTest( modelP, 11, viewP, 5 ) );
+			it( 'should transform modelP 0', () => testToViewPosition( modelP, 0, viewTextY, 0 ) );
+			it( 'should transform modelP 1', () => testToViewPosition( modelP, 1, viewTextY, 1 ) );
+			it( 'should transform modelP 2', () => testToViewPosition( modelP, 2, viewTextFOO, 1 ) );
+			it( 'should transform modelP 3', () => testToViewPosition( modelP, 3, viewTextFOO, 2 ) );
+			it( 'should transform modelP 4', () => testToViewPosition( modelP, 4, viewTextBAR, 0 ) );
+			it( 'should transform modelP 5', () => testToViewPosition( modelP, 5, viewTextBAR, 1 ) );
+			it( 'should transform modelP 6', () => testToViewPosition( modelP, 6, viewTextBAR, 2 ) );
+			it( 'should transform modelP 7', () => testToViewPosition( modelP, 7, viewTextBAR, 3 ) );
+			it( 'should transform modelP 8', () => testToViewPosition( modelP, 8, viewP, 4 ) );
+			it( 'should transform modelP 9', () => testToViewPosition( modelP, 9, viewTextB, 1 ) );
+			it( 'should transform modelP 10', () => testToViewPosition( modelP, 10, viewTextM, 0 ) );
+			it( 'should transform modelP 11', () => testToViewPosition( modelP, 11, viewP, 5 ) );
+
+			// Below tests a particular code execution path that can happen only if cache for given mapped element ends deep (in view)
+			// in that element while we request mapping that reaches somewhere further in this model element.
+			it( 'should transform modelDiv 2 starting from nested cache', () => {
+				// We need to create a different model and view for this sample as the one used in other tests cannot reproduce this.
+				//
+				// View structure is:
+				//
+				// <p>
+				//   ├─ a
+				//   ├─ <b>
+				//   │   ├─ b
+				//   │   ├─ <u>
+				//   │   │   └─ c
+				//   │   ├─ <i>
+				//   │   │   └─ d
+				//   │   └─ e
+				//   └─ f
+				//
+				const modelP2 = new ModelElement( 'paragraph', {}, [
+					new ModelText( 'a' ),
+					new ModelText( 'b', { b: true } ),
+					new ModelText( 'c', { b: true, u: true } ),
+					new ModelText( 'd', { b: true, i: true } ),
+					new ModelText( 'e', { b: true } ),
+					new ModelText( 'f' )
+				] );
+
+				const viewTextA = new ViewText( viewDocument, 'a' );
+				const viewTextB = new ViewText( viewDocument, 'b' );
+				const viewTextC = new ViewText( viewDocument, 'c' );
+				const viewTextD = new ViewText( viewDocument, 'd' );
+				const viewTextE = new ViewText( viewDocument, 'e' );
+				const viewTextF = new ViewText( viewDocument, 'f' );
+
+				const viewU = new ViewElement( viewDocument, 'u', {}, [ viewTextC ] );
+				const viewI = new ViewElement( viewDocument, 'i', {}, [ viewTextD ] );
+				const viewB = new ViewElement( viewDocument, 'b', {}, [ viewTextB, viewU, viewI, viewTextE ] );
+
+				const viewP2 = new ViewElement( viewDocument, 'p', {}, [ viewTextA, viewB, viewTextF ] );
+
+				mapper.bindElements( modelP2, viewP2 );
+
+				// Since tests in this suite are artificial and the view and model is modified directly, the scenario is easier to simulate.
+				//
+				// First request some mappings to build whole cache.
+				//
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 1 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 2 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 3 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 4 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 5 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 6 ) );
+				//
+				// Then we will invalidate part of the cache by adding another letter to `<i>`.
+				//
+				modelP2._removeChildren( 3, 1 );
+				modelP2._insertChild( 3, new ModelText( 'dd', { b: true, i: true } ) );
+				viewTextD._data = 'dd';
+				//
+				// After invalidation the cache will end before `<i>`: `<p>a<b>b<u>c</u>|<i>dd</i>e</b>f</p>`
+				//
+				// Then, again request mapping for model offset at the end of `<paragraph>`.
+				// This way, `Mapper` will start looking side `viewU` and will have to "traverse up" into `<p>` after reaching end of `<b>`.
+				testToViewPosition( modelP2, 7, viewTextF, 1 );
+			} );
+
+			// Below tests whether the cache is correctly built and invalidated in a particular scenario that involves nested attribute
+			// elements and cached model position after an attribute element. It was discovered when fixing
+			// https://github.com/ckeditor/ckeditor5/issues/18678, but this is not the case described in the issue.
+			it( 'should correctly invalidate cache and map position if nested attribute was earlier partially invalidated', () => {
+				// We need to create a different model and view for this sample as the one used in other tests cannot reproduce this.
+				//
+				// View structure is: <p>a<b>b<u>c</u>d</b><i>e</i></p>.
+				//
+				const modelP2 = new ModelElement( 'paragraph', {}, [
+					new ModelText( 'a' ),
+					new ModelText( 'b', { b: true } ),
+					new ModelText( 'c', { b: true, u: true } ),
+					new ModelText( 'd', { b: true } ),
+					new ModelText( 'e', { i: true } )
+				] );
+
+				const viewTextA = new ViewText( viewDocument, 'a' );
+				const viewTextB = new ViewText( viewDocument, 'b' );
+				const viewTextC = new ViewText( viewDocument, 'c' );
+				const viewTextD = new ViewText( viewDocument, 'd' );
+				const viewTextE = new ViewText( viewDocument, 'e' );
+
+				const viewU = new ViewElement( viewDocument, 'u', {}, [ viewTextC ] );
+				const viewB = new ViewElement( viewDocument, 'b', {}, [ viewTextB, viewU, viewTextD ] );
+				const viewI = new ViewElement( viewDocument, 'i', {}, [ viewTextE ] );
+
+				const viewP2 = new ViewElement( viewDocument, 'p', {}, [ viewTextA, viewB, viewI ] );
+
+				mapper.bindElements( modelP2, viewP2 );
+
+				// Since tests in this suite are artificial and the view and model is modified directly, the scenario is easier to simulate.
+				//
+				// First request some mappings to build whole cache.
+				//
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 1 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 2 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 3 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 4 ) );
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 5 ) );
+				//
+				// Then we will invalidate part of the cache by adding another letter to `c`.
+				//
+				modelP2._removeChildren( 2, 1 );
+				modelP2._insertChild( 2, new ModelText( 'cc', { b: true, u: true } ) );
+				viewTextC._data = 'cc';
+				//
+				// After invalidation the cache will end before `<u>`: `<p>a<b>b|<u>cc</u>d</b><i>e</i></p>`
+				//
+				// Now we again make a request, for model offset `6`, which is after `e`.
+				// Since we have position cached before `<u>` we will continue from there.
+				// We will "move up" when reaching end of `</b>`.
+				// Note, that before fixes were made `<b>` would not be cached when "moving up".
+				//
+				mapper.toViewPosition( ModelPosition._createAt( modelP2, 6 ) );
+				//
+				// This has lead to a situation where model offset `5` was cached after `d`, and `7` was cached after `</i>`:
+				//
+				// <p>a<b>b<u>cc</u>d|</b><i>e</i>|</p>
+				//
+				// But `<b></b>` was not cached.
+				//
+				// This has lead to incorrect behavior when something was added between `</b><i>`. Mapper cache would try to invalidate
+				// cache starting from before `<b>` element, but `<b>` element was not cached. Since `<b>` is directly inside `<p>` (mapped
+				// element), the cache "thought" there's nothing to invalidate. But that's not true as there's cached position after `</i>`.
+				//
+				modelP2._insertChild( 5, new ModelText( 'xxx' ) );
+				const viewTextX = new ViewText( viewDocument, 'xxx' );
+				viewP2._insertChild( 2, viewTextX );
+				//
+				// After inserting `x`: `<p>a<b>b<u>cc</u>d</b>xxx<i>e</i></p>`
+				//
+				const modelPosition = ModelPosition._createAt( modelP2, 6 );
+				const viewPosition = mapper.toViewPosition( modelPosition );
+				//
+				// Since there was outdated cached position for model offset `6`, mapped to view position `(p, 3)`, in incorrect scenario,
+				// we would get mapping for model offset `6` from cache, and it would point after `xxx`, which actually is offset `8`.
+				//
+				// Correct mapping for model offset `6` is of course `x{}xx`:
+				//
+				expect( viewPosition.parent ).toBe( viewTextX );
+				expect( viewPosition.offset ).toBe( 1 );
+				//
+				// Incorrect before fix `xxx{}` (note it is moved to text node from `(p, 3)`:
+				//
+				// expect( viewPosition.parent ).toBe( viewTextX );
+				// expect( viewPosition.offset ).toBe( 3 );
+			} );
 		} );
 
 		describe( 'toModelRange', () => {
 			it( 'should transform range', () => {
 				const viewRange = ViewRange._createFromParentsAndOffsets( viewDiv, 0, viewTextFOO, 2 );
 				const modelRange = mapper.toModelRange( viewRange );
-				expect( modelRange.start.parent ).to.equal( modelDiv );
-				expect( modelRange.start.offset ).to.equal( 0 );
-				expect( modelRange.end.parent ).to.equal( modelP );
-				expect( modelRange.end.offset ).to.equal( 3 );
+				expect( modelRange.start.parent ).toBe( modelDiv );
+				expect( modelRange.start.offset ).toBe( 0 );
+				expect( modelRange.end.parent ).toBe( modelP );
+				expect( modelRange.end.offset ).toBe( 3 );
 			} );
 		} );
 
@@ -484,25 +639,31 @@ describe( 'Mapper', () => {
 			it( 'should transform range', () => {
 				const modelRange = new ModelRange( ModelPosition._createAt( modelDiv, 0 ), ModelPosition._createAt( modelP, 3 ) );
 				const viewRange = mapper.toViewRange( modelRange );
-				expect( viewRange.start.parent ).to.equal( viewTextX );
-				expect( viewRange.start.offset ).to.equal( 0 );
-				expect( viewRange.end.parent ).to.equal( viewTextFOO );
-				expect( viewRange.end.offset ).to.equal( 2 );
+				expect( viewRange.start.parent ).toBe( viewTextX );
+				expect( viewRange.start.offset ).toBe( 0 );
+				expect( viewRange.end.parent ).toBe( viewTextFOO );
+				expect( viewRange.end.offset ).toBe( 2 );
 			} );
 		} );
 
-		function createToViewTest( modelElement, modelOffset, viewElement, viewOffset ) {
+		it( 'should throw if model offset is to big and cannot be found in mapped view element', () => {
+			expect( () => {
+				mapper.findPositionIn( viewDiv, 5 );
+			} ).toThrow( /mapping-model-offset-not-found/ );
+		} );
+
+		function testToViewPosition( modelElement, modelOffset, viewElement, viewOffset ) {
 			const modelPosition = ModelPosition._createAt( modelElement, modelOffset );
 			const viewPosition = mapper.toViewPosition( modelPosition );
-			expect( viewPosition.parent ).to.equal( viewElement );
-			expect( viewPosition.offset ).to.equal( viewOffset );
+			expect( viewPosition.parent ).toBe( viewElement );
+			expect( viewPosition.offset ).toBe( viewOffset );
 		}
 
-		function createToModelTest( viewElement, viewOffset, modelElement, modelOffset ) {
+		function testToModelPosition( viewElement, viewOffset, modelElement, modelOffset ) {
 			const viewPosition = new ViewPosition( viewElement, viewOffset );
 			const modelPosition = mapper.toModelPosition( viewPosition );
-			expect( modelPosition.parent ).to.equal( modelElement );
-			expect( modelPosition.offset ).to.equal( modelOffset );
+			expect( modelPosition.parent ).toBe( modelElement );
+			expect( modelPosition.offset ).toBe( modelOffset );
 		}
 	} );
 
@@ -512,7 +673,7 @@ describe( 'Mapper', () => {
 			viewTextX, viewTextFOO, viewTextZZ, viewTextLABEL,
 			mapper;
 
-		before( () => {
+		beforeEach( () => {
 			// Tree Model:
 			//
 			// <div>                 ---> modelDiv
@@ -566,77 +727,77 @@ describe( 'Mapper', () => {
 
 		describe( 'toModelElement', () => {
 			it( 'should return corresponding model element', () => {
-				expect( mapper.toModelElement( viewDiv ) ).to.equal( modelDiv );
-				expect( mapper.toModelElement( viewWidget ) ).to.equal( modelWidget );
-				expect( mapper.toModelElement( viewImg ) ).to.equal( modelImg );
-				expect( mapper.toModelElement( viewCaption ) ).to.equal( modelCaption );
+				expect( mapper.toModelElement( viewDiv ) ).toBe( modelDiv );
+				expect( mapper.toModelElement( viewWidget ) ).toBe( modelWidget );
+				expect( mapper.toModelElement( viewImg ) ).toBe( modelImg );
+				expect( mapper.toModelElement( viewCaption ) ).toBe( modelCaption );
 			} );
 		} );
 
 		describe( 'toViewElement', () => {
 			it( 'should return corresponding view element', () => {
-				expect( mapper.toViewElement( modelDiv ) ).to.equal( viewDiv );
-				expect( mapper.toViewElement( modelWidget ) ).to.equal( viewWidget );
-				expect( mapper.toViewElement( modelImg ) ).to.equal( viewImg );
-				expect( mapper.toViewElement( modelCaption ) ).to.equal( viewCaption );
+				expect( mapper.toViewElement( modelDiv ) ).toBe( viewDiv );
+				expect( mapper.toViewElement( modelWidget ) ).toBe( viewWidget );
+				expect( mapper.toViewElement( modelImg ) ).toBe( viewImg );
+				expect( mapper.toViewElement( modelCaption ) ).toBe( viewCaption );
 			} );
 		} );
 
 		describe( 'toModelPosition', () => {
-			it( 'should transform viewDiv 0', () => createToModelTest( viewDiv, 0, modelDiv, 0 ) );
-			it( 'should transform viewDiv 1', () => createToModelTest( viewDiv, 1, modelDiv, 1 ) );
-			it( 'should transform viewDiv 2', () => createToModelTest( viewDiv, 2, modelDiv, 2 ) );
-			it( 'should transform viewDiv 3', () => createToModelTest( viewDiv, 3, modelDiv, 4 ) );
+			it( 'should transform viewDiv 0', () => testToModelPosition( viewDiv, 0, modelDiv, 0 ) );
+			it( 'should transform viewDiv 1', () => testToModelPosition( viewDiv, 1, modelDiv, 1 ) );
+			it( 'should transform viewDiv 2', () => testToModelPosition( viewDiv, 2, modelDiv, 2 ) );
+			it( 'should transform viewDiv 3', () => testToModelPosition( viewDiv, 3, modelDiv, 4 ) );
 
-			it( 'should transform viewTextX 0', () => createToModelTest( viewTextX, 0, modelDiv, 0 ) );
-			it( 'should transform viewTextX 1', () => createToModelTest( viewTextX, 1, modelDiv, 1 ) );
+			it( 'should transform viewTextX 0', () => testToModelPosition( viewTextX, 0, modelDiv, 0 ) );
+			it( 'should transform viewTextX 1', () => testToModelPosition( viewTextX, 1, modelDiv, 1 ) );
 
-			it( 'should transform viewTextZZ 0', () => createToModelTest( viewTextZZ, 0, modelDiv, 2 ) );
-			it( 'should transform viewTextZZ 1', () => createToModelTest( viewTextZZ, 1, modelDiv, 3 ) );
-			it( 'should transform viewTextZZ 2', () => createToModelTest( viewTextZZ, 2, modelDiv, 4 ) );
+			it( 'should transform viewTextZZ 0', () => testToModelPosition( viewTextZZ, 0, modelDiv, 2 ) );
+			it( 'should transform viewTextZZ 1', () => testToModelPosition( viewTextZZ, 1, modelDiv, 3 ) );
+			it( 'should transform viewTextZZ 2', () => testToModelPosition( viewTextZZ, 2, modelDiv, 4 ) );
 
-			it( 'should transform viewImg 0', () => createToModelTest( viewImg, 0, modelImg, 0 ) );
+			it( 'should transform viewImg 0', () => testToModelPosition( viewImg, 0, modelImg, 0 ) );
 
-			it( 'should transform viewCaption 0', () => createToModelTest( viewCaption, 0, modelCaption, 0 ) );
-			it( 'should transform viewCaption 1', () => createToModelTest( viewCaption, 1, modelCaption, 3 ) );
+			it( 'should transform viewCaption 0', () => testToModelPosition( viewCaption, 0, modelCaption, 0 ) );
+			it( 'should transform viewCaption 1', () => testToModelPosition( viewCaption, 1, modelCaption, 3 ) );
 
-			it( 'should transform viewTextFOO 0', () => createToModelTest( viewTextFOO, 0, modelCaption, 0 ) );
-			it( 'should transform viewTextFOO 1', () => createToModelTest( viewTextFOO, 1, modelCaption, 1 ) );
-			it( 'should transform viewTextFOO 2', () => createToModelTest( viewTextFOO, 2, modelCaption, 2 ) );
-			it( 'should transform viewTextFOO 3', () => createToModelTest( viewTextFOO, 3, modelCaption, 3 ) );
+			it( 'should transform viewTextFOO 0', () => testToModelPosition( viewTextFOO, 0, modelCaption, 0 ) );
+			it( 'should transform viewTextFOO 1', () => testToModelPosition( viewTextFOO, 1, modelCaption, 1 ) );
+			it( 'should transform viewTextFOO 2', () => testToModelPosition( viewTextFOO, 2, modelCaption, 2 ) );
+			it( 'should transform viewTextFOO 3', () => testToModelPosition( viewTextFOO, 3, modelCaption, 3 ) );
 		} );
 
 		describe( 'toViewPosition and findPositionIn', () => {
-			it( 'should transform modelDiv 0', () => createToViewTest( modelDiv, 0, viewTextX, 0 ) );
-			it( 'should transform modelDiv 1', () => createToViewTest( modelDiv, 1, viewTextX, 1 ) );
-			it( 'should transform modelDiv 2', () => createToViewTest( modelDiv, 2, viewTextZZ, 0 ) );
-			it( 'should transform modelDiv 3', () => createToViewTest( modelDiv, 3, viewTextZZ, 1 ) );
-			it( 'should transform modelDiv 4', () => createToViewTest( modelDiv, 4, viewTextZZ, 2 ) );
+			it( 'should transform modelDiv 0', () => testToViewPosition( modelDiv, 0, viewTextX, 0 ) );
+			it( 'should transform modelDiv 1', () => testToViewPosition( modelDiv, 1, viewTextX, 1 ) );
+			it( 'should transform modelDiv 2', () => testToViewPosition( modelDiv, 2, viewTextZZ, 0 ) );
+			it( 'should transform modelDiv 3', () => testToViewPosition( modelDiv, 3, viewTextZZ, 1 ) );
+			it( 'should transform modelDiv 4', () => testToViewPosition( modelDiv, 4, viewTextZZ, 2 ) );
 
-			it( 'should transform modelImg 0', () => createToViewTest( modelImg, 0, viewImg, 0 ) );
+			it( 'should transform modelImg 0', () => testToViewPosition( modelImg, 0, viewImg, 0 ) );
 
-			it( 'should transform modelCaption 0', () => createToViewTest( modelCaption, 0, viewTextFOO, 0 ) );
-			it( 'should transform modelCaption 1', () => createToViewTest( modelCaption, 1, viewTextFOO, 1 ) );
-			it( 'should transform modelCaption 2', () => createToViewTest( modelCaption, 2, viewTextFOO, 2 ) );
-			it( 'should transform modelCaption 3', () => createToViewTest( modelCaption, 3, viewTextFOO, 3 ) );
+			it( 'should transform modelCaption 0', () => testToViewPosition( modelCaption, 0, viewTextFOO, 0 ) );
+			it( 'should transform modelCaption 1', () => testToViewPosition( modelCaption, 1, viewTextFOO, 1 ) );
+			it( 'should transform modelCaption 2', () => testToViewPosition( modelCaption, 2, viewTextFOO, 2 ) );
+			it( 'should transform modelCaption 3', () => testToViewPosition( modelCaption, 3, viewTextFOO, 3 ) );
 		} );
 
-		function createToViewTest( modelElement, modelOffset, viewElement, viewOffset ) {
+		function testToViewPosition( modelElement, modelOffset, viewElement, viewOffset ) {
 			const modelPosition = ModelPosition._createAt( modelElement, modelOffset );
 			let viewPosition = mapper.toViewPosition( modelPosition );
-			expect( viewPosition.parent ).to.equal( viewElement );
-			expect( viewPosition.offset ).to.equal( viewOffset );
+			expect( viewPosition.parent ).toBe( viewElement );
+			expect( viewPosition.offset ).toBe( viewOffset );
 
 			viewPosition = mapper.findPositionIn( mapper.toViewElement( modelElement ), modelOffset );
-			expect( viewPosition.parent ).to.equal( viewElement );
-			expect( viewPosition.offset ).to.equal( viewOffset );
+			expect( viewPosition.parent ).toBe( viewElement );
+			expect( viewPosition.offset ).toBe( viewOffset );
 		}
 
-		function createToModelTest( viewElement, viewOffset, modelElement, modelOffset ) {
+		function testToModelPosition( viewElement, viewOffset, modelElement, modelOffset ) {
 			const viewPosition = new ViewPosition( viewElement, viewOffset );
 			const modelPosition = mapper.toModelPosition( viewPosition );
-			expect( modelPosition.parent ).to.equal( modelElement );
-			expect( modelPosition.offset ).to.equal( modelOffset );
+			expect( modelPosition.parent ).toBe( modelElement );
+			expect( modelPosition.offset ).toBe( modelOffset );
 		}
 	} );
 
@@ -648,7 +809,7 @@ describe( 'Mapper', () => {
 			viewListItem1, viewListItem2,
 			viewListItem11, viewListItem12;
 
-		before( () => {
+		beforeAll( () => {
 			modelListItem1 = new ModelElement( 'listItem', null, new ModelText( 'aaa' ) );
 			modelListItem11 = new ModelElement( 'listItem', null, new ModelText( 'bbb' ) );
 			modelListItem12 = new ModelElement( 'listItem', null, new ModelText( 'ccc' ) );
@@ -691,19 +852,47 @@ describe( 'Mapper', () => {
 		} );
 
 		describe( 'toModelPosition', () => {
-			it( 'should transform viewRoot 0', () => createToModelTest( viewRoot, 0, modelRoot, 0 ) );
-			it( 'should transform viewRoot 1', () => createToModelTest( viewRoot, 1, modelRoot, 4 ) );
-			it( 'should transform viewList 0', () => createToModelTest( viewList, 0, modelRoot, 0 ) );
-			it( 'should transform viewList 1', () => createToModelTest( viewList, 1, modelRoot, 3 ) );
-			it( 'should transform viewList 2', () => createToModelTest( viewList, 2, modelRoot, 4 ) );
+			it( 'should transform viewRoot 0', () => testToModelPosition( viewRoot, 0, modelRoot, 0 ) );
+			it( 'should transform viewRoot 1', () => testToModelPosition( viewRoot, 1, modelRoot, 4 ) );
+			it( 'should transform viewList 0', () => testToModelPosition( viewList, 0, modelRoot, 0 ) );
+			it( 'should transform viewList 1', () => testToModelPosition( viewList, 1, modelRoot, 3 ) );
+			it( 'should transform viewList 2', () => testToModelPosition( viewList, 2, modelRoot, 4 ) );
 		} );
 
-		function createToModelTest( viewElement, viewOffset, modelElement, modelOffset ) {
+		function testToModelPosition( viewElement, viewOffset, modelElement, modelOffset ) {
 			const viewPosition = new ViewPosition( viewElement, viewOffset );
 			const modelPosition = mapper.toModelPosition( viewPosition );
-			expect( modelPosition.parent ).to.equal( modelElement );
-			expect( modelPosition.offset ).to.equal( modelOffset );
+			expect( modelPosition.parent ).toBe( modelElement );
+			expect( modelPosition.offset ).toBe( modelOffset );
 		}
+	} );
+
+	describe( 'findPositionIn', () => {
+		it( 'should continue searching in the parent when an element with a custom view-to-model length has less content ' +
+			'than the target model offset', () => {
+			// Note: registering a custom view-to-model length callback disables position caching in `Mapper`.
+			//
+			// `<widget></widget>` is an empty view element which represents 2 model units. When looking for a model offset
+			// "inside" it, `Mapper` runs out of its (non-existent) children before reaching the target model offset,
+			// and must "go up" and continue looking in the parent element.
+			const viewTextFoo = new ViewText( viewDocument, 'foo' );
+			const viewWidget = new ViewElement( viewDocument, 'widget' );
+			const viewTextBar = new ViewText( viewDocument, 'bar' );
+			const viewP = new ViewElement( viewDocument, 'p', null, [ viewTextFoo, viewWidget, viewTextBar ] );
+
+			const modelP = new ModelElement( 'paragraph' );
+
+			const mapper = new Mapper();
+
+			mapper.bindElements( modelP, viewP );
+			mapper.registerViewToModelLength( 'widget', () => 2 );
+
+			// Model offsets in `viewP`: "foo" occupies offsets 0-3, `<widget>` occupies offsets 3-5, "bar" occupies offsets 5-8.
+			const viewPosition = mapper.findPositionIn( viewP, 4 );
+
+			expect( viewPosition.parent ).toBe( viewTextBar );
+			expect( viewPosition.offset ).toBe( 1 );
+		} );
 	} );
 
 	describe( 'Markers mapping', () => {
@@ -720,9 +909,9 @@ describe( 'Mapper', () => {
 
 			const elements = mapper.markerNameToElements( 'marker' );
 
-			expect( elements ).to.be.instanceof( Set );
-			expect( elements.size ).to.equal( 1 );
-			expect( elements.has( view ) ).to.be.true;
+			expect( elements ).toBeInstanceOf( Set );
+			expect( elements.size ).toBe( 1 );
+			expect( elements.has( view ) ).toBe( true );
 		} );
 
 		it( 'should bind multiple elements to a marker name', () => {
@@ -736,7 +925,7 @@ describe( 'Mapper', () => {
 
 			const elements = Array.from( mapper.markerNameToElements( 'marker' ) );
 
-			expect( elements ).to.deep.equal( [ viewA, viewB, viewC ] );
+			expect( elements ).toEqual( [ viewA, viewB, viewC ] );
 		} );
 
 		it( 'should unbind element from a marker name', () => {
@@ -749,17 +938,17 @@ describe( 'Mapper', () => {
 
 			mapper.unbindElementFromMarkerName( viewA, 'marker' );
 
-			expect( Array.from( mapper.markerNameToElements( 'marker' ) ) ).to.deep.equal( [ viewB ] );
-			expect( Array.from( mapper.markerNameToElements( 'markerB' ) ) ).to.deep.equal( [ viewA ] );
+			expect( Array.from( mapper.markerNameToElements( 'marker' ) ) ).toEqual( [ viewB ] );
+			expect( Array.from( mapper.markerNameToElements( 'markerB' ) ) ).toEqual( [ viewA ] );
 
 			mapper.unbindElementFromMarkerName( viewB, 'marker' );
 
-			expect( mapper.markerNameToElements( 'marker' ) ).to.be.null;
+			expect( mapper.markerNameToElements( 'marker' ) ).toBeNull();
 
 			// Removing an element from non-existing group or non-bound element should not cause a crash.
 			mapper.unbindElementFromMarkerName( viewB, 'marker' );
 
-			expect( mapper.markerNameToElements( 'marker' ) ).to.be.null;
+			expect( mapper.markerNameToElements( 'marker' ) ).toBeNull();
 		} );
 	} );
 
@@ -767,7 +956,7 @@ describe( 'Mapper', () => {
 		const mapper = new Mapper();
 
 		mapper.on( 'modelToViewPosition', ( evt, data ) => {
-			expect( data.isPhantom ).to.be.true;
+			expect( data.isPhantom ).toBe( true );
 
 			evt.stop();
 		} );
@@ -787,7 +976,7 @@ describe( 'Mapper', () => {
 
 			mapper.registerViewToModelLength( 'span', () => 4 );
 
-			expect( mapper.getModelLength( viewElement ) ).to.equal( 4 );
+			expect( mapper.getModelLength( viewElement ) ).toBe( 4 );
 		} );
 
 		it( 'should return 1 for mapped elements', () => {
@@ -795,19 +984,19 @@ describe( 'Mapper', () => {
 			const modelElement = new ModelElement( 'span' );
 			mapper.bindElements( modelElement, viewElement );
 
-			expect( mapper.getModelLength( viewElement ) ).to.equal( 1 );
+			expect( mapper.getModelLength( viewElement ) ).toBe( 1 );
 		} );
 
 		it( 'should return 0 for ui elements', () => {
 			const viewUiElement = new ViewUIElement( viewDocument, 'span' );
 
-			expect( mapper.getModelLength( viewUiElement ) ).to.equal( 0 );
+			expect( mapper.getModelLength( viewUiElement ) ).toBe( 0 );
 		} );
 
 		it( 'should return length of data for text nodes', () => {
 			const viewText = new ViewText( viewDocument, 'foo' );
 
-			expect( mapper.getModelLength( viewText ) ).to.equal( 3 );
+			expect( mapper.getModelLength( viewText ) ).toBe( 3 );
 		} );
 
 		it( 'should return sum of length of children for unmapped element', () => {
@@ -821,7 +1010,7 @@ describe( 'Mapper', () => {
 			mapper.bindElements( modelP, viewP );
 			mapper.registerViewToModelLength( 'xxx', () => 2 );
 
-			expect( mapper.getModelLength( viewDiv ) ).to.equal( 6 );
+			expect( mapper.getModelLength( viewDiv ) ).toBe( 6 );
 		} );
 	} );
 
@@ -846,7 +1035,7 @@ describe( 'Mapper', () => {
 
 			const viewMappedAncestor = mapper.findMappedViewAncestor( viewPosition );
 
-			expect( viewMappedAncestor ).to.equal( viewP );
+			expect( viewMappedAncestor ).toBe( viewP );
 		} );
 	} );
 
@@ -863,13 +1052,458 @@ describe( 'Mapper', () => {
 
 			mapper.unbindViewElement( viewA );
 
-			expect( mapper.flushUnboundMarkerNames() ).to.deep.equal( [ 'foo', 'bar' ] );
-			expect( mapper.flushUnboundMarkerNames() ).to.deep.equal( [] );
+			expect( mapper.flushUnboundMarkerNames() ).toEqual( [ 'foo', 'bar' ] );
+			expect( mapper.flushUnboundMarkerNames() ).toEqual( [] );
 
 			mapper.unbindViewElement( viewB );
 
-			expect( mapper.flushUnboundMarkerNames() ).to.deep.equal( [ 'bar' ] );
-			expect( mapper.flushUnboundMarkerNames() ).to.deep.equal( [] );
+			expect( mapper.flushUnboundMarkerNames() ).toEqual( [ 'bar' ] );
+			expect( mapper.flushUnboundMarkerNames() ).toEqual( [] );
 		} );
 	} );
+} );
+
+describe( 'MapperCache', () => {
+	let cache, viewContainer, viewDocument, viewTextAb, viewSpan, viewEm, viewB, viewTextCd, viewTextE, viewTextF, viewTextGh;
+
+	beforeEach( () => {
+		viewDocument = new ViewDocument( new StylesProcessor() );
+		cache = new MapperCache();
+
+		// <p>ab<span>cd<em><b>e</b>f</em></span>gh</p>.
+		viewTextAb = new ViewText( viewDocument, 'ab' );
+		viewTextCd = new ViewText( viewDocument, 'cd' );
+		viewTextE = new ViewText( viewDocument, 'e' );
+		viewTextF = new ViewText( viewDocument, 'f' );
+
+		viewB = new ViewAttributeElement( viewDocument, 'b', null, [ viewTextE ] );
+		viewEm = new ViewAttributeElement( viewDocument, 'em', null, [ viewB, viewTextF ] );
+		viewSpan = new ViewAttributeElement( viewDocument, 'span', null, [ viewTextCd, viewEm ] );
+		viewTextGh = new ViewText( viewDocument, 'gh' );
+		viewContainer = new ViewElement( viewDocument, 'p', null, [ viewTextAb, viewSpan, viewTextGh ] );
+	} );
+
+	describe( 'getClosest()', () => {
+		it( 'should start tracking and return position at the start of element if element was not tracked before', () => {
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 6 );
+
+			expect( viewPosition.parent ).toBe( viewContainer );
+			expect( viewPosition.offset ).toBe( 0 );
+			expect( modelOffset ).toBe( 0 );
+		} );
+
+		it( 'should return previously saved position', () => {
+			cache.startTracking( viewContainer );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 6 );
+
+			expect( viewPosition.parent ).toBe( viewContainer );
+			expect( viewPosition.offset ).toBe( 2 );
+			expect( modelOffset ).toBe( 6 );
+		} );
+
+		it( 'should return previously saved position (deep)', () => {
+			cache.startTracking( viewContainer );
+			cache.save( viewEm, 1, viewContainer, 5 );
+
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 5 );
+
+			expect( viewPosition.parent ).toBe( viewEm );
+			expect( viewPosition.offset ).toBe( 1 );
+			expect( modelOffset ).toBe( 5 );
+		} );
+
+		it( 'should return closest saved position if exact position was not saved', () => {
+			cache.startTracking( viewContainer );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 8 );
+
+			expect( viewPosition.parent ).toBe( viewContainer );
+			expect( viewPosition.offset ).toBe( 2 );
+			expect( modelOffset ).toBe( 6 );
+		} );
+
+		it( 'should return closest saved position if exact position was not saved (deep)', () => {
+			cache.startTracking( viewContainer );
+			cache.save( viewEm, 1, viewContainer, 5 );
+
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 8 );
+
+			expect( viewPosition.parent ).toBe( viewEm );
+			expect( viewPosition.offset ).toBe( 1 );
+			expect( modelOffset ).toBe( 5 );
+		} );
+
+		it( 'should return closest saved position if exact position was not saved (multiple saved positions)', () => {
+			cache.startTracking( viewContainer );
+
+			// Save model offsets in random order to give extra spice and cover some code...
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 1, viewContainer, 2 );
+
+			check( 1, viewContainer, 0, 0 );
+			check( 3, viewContainer, 1, 2 );
+			check( 5, viewSpan, 1, 4 );
+			check( 7, viewContainer, 2, 6 );
+			check( 9, viewContainer, 3, 8 );
+		} );
+	} );
+
+	describe( 'save()', () => {
+		it( 'should not overwrite previously saved cache for given model offset', () => {
+			cache.startTracking( viewContainer );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewSpan, 2, viewContainer, 6 );
+
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 6 );
+
+			expect( viewPosition.parent ).toBe( viewContainer );
+			expect( viewPosition.offset ).toBe( 2 );
+			expect( modelOffset ).toBe( 6 );
+		} );
+
+		it( 'should store index in _nodeToCacheListIndex for the node before the saved view position (viewOffset > 0)', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+
+			viewTextAb._data = 'abcd';
+
+			check( 2, viewContainer, 0, 0 );
+			check( 6, viewContainer, 0, 0 );
+		} );
+
+		it( 'should not store index in _nodeToCacheListIndex when viewOffset is 0', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 0, viewContainer, 99 );
+			cache.save( viewContainer, 1, viewContainer, 2 );
+
+			viewTextAb._data = 'xyz';
+
+			check( 99, viewContainer, 0, 0 );
+		} );
+	} );
+
+	describe( 'stopTracking()', () => {
+		it( 'should remove all cache data', () => {
+			cache.startTracking( viewContainer );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.stopTracking( viewContainer );
+
+			const { viewPosition, modelOffset } = cache.getClosest( viewContainer, 2 );
+
+			expect( viewPosition.parent ).toBe( viewContainer );
+			expect( viewPosition.offset ).toBe( 0 );
+			expect( modelOffset ).toBe( 0 );
+		} );
+	} );
+
+	describe( 'cache invalidation', () => {
+		it( 'should invalidate part of the existing cache when a node is inserted', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>cd<em><b>e</b>f</em></span>^gh</p> -> <p>ab<span>cd<em><b>e</b>f</em></span><strong></strong>gh</p>.
+			// This should invalidate cache starting from `<span>` (yes, that's correct, we invalidate a bit more than necessary).
+			viewContainer._insertChild( 2, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+			check( 3, viewContainer, 1, 2 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 6, viewContainer, 1, 2 );
+			check( 8, viewContainer, 1, 2 );
+		} );
+
+		it( 'should invalidate part of the existing cache when a node is inserted (deep)', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewSpan, 2, viewContainer, 6 );
+			cache.save( viewEm, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>cd<em>^<b>e</b>f</em></span>gh</p> -> <p>ab<span>cd<em><strong></strong><b>e</b>f</em></span>gh</p>.
+			// Since the insertion position is at the beginning of `<em>`, the position will be treated like it is before `<em>`.
+			// So the invalidation will start from "cd".
+			viewEm._insertChild( 0, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+			check( 3, viewContainer, 1, 2 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 4, viewContainer, 1, 2 );
+			check( 5, viewContainer, 1, 2 );
+			check( 6, viewContainer, 1, 2 );
+			check( 8, viewContainer, 1, 2 );
+		} );
+
+		it( 'should invalidate part of the existing cache when a node is inserted (deep #2 - direct parent not cached)', () => {
+			// This is a similar scenario as above, but this time, `<em>` -- the direct parent of insertion -- is not cached.
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>cd<em>^<b>e</b>f</em></span>gh</p> -> <p>ab<span>cd<em><strong></strong><b>e</b>f</em></span>gh</p>.
+			// This should invalidate cache starting from before `<span>` (not before `<em>`).
+			// That's because `<em>` is not cached, so we invalidate starting from before its parent.
+			viewEm._insertChild( 0, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+			check( 3, viewContainer, 1, 2 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 4, viewContainer, 1, 2 );
+			check( 6, viewContainer, 1, 2 );
+		} );
+
+		it( 'should invalidate part of the existing cache when a node is inserted (deep #3 - only top element cached)', () => {
+			// To show that only part of the cache is invalidated, we need more items in this sample.
+			const viewTextXXX = new ViewText( viewDocument, 'xxx' );
+			const viewStrong = new ViewAttributeElement( viewDocument, 'strong', null, viewTextXXX );
+			viewContainer._insertChild( 0, viewStrong );
+
+			// This is a similar scenario as above, but this time, `<em>` -- the direct parent of insertion -- is not cached.
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 3 );
+			cache.save( viewContainer, 2, viewContainer, 5 );
+			cache.save( viewContainer, 3, viewContainer, 9 );
+			cache.save( viewContainer, 4, viewContainer, 11 );
+
+			// <p><strong>xxx</strong>ab<span>cd<em>^<b>e</b>f</em></span>gh</p>
+			// -> <p><strong>xxx</strong>ab<span>cd<em><strong></strong><b>e</b>f</em></span>gh</p>.
+			// This should invalidate cache like the insertion is before `<span>`.
+			// That's because neither `<em>` nor "cd" are not cached, so we need to invalidate from a point further behind.
+			// In this case we invalidate all cache after "ab".
+			viewEm._insertChild( 0, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			// Retained cached:
+			check( 3, viewContainer, 1, 3 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 5, viewContainer, 1, 3 );
+			check( 9, viewContainer, 1, 3 );
+			check( 11, viewContainer, 1, 3 );
+		} );
+
+		it( 'should invalidate the existing cache when a node is inserted at the beginning of a non-tracked element', () => {
+			// This is a similar scenario as above, but this time, `<em>` -- the direct parent of insertion -- is not cached.
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewB, 1, viewContainer, 5 );
+			cache.save( viewEm, 1, viewContainer, 5 );
+			cache.save( viewEm, 2, viewContainer, 6 );
+			cache.save( viewSpan, 2, viewContainer, 6 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>^cd<em><b>e</b>f</em></span>gh</p> -> <p>ab<span><strong></strong>cd<em><b>e</b>f</em></span>gh</p>.
+			// This should invalidate cache starting from before `<span>`.
+			viewEm._insertChild( 0, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 3, viewContainer, 1, 2 );
+			check( 4, viewContainer, 1, 2 );
+			check( 5, viewContainer, 1, 2 );
+			check( 6, viewContainer, 1, 2 );
+			check( 7, viewContainer, 1, 2 );
+			check( 8, viewContainer, 1, 2 );
+		} );
+
+		it( 'nothing happens if change is after valid cache', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewEm, 1, viewContainer, 5 );
+
+			// <p>ab<span>cd<em>ef</em></span>gh^</p> -> <p>ab<span>cd<em>ef</em></span>gh<strong></strong></p>.
+			viewContainer._insertChild( 3, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			check( 2, viewContainer, 1, 2 );
+			check( 3, viewContainer, 1, 2 );
+			check( 4, viewSpan, 1, 4 );
+			check( 5, viewEm, 1, 5 );
+			check( 6, viewEm, 1, 5 );
+			check( 7, viewEm, 1, 5 );
+			check( 8, viewEm, 1, 5 );
+			check( 9, viewEm, 1, 5 );
+		} );
+
+		it( 'should invalidate all cache if change is at the beginning of tracked element', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>^ab<span>cd<em><b>e</b>f</em></span>gh</p> -> <p><strong></strong>ab<span>cd<em><b>e</b>f</em></span>gh</p>.
+			// This should invalidate all cache.
+			viewContainer._insertChild( 0, new ViewAttributeElement( viewDocument, 'strong' ) );
+
+			// Cache is cleared, the closest value is returned:
+			check( 1, viewContainer, 0, 0 );
+			check( 2, viewContainer, 0, 0 );
+			check( 8, viewContainer, 0, 0 );
+		} );
+
+		it( 'should invalidate cache when text node changes', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>cd<em><b>e</b>f</em></span>gh^</p> -> <p><strong></strong>ab<span>cd<em><b>e</b>f</em></span>ghi</p>.
+			// This should invalidate cache starting from before `"ghi"`.
+			viewTextGh._data = 'ghi';
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+			check( 4, viewSpan, 1, 4 );
+			check( 6, viewContainer, 2, 6 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 8, viewContainer, 2, 6 );
+		} );
+
+		it( 'should invalidate cache when text node changes (deep)', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewEm, 1, viewContainer, 6 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>cd<em><b>e^</b>f</em></span>gh</p> -> <p><strong></strong>ab<span>cd<em><b>ex</b>f</em></span></p>.
+			// This should invalidate cache starting from before `"ex"`. But "e" is first node, and its parents `<b>` and `<em>` are
+			// also first nodes, so we invalidate starting from before "cd".
+			viewTextE._data = 'ex';
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 4, viewContainer, 1, 2 );
+			check( 6, viewContainer, 1, 2 );
+			check( 8, viewContainer, 1, 2 );
+		} );
+
+		it( 'should invalidate cache when text node changes (deep - text node not cached)', () => {
+			cache.startTracking( viewContainer );
+
+			cache.save( viewContainer, 1, viewContainer, 2 );
+			cache.save( viewSpan, 1, viewContainer, 4 );
+			cache.save( viewContainer, 2, viewContainer, 6 );
+			cache.save( viewContainer, 3, viewContainer, 8 );
+
+			// <p>ab<span>cd<em><b>e^</b>f</em></span>gh</p> -> <p><strong></strong>ab<span>cd<em><b>ex</b>f</em></span></p>.
+			// This should invalidate cache starting from before `"ex"`. But "e" is first node, and its parents `<b>` and `<em>` are
+			// also first nodes, so we invalidate starting from before "cd".
+			viewTextE._data = 'ex';
+
+			// Retained cached:
+			check( 2, viewContainer, 1, 2 );
+
+			// Later cache is cleared, the closest value is returned:
+			check( 4, viewContainer, 1, 2 );
+			check( 6, viewContainer, 1, 2 );
+			check( 8, viewContainer, 1, 2 );
+		} );
+
+		it( 'should invalidate cache if first child in tracked element has 0 model length (#1 - ui element + remove)', () => {
+			// This test checks a fix for an edge case scenario bug found in multi-level lists.
+			// Multi-level lists items always start from a UI element. Since it was a 0-model-length element it was not correctly saved
+			// to a cache, and later on, it prevented a validation to happen (the cache thought there is nothing cached).
+			const viewUIElement = new ViewUIElement( viewDocument, 'ui' );
+			const viewTextX = new ViewText( viewDocument, 'x' );
+			const viewB = new ViewAttributeElement( viewDocument, 'b', null, [ new ViewText( viewDocument, 'y' ) ] );
+			// <p><ui />x<b>y</b></p>.
+			const viewContainer2 = new ViewElement( viewDocument, 'p', null, [ viewUIElement, viewTextX, viewB ] );
+
+			cache.startTracking( viewContainer2 );
+
+			cache.save( viewContainer2, 1, viewContainer2, 0 ); // Note that `viewUIElement` has 0 model length, hence `modelOffset` is 0.
+			cache.save( viewContainer2, 2, viewContainer2, 1 );
+			cache.save( viewContainer2, 3, viewContainer2, 2 );
+
+			check( 0, viewContainer2, 0, 0, viewContainer2 ); // Still returns position `viewContainer2, 0`, not position after UI element.
+			check( 1, viewContainer2, 2, 1, viewContainer2 );
+			check( 2, viewContainer2, 3, 2, viewContainer2 );
+			check( 3, viewContainer2, 3, 2, viewContainer2 );
+
+			viewContainer2._removeChildren( 1, 1 );
+
+			// Should fully invalidate cached data.
+			check( 0, viewContainer2, 0, 0, viewContainer2 );
+			check( 1, viewContainer2, 0, 0, viewContainer2 );
+			check( 2, viewContainer2, 0, 0, viewContainer2 );
+			check( 3, viewContainer2, 0, 0, viewContainer2 );
+		} );
+
+		it( 'should invalidate cache if first child in tracked element has 0 model length (#2 - attribute element + typing)', () => {
+			// This test checks a similar scenario as above, although this scenario was working before the fix.
+			const viewUIElement = new ViewUIElement( viewDocument, 'ui' );
+			const viewTextX = new ViewText( viewDocument, 'x' );
+			const viewB = new ViewAttributeElement( viewDocument, 'b', null, [ new ViewText( viewDocument, 'y' ) ] );
+			// <p><ui />x<b>y</b></p>.
+			const viewContainer2 = new ViewElement( viewDocument, 'p', null, [ viewUIElement, viewTextX, viewB ] );
+
+			cache.startTracking( viewContainer2 );
+
+			cache.save( viewContainer2, 1, viewContainer2, 0 ); // Note that `viewUIElement` has 0 model length, hence `modelOffset` is 0.
+			cache.save( viewContainer2, 2, viewContainer2, 1 );
+			cache.save( viewContainer2, 3, viewContainer2, 2 );
+
+			check( 0, viewContainer2, 0, 0, viewContainer2 ); // Still returns position `viewContainer2, 0`, not position after UI element.
+			check( 1, viewContainer2, 2, 1, viewContainer2 );
+			check( 2, viewContainer2, 3, 2, viewContainer2 );
+			check( 3, viewContainer2, 3, 2, viewContainer2 );
+
+			viewTextX._data = 'xx';
+
+			// Should fully invalidate cached data.
+			check( 0, viewContainer2, 0, 0, viewContainer2 );
+			check( 1, viewContainer2, 0, 0, viewContainer2 );
+			check( 2, viewContainer2, 0, 0, viewContainer2 );
+			check( 3, viewContainer2, 0, 0, viewContainer2 );
+		} );
+	} );
+
+	function check(
+		modelOffsetToCheck, expectedViewParent, expectedViewOffset, expectedModelOffset, viewContainerToCheck = viewContainer
+	) {
+		const { viewPosition, modelOffset } = cache.getClosest( viewContainerToCheck, modelOffsetToCheck );
+
+		expect( viewPosition.parent ).toBe( expectedViewParent );
+		expect( viewPosition.offset ).toBe( expectedViewOffset );
+		expect( modelOffset ).toBe( expectedModelOffset );
+	}
 } );

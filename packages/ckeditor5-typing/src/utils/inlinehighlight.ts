@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module typing/utils/inlinehighlight
  */
 
-import findAttributeRange from './findattributerange';
+import { findAttributeRange } from './findattributerange.js';
 import type { Editor } from '@ckeditor/ckeditor5-core';
 import type { ViewElement } from '@ckeditor/ckeditor5-engine';
 
@@ -26,7 +26,7 @@ import type { ViewElement } from '@ckeditor/ckeditor5-engine';
  * Usage:
  *
  * ```ts
- * import inlineHighlight from '@ckeditor/ckeditor5-typing/src/utils/inlinehighlight';
+ * import { inlineHighlight } from '@ckeditor/ckeditor5-typing/src/utils/inlinehighlight';
  *
  * // Make `ck-link_selected` class be applied on an `a` element
  * // whenever the corresponding `linkHref` attribute element is selected.
@@ -38,7 +38,7 @@ import type { ViewElement } from '@ckeditor/ckeditor5-engine';
  * @param tagName The tagName of a view item.
  * @param className The class name to apply in the view.
  */
-export default function inlineHighlight(
+export function inlineHighlight(
 	editor: Editor,
 	attributeName: string,
 	tagName: string,

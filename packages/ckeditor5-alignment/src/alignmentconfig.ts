@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,7 +12,7 @@
  *
  * ```ts
  * ClassicEditor
- *   .create( editorElement, {
+ *   .create( {
  *     alignment: {
  *       options: [ 'left', 'right' ]
  *     }
@@ -24,7 +24,7 @@
  * See {@link module:core/editor/editorconfig~EditorConfig all editor configuration options}.
  */
 export interface AlignmentConfig {
-	options?: Array<SupportedOption | AlignmentFormat>;
+	options?: Array<AlignmentSupportedOption | AlignmentFormat>;
 }
 
 /**
@@ -34,11 +34,11 @@ export interface AlignmentConfig {
  *
  * **Note:** It is recommended to always use `'left'` or `'right'` as these are default values which the user should
  * normally be able to choose depending on the
- * {@glink features/ui-language#setting-the-language-of-the-content language of the editor content}.
+ * {@glink getting-started/setup/ui-language#setting-the-language-of-the-content language of the editor content}.
  *
  * ```ts
  * ClassicEditor
- *   .create( editorElement, {
+ *   .create( {
  *     alignment: {
  *       options: [ 'left', 'right' ]
  *     }
@@ -54,7 +54,7 @@ export interface AlignmentConfig {
  *
  * ```ts
  * ClassicEditor
- *   .create( editorElement, {
+ *   .create( {
  *     alignment: {
  *       options: [
  *         { name: 'left', className: 'my-align-left' },
@@ -69,8 +69,8 @@ export interface AlignmentConfig {
  * See the demo of {@glink features/text-alignment#configuring-alignment-options custom alignment options}.
  */
 export type AlignmentFormat = {
-	name: SupportedOption;
+	name: AlignmentSupportedOption;
 	className?: string;
 };
 
-export type SupportedOption = 'left' | 'right' | 'center' | 'justify';
+export type AlignmentSupportedOption = 'left' | 'right' | 'center' | 'justify';

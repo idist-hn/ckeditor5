@@ -1,13 +1,12 @@
 ---
 category: features
 meta-title: Editor placeholder | CKEditor 5 Documentation
+meta-description: Learn how to configure and style CKEditor 5 placeholder text—set via textarea or config, customize with CSS, and update it dynamically in your editor.
 ---
-
-{@snippet build-classic-source}
 
 # Editor placeholder
 
-You can prompt the user to input content by displaying a configurable placeholder text when the editor is empty. This works similarly to the native DOM [`placeholder` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#attr-placeholder) used by inputs. Not to be confused with {@link examples/framework/content-placeholder content placeholder}.
+You can prompt the user to input content by displaying a configurable placeholder text when the editor is empty. This works similarly to the native DOM [`placeholder` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#attr-placeholder) used by inputs. Not to be confused with the content placeholders offered by the {@link features/merge-fields merge fields} feature.
 
 ## Demo
 
@@ -15,15 +14,11 @@ See the demo of the placeholder feature:
 
 {@snippet features/placeholder}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Installation
-
-<info-box info>
-	This feature is enabled by default in all {@link installation/getting-started/predefined-builds predefined builds}.
-</info-box>
 
 The editor placeholder feature does not require a separate plugin installation. It does, however, require configuring the editor before use. There are two different ways of configuring the editor placeholder text:
 
@@ -35,9 +30,41 @@ Set the `placeholder` attribute on a `<textarea>` element passed to the `Editor.
 <textarea id="editor" placeholder="Type the content here!"></textarea>
 ```
 
+<code-switcher>
+```js
+import { ClassicEditor, Essentials } from 'ckeditor5';
+
+ClassicEditor
+	.create( {
+		attachTo: document.getElementById( 'editor' ),
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
+		plugins: [ Essentials, /* ... */ ],
+	} )
+	.then( editor => {
+		console.log( editor );
+	} )
+	.catch( error => {
+		console.error( error );
+	} );
+```
+</code-switcher>
+
+### Using the editor configuration
+
+You can use the {@link module:core/editor/editorconfig~EditorConfig#root `editor.config.root.placeholder`} configuration option:
+
+* when no element was passed into `Editor.create()` method,
+* when the element passed into `Editor.create()` was not a `<textarea>` (for instance, a `<div>` element),
+* to override the `placeholder` text of a `<textarea>`, if one was passed into `Editor.create()` but the placeholder text should be different.
+
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ) )
+	.create( {
+		// ... Other configuration options ...
+		root: {
+			placeholder: 'Type the content here!'
+		}
+	} )
 	.then( editor => {
 		console.log( editor );
 	} )
@@ -46,52 +73,36 @@ ClassicEditor
 	} );
 ```
 
-### Using the editor configuration
-
-You can use the {@link module:core/editor/editorconfig~EditorConfig#placeholder `editor.config.placeholder`} configuration option:
-
-* when no element was passed into `Editor.create()` method,
-* when the element passed into `Editor.create()` was not a `<textarea>` (for instance, a `<div>` element),
-* to override the `placeholder` text of a `<textarea>`, if one was passed into `Editor.create()` but the placeholder text should be different.
+If your editor implementation uses multiple roots, configure placeholders using `roots.<rootName>.placeholder`:
 
 ```js
-ClassicEditor.create(
-	document.querySelector( '#editor' ),
-    {
-		placeholder: 'Type the content here!'
-	}
-).then( editor => {
-    console.log( editor );
-} ).catch( error => {
-    console.error( error );
-} );
-```
-
-If your editor implementation uses multiple roots, you should pass an object with keys corresponding to the editor roots names and values equal to the placeholder that should be set in each root:
-
-```js
-MultiRootEditor.create(
-	// Roots for the editor:
-	{
-		header: document.querySelector( '#header' ),
-		content: document.querySelector( '#content' ),
-		leftSide: document.querySelector( '#left-side' ),
-		rightSide: document.querySelector( '#right-side' )
-	},
-	// Config:
-	{
-		placeholder: {
-			header: 'Type header...',
-			content: 'Type content...',
-			leftSide: 'Type left-side...',
-			rightSide: 'Type right-side...'
+MultiRootEditor
+	.create( {
+		roots: {
+			header: {
+				placeholder: 'Type header...',
+				element: document.querySelector( '#header' )
+			},
+			content: {
+				placeholder: 'Type content...',
+				element: document.querySelector( '#content' )
+			},
+			leftSide: {
+				placeholder: 'Type left-side...',
+				element: document.querySelector( '#left-side' )
+			},
+			rightSide: {
+				placeholder: 'Type right-side...',
+				element: document.querySelector( '#right-side' )
+			}
 		}
-	}
-).then( editor => {
-    console.log( editor );
-} ).catch( error => {
-    console.error( error );
-} );
+	} )
+	.then( editor => {
+		console.log( editor );
+	} )
+	.catch( error => {
+		console.error( error );
+	} );
 ```
 
 ## Styling the placeholder
@@ -118,6 +129,8 @@ editor.editing.view.document.getRoot( 'main' ).placeholder = 'new placeholder';
 ```
 
 {@snippet features/update-placeholder}
+
+<ck:button id="update-placeholder-button" variant='secondary'>Update placeholder</ck:button>
 
 ## Contribute
 

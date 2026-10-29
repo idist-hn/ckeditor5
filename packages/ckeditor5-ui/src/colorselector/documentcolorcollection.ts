@@ -1,25 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/colorselector/documentcolorcollection
  */
 
-import type { ColorDefinition } from '../colorgrid/colorgridview';
+import type { ColorDefinition } from '../colorgrid/colorgridview.js';
 import {
 	Collection,
 	ObservableMixin,
 	type CollectionAddEvent,
 	type CollectionRemoveEvent,
-	type CollectionChangeEvent
+	type CollectionChangeEvent,
+	type ObservableMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
+
+const DocumentColorCollectionBase: ObservableMixinConstructor<typeof Collection<ColorDefinition>> =
+	/* #__PURE__ */ ObservableMixin( Collection<ColorDefinition> );
 
 /**
  * A collection to store document colors. It enforces colors to be unique.
  */
-export default class DocumentColorCollection extends ObservableMixin( Collection<ColorDefinition> ) {
+export class DocumentColorCollection extends DocumentColorCollectionBase {
 	/**
 	 * Indicates whether the document color collection is empty.
 	 *

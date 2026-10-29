@@ -1,43 +1,43 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, setTimeout */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { CloudServicesUploadAdapter } from '../src/cloudservicesuploadadapter.js';
+import { FileRepository } from '@ckeditor/ckeditor5-upload';
+import { CloudServices, CloudServicesCore } from '@ckeditor/ckeditor5-cloud-services';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import CloudServicesUploadAdapter from '../src/cloudservicesuploadadapter';
-import FileRepository from '@ckeditor/ckeditor5-upload/src/filerepository';
-import CloudServices from '@ckeditor/ckeditor5-cloud-services/src/cloudservices';
-
-import UploadGatewayMock from './_utils/uploadgatewaymock';
-import { createNativeFileMock } from '@ckeditor/ckeditor5-upload/tests/_utils/mocks';
-import TokenMock from '@ckeditor/ckeditor5-cloud-services/tests/_utils/tokenmock';
-import CloudServicesCore from '@ckeditor/ckeditor5-cloud-services/src/cloudservicescore';
-
-// EasyImage requires the `CloudServicesCore` plugin as a soft-requirement.
-// In order to mock the `Token` and `UploadGateway` classes, we create a new class that extend the `CloudServicesCore` plugin
-// and override their factory methods.
-class CloudServicesCoreMock extends CloudServicesCore {
-	createToken( tokenUrlOrRefreshToken ) {
-		return new TokenMock( tokenUrlOrRefreshToken );
-	}
-
-	createUploadGateway( token, apiAddress ) {
-		return new UploadGatewayMock( token, apiAddress );
-	}
-}
+import { UploadGatewayMock } from './_utils/uploadgatewaymock.js';
+import { createNativeFileMock } from '@ckeditor/ckeditor5-upload/tests/_utils/mocks.js';
+import { TokenMock } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/tokenmock.js';
+import { mockCreateToken } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/mockcloudservicescoretoken.js';
 
 describe( 'CloudServicesUploadAdapter', () => {
 	let div;
 
 	beforeEach( () => {
+		// EasyImage requires the `CloudServicesCore` plugin as a dependency.
+		// In order to mock the `Token` and `UploadGateway` classes, we stub the factory methods of the `CloudServicesCore` plugin.
+		mockCreateToken();
+		vi.spyOn( CloudServicesCore.prototype, 'createUploadGateway' )
+			.mockImplementation( ( token, apiAddress ) => new UploadGatewayMock( token, apiAddress ) );
+
 		div = window.document.createElement( 'div' );
 		window.document.body.appendChild( div );
 	} );
 
 	afterEach( () => {
 		window.document.body.removeChild( div );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( CloudServicesUploadAdapter.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( CloudServicesUploadAdapter.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'init()', () => {
@@ -48,14 +48,13 @@ describe( 'CloudServicesUploadAdapter', () => {
 			return ClassicTestEditor
 				.create( div, {
 					plugins: [ CloudServices, CloudServicesUploadAdapter ],
-					substitutePlugins: [ CloudServicesCoreMock ],
 					cloudServices: {
 						tokenUrl: 'abc',
 						uploadUrl: 'http://upload.mock.url/'
 					}
 				} )
 				.then( editor => {
-					expect( UploadGatewayMock.lastUploadUrl ).to.equal( 'http://upload.mock.url/' );
+					expect( UploadGatewayMock.lastUploadUrl ).toBe( 'http://upload.mock.url/' );
 
 					return editor.destroy();
 				} );
@@ -66,11 +65,10 @@ describe( 'CloudServicesUploadAdapter', () => {
 
 			return ClassicTestEditor
 				.create( div, {
-					plugins: [ CloudServices, CloudServicesUploadAdapter ],
-					substitutePlugins: [ CloudServicesCoreMock ]
+					plugins: [ CloudServices, CloudServicesUploadAdapter ]
 				} )
 				.then( editor => {
-					expect( UploadGatewayMock.lastToken ).to.be.undefined;
+					expect( UploadGatewayMock.lastToken ).toBeUndefined();
 
 					return editor.destroy();
 				} );
@@ -83,7 +81,6 @@ describe( 'CloudServicesUploadAdapter', () => {
 		beforeEach( () => {
 			return ClassicTestEditor.create( div, {
 				plugins: [ CloudServices, CloudServicesUploadAdapter ],
-				substitutePlugins: [ CloudServicesCoreMock ],
 				cloudServices: {
 					tokenUrl: 'abc',
 					uploadUrl: 'http://upload.mock.url/'
@@ -100,34 +97,34 @@ describe( 'CloudServicesUploadAdapter', () => {
 		} );
 
 		describe( 'upload()', () => {
-			it( 'should mock upload', done => {
+			it( 'should mock upload', async () => {
 				const loader = fileRepository.createLoader( createNativeFileMock() );
-
-				loader.upload()
-					.then( response => {
-						expect( response.default ).to.equal( 'http://image.mock.url/' );
-						done();
-					} )
-					.catch( err => done( err ) );
+				const uploadPromise = loader.upload();
 
 				// Wait for the promise from the mock.getUploader().
 				setTimeout( () => {
 					upload._uploadGateway.resolveLastUpload();
 				} );
+
+				const response = await uploadPromise;
+
+				expect( response.default ).toBe( 'http://image.mock.url/' );
 			} );
 
-			it( 'should update the progress', done => {
-				const loader = fileRepository.createLoader( createNativeFileMock() );
-				loader.upload();
+			it( 'should update the progress', () => {
+				return new Promise( resolve => {
+					const loader = fileRepository.createLoader( createNativeFileMock() );
+					loader.upload();
 
-				// Wait for the `loader.file` promise.
-				setTimeout( () => {
-					upload._uploadGateway.lastFileUploader.fire( 'progress', { uploaded: 50, total: 100 } );
+					// Wait for the `loader.file` promise.
+					setTimeout( () => {
+						upload._uploadGateway.lastFileUploader.fire( 'progress', { uploaded: 50, total: 100 } );
 
-					expect( loader.uploaded ).to.equal( 50 );
-					expect( loader.uploadTotal ).to.equal( 100 );
+						expect( loader.uploaded ).toBe( 50 );
+						expect( loader.uploadTotal ).toBe( 100 );
 
-					done();
+						resolve();
+					} );
 				} );
 			} );
 		} );
@@ -137,25 +134,27 @@ describe( 'CloudServicesUploadAdapter', () => {
 				const loader = fileRepository.createLoader( createNativeFileMock() );
 
 				expect( () => {
-					loader.upload();
+					loader.upload().catch( () => {} );
 					loader.abort();
-				} ).to.not.throw();
+				} ).not.toThrow();
 
-				expect( upload._uploadGateway.lastFileUploader ).to.be.undefined;
+				expect( upload._uploadGateway.lastFileUploader ).toBeUndefined();
 			} );
 
-			it( 'should call abort on the CSS uploader (`loader.file` resolved)', done => {
-				const loader = fileRepository.createLoader( createNativeFileMock() );
+			it( 'should call abort on the CSS uploader (`loader.file` resolved)', () => {
+				return new Promise( resolve => {
+					const loader = fileRepository.createLoader( createNativeFileMock() );
 
-				loader.upload();
+					loader.upload().catch( () => {} );
 
-				// Wait for the `loader.file` promise.
-				setTimeout( () => {
-					loader.abort();
+					// Wait for the `loader.file` promise.
+					setTimeout( () => {
+						loader.abort();
 
-					expect( upload._uploadGateway.lastFileUploader.aborted ).to.be.true;
+						expect( upload._uploadGateway.lastFileUploader.aborted ).toBe( true );
 
-					done();
+						resolve();
+					} );
 				} );
 			} );
 		} );

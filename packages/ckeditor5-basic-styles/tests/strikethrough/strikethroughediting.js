@@ -1,16 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import StrikethroughEditing from '../../src/strikethrough/strikethroughediting';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import AttributeCommand from '../../src/attributecommand';
+import { StrikethroughEditing } from '../../src/strikethrough/strikethroughediting.js';
 
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { AttributeCommand } from '../../src/attributecommand.js';
+
+import { _getModelData, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'StrikethroughEditing', () => {
 	let editor, model;
@@ -31,26 +32,43 @@ describe( 'StrikethroughEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( StrikethroughEditing.pluginName ).to.equal( 'StrikethroughEditing' );
+		expect( StrikethroughEditing.pluginName ).toBe( 'StrikethroughEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( StrikethroughEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( StrikethroughEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( StrikethroughEditing ) ).to.be.instanceOf( StrikethroughEditing );
+		expect( editor.plugins.get( StrikethroughEditing ) ).toBeInstanceOf( StrikethroughEditing );
+	} );
+
+	it( 'should add keystroke accessibility info', () => {
+		expect( editor.accessibility.keystrokeInfos.get( 'contentEditing' ).groups.get( 'common' ).keystrokes ).toEqual(
+			expect.arrayContaining( [ expect.objectContaining( {
+				label: 'Strikethrough text',
+				keystroke: 'CTRL+SHIFT+X'
+			} ) ] )
+		);
 	} );
 
 	it( 'should set proper schema rules', () => {
-		expect( model.schema.checkAttribute( [ '$root', '$block', '$text' ], 'strikethrough' ) ).to.be.true;
-		expect( model.schema.checkAttribute( [ '$clipboardHolder', '$text' ], 'strikethrough' ) ).to.be.true;
+		expect( model.schema.checkAttribute( [ '$root', '$block', '$text' ], 'strikethrough' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$clipboardHolder', '$text' ], 'strikethrough' ) ).toBe( true );
 	} );
 
 	it( 'should be marked with a formatting property', () => {
-		expect( model.schema.getAttributeProperties( 'strikethrough' ) ).to.include( {
+		expect( model.schema.getAttributeProperties( 'strikethrough' ) ).toMatchObject( {
 			isFormatting: true
 		} );
 	} );
 
 	it( 'its attribute is marked with a copOnEnter property', () => {
-		expect( model.schema.getAttributeProperties( 'strikethrough' ) ).to.include( {
+		expect( model.schema.getAttributeProperties( 'strikethrough' ) ).toMatchObject( {
 			copyOnEnter: true
 		} );
 	} );
@@ -59,8 +77,8 @@ describe( 'StrikethroughEditing', () => {
 		it( 'should register strikethrough command', () => {
 			const command = editor.commands.get( 'strikethrough' );
 
-			expect( command ).to.be.instanceOf( AttributeCommand );
-			expect( command ).to.have.property( 'attributeKey', 'strikethrough' );
+			expect( command ).toBeInstanceOf( AttributeCommand );
+			expect( command ).toHaveProperty( 'attributeKey', 'strikethrough' );
 		} );
 	} );
 
@@ -68,53 +86,53 @@ describe( 'StrikethroughEditing', () => {
 		it( 'should convert <strike> to strikethrough attribute', () => {
 			editor.setData( '<p><strike>foo</strike>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toBe( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><s>foo</s>bar</p>' );
+			expect( editor.getData() ).toBe( '<p><s>foo</s>bar</p>' );
 		} );
 		it( 'should convert <del> to strikethrough attribute', () => {
 			editor.setData( '<p><del>foo</del>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toBe( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><s>foo</s>bar</p>' );
+			expect( editor.getData() ).toBe( '<p><s>foo</s>bar</p>' );
 		} );
 
 		it( 'should convert <s> to strikethrough attribute', () => {
 			editor.setData( '<p><s>foo</s>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toBe( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><s>foo</s>bar</p>' );
+			expect( editor.getData() ).toBe( '<p><s>foo</s>bar</p>' );
 		} );
 
 		it( 'should convert text-decoration:line-through to strikethrough attribute', () => {
 			editor.setData( '<p><span style="text-decoration: line-through;">foo</span>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toBe( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><s>foo</s>bar</p>' );
+			expect( editor.getData() ).toBe( '<p><s>foo</s>bar</p>' );
 		} );
 
 		it( 'should be integrated with autoparagraphing', () => {
 			editor.setData( '<s>foo</s>bar' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toBe( '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><s>foo</s>bar</p>' );
+			expect( editor.getData() ).toBe( '<p><s>foo</s>bar</p>' );
 		} );
 	} );
 
 	describe( 'editing pipeline conversion', () => {
 		it( 'should convert attribute', () => {
-			setModelData( model, '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
+			_setModelData( model, '<paragraph><$text strikethrough="true">foo</$text>bar</paragraph>' );
 
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal( '<p><s>foo</s>bar</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe( '<p><s>foo</s>bar</p>' );
 		} );
 	} );
 } );

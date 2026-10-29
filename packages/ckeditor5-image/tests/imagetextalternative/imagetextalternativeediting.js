@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import ImageTextAlternativeEditing from '../../src/imagetextalternative/imagetextalternativeediting';
-import ImageTextAlternativeCommand from '../../src/imagetextalternative/imagetextalternativecommand';
+import { describe, it, beforeEach, expect } from 'vitest';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { ImageTextAlternativeEditing } from '../../src/imagetextalternative/imagetextalternativeediting.js';
+import { ImageTextAlternativeCommand } from '../../src/imagetextalternative/imagetextalternativecommand.js';
 
 describe( 'ImageTextAlternativeEditing', () => {
 	let editor;
@@ -21,10 +22,18 @@ describe( 'ImageTextAlternativeEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( ImageTextAlternativeEditing.pluginName ).to.equal( 'ImageTextAlternativeEditing' );
+		expect( ImageTextAlternativeEditing.pluginName ).toBe( 'ImageTextAlternativeEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageTextAlternativeEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageTextAlternativeEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should register ImageAlternativeTextCommand', () => {
-		expect( editor.commands.get( 'imageTextAlternative' ) ).to.be.instanceOf( ImageTextAlternativeCommand );
+		expect( editor.commands.get( 'imageTextAlternative' ) ).toBeInstanceOf( ImageTextAlternativeCommand );
 	} );
 } );

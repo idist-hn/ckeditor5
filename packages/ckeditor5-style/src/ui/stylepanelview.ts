@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/ui/stylepanelview
  */
 
-import { FocusCycler, View, ViewCollection } from 'ckeditor5/src/ui';
-import { FocusTracker, KeystrokeHandler, type Locale } from 'ckeditor5/src/utils';
+import { FocusCycler, View, ViewCollection } from '@ckeditor/ckeditor5-ui';
+import { FocusTracker, KeystrokeHandler, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import StyleGroupView from './stylegroupview';
-import type StyleGridView from './stylegridview';
-import type { NormalizedStyleDefinitions } from '../styleutils';
-
-import '../../theme/stylepanel.css';
+import { StyleGroupView } from './stylegroupview.js';
+import { type StyleGridView } from './stylegridview.js';
+import type { NormalizedStyleDefinitions } from '../styleutils.js';
 
 /**
  * A class representing a panel with available content styles. It renders styles in button grids, grouped
  * in categories.
+ *
+ * @internal
  */
-export default class StylePanelView extends View<HTMLDivElement> {
+export class StylePanelView extends View<HTMLDivElement> {
 	/**
 	 * Tracks information about DOM focus in the panel.
 	 */

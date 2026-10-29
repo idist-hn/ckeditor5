@@ -1,18 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import List from '../src/list';
-import ListEditing from '../src/list/listediting';
-import ListUI from '../src/list/listui';
+import { describe, it, expect } from 'vitest';
+import { List } from '../src/list.js';
+import { ListUI } from '../src/list/listui.js';
+import { ListEditing } from '../src/list/listediting.js';
 
 describe( 'List', () => {
 	it( 'should be named', () => {
-		expect( List.pluginName ).to.equal( 'List' );
+		expect( List.pluginName ).toBe( 'List' );
 	} );
 
 	it( 'should require ListEditing and ListUI', () => {
-		expect( List.requires ).to.deep.equal( [ ListEditing, ListUI ] );
+		expect( List.requires ).toEqual( [ ListEditing, ListUI ] );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( List.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( List.isPremiumPlugin ).toBe( false );
 	} );
 } );

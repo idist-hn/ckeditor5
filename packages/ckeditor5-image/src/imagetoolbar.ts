@@ -1,19 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagetoolbar
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { WidgetToolbarRepository } from 'ckeditor5/src/widget';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { WidgetToolbarRepository } from '@ckeditor/ckeditor5-widget';
 
-import ImageUtils from './imageutils';
-import type { ImageStyleDropdownDefinition } from './imageconfig';
+import { ImageUtils } from './imageutils.js';
+import type { ImageStyleDropdownDefinition } from './imageconfig.js';
 
-import { isObject } from 'lodash-es';
+import { isObject } from 'es-toolkit/compat';
 
 /**
  * The image toolbar plugin. It creates and manages the image toolbar (the toolbar displayed when an image is selected).
@@ -26,12 +26,12 @@ import { isObject } from 'lodash-es';
  *
  * The toolbar uses the {@link module:ui/panel/balloon/contextualballoon~ContextualBalloon}.
  */
-export default class ImageToolbar extends Plugin {
+export class ImageToolbar extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ WidgetToolbarRepository, ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ WidgetToolbarRepository, ImageUtils ]> {
+		return [ WidgetToolbarRepository, ImageUtils ];
 	}
 
 	/**
@@ -39,6 +39,13 @@ export default class ImageToolbar extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageToolbar' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { DiffResult } from './diff';
 
 /**
  * @module utils/difftochanges
  */
+
+import type { DiffResult } from './diff.js';
 
 /**
  * Creates a set of changes which need to be applied to the input in order to transform
@@ -35,7 +35,7 @@ import type { DiffResult } from './diff';
  * @returns Set of changes (insert or delete) which need to be applied to the input
  * in order to transform it into the output.
  */
-export default function diffToChanges<T>( diff: ReadonlyArray<DiffResult>, output: ArrayLike<T> ): Array<Change<T>> {
+export function diffToChanges<T>( diff: ReadonlyArray<DiffResult>, output: ArrayLike<T> ): Array<Change<T>> {
 	const changes: Array<Change<T>> = [];
 	let index = 0;
 	let lastOperation: Change<T> | null = null;

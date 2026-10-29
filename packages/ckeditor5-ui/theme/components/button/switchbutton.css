@@ -1,14 +1,148 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+:root,
+:host {
+	/* 34px at 13px font-size */
+	--ck-switch-button-toggle-width: 2.6153846154em;
+	/* 14px at 13px font-size */
+	--ck-switch-button-toggle-inner-size: calc(1.0769230769em + 1px);
+	/* 2px is border */
+	--ck-switch-button-translation: calc(
+		var(--ck-switch-button-toggle-width) -
+		var(--ck-switch-button-toggle-inner-size) -
+		2px
+	);
+	/* Backward compatibility: falls back to legacy --ck-color-switch-button-inner-shadow if overridden. */
+	--ck-switch-button-inner-hover-shadow: 0 0 0 5px var(--ck-color-switch-button-inner-shadow, var(--ck-color-shadow-inner));
+
+	/* Radius */
+	--ck-switch-button-toggle-border-radius: var(--ck-border-radius-control);
+	/* Slightly tighter than the outer toggle radius so the inner handle reads as concentric. */
+	--ck-switch-button-toggle-inner-border-radius: calc(.9 * var(--ck-switch-button-toggle-border-radius));
+
+	/* Color */
+	--ck-switch-button-off-background-color: var(--ck-color-text-secondary);
+	--ck-switch-button-off-hover-background-color: var(--ck-color-base-text-light);
+	--ck-switch-button-on-background-color: var(--ck-color-button-action-background, var(--ck-button-action-background-color));
+	--ck-switch-button-on-hover-background-color: var(--ck-color-interactive-primary-surface-hover);
+	--ck-switch-button-inner-background-color: var(--ck-color-surface-canvas);
+}
+
 .ck.ck-button.ck-switchbutton {
+	/* Unlike a regular button, the switch button text color and background should never change.
+	 * Changing toggle switch (background, outline) is enough to carry the information about the
+	 * state of the entire component (https://github.com/ckeditor/ckeditor5/issues/12519)
+	 */
+	&, &:hover, &:focus, &:active, &.ck-on:hover, &.ck-on:focus, &.ck-on:active {
+		color: inherit;
+		background: transparent;
+	}
+
+	& .ck-button__label {
+		[dir="ltr"] & {
+			/* Separate the label from the switch */
+			margin-right: calc(2 * var(--ck-spacing-gap-comfortable));
+		}
+
+		[dir="rtl"] & {
+			/* Separate the label from the switch */
+			margin-left: calc(2 * var(--ck-spacing-gap-comfortable));
+		}
+	}
+
 	& .ck-button__toggle {
-		display: block;
+		border-radius: var(--ck-switch-button-toggle-border-radius);
+
+		/* Apply some smooth transition to the box-shadow and border. */
+		/* Gently animate the background color of the toggle switch */
+		transition:
+			background var(--ck-duration-slower) var(--ck-transition-timing-function-surface),
+			box-shadow var(--ck-transition-duration-control) var(--ck-transition-timing-function-control),
+			outline var(--ck-transition-duration-control) var(--ck-transition-timing-function-control);
+		border: var(--ck-border-width-control) solid transparent;
+		/* Backward compatibility: falls back to legacy --ck-switch-button-toggle-width if overridden. */
+		/* 34px at 13px font-size */
+		width: var(--ck-switch-button-toggle-width, 2.6153846154em);
+		background: var(--ck-color-switch-button-off-background, var(--ck-switch-button-off-background-color));
+
+		[dir="ltr"] & {
+			/* Make sure the toggle is always to the right as far as possible. */
+			margin-left: auto;
+		}
+
+		[dir="rtl"] & {
+			/* Make sure the toggle is always to the left as far as possible. */
+			margin-right: auto;
+		}
 
 		& .ck-button__toggle__inner {
-			display: block;
+			border-radius: var(--ck-switch-button-toggle-inner-border-radius);
+			/* Backward compatibility: falls back to legacy --ck-switch-button-toggle-inner-size if overridden. */
+			/* 14px at 13px font-size + 1px */
+			width: var(--ck-switch-button-toggle-inner-size, calc(1.0769230769em + 1px));
+			height: var(--ck-switch-button-toggle-inner-size, calc(1.0769230769em + 1px));
+			background: var(--ck-color-switch-button-inner-background, var(--ck-switch-button-inner-background-color));
+
+			/* Gently animate the inner part of the toggle switch */
+			transition: all var(--ck-transition-duration-control-emphasized) var(--ck-transition-timing-function-surface);
+
+			@media (prefers-reduced-motion: reduce) {
+				transition: var(--ck-transition-none);
+			}
+			display: block
+		}
+
+		&:hover {
+			background: var(--ck-color-switch-button-off-hover-background, var(--ck-switch-button-off-hover-background-color));
+
+			& .ck-button__toggle__inner {
+				/* Backward compatibility: falls back to legacy --ck-switch-button-inner-hover-shadow if overridden. */
+				box-shadow: var(--ck-switch-button-inner-hover-shadow, 0 0 0 5px hsl(0 0% 0% / 0.1));
+			}
+		}
+		display: block
+	}
+
+	&.ck-disabled .ck-button__toggle {
+		/* Backward compatibility: falls back to legacy --ck-disabled-opacity if overridden. */
+		opacity: var(--ck-disabled-opacity, var(--ck-opacity-disabled));
+	}
+
+	/* Overriding default .ck-button:focus styles + an outline around the toogle */
+	&:focus {
+		border-color: transparent;
+		outline: none;
+		box-shadow: none;
+
+		& .ck-button__toggle {
+			box-shadow: 0 0 0 1px var(--ck-color-surface-canvas), 0 0 0 5px var(--ck-color-interactive-focus-shadow);
+			outline-offset: 1px;
+			outline: var(--ck-interactive-focus-ring);
+		}
+	}
+
+	&.ck-on {
+		& .ck-button__toggle {
+			background: var(--ck-color-switch-button-on-background, var(--ck-switch-button-on-background-color));
+
+			&:hover {
+				background: var(--ck-color-switch-button-on-hover-background, var(--ck-switch-button-on-hover-background-color));
+			}
+
+			& .ck-button__toggle__inner {
+				/* Move the toggle switch to the right (animated). Uses the translation token so the
+				travel follows --ck-switch-button-toggle-width / -inner-size customizations. */
+				[dir="ltr"] & {
+					transform: translateX(var(--ck-switch-button-translation));
+				}
+
+				[dir="rtl"] & {
+					transform: translateX(calc(-1 * var(--ck-switch-button-translation)));
+				}
+			}
 		}
 	}
 }

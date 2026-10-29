@@ -1,11 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ElementReplacer from '../src/elementreplacer';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ElementReplacer } from '../src/elementreplacer.js';
 
 describe( 'ElementReplacer', () => {
 	let replacer;
@@ -26,14 +25,14 @@ describe( 'ElementReplacer', () => {
 		it( 'hides the given element', () => {
 			replacer.replace( el1 );
 
-			expect( el1.style.display ).to.equal( 'none' );
+			expect( el1.style.display ).toEqual( 'none' );
 		} );
 
 		it( 'replaces one element with another', () => {
 			replacer.replace( el1, elNew1 );
 
-			expect( el1.style.display ).to.equal( 'none' );
-			expect( elNew1.previousSibling ).to.equal( el1 );
+			expect( el1.style.display ).toEqual( 'none' );
+			expect( elNew1.previousSibling ).toBe( el1 );
 		} );
 	} );
 
@@ -44,9 +43,9 @@ describe( 'ElementReplacer', () => {
 
 			replacer.restore();
 
-			expect( el1.style.display ).to.equal( '' );
-			expect( el2.style.display ).to.equal( '' );
-			expect( elNew1.parentNode ).to.be.null;
+			expect( el1.style.display ).toEqual( '' );
+			expect( el2.style.display ).toEqual( '' );
+			expect( elNew1.parentNode ).toBeNull();
 		} );
 	} );
 } );

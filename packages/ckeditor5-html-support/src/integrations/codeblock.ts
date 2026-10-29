@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -10,28 +10,28 @@
 import type {
 	DowncastAttributeEvent,
 	DowncastDispatcher,
-	Element,
+	ModelElement,
 	UpcastDispatcher,
 	UpcastElementEvent,
 	ViewElement
-} from 'ckeditor5/src/engine';
-import { Plugin } from 'ckeditor5/src/core';
+} from '@ckeditor/ckeditor5-engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
 import {
 	updateViewAttributes,
 	type GHSViewAttributes
-} from '../utils';
-import DataFilter, { type DataFilterRegisterEvent } from '../datafilter';
+} from '../utils.js';
+import { DataFilter, type HtmlSupportDataFilterRegisterEvent } from '../datafilter.js';
 
 /**
  * Provides the General HTML Support integration with {@link module:code-block/codeblock~CodeBlock Code Block} feature.
  */
-export default class CodeBlockElementSupport extends Plugin {
+export class CodeBlockElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ DataFilter ] as const;
+	public static get requires(): PluginDependenciesOf<[ DataFilter ]> {
+		return [ DataFilter ];
 	}
 
 	/**
@@ -44,6 +44,13 @@ export default class CodeBlockElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		if ( !this.editor.plugins.has( 'CodeBlockEditing' ) ) {
 			return;
@@ -51,7 +58,7 @@ export default class CodeBlockElementSupport extends Plugin {
 
 		const dataFilter = this.editor.plugins.get( DataFilter );
 
-		dataFilter.on<DataFilterRegisterEvent>( 'register:pre', ( evt, definition ) => {
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( 'register:pre', ( evt, definition ) => {
 			if ( definition.model !== 'codeBlock' ) {
 				return;
 			}
@@ -91,6 +98,12 @@ function viewToModelCodeBlockAttributeConverter( dataFilter: DataFilter ) {
 				return;
 			}
 
+			// The `<code>` was not converted to a model `codeBlock` element (e.g. an inline root only allows
+			// inline content), so there is no model range to set the preserved attributes on.
+			if ( !data.modelRange ) {
+				return;
+			}
+
 			preserveElementAttributes( viewPreElement, 'htmlPreAttributes' );
 			preserveElementAttributes( viewCodeElement, 'htmlContentAttributes' );
 
@@ -118,7 +131,7 @@ function modelToViewCodeBlockAttributeConverter() {
 			}
 
 			const { attributeOldValue, attributeNewValue } = data;
-			const viewCodeElement = conversionApi.mapper.toViewElement( data.item as Element )!;
+			const viewCodeElement = conversionApi.mapper.toViewElement( data.item as ModelElement )!;
 			const viewPreElement = viewCodeElement.parent as ViewElement;
 
 			updateViewAttributes(
@@ -135,7 +148,7 @@ function modelToViewCodeBlockAttributeConverter() {
 			}
 
 			const { attributeOldValue, attributeNewValue } = data;
-			const viewCodeElement = conversionApi.mapper.toViewElement( data.item as Element );
+			const viewCodeElement = conversionApi.mapper.toViewElement( data.item as ModelElement );
 
 			updateViewAttributes(
 				conversionApi.writer,

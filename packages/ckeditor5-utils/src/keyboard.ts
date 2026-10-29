@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -9,9 +9,9 @@
  * @module utils/keyboard
  */
 
-import type { LanguageDirection } from './language';
-import CKEditorError from './ckeditorerror';
-import env from './env';
+import type { LanguageDirection } from './language.js';
+import { CKEditorError } from './ckeditorerror.js';
+import { env } from './env.js';
 
 const modifiersToGlyphsMac = {
 	ctrl: '⌃',
@@ -26,6 +26,16 @@ const modifiersToGlyphsNonMac = {
 	shift: 'Shift+'
 } as const;
 
+const keyCodesToGlyphs: { [key: number]: string } = {
+	37: '←',
+	38: '↑',
+	39: '→',
+	40: '↓',
+	9: '⇥',
+	33: 'Page Up',
+	34: 'Page Down'
+} as const;
+
 /**
  * An object with `keyName => keyCode` pairs for a set of known keys.
  *
@@ -36,13 +46,23 @@ const modifiersToGlyphsNonMac = {
  * * `f1-f12`,
  * * `` ` ``, `-`, `=`, `[`, `]`, `;`, `'`, `,`, `.`, `/`, `\`,
  * * `arrow(left|up|right|bottom)`,
- * * `backspace`, `delete`, `enter`, `esc`, `tab`,
+ * * `backspace`, `delete`, `end`, `enter`, `esc`, `home`, `tab`,
  * * `ctrl`, `cmd`, `shift`, `alt`.
  */
-export const keyCodes = generateKnownKeyCodes();
+export const keyCodes: Record<string, number> = /* #__PURE__ */ generateKnownKeyCodes();
 
-const keyCodeNames = Object.fromEntries(
-	Object.entries( keyCodes ).map( ( [ name, code ] ) => [ code, name.charAt( 0 ).toUpperCase() + name.slice( 1 ) ] )
+const keyCodeNames: { readonly [ keyCode: number ]: string } = /* #__PURE__ */ Object.fromEntries(
+	/* #__PURE__ */ Object.entries( keyCodes ).map( ( [ name, code ] ) => {
+		let prettyKeyName;
+
+		if ( code in keyCodesToGlyphs ) {
+			prettyKeyName = keyCodesToGlyphs[ code ];
+		} else {
+			prettyKeyName = name.charAt( 0 ).toUpperCase() + name.slice( 1 );
+		}
+
+		return [ code, prettyKeyName ];
+	} )
 );
 
 /**
@@ -64,7 +84,7 @@ export function getCode( key: string | Readonly<KeystrokeInfo> ): number {
 			 * Unknown key name. Only key names included in the {@link module:utils/keyboard#keyCodes} can be used.
 			 *
 			 * @error keyboard-unknown-key
-			 * @param {String} key
+			 * @param {string} key Ths specified key name.
 			 */
 			throw new CKEditorError( 'keyboard-unknown-key', null, { key } );
 		}
@@ -116,12 +136,15 @@ export function parseKeystroke( keystroke: string | ReadonlyArray<number | strin
  * environment–specific keystroke, i.e. `"⌘A"` on macOS.
  *
  * @param keystroke The keystroke text.
+ * @param [forcedEnv] The environment to force the key translation to. If not provided, the current environment is used.
  * @returns The keystroke text specific for the environment.
  */
-export function getEnvKeystrokeText( keystroke: string ): string {
+export function getEnvKeystrokeText( keystroke: string, forcedEnv?: 'PC' | 'Mac' ): string {
 	let keystrokeCode = parseKeystroke( keystroke );
 
-	const modifiersToGlyphs = Object.entries( ( env.isMac || env.isiOS ) ? modifiersToGlyphsMac : modifiersToGlyphsNonMac );
+	const isMac = forcedEnv ? forcedEnv === 'Mac' : env.isMac || env.isiOS;
+
+	const modifiersToGlyphs = Object.entries( isMac ? modifiersToGlyphsMac : modifiersToGlyphsNonMac );
 
 	const modifiers = modifiersToGlyphs.reduce( ( modifiers, [ name, glyph ] ) => {
 		// Modifier keys are stored as a bit mask so extract those from the keystroke code.
@@ -154,7 +177,7 @@ export function isArrowKeyCode( keyCode: number ): boolean {
 export type ArrowKeyCodeDirection = 'left' | 'up' | 'right' | 'down';
 
 /**
- * Returns the direction in which the {@link module:engine/model/documentselection~DocumentSelection selection}
+ * Returns the direction in which the {@link module:engine/model/documentselection~ModelDocumentSelection selection}
  * will move when the provided arrow key code is pressed considering the language direction of the editor content.
  *
  * For instance, in right–to–left (RTL) content languages, pressing the left arrow means moving the selection right (forward)
@@ -206,7 +229,7 @@ function getEnvKeyCode( key: string ): number {
 }
 
 /**
- * Determines if the provided key code moves the {@link module:engine/model/documentselection~DocumentSelection selection}
+ * Determines if the provided key code moves the {@link module:engine/model/documentselection~ModelDocumentSelection selection}
  * forward or backward considering the language direction of the editor content.
  *
  * For instance, in right–to–left (RTL) languages, pressing the left arrow means moving forward
@@ -227,6 +250,10 @@ export function isForwardArrowKeyCode(
 
 function generateKnownKeyCodes(): { readonly [ keyCode: string ]: number } {
 	const keyCodes: { [keyCode: string]: number } = {
+		pageup: 33,
+		pagedown: 34,
+		end: 35,
+		home: 36,
 		arrowleft: 37,
 		arrowup: 38,
 		arrowright: 39,
@@ -264,9 +291,19 @@ function generateKnownKeyCodes(): { readonly [ keyCode: string ]: number } {
 	}
 
 	// other characters
-	for ( const char of '`-=[];\',./\\' ) {
-		keyCodes[ char ] = char.charCodeAt( 0 );
-	}
+	Object.assign( keyCodes, {
+		'\'': 222,
+		',': 108,
+		'-': 109,
+		'.': 110,
+		'/': 111,
+		';': 186,
+		'=': 187,
+		'[': 219,
+		'\\': 220,
+		']': 221,
+		'`': 223
+	} );
 
 	return keyCodes;
 }

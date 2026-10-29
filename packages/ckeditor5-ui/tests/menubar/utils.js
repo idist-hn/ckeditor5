@@ -1,0 +1,2197 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+	Locale,
+	keyCodes,
+	wait
+} from '@ckeditor/ckeditor5-utils';
+import {
+	ComponentFactory,
+	MenuBarMenuView,
+	MenuBarView,
+	normalizeMenuBarConfig,
+	DefaultMenuBarItems
+} from '../../src/index.js';
+import {
+	barDump,
+	getButtonCreator,
+	getItemByLabel,
+	getMenuByLabel
+} from './_utils/utils.js';
+import { MenuBarMenuViewPanelPositioningFunctions, processMenuBarConfig } from '../../src/menubar/utils.js';
+
+describe( 'MenuBarView utils', () => {
+	const locale = new Locale();
+	let factory;
+
+	beforeEach( () => {
+		factory = new ComponentFactory( {} );
+		factory.add( 'A#1', getButtonCreator( 'A#1', locale ) );
+		factory.add( 'AA#1', getButtonCreator( 'AA#1', locale ) );
+		factory.add( 'AB#1', getButtonCreator( 'AB#1', locale ) );
+		factory.add( 'AAA (from-factory)', () => {
+			const menuView = new MenuBarMenuView( locale );
+			menuView.buttonView.label = 'AAA (from-factory)';
+			return menuView;
+		} );
+		factory.add( 'B#1', getButtonCreator( 'B#1', locale ) );
+		factory.add( 'C#1', getButtonCreator( 'C#1', locale ) );
+	} );
+
+	describe( 'MenuBarBehaviors', () => {
+		let menuBarView, config;
+
+		beforeEach( () => {
+			config = {
+				items: [
+					{
+						menuId: 'A',
+						label: 'A',
+						groups: [
+							{
+								groupId: 'A1',
+								items: [
+									'A#1',
+									{
+										menuId: 'AA',
+										label: 'AA',
+										groups: [
+											{
+												groupId: 'AA1',
+												items: [
+													'AA#1',
+													'AAA (from-factory)'
+												]
+											}
+										]
+									},
+									{
+										menuId: 'AB',
+										label: 'AB',
+										groups: [
+											{
+												groupId: 'AB1',
+												items: [
+													'AB#1'
+												]
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						menuId: 'B',
+						label: 'B',
+						groups: [
+							{
+								groupId: 'B1',
+								items: [
+									'B#1'
+								]
+							}
+						]
+					},
+					{
+						menuId: 'C',
+						label: 'C',
+						groups: [
+							{
+								groupId: 'C1',
+								items: [
+									'C#1'
+								]
+							}
+						]
+					}
+				]
+			};
+
+			menuBarView = initMenuBar( locale, config );
+		} );
+
+		afterEach( () => {
+			menuBarView.element.remove();
+		} );
+
+		describe( 'toggleMenusAndFocusItemsOnHover()', () => {
+			it( 'should not engage if the bar is closed', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.buttonView.fire( 'mouseenter' );
+
+				expect( barDump( menuBarView ) ).toEqual(
+					[
+						{
+							label: 'A', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'B', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'C', isOpen: false, isFocused: false,
+							items: []
+						}
+					]
+				);
+			} );
+
+			it( 'should focus hovered menu if `isFocusBorderEnabled`', () => {
+				menuBarView.isFocusBorderEnabled = true;
+
+				getMenuByLabel( menuBarView, 'A' ).buttonView.fire( 'mouseenter' );
+				expect( barDump( menuBarView ) ).toEqual(
+					[
+						{
+							label: 'A', isOpen: false, isFocused: true,
+							items: []
+						},
+						{
+							label: 'B', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'C', isOpen: false, isFocused: false,
+							items: []
+						}
+					]
+				);
+
+				getMenuByLabel( menuBarView, 'B' ).buttonView.fire( 'mouseenter' );
+				expect( barDump( menuBarView ) ).toEqual(
+					[
+						{
+							label: 'A', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'B', isOpen: false, isFocused: true,
+							items: []
+						},
+						{
+							label: 'C', isOpen: false, isFocused: false,
+							items: []
+						}
+					]
+				);
+			} );
+
+			describe( 'if the bar is already open', () => {
+				it( 'should toggle menus and move focus while moving the mouse (top-level menu -> top-level menu)', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const menuB = getMenuByLabel( menuBarView, 'B' );
+
+					menuA.isOpen = true;
+					menuB.buttonView.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'B#1', isFocused: false }
+								]
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+
+					menuA.buttonView.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'B#1', isFocused: false }
+								]
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+
+				it( 'should toggle menus and move focus while moving the mouse (sub-menu -> sub-menu)', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+					const menuAB = getMenuByLabel( menuBarView, 'AB' );
+
+					menuAA.isOpen = true;
+					menuAB.buttonView.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [
+										{ label: 'AA#1', isFocused: false },
+										{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+									] },
+									{ label: 'AB', isOpen: true, isFocused: true, items: [
+										{ label: 'AB#1', isFocused: false }
+									] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+
+					menuAA.buttonView.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: true, isFocused: true, items: [
+										{ label: 'AA#1', isFocused: false },
+										{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+									] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [
+										{ label: 'AB#1', isFocused: false }
+									] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+
+				it( 'should toggle menus and move focus while moving the mouse (sub-menu -> item)', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+					const menuAItem1 = getItemByLabel( menuBarView, 'A#1' );
+
+					menuAA.buttonView.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: true, isFocused: true, items: [
+										{ label: 'AA#1', isFocused: false },
+										{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+									] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+
+					menuAItem1.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: true },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [
+										{ label: 'AA#1', isFocused: false },
+										{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+									] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+
+				it( 'should keep the menu open while moving the mouse to list item (parent element)', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const parentMenuAAListItem = menuA.panelView.children.first.items.get( 1 );
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.isOpen = true;
+
+					menuAA.buttonView.fire( 'execute' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: true, isFocused: false, items: [
+										{ label: 'AA#1', isFocused: false },
+										{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+									] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+
+					parentMenuAAListItem.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: true, isFocused: true, items: [
+										{ label: 'AA#1', isFocused: false },
+										{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+									] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+
+				it( 'should never toggle disabled menus open', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.isEnabled = false;
+					menuAA.buttonView.fire( 'mouseenter' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: true, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+			} );
+		} );
+
+		describe( 'closeMenusWhenTheBarCloses()', () => {
+			it( 'should close all menus (and sub-menus) when the bar closes', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+				menuA.isOpen = true;
+
+				const menuAA = getMenuByLabel( menuBarView, 'AA' );
+				menuAA.isOpen = true;
+
+				const menuAAA = getMenuByLabel( menuBarView, 'AAA (from-factory)' );
+				menuAAA.isOpen = true;
+
+				expect( barDump( menuBarView ) ).toEqual(
+					[
+						{
+							label: 'A', isOpen: true, isFocused: false,
+							items: [
+								{ label: 'A#1', isFocused: false },
+								{ label: 'AA', isOpen: true, isFocused: false, items: [
+									{ label: 'AA#1', isFocused: false },
+									{ label: 'AAA (from-factory)', isOpen: true, isFocused: false, items: [
+
+									] }
+								] },
+								{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+							]
+						},
+						{
+							label: 'B', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'C', isOpen: false, isFocused: false,
+							items: []
+						}
+					]
+				);
+
+				menuBarView.isOpen = false;
+
+				expect( barDump( menuBarView ) ).toEqual(
+					[
+						{
+							label: 'A', isOpen: false, isFocused: false,
+							items: [
+								{ label: 'A#1', isFocused: false },
+								{ label: 'AA', isOpen: false, isFocused: false, items: [
+									{ label: 'AA#1', isFocused: false },
+									{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [
+
+									] }
+								] },
+								{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+							]
+						},
+						{
+							label: 'B', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'C', isOpen: false, isFocused: false,
+							items: []
+						}
+					]
+				);
+			} );
+		} );
+
+		describe( 'closeMenuWhenAnotherOnTheSameLevelOpens()', () => {
+			it( 'should closea a sub-menu when another one opens on the same level (same parent menu)', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.isOpen = true;
+
+				const menuAA = getMenuByLabel( menuBarView, 'AA' );
+				const menuAB = getMenuByLabel( menuBarView, 'AB' );
+
+				menuAA.isOpen = true;
+				menuAB.isOpen = true;
+
+				expect( barDump( menuBarView ) ).toEqual(
+					[
+						{
+							label: 'A', isOpen: true, isFocused: false,
+							items: [
+								{ label: 'A#1', isFocused: false },
+								{ label: 'AA', isOpen: false, isFocused: false, items: [
+									{ label: 'AA#1', isFocused: false },
+									{ label: 'AAA (from-factory)', isOpen: false, isFocused: false, items: [] }
+								] },
+								{ label: 'AB', isOpen: true, isFocused: false, items: [
+									{ label: 'AB#1', isFocused: false }
+								] }
+							]
+						},
+						{
+							label: 'B', isOpen: false, isFocused: false,
+							items: []
+						},
+						{
+							label: 'C', isOpen: false, isFocused: false,
+							items: []
+						}
+					]
+				);
+			} );
+		} );
+
+		describe( 'focusCycleMenusOnArrows()', () => {
+			describe( 'when the menu bar is closed and a top-level menu button focused', () => {
+				it( 'should move focus horizontally across top-level menu buttons using the arrow right key', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const menuB = getMenuByLabel( menuBarView, 'B' );
+					const menuC = getMenuByLabel( menuBarView, 'C' );
+
+					menuA.buttonView.focus();
+					menuA.fire( 'arrowright' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'B', isOpen: false, isFocused: true,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+
+					menuB.fire( 'arrowright' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: true,
+								items: []
+							}
+						]
+					);
+
+					menuC.fire( 'arrowright' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: true,
+								items: []
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+
+				it( 'should move focus horizontally across top-level menu buttons using the arrow left key', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const menuC = getMenuByLabel( menuBarView, 'C' );
+
+					menuA.buttonView.focus();
+					menuA.fire( 'arrowleft' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: true,
+								items: []
+							}
+						]
+					);
+
+					menuC.fire( 'arrowleft' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'B', isOpen: false, isFocused: true,
+								items: []
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+				} );
+
+				describe( 'RTL content', () => {
+					let menuBarView;
+
+					beforeEach( () => {
+						const rtlLocale = new Locale( { uiLanguage: 'ar' } );
+
+						menuBarView = initMenuBar( rtlLocale, config );
+					} );
+
+					afterEach( () => {
+						menuBarView.element.remove();
+					} );
+
+					it( 'should move focus horizontally across top-level menu buttons in reverse order', () => {
+						const menuA = getMenuByLabel( menuBarView, 'A' );
+						const menuC = getMenuByLabel( menuBarView, 'C' );
+
+						menuA.buttonView.focus();
+						menuA.fire( 'arrowleft' );
+
+						expect( barDump( menuBarView ) ).toEqual(
+							[
+								{
+									label: 'A', isOpen: false, isFocused: false,
+									items: []
+								},
+								{
+									label: 'B', isOpen: false, isFocused: true,
+									items: []
+								},
+								{
+									label: 'C', isOpen: false, isFocused: false,
+									items: []
+								}
+							]
+						);
+
+						menuC.fire( 'arrowright' );
+
+						expect( barDump( menuBarView ) ).toEqual(
+							[
+								{
+									label: 'A', isOpen: false, isFocused: false,
+									items: []
+								},
+								{
+									label: 'B', isOpen: false, isFocused: true,
+									items: []
+								},
+								{
+									label: 'C', isOpen: false, isFocused: false,
+									items: []
+								}
+							]
+						);
+					} );
+				} );
+			} );
+
+			describe( 'when the menu bar is open', () => {
+				it( 'should move focus horizontally across top-level menu buttons and open menus using the arrow right key', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const menuB = getMenuByLabel( menuBarView, 'B' );
+					const menuC = getMenuByLabel( menuBarView, 'C' );
+
+					menuA.buttonView.focus();
+					menuA.isOpen = true;
+					menuA.fire( 'arrowright' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'B#1', isFocused: false }
+								]
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: []
+							}
+						]
+					);
+
+					menuB.fire( 'arrowright' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'B#1', isFocused: false }
+								]
+							},
+							{
+								label: 'C', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'C#1', isFocused: false }
+								]
+							}
+						]
+					);
+
+					menuC.fire( 'arrowright' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'B#1', isFocused: false }
+								]
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'C#1', isFocused: false }
+								]
+							}
+						]
+					);
+				} );
+
+				it( 'should move focus horizontally across top-level menu buttons and open menus using the arrow left key', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const menuC = getMenuByLabel( menuBarView, 'C' );
+
+					menuA.buttonView.focus();
+					menuA.isOpen = true;
+					menuA.fire( 'arrowleft' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: false, isFocused: false,
+								items: []
+							},
+							{
+								label: 'C', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'C#1', isFocused: false }
+								]
+							}
+						]
+					);
+
+					menuC.fire( 'arrowleft' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isOpen: false, isFocused: false, items: [] },
+									{ label: 'AB', isOpen: false, isFocused: false, items: [] }
+								]
+							},
+							{
+								label: 'B', isOpen: true, isFocused: true,
+								items: [
+									{ label: 'B#1', isFocused: false }
+								]
+							},
+							{
+								label: 'C', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'C#1', isFocused: false }
+								]
+							}
+						]
+					);
+				} );
+			} );
+		} );
+
+		describe( 'closeOnClickOutside()', () => {
+			it( 'should closes the bar when the user clicked  somewhere outside of it', () => {
+				const closeSpy = vi.spyOn( menuBarView, 'close' );
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.isOpen = true;
+
+				// Check if context elements are correct.
+				menuA.element.dispatchEvent( new Event( 'mousedown', { bubbles: true } ) );
+				expect( closeSpy ).not.toHaveBeenCalled();
+
+				document.body.dispatchEvent( new Event( 'mousedown', { bubbles: true } ) );
+				expect( closeSpy ).toHaveBeenCalledOnce();
+			} );
+		} );
+
+		describe( 'enableFocusHighlightOnInteraction', () => {
+			it( 'should set proper isFocusBorderEnabled when #isOpen changes', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.isOpen = true;
+				menuBarView.isFocusBorderEnabled = true;
+				menuBarView.isOpen = false;
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+			} );
+
+			it( 'should set proper isFocusBorderEnabled when a key is pressed', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.isOpen = true;
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keydown', { keyCode: keyCodes.arrowdown } ) );
+				menuA.element.dispatchEvent( new Event( 'focus', { keyCode: keyCodes.arrowdown } ) );
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( true );
+
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keyup', { keyCode: keyCodes.arrowdown } ) );
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( true );
+			} );
+
+			it( 'should set proper isFocusBorderEnabled when a keyup fires before focus', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.isOpen = true;
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keydown', { keyCode: keyCodes.arrowdown } ) );
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keyup', { keyCode: keyCodes.arrowdown } ) );
+				menuA.element.dispatchEvent( new Event( 'focus', { keyCode: keyCodes.arrowdown } ) );
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+			} );
+
+			it( 'should set proper isFocusBorderEnabled when a keydown fires before focus', () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.isOpen = true;
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+
+				menuA.element.dispatchEvent( new Event( 'focus', { keyCode: keyCodes.arrowdown } ) );
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keydown', { keyCode: keyCodes.arrowdown } ) );
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keyup', { keyCode: keyCodes.arrowdown } ) );
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+			} );
+
+			it( 'should not clean #isFocusBorderEnabled if the menu bar was closed by an Esc key press', async () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.buttonView.focus();
+
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keydown', { keyCode: keyCodes.arrowdown } ) );
+				await wait( 10 );
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keyup', { keyCode: keyCodes.arrowdown } ) );
+
+				await wait( 100 );
+				expect( menuBarView.isFocusBorderEnabled ).toBe( true );
+				expect( menuBarView.isOpen ).toBe( true );
+
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keydown', { keyCode: keyCodes.esc } ) );
+				await wait( 10 );
+				menuA.element.dispatchEvent( new KeyboardEvent( 'keyup', { keyCode: keyCodes.esc } ) );
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( true );
+				expect( menuBarView.isOpen ).toBe( false );
+			} );
+
+			it( 'should clean #isFocusBorderEnabled if the menu bar was closed without use of a keyboard', async () => {
+				const menuA = getMenuByLabel( menuBarView, 'A' );
+
+				menuA.buttonView.element.dispatchEvent( new MouseEvent( 'click' ) );
+
+				await wait( 10 );
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+				expect( menuBarView.isOpen ).toBe( true );
+
+				menuA.buttonView.element.dispatchEvent( new MouseEvent( 'click' ) );
+				await wait( 10 );
+
+				expect( menuBarView.isFocusBorderEnabled ).toBe( false );
+				expect( menuBarView.isOpen ).toBe( false );
+			} );
+		} );
+	} );
+
+	describe( 'MenuBarMenuBehaviors', () => {
+		describe( 'for top-level menus', () => {
+			let menuBarView;
+
+			beforeEach( () => {
+				menuBarView = new MenuBarView( locale );
+				menuBarView.render();
+
+				document.body.appendChild( menuBarView.element );
+
+				menuBarView.fillFromConfig( normalizeMenuBarConfig( {
+					items: [
+						{
+							menuId: 'A',
+							label: 'A',
+							groups: [
+								{
+									groupId: 'A1',
+									items: [
+										'A#1'
+									]
+								}
+							]
+						}
+					]
+				} ), factory );
+			} );
+
+			afterEach( () => {
+				menuBarView.element.remove();
+			} );
+
+			describe( 'openAndFocusPanelOnArrowDownKey()', () => {
+				it( 'should open and focus the panel on arrow down key', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowdown,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.buttonView.focus();
+					menuA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: true }
+								]
+							}
+
+						]
+					);
+				} );
+
+				it( 'should focus the already open menu panel on arrow down key', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowdown,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+					menuA.buttonView.focus();
+					menuA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: true }
+								]
+							}
+
+						]
+					);
+				} );
+
+				it( 'should do nothing on arrow down key if menu is disabled', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowdown,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isEnabled = false;
+
+					menuA.buttonView.focus();
+					menuA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: true,
+								items: []
+							}
+
+						]
+					);
+				} );
+			} );
+
+			describe( 'toggleOnButtonClick()', () => {
+				it( 'should toggle the visibility of the menu upon clicking', async () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.buttonView.fire( 'execute' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false }
+								]
+							}
+
+						]
+					);
+
+					menuA.buttonView.fire( 'execute' );
+
+					// Wait for the bar to close.
+					await wait( 10 );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false }
+								]
+							}
+
+						]
+					);
+				} );
+			} );
+		} );
+
+		describe( 'for sub-menu', () => {
+			let menuBarView, config;
+
+			beforeEach( () => {
+				config = {
+					items: [
+						{
+							menuId: 'A',
+							label: 'A',
+							groups: [
+								{
+									groupId: 'A1',
+									items: [
+										'A#1',
+										{
+											menuId: 'AA',
+											label: 'AA',
+											groups: [
+												{
+													groupId: 'AA1',
+													items: [
+														'AA#1'
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				};
+
+				menuBarView = initMenuBar( locale, config );
+			} );
+
+			afterEach( () => {
+				menuBarView.element.remove();
+			} );
+
+			describe( 'openOnButtonClick()', () => {
+				it( 'should open the menu upon clicking (but does not close it)', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.buttonView.fire( 'execute' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: true, items: [
+										{ label: 'AA#1', isFocused: false }
+									] }
+								]
+							}
+
+						]
+					);
+
+					menuAA.buttonView.fire( 'execute' );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: true, items: [
+										{ label: 'AA#1', isFocused: false }
+									] }
+								]
+							}
+
+						]
+					);
+				} );
+			} );
+
+			describe( 'openOnArrowRightKey()', () => {
+				it( 'should open the menu upon arrow right key press', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowright,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.buttonView.focus();
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: true, items: [
+										{ label: 'AA#1', isFocused: true }
+									] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+					expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				} );
+
+				it( 'should focus the already open menu\'s panel upon arrow right key press', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowright,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.isOpen = true;
+
+					menuAA.buttonView.focus();
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: true, items: [
+										{ label: 'AA#1', isFocused: true }
+									] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+					expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				} );
+
+				it( 'should work only when the menu\'s button is focused', async () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowright,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.isOpen = true;
+					menuAA.panelView.focus();
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: true, items: [
+										{ label: 'AA#1', isFocused: true }
+									] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+					expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				} );
+
+				it( 'should not open a disabled menu', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowright,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.isEnabled = false;
+					menuAA.buttonView.focus();
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: true, isOpen: false, items: [] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+					expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				} );
+
+				describe( 'RTL content', () => {
+					let menuBarView;
+
+					beforeEach( () => {
+						const rtlLocale = new Locale( { uiLanguage: 'ar' } );
+
+						menuBarView = initMenuBar( rtlLocale, config );
+					} );
+
+					afterEach( () => {
+						menuBarView.element.remove();
+					} );
+
+					it( 'should open the menu upon arrow left key press', () => {
+						const menuA = getMenuByLabel( menuBarView, 'A' );
+						const keyEvtData = {
+							keyCode: 37, // arrow left
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
+						};
+
+						menuA.isOpen = true;
+
+						const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+						menuAA.buttonView.focus();
+						menuAA.keystrokes.press( keyEvtData );
+
+						expect( barDump( menuBarView ) ).toEqual(
+							[
+								{
+									label: 'A', isOpen: true, isFocused: false,
+									items: [
+										{ label: 'A#1', isFocused: false },
+										{ label: 'AA', isFocused: false, isOpen: true, items: [
+											{ label: 'AA#1', isFocused: true }
+										] }
+									]
+								}
+							]
+						);
+
+						expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+						expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+					} );
+				} );
+			} );
+
+			describe( 'closeOnArrowLeftKey()', () => {
+				it( 'should close the menu upon arrow left key press', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowleft,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuAA.isOpen = true;
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: true, isOpen: false, items: [
+										{ label: 'AA#1', isFocused: false }
+									] }
+								]
+							}
+						]
+					);
+				} );
+
+				it( 'should do nothing when the menu is already closed', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+					const keyEvtData = {
+						keyCode: keyCodes.arrowleft,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: false, items: [] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+					expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				} );
+
+				describe( 'RTL content', () => {
+					let menuBarView;
+
+					beforeEach( () => {
+						const rtlLocale = new Locale( { uiLanguage: 'ar' } );
+
+						menuBarView = initMenuBar( rtlLocale, config );
+					} );
+
+					afterEach( () => {
+						menuBarView.element.remove();
+					} );
+
+					it( 'should close the menu upon arrow right key press', () => {
+						const menuA = getMenuByLabel( menuBarView, 'A' );
+
+						menuA.isOpen = true;
+
+						const menuAA = getMenuByLabel( menuBarView, 'AA' );
+						const keyEvtData = {
+							keyCode: 39, // arrow right
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
+						};
+
+						menuAA.isOpen = true;
+						menuAA.keystrokes.press( keyEvtData );
+
+						expect( barDump( menuBarView ) ).toEqual(
+							[
+								{
+									label: 'A', isOpen: true, isFocused: false,
+									items: [
+										{ label: 'A#1', isFocused: false },
+										{ label: 'AA', isFocused: true, isOpen: false, items: [
+											{ label: 'AA#1', isFocused: false }
+										] }
+									]
+								}
+							]
+						);
+					} );
+				} );
+			} );
+
+			describe( 'closeOnParentClose()', () => {
+				it( 'should close the menu when its parent closes', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.isOpen = true;
+					menuA.isOpen = false;
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: false, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: false, items: [
+										{ label: 'AA#1', isFocused: false }
+									] }
+								]
+							}
+						]
+					);
+				} );
+			} );
+
+			describe( 'openAndFocusOnEnterKeyPress()', () => {
+				it( 'should open the menu and focus its panel upon enter key press', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.enter,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.buttonView.focus();
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: true, items: [
+										{ label: 'AA#1', isFocused: true }
+									] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+					expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				} );
+
+				it( 'should not intercept enter key press from anywhere but the button view', () => {
+					const menuA = getMenuByLabel( menuBarView, 'A' );
+					const keyEvtData = {
+						keyCode: keyCodes.enter,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					};
+
+					menuA.isOpen = true;
+
+					const menuAA = getMenuByLabel( menuBarView, 'AA' );
+
+					menuAA.keystrokes.press( keyEvtData );
+
+					expect( barDump( menuBarView ) ).toEqual(
+						[
+							{
+								label: 'A', isOpen: true, isFocused: false,
+								items: [
+									{ label: 'A#1', isFocused: false },
+									{ label: 'AA', isFocused: false, isOpen: false, items: [] }
+								]
+							}
+						]
+					);
+
+					expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+					expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				} );
+			} );
+		} );
+
+		it( 'should bring closeOnEscKey() that closes the menu on Esc key press', () => {
+			const menuBarView = new MenuBarView( locale );
+			menuBarView.render();
+			document.body.appendChild( menuBarView.element );
+
+			menuBarView.fillFromConfig( normalizeMenuBarConfig( {
+				items: [
+					{
+						menuId: 'A',
+						label: 'A',
+						groups: [
+							{
+								groupId: 'A1',
+								items: [
+									'A#1',
+									{
+										menuId: 'AA',
+										label: 'AA',
+										groups: [
+											{
+												groupId: 'AA1',
+												items: [
+													'AA#1'
+												]
+											}
+										]
+									}
+								]
+							}
+						]
+					}
+				]
+			} ), factory );
+
+			const menuA = getMenuByLabel( menuBarView, 'A' );
+
+			menuA.isOpen = true;
+
+			const menuAA = getMenuByLabel( menuBarView, 'AA' );
+			const keyEvtData = {
+				keyCode: keyCodes.esc,
+				preventDefault: vi.fn(),
+				stopPropagation: vi.fn()
+			};
+
+			menuAA.keystrokes.press( keyEvtData );
+
+			expect( barDump( menuBarView ) ).toEqual(
+				[
+					{
+						label: 'A', isOpen: true, isFocused: false,
+						items: [
+							{ label: 'A#1', isFocused: false },
+							{ label: 'AA', isFocused: false, isOpen: false, items: [] }
+						]
+					}
+				]
+			);
+
+			expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+			expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+
+			keyEvtData.preventDefault.mockClear();
+			keyEvtData.stopPropagation.mockClear();
+
+			menuAA.isOpen = true;
+			menuAA.keystrokes.press( keyEvtData );
+
+			expect( barDump( menuBarView ) ).toEqual(
+				[
+					{
+						label: 'A', isOpen: true, isFocused: false,
+						items: [
+							{ label: 'A#1', isFocused: false },
+							{ label: 'AA', isFocused: true, isOpen: false, items: [
+								{ label: 'AA#1', isFocused: false }
+							] }
+						]
+					}
+				]
+			);
+
+			menuA.keystrokes.press( keyEvtData );
+
+			expect( barDump( menuBarView ) ).toEqual(
+				[
+					{
+						label: 'A', isOpen: false, isFocused: true,
+						items: [
+							{ label: 'A#1', isFocused: false },
+							{ label: 'AA', isFocused: false, isOpen: false, items: [
+								{ label: 'AA#1', isFocused: false }
+							] }
+						]
+					}
+				]
+			);
+
+			menuBarView.element.remove();
+		} );
+	} );
+
+	describe( 'MenuBarMenuViewPanelPositioningFunctions', () => {
+		let buttonRect, panelRect;
+
+		beforeEach( () => {
+			buttonRect = {
+				top: 100,
+				bottom: 200,
+				left: 500,
+				right: 200,
+				width: 100,
+				height: 100
+			};
+
+			panelRect = {
+				top: 0,
+				bottom: 0,
+				left: 0,
+				right: 0,
+				width: 400,
+				height: 50
+			};
+		} );
+
+		it( 'should bring the "southEast" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.southEast( buttonRect ) ).toEqual( {
+				name: 'se',
+				left: 500,
+				top: 200
+			} );
+		} );
+
+		it( 'should bring the "southWest" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.southWest( buttonRect, panelRect ) ).toEqual( {
+				name: 'sw',
+				left: 200,
+				top: 200
+			} );
+		} );
+
+		it( 'should bring the "northEast" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.northEast( buttonRect, panelRect ) ).toEqual( {
+				name: 'ne',
+				left: 500,
+				top: 50
+			} );
+		} );
+
+		it( 'should bring the "northWest" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.northWest( buttonRect, panelRect ) ).toEqual( {
+				name: 'nw',
+				left: 200,
+				top: 50
+			} );
+		} );
+
+		it( 'should bring the "eastSouth" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.eastSouth( buttonRect, panelRect ) ).toEqual( {
+				name: 'es',
+				left: 195,
+				top: 100
+			} );
+		} );
+
+		it( 'should bring the "eastNorth" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.eastNorth( buttonRect, panelRect ) ).toEqual( {
+				name: 'en',
+				left: 195,
+				top: 50
+			} );
+		} );
+
+		it( 'should bring the "westSouth" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.westSouth( buttonRect, panelRect ) ).toEqual( {
+				name: 'ws',
+				left: 105,
+				top: 100
+			} );
+		} );
+
+		it( 'should bring the "westNorth" positioning fuction', () => {
+			expect( MenuBarMenuViewPanelPositioningFunctions.westNorth( buttonRect, panelRect ) ).toEqual( {
+				name: 'wn',
+				left: 105,
+				top: 50
+			} );
+		} );
+	} );
+
+	describe( 'normalizeMenuBarConfig', () => {
+		it( 'should normalize menu bar config with default values when items are not provided', () => {
+			const config = {};
+			const normalizedConfig = normalizeMenuBarConfig( config );
+
+			expect( normalizedConfig.items ).toEqual( DefaultMenuBarItems );
+			expect( normalizedConfig.addItems ).toEqual( [] );
+			expect( normalizedConfig.removeItems ).toEqual( [] );
+			expect( normalizedConfig.isVisible ).toBe( true );
+			expect( normalizedConfig.isUsingDefaultConfig ).toBe( true );
+		} );
+
+		it( 'should keep provided items unchanged when items are already provided', () => {
+			const items = [ 'menuBar:undo', 'menuBar:redo' ];
+			const config = { items };
+
+			const normalizedConfig = normalizeMenuBarConfig( config );
+
+			expect( normalizedConfig.items ).toEqual( items );
+			expect( normalizedConfig.addItems ).toEqual( [] );
+			expect( normalizedConfig.removeItems ).toEqual( [] );
+			expect( normalizedConfig.isVisible ).toBe( true );
+			expect( normalizedConfig.isUsingDefaultConfig ).toBe( false );
+		} );
+
+		it( 'should merge provided config with default values when items are not provided', () => {
+			const config = {
+				isVisible: false,
+				addItems: [ { item: 'menuBar:undo', position: 'end:basicStyles' } ],
+				removeItems: [ 'menuBar:redo' ]
+			};
+			const normalizedConfig = normalizeMenuBarConfig( config );
+
+			expect( normalizedConfig.items ).toEqual( DefaultMenuBarItems );
+			expect( normalizedConfig.addItems ).toEqual( config.addItems );
+			expect( normalizedConfig.removeItems ).toEqual( config.removeItems );
+			expect( normalizedConfig.isVisible ).toBe( false );
+			expect( normalizedConfig.isUsingDefaultConfig ).toBe( true );
+		} );
+	} );
+
+	describe( 'processMenuBarConfig with extra items', () => {
+		let normalizedConfig;
+
+		beforeEach( () => {
+			normalizedConfig = normalizeMenuBarConfig( {
+				items: [
+					{
+						menuId: 'A',
+						label: 'A',
+						groups: [
+							{
+								groupId: 'A1',
+								items: [
+									'A#1'
+								]
+							},
+							{
+								groupId: 'A2',
+								items: [
+									'C#1'
+								]
+							}
+						]
+					}
+				],
+				removeItems: [ 'C#1' ]
+			} );
+		} );
+
+		it( 'should add an extra item in requested position', () => {
+			const extraItems = [
+				{
+					item: 'B#1',
+					position: 'after:A#1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 1 ] ).toBe( 'B#1' );
+		} );
+
+		it( 'should add an extra item at the end of a group', () => {
+			const extraItems = [
+				{
+					item: 'B#1',
+					position: 'end:A1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).toEqual( [ 'A#1', 'B#1' ] );
+		} );
+
+		it( 'should not add an extra item if it\'s not registered in component factory', () => {
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+
+			const extraItems = [
+				{
+					item: 'Z#1',
+					position: 'after:A#1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+		} );
+
+		it( 'should not add an extra item if postition is incorrect', () => {
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+
+			const extraItems = [
+				{
+					item: 'B#1',
+					position: 'after:Z#1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+		} );
+
+		it( 'should add an extra item to a group that has other items removed', () => {
+			const extraItems = [
+				{
+					item: 'B#1',
+					position: 'after:C#1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 1 ].items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+			expect( processedConfig.items[ 0 ].groups[ 1 ].items[ 0 ] ).toBe( 'B#1' );
+		} );
+
+		it( 'should add an extra group in requested position', () => {
+			const extraItems = [
+				{
+					group: {
+						groupId: 'B1',
+						items: [
+							'B#1'
+						]
+					},
+					position: 'after:A1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+			expect( processedConfig.items[ 0 ].groups[ 1 ].items[ 0 ] ).toBe( 'B#1' );
+		} );
+
+		it( 'should add an extra group at the end of a menu', () => {
+			const extraItems = [
+				{
+					group: {
+						groupId: 'B1',
+						items: [
+							'B#1'
+						]
+					},
+					position: 'end:A'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 1 ].items[ 0 ] ).toBe( 'B#1' );
+		} );
+
+		it( 'should add an extra group before another group', () => {
+			const extraItems = [
+				{
+					group: {
+						groupId: 'B1',
+						items: [
+							'B#1'
+						]
+					},
+					position: 'before:A1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'B#1' );
+			expect( processedConfig.items[ 0 ].groups[ 1 ].items[ 0 ] ).toBe( 'A#1' );
+		} );
+
+		it( 'should add an extra menu in requested position', () => {
+			const extraItems = [
+				{
+					menu: {
+						menuId: 'B',
+						label: 'B',
+						groups: [
+							{
+								groupId: 'B1',
+								items: [
+									'B#1'
+								]
+							}
+						]
+					},
+					position: 'after:A'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+			expect( processedConfig.items[ 1 ].groups[ 0 ].items[ 0 ] ).toBe( 'B#1' );
+		} );
+
+		it( 'should add an extra menu at the end of the menu bar', () => {
+			const extraItems = [
+				{
+					menu: {
+						menuId: 'B',
+						label: 'B',
+						groups: [
+							{
+								groupId: 'B1',
+								items: [
+									'B#1'
+								]
+							}
+						]
+					},
+					position: 'end'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 2 );
+			expect( processedConfig.items[ 1 ].groups[ 0 ].items[ 0 ] ).toBe( 'B#1' );
+		} );
+
+		it( 'should add an extra menu before another top-level menu', () => {
+			const extraItems = [
+				{
+					menu: {
+						menuId: 'B',
+						label: 'B',
+						groups: [
+							{
+								groupId: 'B1',
+								items: [
+									'B#1'
+								]
+							}
+						]
+					},
+					position: 'before:A'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 2 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items[ 0 ] ).toBe( 'B#1' );
+			expect( processedConfig.items[ 1 ].groups[ 0 ].items[ 0 ] ).toBe( 'A#1' );
+		} );
+
+		it( 'should warn when an extra menu cannot be added to a group', () => {
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+
+			const extraItems = [
+				{
+					menu: {
+						menuId: 'B',
+						label: 'B',
+						groups: [
+							{
+								groupId: 'B1',
+								items: [
+									'B#1'
+								]
+							}
+						]
+					},
+					position: 'after:Z#1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 1 );
+			expect( console.warn ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should not add an item when a group-level relation targets an item ID', () => {
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+
+			const extraItems = [
+				{
+					item: 'B#1',
+					position: 'start:A#1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).not.toContain( 'B#1' );
+			expect( console.warn ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should warn when extra items use unsupported position relation for a matching target', () => {
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+
+			const extraItems = [
+				{
+					menu: {
+						menuId: 'B',
+						label: 'B',
+						groups: [
+							{
+								groupId: 'B1',
+								items: [
+									'B#1'
+								]
+							}
+						]
+					},
+					position: 'after'
+				},
+				{
+					menu: {
+						menuId: 'C',
+						label: 'C',
+						groups: [
+							{
+								groupId: 'C1',
+								items: [
+									'C#1'
+								]
+							}
+						]
+					},
+					position: 'start:A'
+				},
+				{
+					group: {
+						groupId: 'B1',
+						items: [
+							'B#1'
+						]
+					},
+					position: 'after:A'
+				},
+				{
+					group: {
+						groupId: 'B2',
+						items: [
+							'B#1'
+						]
+					},
+					position: 'start:A1'
+				},
+				{
+					item: 'B#1',
+					position: 'before:A1'
+				}
+			];
+			const processedConfig = processMenuBarConfig( { normalizedConfig, locale, componentFactory: factory, extraItems } );
+
+			expect( processedConfig.items ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups ).toHaveLength( 1 );
+			expect( processedConfig.items[ 0 ].groups[ 0 ].items ).toEqual( [ 'A#1' ] );
+			expect( console.warn ).toHaveBeenCalledTimes( 5 );
+		} );
+	} );
+
+	function initMenuBar( locale, config ) {
+		const menuBarView = new MenuBarView( locale );
+		menuBarView.render();
+
+		document.body.appendChild( menuBarView.element );
+
+		menuBarView.fillFromConfig( normalizeMenuBarConfig( config ), factory );
+
+		return menuBarView;
+	}
+} );

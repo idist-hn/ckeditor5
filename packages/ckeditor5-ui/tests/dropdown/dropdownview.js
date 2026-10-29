@@ -1,21 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import DropdownView from '../../src/dropdown/dropdownview';
-import KeystrokeHandler from '@ckeditor/ckeditor5-utils/src/keystrokehandler';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import ButtonView from '../../src/button/buttonview';
-import DropdownPanelView from '../../src/dropdown/dropdownpanelview';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { FocusTracker } from '@ckeditor/ckeditor5-utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { DropdownView } from '../../src/dropdown/dropdownview.js';
+import { KeystrokeHandler, keyCodes, global, FocusTracker } from '@ckeditor/ckeditor5-utils';
+import { ButtonView } from '../../src/button/buttonview.js';
+import { DropdownPanelView } from '../../src/dropdown/dropdownpanelview.js';
 
 describe( 'DropdownView', () => {
 	let view, buttonView, panelView, locale;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		locale = {
@@ -41,55 +36,55 @@ describe( 'DropdownView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets view#locale', () => {
-			expect( view.locale ).to.equal( locale );
+			expect( view.locale ).toBe( locale );
 		} );
 
 		it( 'sets view#buttonView', () => {
-			expect( view.buttonView ).to.equal( buttonView );
+			expect( view.buttonView ).toBe( buttonView );
 		} );
 
 		it( 'sets view#panelView', () => {
-			expect( view.panelView ).to.equal( panelView );
+			expect( view.panelView ).toBe( panelView );
 		} );
 
 		it( 'sets view#isOpen false', () => {
-			expect( view.isOpen ).to.be.false;
+			expect( view.isOpen ).toBe( false );
 		} );
 
 		it( 'sets view#isEnabled true', () => {
-			expect( view.isEnabled ).to.be.true;
+			expect( view.isEnabled ).toBe( true );
 		} );
 
 		it( 'sets view#class', () => {
-			expect( view.class ).to.be.undefined;
+			expect( view.class ).toBeUndefined();
 		} );
 
 		it( 'sets view#id', () => {
-			expect( view.id ).to.be.undefined;
+			expect( view.id ).toBeUndefined();
 		} );
 
 		it( 'sets view#panelPosition "auto"', () => {
-			expect( view.panelPosition ).to.equal( 'auto' );
+			expect( view.panelPosition ).toBe( 'auto' );
 		} );
 
 		it( 'creates #keystrokeHandler instance', () => {
-			expect( view.keystrokes ).to.be.instanceOf( KeystrokeHandler );
+			expect( view.keystrokes ).toBeInstanceOf( KeystrokeHandler );
 		} );
 
 		it( 'creates #focusTracker instance', () => {
-			expect( view.focusTracker ).to.be.instanceOf( FocusTracker );
+			expect( view.focusTracker ).toBeInstanceOf( FocusTracker );
 		} );
 
 		it( 'creates #element from template', () => {
-			expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-dropdown' ) ).to.be.true;
-			expect( view.element.children ).to.have.length( 2 );
-			expect( view.element.children[ 0 ] ).to.equal( buttonView.element );
-			expect( view.element.children[ 1 ] ).to.equal( panelView.element );
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-dropdown' ) ).toBe( true );
+			expect( view.element.children ).toHaveLength( 2 );
+			expect( view.element.children[ 0 ] ).toBe( buttonView.element );
+			expect( view.element.children[ 1 ] ).toBe( panelView.element );
 		} );
 
 		it( 'sets view#buttonView class', () => {
-			expect( view.buttonView.element.classList.contains( 'ck-dropdown__button' ) ).to.be.true;
+			expect( view.buttonView.element.classList.contains( 'ck-dropdown__button' ) ).toBe( true );
 		} );
 
 		describe( 'bindings', () => {
@@ -105,12 +100,16 @@ describe( 'DropdownView', () => {
 					view.buttonView.fire( 'open' );
 					view.buttonView.fire( 'open' );
 
-					expect( values ).to.have.members( [ true, false, true ] );
+					expect( values ).toEqual( expect.arrayContaining( [ true, false, true ] ) );
+					expect( values ).toHaveLength( 3 );
 				} );
 			} );
 
 			describe( 'view.panelView#isVisible to view#isOpen', () => {
-				it( 'is activated', () => {
+				it( 'is activated before the view gets rendered', () => {
+					const panelView = new DropdownPanelView( locale );
+					const buttonView = new ButtonView( locale );
+					const view = new DropdownView( locale, buttonView, panelView );
 					const values = [];
 
 					view.listenTo( view.panelView, 'change:isVisible', () => {
@@ -121,7 +120,12 @@ describe( 'DropdownView', () => {
 					view.isOpen = false;
 					view.isOpen = true;
 
-					expect( values ).to.have.members( [ true, false, true ] );
+					expect( values ).toEqual( expect.arrayContaining( [ true, false, true ] ) );
+					expect( values ).toHaveLength( 3 );
+
+					view.destroy();
+					buttonView.destroy();
+					panelView.destroy();
 				} );
 			} );
 
@@ -130,16 +134,16 @@ describe( 'DropdownView', () => {
 					view.isOpen = false;
 					view.panelPosition = 'nw';
 
-					expect( panelView.position ).to.equal( 'se' );
+					expect( panelView.position ).toBe( 'se' );
 
 					view.isOpen = true;
 
-					expect( panelView.position ).to.equal( 'nw' );
+					expect( panelView.position ).toBe( 'nw' );
 				} );
 
 				describe( 'in "auto" mode', () => {
 					it( 'uses _getOptimalPosition() and a dedicated set of positions (LTR)', () => {
-						const spy = testUtils.sinon.spy( DropdownView, '_getOptimalPosition' );
+						const spy = vi.spyOn( DropdownView, '_getOptimalPosition' );
 						const {
 							south, north,
 							southEast, southWest,
@@ -150,7 +154,8 @@ describe( 'DropdownView', () => {
 
 						view.isOpen = true;
 
-						sinon.assert.calledWithExactly( spy, sinon.match( {
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( expect.objectContaining( {
 							element: panelView.element,
 							target: buttonView.element,
 							positions: [
@@ -162,7 +167,7 @@ describe( 'DropdownView', () => {
 					} );
 
 					it( 'uses _getOptimalPosition() and a dedicated set of positions (RTL)', () => {
-						const spy = testUtils.sinon.spy( DropdownView, '_getOptimalPosition' );
+						const spy = vi.spyOn( DropdownView, '_getOptimalPosition' );
 						const {
 							south, north,
 							southEast, southWest,
@@ -174,7 +179,8 @@ describe( 'DropdownView', () => {
 						view.locale.uiLanguageDirection = 'rtl';
 						view.isOpen = true;
 
-						sinon.assert.calledWithExactly( spy, sinon.match( {
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( expect.objectContaining( {
 							element: panelView.element,
 							target: buttonView.element,
 							positions: [
@@ -183,6 +189,49 @@ describe( 'DropdownView', () => {
 							],
 							fitInViewport: true
 						} ) );
+					} );
+
+					it( 'does not pass a limiter to _getOptimalPosition() by default', () => {
+						const spy = vi.spyOn( DropdownView, '_getOptimalPosition' );
+
+						view.isOpen = true;
+
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy.mock.calls[ 0 ][ 0 ].limiter ).toBeUndefined();
+					} );
+
+					it( 'passes view#panelPositionLimiter (an element) as the limiter', () => {
+						const spy = vi.spyOn( DropdownView, '_getOptimalPosition' );
+						const limiterElement = global.document.createElement( 'div' );
+
+						view.panelPositionLimiter = limiterElement;
+						view.isOpen = true;
+
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy.mock.calls[ 0 ][ 0 ].limiter ).toBe( limiterElement );
+					} );
+
+					it( 'resolves view#panelPositionLimiter when it is a function', () => {
+						const spy = vi.spyOn( DropdownView, '_getOptimalPosition' );
+						const limiterElement = global.document.createElement( 'div' );
+						const limiterSpy = vi.fn( () => limiterElement );
+
+						view.panelPositionLimiter = limiterSpy;
+						view.isOpen = true;
+
+						expect( limiterSpy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy.mock.calls[ 0 ][ 0 ].limiter ).toBe( limiterElement );
+					} );
+
+					it( 'does not pass a limiter when view#panelPositionLimiter (a function) returns null', () => {
+						const spy = vi.spyOn( DropdownView, '_getOptimalPosition' );
+
+						view.panelPositionLimiter = () => null;
+						view.isOpen = true;
+
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy.mock.calls[ 0 ][ 0 ].limiter ).toBeUndefined();
 					} );
 
 					it( 'fallback when _getOptimalPosition() will return null', () => {
@@ -208,7 +257,38 @@ describe( 'DropdownView', () => {
 
 						view.isOpen = true;
 
-						expect( view.panelView.position ).is.equal( 'southEast' ); // first position from position list.
+						expect( view.panelView.position ).toBe( 'se' ); // first position from position list.
+
+						view.element.remove();
+						parentWithOverflow.remove();
+					} );
+
+					it( 'fallback when _getOptimalPosition() will return null (RTL)', () => {
+						const locale = {
+							t() {}
+						};
+
+						const buttonView = new ButtonView( locale );
+						const panelView = new DropdownPanelView( locale );
+
+						const view = new DropdownView( locale, buttonView, panelView );
+
+						view.locale.uiLanguageDirection = 'rtl';
+						view.render();
+
+						const parentWithOverflow = global.document.createElement( 'div' );
+						parentWithOverflow.style.width = '1px';
+						parentWithOverflow.style.height = '1px';
+						parentWithOverflow.style.marginTop = '-1000px';
+						parentWithOverflow.style.overflow = 'scroll';
+
+						parentWithOverflow.appendChild( view.element );
+
+						global.document.body.appendChild( parentWithOverflow );
+
+						view.isOpen = true;
+
+						expect( view.panelView.position ).toBe( 'sw' ); // first position from position list.
 
 						view.element.remove();
 						parentWithOverflow.remove();
@@ -220,22 +300,22 @@ describe( 'DropdownView', () => {
 				describe( 'class', () => {
 					it( 'reacts on view#isEnabled', () => {
 						view.isEnabled = true;
-						expect( view.element.classList.contains( 'ck-disabled' ) ).to.be.false;
+						expect( view.element.classList.contains( 'ck-disabled' ) ).toBe( false );
 
 						view.isEnabled = false;
-						expect( view.element.classList.contains( 'ck-disabled' ) ).to.be.true;
+						expect( view.element.classList.contains( 'ck-disabled' ) ).toBe( true );
 					} );
 
 					it( 'reacts on view#class', () => {
 						view.class = 'custom-css-class';
-						expect( view.element.classList.contains( 'custom-css-class' ) ).to.be.true;
+						expect( view.element.classList.contains( 'custom-css-class' ) ).toBe( true );
 					} );
 				} );
 
 				describe( 'id', () => {
 					it( 'reacts on view#id', () => {
 						view.id = 'foo';
-						expect( view.element.id ).to.equal( 'foo' );
+						expect( view.element.id ).toBe( 'foo' );
 					} );
 				} );
 			} );
@@ -248,13 +328,13 @@ describe( 'DropdownView', () => {
 				new ButtonView( locale ),
 				new DropdownPanelView( locale ) );
 
-			const addSpy = sinon.spy( view.focusTracker, 'add' );
+			const addSpy = vi.spyOn( view.focusTracker, 'add' );
 
 			view.render();
 
-			sinon.assert.calledTwice( addSpy );
-			sinon.assert.calledWithExactly( addSpy.firstCall, view.buttonView.element );
-			sinon.assert.calledWithExactly( addSpy.secondCall, view.panelView.element );
+			expect( addSpy ).toHaveBeenCalledTimes( 2 );
+			expect( addSpy.mock.calls[ 0 ][ 0 ] ).toBe( view.buttonView.element );
+			expect( addSpy.mock.calls[ 1 ][ 0 ] ).toBe( view.panelView.element );
 
 			view.destroy();
 		} );
@@ -264,11 +344,11 @@ describe( 'DropdownView', () => {
 				new ButtonView( locale ),
 				new DropdownPanelView( locale ) );
 
-			const spy = sinon.spy( view.keystrokes, 'listenTo' );
+			const spy = vi.spyOn( view.keystrokes, 'listenTo' );
 
 			view.render();
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledWithExactly( spy, view.element );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy ).toHaveBeenCalledWith( view.element );
 
 			view.element.remove();
 		} );
@@ -277,116 +357,116 @@ describe( 'DropdownView', () => {
 			it( 'so "arrowdown" opens the #panelView', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.arrowdown,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				view.buttonView.isEnabled = true;
 
 				view.isOpen = true;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.notCalled( keyEvtData.preventDefault );
-				sinon.assert.notCalled( keyEvtData.stopPropagation );
-				expect( view.isOpen ).to.be.true;
+				expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+				expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( true );
 
 				view.isOpen = false;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				expect( view.isOpen ).to.be.true;
+				expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+				expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				expect( view.isOpen ).toBe( true );
 			} );
 
 			it( 'so "arrowdown" won\'t open the #panelView when #isEnabled is false', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.arrowdown,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				view.buttonView.isEnabled = false;
 				view.isOpen = false;
 
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.notCalled( keyEvtData.preventDefault );
-				sinon.assert.notCalled( keyEvtData.stopPropagation );
-				expect( view.isOpen ).to.be.false;
+				expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+				expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( false );
 			} );
 
 			it( 'so "arrowright" is blocked', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.arrowright,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				view.false = true;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.notCalled( keyEvtData.preventDefault );
-				sinon.assert.notCalled( keyEvtData.stopPropagation );
-				expect( view.isOpen ).to.be.false;
+				expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+				expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( false );
 
 				view.isOpen = true;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				expect( view.isOpen ).to.be.true;
+				expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+				expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				expect( view.isOpen ).toBe( true );
 			} );
 
 			it( 'so "arrowleft" closes the #panelView', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.arrowleft,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
-				const spy = sinon.spy( view.buttonView, 'focus' );
+				const spy = vi.spyOn( view.buttonView, 'focus' );
 
 				view.isOpen = false;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.notCalled( keyEvtData.preventDefault );
-				sinon.assert.notCalled( keyEvtData.stopPropagation );
-				sinon.assert.notCalled( spy );
-				expect( view.isOpen ).to.be.false;
+				expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+				expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				expect( spy ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( false );
 
 				view.isOpen = true;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				sinon.assert.notCalled( spy );
-				expect( view.isOpen ).to.be.false;
+				expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+				expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				expect( spy ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( false );
 			} );
 
 			it( 'so "esc" closes the #panelView', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.esc,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
-				const spy = sinon.spy( view.buttonView, 'focus' );
+				const spy = vi.spyOn( view.buttonView, 'focus' );
 
 				view.isOpen = false;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.notCalled( keyEvtData.preventDefault );
-				sinon.assert.notCalled( keyEvtData.stopPropagation );
-				sinon.assert.notCalled( spy );
-				expect( view.isOpen ).to.be.false;
+				expect( keyEvtData.preventDefault ).not.toHaveBeenCalled();
+				expect( keyEvtData.stopPropagation ).not.toHaveBeenCalled();
+				expect( spy ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( false );
 
 				view.isOpen = true;
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				sinon.assert.notCalled( spy );
-				expect( view.isOpen ).to.be.false;
+				expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+				expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				expect( spy ).not.toHaveBeenCalled();
+				expect( view.isOpen ).toBe( false );
 			} );
 		} );
 	} );
 
 	describe( 'focus()', () => {
 		it( 'focuses the #buttonView in DOM', () => {
-			const spy = sinon.spy( view.buttonView, 'focus' );
+			const spy = vi.spyOn( view.buttonView, 'focus' );
 
 			view.focus();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -416,11 +496,11 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should have a proper length', () => {
-			expect( Object.keys( positions ) ).to.have.length( 10 );
+			expect( Object.keys( positions ) ).toHaveLength( 10 );
 		} );
 
 		it( 'should define the "south" position', () => {
-			expect( positions.south( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.south( buttonRect, panelRect ) ).toEqual( {
 				top: 200,
 				left: 350,
 				name: 's'
@@ -428,7 +508,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "southEast" position', () => {
-			expect( positions.southEast( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.southEast( buttonRect, panelRect ) ).toEqual( {
 				top: 200,
 				left: 500,
 				name: 'se'
@@ -436,7 +516,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "southWest" position', () => {
-			expect( positions.southWest( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.southWest( buttonRect, panelRect ) ).toEqual( {
 				top: 200,
 				left: 200,
 				name: 'sw'
@@ -444,7 +524,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "southMiddleEast" position', () => {
-			expect( positions.southMiddleEast( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.southMiddleEast( buttonRect, panelRect ) ).toEqual( {
 				top: 200,
 				left: 425,
 				name: 'sme'
@@ -452,7 +532,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "southMiddleWest" position', () => {
-			expect( positions.southMiddleWest( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.southMiddleWest( buttonRect, panelRect ) ).toEqual( {
 				top: 200,
 				left: 275,
 				name: 'smw'
@@ -460,7 +540,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "north" position', () => {
-			expect( positions.north( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.north( buttonRect, panelRect ) ).toEqual( {
 				top: 50,
 				left: 350,
 				name: 'n'
@@ -468,7 +548,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "northEast" position', () => {
-			expect( positions.northEast( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.northEast( buttonRect, panelRect ) ).toEqual( {
 				top: 50,
 				left: 500,
 				name: 'ne'
@@ -476,7 +556,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "northWest" position', () => {
-			expect( positions.northWest( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.northWest( buttonRect, panelRect ) ).toEqual( {
 				top: 50,
 				left: 200,
 				name: 'nw'
@@ -484,7 +564,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "northMiddleEast" position', () => {
-			expect( positions.northMiddleEast( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.northMiddleEast( buttonRect, panelRect ) ).toEqual( {
 				top: 50,
 				left: 425,
 				name: 'nme'
@@ -492,7 +572,7 @@ describe( 'DropdownView', () => {
 		} );
 
 		it( 'should define the "northMiddleWest" position', () => {
-			expect( positions.northMiddleWest( buttonRect, panelRect ) ).to.deep.equal( {
+			expect( positions.northMiddleWest( buttonRect, panelRect ) ).toEqual( {
 				top: 50,
 				left: 275,
 				name: 'nmw'

@@ -1,22 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import HtmlDataProcessor from '@ckeditor/ckeditor5-engine/src/dataprocessor/htmldataprocessor';
-import removeBoldWrapper from '../../src/filters/removeboldwrapper';
-import UpcastWriter from '@ckeditor/ckeditor5-engine/src/view/upcastwriter';
-import Document from '@ckeditor/ckeditor5-engine/src/view/document';
-import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { HtmlDataProcessor, ViewUpcastWriter, ViewDocument, StylesProcessor } from '@ckeditor/ckeditor5-engine';
+import { removeBoldWrapper } from '../../src/filters/removeboldwrapper.js';
 
 describe( 'PasteFromOffice - filters', () => {
-	const htmlDataProcessor = new HtmlDataProcessor( new Document( new StylesProcessor() ) );
+	const htmlDataProcessor = new HtmlDataProcessor( new ViewDocument( new StylesProcessor() ) );
 	describe( 'removeBoldWrapper', () => {
 		let writer, viewDocument;
 
-		before( () => {
-			viewDocument = new Document();
-			writer = new UpcastWriter( viewDocument );
+		beforeAll( () => {
+			viewDocument = new ViewDocument();
+			writer = new ViewUpcastWriter( viewDocument );
 		} );
 
 		it( 'should remove bold wrapper added by google docs', () => {
@@ -27,7 +25,7 @@ describe( 'PasteFromOffice - filters', () => {
 
 			removeBoldWrapper( documentFragment, writer );
 
-			expect( htmlDataProcessor.toData( documentFragment ) ).to.equal( '<p>Hello world</p>' );
+			expect( htmlDataProcessor.toData( documentFragment ) ).toBe( '<p>Hello world</p>' );
 		} );
 
 		it( 'should not remove non-bold tag with google id', () => {
@@ -36,7 +34,7 @@ describe( 'PasteFromOffice - filters', () => {
 
 			removeBoldWrapper( documentFragment, writer );
 
-			expect( htmlDataProcessor.toData( documentFragment ) ).to.equal(
+			expect( htmlDataProcessor.toData( documentFragment ) ).toBe(
 				'<p id="docs-internal-guid-e4b9bad6-7fff-c086-3135-1234567890ab">Hello world</p>' );
 		} );
 
@@ -46,7 +44,7 @@ describe( 'PasteFromOffice - filters', () => {
 
 			removeBoldWrapper( documentFragment, writer );
 
-			expect( htmlDataProcessor.toData( documentFragment ) ).to.equal(
+			expect( htmlDataProcessor.toData( documentFragment ) ).toBe(
 				'<b>Hello world</b>' );
 		} );
 	} );

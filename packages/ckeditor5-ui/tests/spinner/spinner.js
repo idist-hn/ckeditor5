@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import SpinnerView from '../../src/spinner/spinnerview';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { SpinnerView } from '../../src/spinner/spinnerview.js';
 
 describe( 'SpinnerView', () => {
 	let view;
@@ -15,17 +16,17 @@ describe( 'SpinnerView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets #isVisible', () => {
-			expect( view.isVisible ).to.equal( false );
+			expect( view.isVisible ).toBe( false );
 		} );
 
 		it( 'creates element from template', () => {
-			expect( view.element.tagName ).to.equal( 'SPAN' );
-			expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-spinner-container' ) ).to.be.true;
+			expect( view.element.tagName ).toBe( 'SPAN' );
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-spinner-container' ) ).toBe( true );
 
-			expect( view.element.children[ 0 ].tagName ).to.equal( 'SPAN' );
-			expect( view.element.children[ 0 ].classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.children[ 0 ].classList.contains( 'ck-spinner' ) ).to.be.true;
+			expect( view.element.children[ 0 ].tagName ).toBe( 'SPAN' );
+			expect( view.element.children[ 0 ].classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.children[ 0 ].classList.contains( 'ck-spinner' ) ).toBe( true );
 		} );
 	} );
 
@@ -33,12 +34,11 @@ describe( 'SpinnerView', () => {
 		it( 'should react to changes in view#isVisible', () => {
 			view.isVisible = true;
 
-			expect( view.element.classList.contains( 'ck-hidden' ) ).to.be.false;
+			expect( view.element.classList.contains( 'ck-hidden' ) ).toBe( false );
 
 			view.isVisible = false;
 
-			expect( view.element.classList.contains( 'ck-hidden' ) ).to.be.true;
+			expect( view.element.classList.contains( 'ck-hidden' ) ).toBe( true );
 		} );
 	} );
 } );
-

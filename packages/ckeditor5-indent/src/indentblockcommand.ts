@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module indent/indentblockcommand
  */
 
-import { Command, type Editor } from 'ckeditor5/src/core';
-import type { Element } from 'ckeditor5/src/engine';
-import type { DocumentListUtils } from '@ckeditor/ckeditor5-list';
-import { first } from 'ckeditor5/src/utils';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
+import type { ListUtils } from '@ckeditor/ckeditor5-list';
+import { first } from '@ckeditor/ckeditor5-utils';
 
-import type { IndentBehavior } from './indentcommandbehavior/indentbehavior';
+import type { IndentBehavior } from './indentcommandbehavior/indentbehavior.js';
 
 /**
  * The indent block command.
@@ -32,7 +32,7 @@ import type { IndentBehavior } from './indentcommandbehavior/indentbehavior';
  * editor.execute( 'outdentBlock' );
  * ```
  */
-export default class IndentBlockCommand extends Command {
+export class IndentBlockCommand extends Command {
 	/**
 	 * The command's indentation behavior.
 	 */
@@ -91,7 +91,7 @@ export default class IndentBlockCommand extends Command {
 	/**
 	 * Returns blocks from selection that should have blockIndent selection set.
 	 */
-	private _getBlocksToChange(): Array<Element> {
+	private _getBlocksToChange(): Array<ModelElement> {
 		const model = this.editor.model;
 		const selection = model.document.selection;
 		const blocksInSelection = Array.from( selection.getSelectedBlocks() );
@@ -105,14 +105,14 @@ export default class IndentBlockCommand extends Command {
 	 * - for blocks in Document Lists (disallowed forward indentation only). See https://github.com/ckeditor/ckeditor5/issues/14155.
 	 * Otherwise returns true.
 	 */
-	private _isIndentationChangeAllowed( element: Element ): boolean {
+	private _isIndentationChangeAllowed( element: ModelElement ): boolean {
 		const editor = this.editor;
 
 		if ( !editor.model.schema.checkAttribute( element, 'blockIndent' ) ) {
 			return false;
 		}
 
-		if ( !editor.plugins.has( 'DocumentListUtils' ) ) {
+		if ( !editor.plugins.has( 'ListUtils' ) ) {
 			return true;
 		}
 
@@ -121,8 +121,8 @@ export default class IndentBlockCommand extends Command {
 			return true;
 		}
 
-		const documentListUtils: DocumentListUtils = editor.plugins.get( 'DocumentListUtils' );
+		const listUtils: ListUtils = editor.plugins.get( 'ListUtils' );
 
-		return !documentListUtils.isListItemBlock( element );
+		return !listUtils.isListItemBlock( element );
 	}
 }

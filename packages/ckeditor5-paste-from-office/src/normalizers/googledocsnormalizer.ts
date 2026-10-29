@@ -1,25 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module paste-from-office/normalizers/googledocsnormalizer
  */
 
-import { UpcastWriter, type ViewDocument } from 'ckeditor5/src/engine';
+import { ViewUpcastWriter, type ViewDocument } from '@ckeditor/ckeditor5-engine';
+import type { ClipboardInputTransformationData } from '@ckeditor/ckeditor5-clipboard';
 
-import removeBoldWrapper from '../filters/removeboldwrapper';
-import transformBlockBrsToParagraphs from '../filters/br';
-import { unwrapParagraphInListItem } from '../filters/list';
-import type { Normalizer, NormalizerData } from '../normalizer';
+import { removeBoldWrapper } from '../filters/removeboldwrapper.js';
+import { transformBlockBrsToParagraphs } from '../filters/br.js';
+import { unwrapParagraphInListItem } from '../filters/list.js';
+import { replaceTabsWithinPreWithSpaces } from '../filters/replacetabswithinprewithspaces.js';
+import type { PasteFromOfficeNormalizer } from '../normalizer.js';
 
 const googleDocsMatch = /id=("|')docs-internal-guid-[-0-9a-f]+("|')/i;
 
 /**
  * Normalizer for the content pasted from Google Docs.
+ *
+ * @internal
  */
-export default class GoogleDocsNormalizer implements Normalizer {
+export class GoogleDocsNormalizer implements PasteFromOfficeNormalizer {
 	public readonly document: ViewDocument;
 
 	/**
@@ -41,14 +45,12 @@ export default class GoogleDocsNormalizer implements Normalizer {
 	/**
 	 * @inheritDoc
 	 */
-	public execute( data: NormalizerData ): void {
-		const writer = new UpcastWriter( this.document );
-		const { body: documentFragment } = data._parsedData;
+	public execute( data: ClipboardInputTransformationData ): void {
+		const writer = new ViewUpcastWriter( this.document );
 
-		removeBoldWrapper( documentFragment, writer );
-		unwrapParagraphInListItem( documentFragment, writer );
-		transformBlockBrsToParagraphs( documentFragment, writer );
-
-		data.content = documentFragment;
+		removeBoldWrapper( data.content, writer );
+		unwrapParagraphInListItem( data.content, writer );
+		transformBlockBrsToParagraphs( data.content, writer );
+		replaceTabsWithinPreWithSpaces( data.content, writer, 8 );
 	}
 }

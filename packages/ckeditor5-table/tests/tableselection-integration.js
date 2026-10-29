@@ -1,27 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Delete, Input } from '@ckeditor/ckeditor5-typing';
+import { Clipboard, ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Delete from '@ckeditor/ckeditor5-typing/src/delete';
-import Clipboard from '@ckeditor/ckeditor5-clipboard/src/clipboard';
-import HorizontalLine from '@ckeditor/ckeditor5-horizontal-line/src/horizontalline';
+import { TableEditing } from '../src/tableediting.js';
+import { TableSelection } from '../src/tableselection.js';
+import { TableClipboard } from '../src/tableclipboard.js';
 
-import TableEditing from '../src/tableediting';
-import TableSelection from '../src/tableselection';
-import TableClipboard from '../src/tableclipboard';
+import { _getModelData, _setModelData, ViewDocumentDomEventData } from '@ckeditor/ckeditor5-engine';
 
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-import { assertSelectedCells, modelTable } from './_utils/utils';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import Input from '@ckeditor/ckeditor5-typing/src/input';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
+import { assertSelectedCells, modelTable } from './_utils/utils.js';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
 
 describe( 'TableSelection - integration', () => {
 	let editor, model, tableSelection, modelRoot, element, viewDocument;
@@ -42,8 +39,8 @@ describe( 'TableSelection - integration', () => {
 				modelRoot.getNodeByPath( [ 0, 1, 1 ] )
 			);
 
-			const domEventData = new DomEventData( viewDocument, {
-				preventDefault: sinon.spy()
+			const domEventData = new ViewDocumentDomEventData( viewDocument, {
+				preventDefault: vi.fn()
 			}, {
 				direction: 'backward',
 				unit: 'character',
@@ -51,7 +48,7 @@ describe( 'TableSelection - integration', () => {
 			} );
 			viewDocument.fire( 'delete', domEventData );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '', '', '13' ],
 				[ '', '[]', '23' ],
 				[ '31', '32', '33' ]
@@ -64,8 +61,8 @@ describe( 'TableSelection - integration', () => {
 				modelRoot.getNodeByPath( [ 0, 1, 1 ] )
 			);
 
-			const domEventData = new DomEventData( viewDocument, {
-				preventDefault: sinon.spy()
+			const domEventData = new ViewDocumentDomEventData( viewDocument, {
+				preventDefault: vi.fn()
 			}, {
 				direction: 'forward',
 				unit: 'character',
@@ -73,7 +70,7 @@ describe( 'TableSelection - integration', () => {
 			} );
 			viewDocument.fire( 'delete', domEventData );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]', '', '13' ],
 				[ '', '', '23' ],
 				[ '31', '32', '33' ]
@@ -81,14 +78,14 @@ describe( 'TableSelection - integration', () => {
 		} );
 
 		it( 'should not interfere with default key handler if no table selection', () => {
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
 			] ) );
 
-			const domEventData = new DomEventData( viewDocument, {
-				preventDefault: sinon.spy()
+			const domEventData = new ViewDocumentDomEventData( viewDocument, {
+				preventDefault: vi.fn()
 			}, {
 				direction: 'backward',
 				unit: 'character',
@@ -96,7 +93,7 @@ describe( 'TableSelection - integration', () => {
 			} );
 			viewDocument.fire( 'delete', domEventData );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '1[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -118,13 +115,21 @@ describe( 'TableSelection - integration', () => {
 				modelRoot.getNodeByPath( [ 0, 1, 1 ] )
 			);
 
-			viewDocument.fire( 'insertText', {
+			const eventData = {
 				text: 'x',
 				selection: view.createSelection( view.createPositionAt( viewCell.getChild( 0 ), 0 ) ),
-				preventDefault: sinon.spy()
-			} );
+				preventDefault: vi.fn()
+			};
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			eventData.domEvent = {
+				get defaultPrevented() {
+					return eventData.preventDefault.mock.calls.length > 0;
+				}
+			};
+
+			viewDocument.fire( 'insertText', eventData );
+
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '', '', '13' ],
 				[ '', 'x[]', '23' ],
 				[ '31', '32', '33' ]
@@ -135,13 +140,24 @@ describe( 'TableSelection - integration', () => {
 			const view = editor.editing.view;
 			const viewCell = editor.editing.mapper.toViewElement( modelRoot.getNodeByPath( [ 0, 0, 0 ] ) );
 
-			viewDocument.fire( 'insertText', {
+			const eventData = {
 				text: 'x',
 				selection: view.createSelection( view.createPositionAt( viewCell.getChild( 0 ), 0 ) ),
-				preventDefault: sinon.spy()
-			} );
+				preventDefault: vi.fn()
+			};
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			eventData.domEvent = {
+				get defaultPrevented() {
+					return eventData.preventDefault.mock.calls.length > 0;
+				}
+			};
+
+			viewDocument.fire( 'insertText', eventData );
+
+			// Do not wait for the browser to change DOM.
+			editor.plugins.get( 'Input' )._typingQueue.flush();
+
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ 'x[]11', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -161,15 +177,16 @@ describe( 'TableSelection - integration', () => {
 			);
 
 			const dataTransferMock = {
-				getData: sinon.stub().withArgs( 'text/plain' ).returns( 'foo' )
+				getData: vi.fn( format => format === 'text/plain' ? 'foo' : '<p>foo</p>' )
 			};
 
 			editor.editing.view.document.fire( 'clipboardInput', {
 				dataTransfer: dataTransferMock,
-				stop: sinon.spy()
+				stop: vi.fn(),
+				content: dataTransferMock.getData( 'text/html' )
 			} );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ 'foo[]', '', '13' ],
 				[ '', '', '23' ],
 				[ '31', '32', '33' ]
@@ -185,7 +202,7 @@ describe( 'TableSelection - integration', () => {
 			editor.execute( 'horizontalLine' );
 
 			expect(
-				getModelData( model ) ).to.equalMarkup(
+				_getModelData( model ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell><horizontalLine></horizontalLine><paragraph>[]</paragraph></tableCell>' +
@@ -224,7 +241,7 @@ describe( 'TableSelection - integration', () => {
 			} );
 
 			expect(
-				getModelData( model ) ).to.equalMarkup(
+				_getModelData( model ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell><paragraph>11</paragraph></tableCell>' +
@@ -247,7 +264,7 @@ describe( 'TableSelection - integration', () => {
 		} );
 
 		it( 'works with merge cells command', () => {
-			setModelData( editor.model, modelTable( [
+			_setModelData( editor.model, modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ]
 			] ) );
@@ -259,14 +276,14 @@ describe( 'TableSelection - integration', () => {
 
 			editor.execute( 'mergeTableCells' );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { colspan: 2, contents: '<paragraph>[00</paragraph><paragraph>01]</paragraph>' } ],
 				[ '10', '11' ]
 			] ) );
 
 			editor.execute( 'undo' );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ]
 			] ) );
@@ -283,7 +300,7 @@ describe( 'TableSelection - integration', () => {
 		document.body.appendChild( element );
 
 		editor = await ClassicTestEditor.create( element, {
-			plugins: [ TableEditing, TableSelection, TableClipboard, Paragraph, ...plugins ]
+			plugins: [ TableEditing, TableSelection, TableClipboard, Paragraph, ClipboardPipeline, ...plugins ]
 		} );
 
 		model = editor.model;
@@ -291,7 +308,7 @@ describe( 'TableSelection - integration', () => {
 		viewDocument = editor.editing.view.document;
 		tableSelection = editor.plugins.get( TableSelection );
 
-		setModelData( model, modelTable( [
+		_setModelData( model, modelTable( [
 			[ '[]11', '12', '13' ],
 			[ '21', '22', '23' ],
 			[ '31', '32', '33' ]

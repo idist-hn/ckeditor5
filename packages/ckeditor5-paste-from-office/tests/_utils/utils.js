@@ -1,23 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ViewDocument from '@ckeditor/ckeditor5-engine/src/view/document';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import {
+	_setModelData,
+	_stringifyModel,
+	_stringifyView
+} from '@ckeditor/ckeditor5-engine';
 
-import HtmlDataProcessor from '@ckeditor/ckeditor5-engine/src/dataprocessor/htmldataprocessor';
-import normalizeClipboardData from '@ckeditor/ckeditor5-clipboard/src/utils/normalizeclipboarddata';
-import normalizeHtml from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml';
-import { setData, stringify as stringifyModel } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { stringify as stringifyView } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-
-import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
-
-const htmlDataProcessor = new HtmlDataProcessor( new ViewDocument( new StylesProcessor() ) );
+import { normalizeHtml } from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml.js';
 
 /**
  * Mocks dataTransfer object which can be used for simulating paste.
@@ -79,9 +75,17 @@ export function generateTests( config ) {
 	const groups = groupFixturesByBrowsers( config.browsers, config.input, config.skip, config.fixtures );
 	const generateSuiteFn = config.type === 'normalization' ? generateNormalizationTests : generateIntegrationTests;
 
-	describe( config.type, () => {
-		describe( config.input, () => {
-			const editorConfig = config.editorConfig || {};
+	const hasFixtures = Object.values( groups ).some( g => g !== null );
+
+	if ( !hasFixtures ) {
+		return;
+	}
+
+	describe( `${ config.type }`, () => {
+		describe( `${ config.input }`, () => {
+			const editorConfig = typeof config.editorConfig == 'function' ?
+				config.editorConfig :
+				() => Promise.resolve( config.editorConfig || {} );
 
 			for ( const group of Object.keys( groups ) ) {
 				const skip = config.skip && config.skip[ group ] || [];
@@ -149,19 +153,21 @@ function groupFixturesByBrowsers( browsers, fixturesGroup, skipBrowsers, fixture
 // @param {Array.<String>} skip Array of fixtures names which tests should be skipped.
 // @param {Array.<String>} only Array of fixtures the test run should be limited to.
 function generateNormalizationTests( title, fixtures, editorConfig, skip, only ) {
-	describe( title, () => {
+	describe( `${ title }`, () => {
 		let editor;
+		let scrollToTheSelectionSpy;
 
-		beforeEach( () => {
-			return VirtualTestEditor
-				.create( editorConfig )
-				.then( newEditor => {
-					editor = newEditor;
-				} );
+		beforeEach( async () => {
+			editor = await VirtualTestEditor.create( await editorConfig() );
+
+			// Stub `editor.editing.view.scrollToTheSelection` as it will fail on VirtualTestEditor without DOM.
+			scrollToTheSelectionSpy = vi.spyOn( editor.editing.view, 'scrollToTheSelection' ).mockImplementation( () => {} );
 		} );
 
-		afterEach( () => {
-			editor.destroy();
+		afterEach( async () => {
+			scrollToTheSelectionSpy.mockRestore();
+
+			await editor.destroy();
 		} );
 
 		for ( const name of Object.keys( fixtures.input ) ) {
@@ -176,16 +182,23 @@ function generateNormalizationTests( title, fixtures, editorConfig, skip, only )
 			testRunner( name, () => {
 				// Simulate data from Clipboard event
 				const clipboardPlugin = editor.plugins.get( 'ClipboardPipeline' );
-				const content = htmlDataProcessor.toView( normalizeClipboardData( fixtures.input[ name ] ) );
 				const dataTransfer = createDataTransfer( {
 					'text/html': fixtures.input[ name ],
 					'text/rtf': fixtures.inputRtf && fixtures.inputRtf[ name ]
 				} );
 
 				// data.content might be completely overwritten with a new object, so we need obtain final result for comparison.
-				const data = { content, dataTransfer };
-				clipboardPlugin.fire( 'inputTransformation', data );
-				const transformedContent = data.content;
+				let inputTransformationData;
+
+				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+					inputTransformationData = data;
+				} );
+
+				const clipboardInputData = { dataTransfer, content: fixtures.input[ name ] };
+
+				editor.editing.view.document.fire( 'clipboardInput', clipboardInputData );
+
+				const transformedContent = inputTransformationData.content;
 
 				expectNormalized(
 					transformedContent,
@@ -203,43 +216,40 @@ function generateNormalizationTests( title, fixtures, editorConfig, skip, only )
 // @param {Object} editorConfig Editor config with which test editor will be created.
 // @param {Array.<String>} only Array of fixtures the test run should be limited to.
 function generateIntegrationTests( title, fixtures, editorConfig, skip, only ) {
-	describe( title, () => {
+	describe( `${ title }`, () => {
 		let element, editor;
 		let data = {};
+		let insertContentSpy;
 
-		before( () => {
+		beforeAll( async () => {
 			element = document.createElement( 'div' );
 
 			document.body.appendChild( element );
 
-			return ClassicTestEditor
-				.create( element, editorConfig )
-				.then( editorInstance => {
-					editor = editorInstance;
-				} );
+			editor = await ClassicTestEditor.create( element, await editorConfig() );
 		} );
 
 		beforeEach( () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 			const editorModel = editor.model;
 			const insertContent = editorModel.insertContent;
 
 			data = {};
 
-			sinon.stub( editorModel, 'insertContent' ).callsFake( ( content, selection ) => {
+			insertContentSpy = vi.spyOn( editorModel, 'insertContent' ).mockImplementation( ( content, selection ) => {
 				// Save model string representation now as it may change after `insertContent()` function call
 				// so accessing it later may not work as it may have emptied/changed structure.
-				data.actual = stringifyModel( content );
+				data.actual = _stringifyModel( content );
 				insertContent.call( editorModel, content, selection );
 			} );
 		} );
 
 		afterEach( () => {
-			sinon.restore();
+			insertContentSpy.mockRestore();
 		} );
 
-		after( () => {
+		afterAll( () => {
 			return editor.destroy()
 				.then( () => {
 					element.remove();
@@ -291,14 +301,17 @@ function generateIntegrationTests( title, fixtures, editorConfig, skip, only ) {
 //
 // 	because tab preceding `03` text will be treated as formatting character and will be removed.
 //
-// @param {module:engine/view/text~Text|module:engine/view/element~Element|module:engine/view/documentfragment~DocumentFragment}
+// @param {module:engine/view/text~ViewText|module:engine/view/element~ViewElement|module:engine/view/documentfragment~ViewDocumentFragment}
 // actualView Actual HTML.
 // @param {String} expectedHtml Expected HTML.
 function expectNormalized( actualView, expectedHtml ) {
 	// We are ok with both spaces and non-breaking spaces in the actual content.
 	// Replace `&nbsp;` with regular spaces to align with expected content.
-	const actualNormalized = stringifyView( actualView ).replace( /\u00A0/g, ' ' );
-	const expectedNormalized = normalizeHtml( inlineData( expectedHtml ), { skipComments: true } );
+	const actualNormalized = _stringifyView( actualView ).replace( /\u00A0/g, ' ' );
+	const expectedNormalized = normalizeHtml( inlineData( expectedHtml ), {
+		skipComments: true,
+		skipProcessingInstructions: true
+	} );
 
 	compareContentWithBase64Images( actualNormalized, expectedNormalized );
 }
@@ -334,11 +347,11 @@ function compareContentWithBase64Images( actual, expected ) {
 
 	// In some rare cases there might be `&nbsp;` in a model data
 	// (see https://github.com/ckeditor/ckeditor5-paste-from-office/issues/27).
-	expect( actualModel.replace( /\u00A0/g, ' ' ) ).to.equalMarkup( expectedModel );
+	expect( actualModel.replace( /\u00A0/g, ' ' ) ).toEqualMarkup( expectedModel );
 
 	if ( actualImages.length > 0 && expectedImages.length > 0 ) {
-		expect( actualImages.length ).to.equal( expectedImages.length );
-		expect( actualImages ).to.deep.equal( expectedImages );
+		expect( actualImages.length ).toBe( expectedImages.length );
+		expect( actualImages ).toEqual( expectedImages );
 	}
 }
 

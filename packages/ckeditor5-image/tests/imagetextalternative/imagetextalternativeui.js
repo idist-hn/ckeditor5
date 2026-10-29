@@ -1,21 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global Event, document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Image from '../../src/image';
-import ImageTextAlternativeEditing from '../../src/imagetextalternative/imagetextalternativeediting';
-import ImageTextAlternativeUI from '../../src/imagetextalternative/imagetextalternativeui';
-import ImageCaption from '../../src/imagecaption';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Image } from '../../src/image.js';
+import { ImageTextAlternativeEditing } from '../../src/imagetextalternative/imagetextalternativeediting.js';
+import { ImageTextAlternativeUI } from '../../src/imagetextalternative/imagetextalternativeui.js';
+import { ImageCaption } from '../../src/imagecaption.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ButtonView, View } from '@ckeditor/ckeditor5-ui';
+import { global, keyCodes } from '@ckeditor/ckeditor5-utils';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'ImageTextAlternativeUI', () => {
 	let editor, model, doc, plugin, command, form, balloon, editorElement, button;
@@ -47,104 +44,121 @@ describe( 'ImageTextAlternativeUI', () => {
 	} );
 
 	it( 'should be named', () => {
-		expect( ImageTextAlternativeUI.pluginName ).to.equal( 'ImageTextAlternativeUI' );
+		expect( ImageTextAlternativeUI.pluginName ).toBe( 'ImageTextAlternativeUI' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageTextAlternativeUI.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageTextAlternativeUI.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'toolbar button', () => {
 		it( 'should be registered in component factory', () => {
-			expect( button ).to.be.instanceOf( ButtonView );
+			expect( button ).toBeInstanceOf( ButtonView );
 		} );
 
 		it( 'should have isEnabled property bind to command\'s isEnabled property', () => {
 			command.isEnabled = true;
-			expect( button.isEnabled ).to.be.true;
+			expect( button.isEnabled ).toBe( true );
 
 			command.isEnabled = false;
-			expect( button.isEnabled ).to.be.false;
+			expect( button.isEnabled ).toBe( false );
 		} );
 
 		it( 'should show balloon panel on execute', () => {
 			plugin._createForm();
 			form = plugin._form;
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			button.fire( 'execute' );
-			expect( balloon.visibleView ).to.equal( form );
+			expect( balloon.visibleView ).toBe( form );
 
 			// Make sure successive execute does not throw, e.g. attempting
 			// to display the form twice.
 			button.fire( 'execute' );
-			expect( balloon.visibleView ).to.equal( form );
+			expect( balloon.visibleView ).toBe( form );
 		} );
 
 		it( 'should create and show balloon panel on execute', () => {
-			expect( balloon.visibleView ).to.be.null;
-			expect( plugin._form ).to.be.undefined;
+			expect( balloon.visibleView ).toBeNull();
+			expect( plugin._form ).toBeUndefined();
 
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			button.fire( 'execute' );
 			form = plugin._form;
 
-			expect( balloon.visibleView ).to.equal( form );
+			expect( balloon.visibleView ).toBe( form );
 
 			// Make sure successive execute does not throw, e.g. attempting
 			// to display the form twice.
 			button.fire( 'execute' );
-			expect( balloon.visibleView ).to.equal( form );
+			expect( balloon.visibleView ).toBe( form );
 		} );
 
 		it( 'should set alt attribute value to textarea and select it', () => {
 			plugin._createForm();
 			form = plugin._form;
 
-			const spy = sinon.spy( form.labeledInput.fieldView, 'select' );
+			const spy = vi.spyOn( form.labeledInput.fieldView, 'select' );
 
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			button.fire( 'execute' );
-			sinon.assert.calledOnce( spy );
-			expect( form.labeledInput.fieldView.value ).equals( 'foo bar' );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( form.labeledInput.fieldView.value ).toBe( 'foo bar' );
 		} );
 
 		it( 'should set empty text to textarea and select it when there is no alt attribute', () => {
 			plugin._createForm();
 			form = plugin._form;
 
-			const spy = sinon.spy( form.labeledInput.fieldView, 'select' );
+			const spy = vi.spyOn( form.labeledInput.fieldView, 'select' );
 
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
 			button.fire( 'execute' );
-			sinon.assert.calledOnce( spy );
-			expect( form.labeledInput.fieldView.value ).equals( '' );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( form.labeledInput.fieldView.value ).toBe( '' );
 		} );
 
 		it( 'should disable CSS transitions before showing the form to avoid unnecessary animations (and then enable them again)', () => {
 			plugin._createForm();
 			form = plugin._form;
 
-			const addSpy = sinon.spy( balloon, 'add' );
-			const disableCssTransitionsSpy = sinon.spy( form, 'disableCssTransitions' );
-			const enableCssTransitionsSpy = sinon.spy( form, 'enableCssTransitions' );
-			const selectSpy = sinon.spy( form.labeledInput.fieldView, 'select' );
+			const addSpy = vi.spyOn( balloon, 'add' );
+			const disableCssTransitionsSpy = vi.spyOn( form, 'disableCssTransitions' );
+			const enableCssTransitionsSpy = vi.spyOn( form, 'enableCssTransitions' );
+			const selectSpy = vi.spyOn( form.labeledInput.fieldView, 'select' );
 
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			button.fire( 'execute' );
 
-			sinon.assert.callOrder( disableCssTransitionsSpy, addSpy, selectSpy, enableCssTransitionsSpy );
+			const callOrder = [
+				disableCssTransitionsSpy.mock.invocationCallOrder[ 0 ],
+				addSpy.mock.invocationCallOrder[ 0 ],
+				selectSpy.mock.invocationCallOrder[ 0 ],
+				enableCssTransitionsSpy.mock.invocationCallOrder[ 0 ]
+			];
+
+			expect( callOrder[ 0 ] ).toBeLessThan( callOrder[ 1 ] );
+			expect( callOrder[ 1 ] ).toBeLessThan( callOrder[ 2 ] );
+			expect( callOrder[ 2 ] ).toBeLessThan( callOrder[ 3 ] );
 		} );
 
 		it( 'has isOn bound to command\'s value', () => {
 			command.value = '';
-			expect( button ).to.have.property( 'isOn', false );
+			expect( button ).toHaveProperty( 'isOn', false );
 
 			command.value = 'alternative text';
-			expect( button ).to.have.property( 'isOn', true );
+			expect( button ).toHaveProperty( 'isOn', true );
 		} );
 	} );
 
@@ -155,7 +169,7 @@ describe( 'ImageTextAlternativeUI', () => {
 		} );
 
 		it( 'should implement the CSS transition disabling feature', () => {
-			expect( form.disableCssTransitions ).to.be.a( 'function' );
+			expect( form.disableCssTransitions ).toBeTypeOf( 'function' );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-image/issues/114
@@ -169,39 +183,39 @@ describe( 'ImageTextAlternativeUI', () => {
 			form.labeledInput.fieldView.element.value = 'This value was canceled.';
 
 			// Mock the user editing the same image once again.
-			setData( model, '[<imageBlock src="" alt="foo"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo"></imageBlock>]' );
 
 			button.fire( 'execute' );
-			expect( form.labeledInput.fieldView.element.value ).to.equal( 'foo' );
+			expect( form.labeledInput.fieldView.element.value ).toBe( 'foo' );
 		} );
 
 		it( 'should execute command on submit', () => {
-			const spy = sinon.spy( editor, 'execute' );
+			const spy = vi.spyOn( editor, 'execute' );
 			form.fire( 'submit' );
 
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledWithExactly( spy, 'imageTextAlternative', {
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy ).toHaveBeenCalledWith( 'imageTextAlternative', {
 				newValue: form.labeledInput.fieldView.element.value
 			} );
 		} );
 
 		it( 'should hide the panel on cancel and focus the editing view', () => {
-			const spy = sinon.spy( editor.editing.view, 'focus' );
+			const spy = vi.spyOn( editor.editing.view, 'focus' );
 
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			editor.ui.componentFactory.create( 'imageTextAlternative' ).fire( 'execute' );
-			expect( balloon.visibleView ).to.equal( form );
+			expect( balloon.visibleView ).toBe( form );
 
 			form.fire( 'cancel' );
-			expect( balloon.visibleView ).to.be.null;
-			sinon.assert.calledOnce( spy );
+			expect( balloon.visibleView ).toBeNull();
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should not engage when the form is in the balloon yet invisible', () => {
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 			button.fire( 'execute' );
-			expect( balloon.visibleView ).to.equal( form );
+			expect( balloon.visibleView ).toBe( form );
 
 			const lastView = new View();
 			lastView.element = document.createElement( 'div' );
@@ -213,45 +227,47 @@ describe( 'ImageTextAlternativeUI', () => {
 				}
 			} );
 
-			expect( balloon.visibleView ).to.equal( lastView );
+			expect( balloon.visibleView ).toBe( lastView );
 
 			button.fire( 'execute' );
-			expect( balloon.visibleView ).to.equal( lastView );
+			expect( balloon.visibleView ).toBe( lastView );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/1501
 		it( 'should blur url input element before hiding the view', () => {
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			editor.ui.componentFactory.create( 'imageTextAlternative' ).fire( 'execute' );
 
-			const editableFocusSpy = sinon.spy( editor.editing.view, 'focus' );
-			const buttonFocusSpy = sinon.spy( form.saveButtonView, 'focus' );
+			const editableFocusSpy = vi.spyOn( editor.editing.view, 'focus' );
+			const buttonFocusSpy = vi.spyOn( form.saveButtonView, 'focus' );
 
 			form.focusTracker.isFocused = true;
 
 			form.fire( 'submit' );
 
-			expect( buttonFocusSpy.calledBefore( editableFocusSpy ) ).to.equal( true );
+			expect( buttonFocusSpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+				editableFocusSpy.mock.invocationCallOrder[ 0 ]
+			);
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-image/issues/299
 		it( 'should not blur url input element before hiding the view when view was not focused', () => {
-			setData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			editor.ui.componentFactory.create( 'imageTextAlternative' ).fire( 'execute' );
 
-			const buttonFocusSpy = sinon.spy( form.saveButtonView, 'focus' );
+			const buttonFocusSpy = vi.spyOn( form.saveButtonView, 'focus' );
 
 			form.focusTracker.isFocused = false;
 
 			form.fire( 'cancel' );
 
-			sinon.assert.notCalled( buttonFocusSpy );
+			expect( buttonFocusSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should be removed from balloon when is in not visible stack', () => {
-			setData( model, '<paragraph>foo</paragraph>[<imageBlock src="" alt="foo bar"></imageBlock>]' );
+			_setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src="" alt="foo bar"></imageBlock>]' );
 
 			editor.ui.componentFactory.create( 'imageTextAlternative' ).fire( 'execute' );
 
@@ -271,88 +287,88 @@ describe( 'ImageTextAlternativeUI', () => {
 				writer.setSelection( root.getChild( 0 ), 0 );
 			} );
 
-			expect( balloon.hasView( form ) ).to.equal( false );
+			expect( balloon.hasView( form ) ).toBe( false );
 		} );
 
 		describe( 'integration with the editor selection (ui#update event)', () => {
 			it( 'should re-position the form', () => {
-				setData( model, '[<imageBlock src=""></imageBlock>]' );
+				_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 				button.fire( 'execute' );
 
-				const spy = sinon.spy( balloon, 'updatePosition' );
+				const spy = vi.spyOn( balloon, 'updatePosition' );
 
 				editor.ui.fire( 'update' );
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should hide the form and focus editable when image widget has been removed by external change', () => {
-				setData( model, '[<imageBlock src=""></imageBlock>]' );
+				_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 				button.fire( 'execute' );
 
-				const removeSpy = sinon.spy( balloon, 'remove' );
-				const focusSpy = sinon.spy( editor.editing.view, 'focus' );
+				const removeSpy = vi.spyOn( balloon, 'remove' );
+				const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
 				model.enqueueChange( { isUndoable: false }, writer => {
 					writer.remove( doc.selection.getFirstRange() );
 				} );
 
-				sinon.assert.calledWithExactly( removeSpy, form );
-				sinon.assert.calledOnce( focusSpy );
+				expect( removeSpy ).toHaveBeenCalledWith( form );
+				expect( focusSpy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should not hide the form when the selection is moved to a block image caption', () => {
-				setData( model, '<imageBlock src=""><caption>[]</caption></imageBlock>' );
+				_setModelData( model, '<imageBlock src=""><caption>[]</caption></imageBlock>' );
 				button.fire( 'execute' );
 
 				editor.ui.fire( 'update' );
 
-				expect( balloon.visibleView ).to.be.an.instanceOf( View );
+				expect( balloon.visibleView ).toBeInstanceOf( View );
 			} );
 		} );
 
 		describe( 'close listeners', () => {
 			describe( 'keyboard', () => {
 				it( 'should close upon Esc key press and focus the editing view', () => {
-					const hideSpy = sinon.spy( plugin, '_hideForm' );
-					const focusSpy = sinon.spy( editor.editing.view, 'focus' );
+					const hideSpy = vi.spyOn( plugin, '_hideForm' );
+					const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
-					setData( model, '[<imageBlock src=""></imageBlock>]' );
+					_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 					button.fire( 'execute' );
 
 					const keyEvtData = {
 						keyCode: keyCodes.esc,
-						preventDefault: sinon.spy(),
-						stopPropagation: sinon.spy()
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
 					};
 
 					form.keystrokes.press( keyEvtData );
-					sinon.assert.calledOnce( hideSpy );
-					sinon.assert.calledOnce( keyEvtData.preventDefault );
-					sinon.assert.calledOnce( focusSpy );
+					expect( hideSpy ).toHaveBeenCalledOnce();
+					expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+					expect( focusSpy ).toHaveBeenCalledOnce();
 				} );
 			} );
 
 			describe( 'mouse', () => {
 				it( 'should close and not focus editable on click outside the panel', () => {
-					const hideSpy = sinon.spy( plugin, '_hideForm' );
-					const focusSpy = sinon.spy( editor.editing.view, 'focus' );
+					const hideSpy = vi.spyOn( plugin, '_hideForm' );
+					const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
-					setData( model, '[<imageBlock src=""></imageBlock>]' );
+					_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 					button.fire( 'execute' );
 
 					global.document.body.dispatchEvent( new Event( 'mousedown', { bubbles: true } ) );
-					sinon.assert.called( hideSpy );
-					sinon.assert.notCalled( focusSpy );
+					expect( hideSpy ).toHaveBeenCalled();
+					expect( focusSpy ).not.toHaveBeenCalled();
 				} );
 
 				it( 'should not close on click inside the panel', () => {
-					const spy = sinon.spy( plugin, '_hideForm' );
+					const spy = vi.spyOn( plugin, '_hideForm' );
 
-					setData( model, '[<imageBlock src=""></imageBlock>]' );
+					_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 					button.fire( 'execute' );
 
 					form.element.dispatchEvent( new Event( 'mousedown', { bubbles: true } ) );
-					sinon.assert.notCalled( spy );
+					expect( spy ).not.toHaveBeenCalled();
 				} );
 			} );
 		} );

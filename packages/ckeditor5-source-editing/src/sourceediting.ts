@@ -1,21 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module source-editing/sourceediting
  */
 
-/* global console */
-
-import { type Editor, Plugin, PendingActions } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-import { createElement, ElementReplacer } from 'ckeditor5/src/utils';
-import { formatHtml } from './utils/formathtml';
-
-import '../theme/sourceediting.css';
-import sourceEditingIcon from '../theme/icons/source-editing.svg';
+import { Plugin, PendingActions, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { IconSource } from '@ckeditor/ckeditor5-icons';
+import { ButtonView, MenuBarMenuListItemButtonView, type Dialog } from '@ckeditor/ckeditor5-ui';
+import { CKEditorError, createElement, ElementReplacer, env, formatHtml } from '@ckeditor/ckeditor5-utils';
 
 const COMMAND_FORCE_DISABLE_ID = 'SourceEditingMode';
 
@@ -24,10 +19,10 @@ const COMMAND_FORCE_DISABLE_ID = 'SourceEditingMode';
  *
  * It provides the possibility to view and edit the source of the document.
  *
- * For a detailed overview, check the {@glink features/source-editing source editing feature documentation} and the
+ * For a detailed overview, check the {@glink features/source-editing/source-editing source editing feature documentation} and the
  * {@glink api/source-editing package page}.
  */
-export default class SourceEditing extends Plugin {
+export class SourceEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -38,8 +33,15 @@ export default class SourceEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ PendingActions ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ PendingActions ]> {
+		return [ PendingActions ];
 	}
 
 	/**
@@ -74,56 +76,38 @@ export default class SourceEditing extends Plugin {
 		this._elementReplacer = new ElementReplacer();
 		this._replacedRoots = new Map();
 		this._dataFromRoots = new Map();
+
+		editor.config.define( 'sourceEditing.allowCollaborationFeatures', false );
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public init(): void {
-		const editor = this.editor;
-		const t = editor.t;
+		this._checkCompatibility();
 
-		editor.ui.componentFactory.add( 'sourceEditing', locale => {
-			const buttonView = new ButtonView( locale );
+		const editor = this.editor;
+		const t = editor.locale.t;
+
+		editor.ui.componentFactory.add( 'sourceEditing', () => {
+			const buttonView = this._createButton( ButtonView );
 
 			buttonView.set( {
 				label: t( 'Source' ),
-				icon: sourceEditingIcon,
+				icon: IconSource,
 				tooltip: true,
-				withText: true,
 				class: 'ck-source-editing-button'
 			} );
 
-			buttonView.bind( 'isOn' ).to( this, 'isSourceEditingMode' );
+			return buttonView;
+		} );
 
-			// The button should be disabled if one of the following conditions is met:
-			buttonView.bind( 'isEnabled' ).to(
-				this, 'isEnabled',
-				editor, 'isReadOnly',
-				editor.plugins.get( PendingActions ), 'hasAny',
-				( isEnabled, isEditorReadOnly, hasAnyPendingActions ) => {
-					// (1) The plugin itself is disabled.
-					if ( !isEnabled ) {
-						return false;
-					}
+		editor.ui.componentFactory.add( 'menuBar:sourceEditing', () => {
+			const buttonView = this._createButton( MenuBarMenuListItemButtonView );
 
-					// (2) The editor is in read-only mode.
-					if ( isEditorReadOnly ) {
-						return false;
-					}
-
-					// (3) Any pending action is scheduled. It may change the model, so modifying the document source should be prevented
-					// until the model is finally set.
-					if ( hasAnyPendingActions ) {
-						return false;
-					}
-
-					return true;
-				}
-			);
-
-			this.listenTo( buttonView, 'execute', () => {
-				this.isSourceEditingMode = !this.isSourceEditingMode;
+			buttonView.set( {
+				label: t( 'Show source' ),
+				role: 'menuitemcheckbox'
 			} );
 
 			return buttonView;
@@ -134,6 +118,7 @@ export default class SourceEditing extends Plugin {
 		if ( this._isAllowedToHandleSourceEditingMode() ) {
 			this.on( 'change:isSourceEditingMode', ( evt, name, isSourceEditingMode ) => {
 				if ( isSourceEditingMode ) {
+					this._hideVisibleDialog();
 					this._showSourceEditing();
 					this._disableCommands();
 				} else {
@@ -156,38 +141,6 @@ export default class SourceEditing extends Plugin {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public afterInit(): void {
-		const editor = this.editor;
-
-		const collaborationPluginNamesToWarn = [
-			'RealTimeCollaborativeEditing',
-			'CommentsEditing',
-			'TrackChangesEditing',
-			'RevisionHistory'
-		];
-
-		// Currently, the basic integration with Collaboration Features is to display a warning in the console.
-		if ( collaborationPluginNamesToWarn.some( pluginName => editor.plugins.has( pluginName ) ) ) {
-			console.warn(
-				'You initialized the editor with the source editing feature and at least one of the collaboration features. ' +
-				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
-				'that contains markers created by the collaboration features.'
-			);
-		}
-
-		// Restricted Editing integration can also lead to problems. Warn the user accordingly.
-		if ( editor.plugins.has( 'RestrictedEditingModeEditing' ) ) {
-			console.warn(
-				'You initialized the editor with the source editing feature and restricted editing feature. ' +
-				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
-				'that contains markers created by the restricted editing feature.'
-			);
-		}
-	}
-
-	/**
 	 * Updates the source data in all hidden editing roots.
 	 */
 	public updateEditorData(): void {
@@ -207,7 +160,56 @@ export default class SourceEditing extends Plugin {
 		}
 
 		if ( Object.keys( data ).length ) {
-			editor.data.set( data, { batchType: { isUndoable: true } } );
+			editor.data.set( data, { batchType: { isUndoable: true }, suppressErrorInCollaboration: true } );
+		}
+	}
+
+	private _checkCompatibility() {
+		const editor = this.editor;
+		const allowCollaboration = editor.config.get( 'sourceEditing.allowCollaborationFeatures' );
+
+		if ( !allowCollaboration && editor.plugins.has( 'RealTimeCollaborativeEditing' ) ) {
+			/**
+			 * Source editing feature is not fully compatible with real-time collaboration,
+			 * and using it may lead to data loss. Please read
+			 * {@glink features/source-editing/source-editing#limitations-and-incompatibilities source editing feature guide} to learn more.
+			 *
+			 * If you understand the possible risk of data loss, you can enable the source editing
+			 * by setting the
+			 * {@link module:source-editing/sourceeditingconfig~SourceEditingConfig#allowCollaborationFeatures}
+			 * configuration flag to `true`.
+			 *
+			 * @error source-editing-incompatible-with-real-time-collaboration
+			 */
+			throw new CKEditorError( 'source-editing-incompatible-with-real-time-collaboration', null );
+		}
+
+		const collaborationPluginNamesToWarn = [
+			'CommentsEditing',
+			'TrackChangesEditing',
+			'RevisionHistory'
+		];
+
+		// Currently, the basic integration with Collaboration Features is to display a warning in the console.
+		//
+		// If `allowCollaboration` flag is set, do not show these warnings. If the flag is set, we assume that the integrator read
+		// appropriate section of the guide so there's no use to spam the console with warnings.
+		//
+		if ( !allowCollaboration && collaborationPluginNamesToWarn.some( pluginName => editor.plugins.has( pluginName ) ) ) {
+			console.warn(
+				'You initialized the editor with the source editing feature and at least one of the collaboration features. ' +
+				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
+				'that contains markers created by the collaboration features.'
+			);
+		}
+
+		// Restricted Editing integration can also lead to problems. Warn the user accordingly.
+		if ( editor.plugins.has( 'RestrictedEditingModeEditing' ) ) {
+			console.warn(
+				'You initialized the editor with the source editing feature and restricted editing feature. ' +
+				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
+				'that contains markers created by the restricted editing feature.'
+			);
 		}
 	}
 
@@ -262,6 +264,29 @@ export default class SourceEditing extends Plugin {
 				editor.ui.update();
 			} );
 
+			// Allow native undo/redo in the textarea. The editor's keystroke handler (attached via
+			// setEditableElement()) intercepts Ctrl+Z/Y and calls preventDefault(), blocking browser
+			// undo/redo while editor commands are force-disabled in source editing mode.
+			// See: https://github.com/ckeditor/ckeditor5/issues/13700
+			domSourceEditingElementTextarea.addEventListener( 'keydown', evt => {
+				// Normalize the key to lowercase because `evt.key` reflects the Caps Lock state
+				// (e.g. returns 'Z' instead of 'z' when Caps Lock is on), which would otherwise
+				// bypass the comparison below and let the editor's keystroke handler block undo/redo.
+				const key = evt.key.toLowerCase();
+
+				if ( ( evt.ctrlKey || evt.metaKey ) && !evt.altKey && ( key === 'z' || key === 'y' ) ) {
+					evt.stopImmediatePropagation();
+
+					// macOS does not natively map Cmd+Y to redo in textareas (the platform convention is
+					// Cmd+Shift+Z). CKEditor accepts both keystrokes for redo, so users expect Cmd+Y to
+					// work here too. Manually invoke the browser's redo on the focused textarea.
+					if ( env.isMac && key === 'y' ) {
+						evt.preventDefault();
+						domRootElement.ownerDocument.execCommand( 'redo' );
+					}
+				}
+			} );
+
 			editingView.change( writer => {
 				const viewRoot = editingView.document.getRoot( rootName )!;
 
@@ -278,6 +303,8 @@ export default class SourceEditing extends Plugin {
 			this._dataFromRoots.set( rootName, data );
 		}
 
+		this._hideDocumentOutline();
+		this._refreshAnnotationsVisibility();
 		this._focusSourceEditing();
 	}
 
@@ -301,7 +328,37 @@ export default class SourceEditing extends Plugin {
 		this._replacedRoots.clear();
 		this._dataFromRoots.clear();
 
+		this._showDocumentOutline();
+		this._refreshAnnotationsVisibility();
+
 		editingView.focus();
+	}
+
+	/**
+	 * Hides the document outline if it is configured.
+	 */
+	private _hideDocumentOutline() {
+		if ( this.editor.plugins.has( 'DocumentOutlineUI' ) ) {
+			( this.editor.plugins.get( 'DocumentOutlineUI' ) as any ).view!.element!.style.display = 'none';
+		}
+	}
+
+	/**
+	 * Shows the document outline if it was hidden when entering the source editing.
+	 */
+	private _showDocumentOutline() {
+		if ( this.editor.plugins.has( 'DocumentOutlineUI' ) ) {
+			( this.editor.plugins.get( 'DocumentOutlineUI' ) as any ).view!.element!.style.display = '';
+		}
+	}
+
+	/**
+	 * Hides the annotations when entering the source editing mode and shows back them after leaving it.
+	 */
+	private _refreshAnnotationsVisibility() {
+		if ( this.editor.plugins.has( 'Annotations' ) ) {
+			( this.editor.plugins.get( 'Annotations' ) as any ).refreshVisibility();
+		}
 	}
 
 	/**
@@ -330,6 +387,11 @@ export default class SourceEditing extends Plugin {
 		for ( const command of editor.commands.commands() ) {
 			command.forceDisabled( COMMAND_FORCE_DISABLE_ID );
 		}
+
+		// Comments archive UI plugin will be disabled manually too.
+		if ( editor.plugins.has( 'CommentsArchiveUI' ) ) {
+			( editor.plugins.get( 'CommentsArchiveUI' ) as Plugin ).forceDisabled( COMMAND_FORCE_DISABLE_ID );
+		}
 	}
 
 	/**
@@ -340,6 +402,11 @@ export default class SourceEditing extends Plugin {
 
 		for ( const command of editor.commands.commands() ) {
 			command.clearForceDisabled( COMMAND_FORCE_DISABLE_ID );
+		}
+
+		// Comments archive UI plugin will be enabled manually too.
+		if ( editor.plugins.has( 'CommentsArchiveUI' ) ) {
+			( editor.plugins.get( 'CommentsArchiveUI' ) as Plugin ).clearForceDisabled( COMMAND_FORCE_DISABLE_ID );
 		}
 	}
 
@@ -368,6 +435,63 @@ export default class SourceEditing extends Plugin {
 
 		// Checks, if the editor's editable belongs to the editor's DOM tree.
 		return editable && !editable.hasExternalElement;
+	}
+
+	/**
+	 * If any {@link module:ui/dialog/dialogview~DialogView editor dialog} is currently visible, hide it.
+	 */
+	private _hideVisibleDialog(): void {
+		if ( this.editor.plugins.has( 'Dialog' ) ) {
+			const dialogPlugin: Dialog = this.editor.plugins.get( 'Dialog' );
+
+			if ( dialogPlugin.isOpen ) {
+				dialogPlugin.hide();
+			}
+		}
+	}
+
+	private _createButton<T extends typeof ButtonView>( ButtonClass: T ): InstanceType<T> {
+		const editor = this.editor;
+		const buttonView = new ButtonClass( editor.locale ) as InstanceType<T>;
+
+		buttonView.set( {
+			withText: true,
+			isToggleable: true
+		} );
+
+		buttonView.bind( 'isOn' ).to( this, 'isSourceEditingMode' );
+
+		// The button should be disabled if one of the following conditions is met:
+		buttonView.bind( 'isEnabled' ).to(
+			this, 'isEnabled',
+			editor, 'isReadOnly',
+			editor.plugins.get( PendingActions ), 'hasAny',
+			( isEnabled, isEditorReadOnly, hasAnyPendingActions ) => {
+				// (1) The plugin itself is disabled.
+				if ( !isEnabled ) {
+					return false;
+				}
+
+				// (2) The editor is in read-only mode.
+				if ( isEditorReadOnly ) {
+					return false;
+				}
+
+				// (3) Any pending action is scheduled. It may change the model, so modifying the document source should be prevented
+				// until the model is finally set.
+				if ( hasAnyPendingActions ) {
+					return false;
+				}
+
+				return true;
+			}
+		);
+
+		this.listenTo( buttonView, 'execute', () => {
+			this.isSourceEditingMode = !this.isSourceEditingMode;
+		} );
+
+		return buttonView;
 	}
 }
 

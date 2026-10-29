@@ -1,12 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import mix from '@ckeditor/ckeditor5-utils/src/mix';
-import EmitterMixin from '@ckeditor/ckeditor5-utils/src/emittermixin';
+import { EmitterMixin } from '@ckeditor/ckeditor5-utils';
 
-export default class UploadGatewayMock {
+export class UploadGatewayMock {
 	constructor( token, uploadUrl ) {
 		UploadGatewayMock.lastToken = token;
 		UploadGatewayMock.lastUploadUrl = uploadUrl;
@@ -23,7 +22,7 @@ export default class UploadGatewayMock {
 	}
 }
 
-class FileUploader {
+class FileUploader extends /* #__PURE__ */ EmitterMixin() {
 	onProgress( callback ) {
 		this.on( 'progress', ( event, data ) => callback( data ) );
 
@@ -46,5 +45,3 @@ class FileUploader {
 		this.aborted = true;
 	}
 }
-
-mix( FileUploader, EmitterMixin );

@@ -1,20 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window */
-
-import FileReader from '../src/filereader';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { NativeFileReaderMock, createNativeFileMock } from './_utils/mocks';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { FileReader } from '../src/filereader.js';
+import { NativeFileReaderMock, createNativeFileMock } from './_utils/mocks.js';
 
 describe( 'FileReader', () => {
 	let reader, fileMock, nativeReaderMock;
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
-		testUtils.sinon.stub( window, 'FileReader' ).callsFake( () => {
+		vi.spyOn( window, 'FileReader' ).mockImplementation( function() {
 			nativeReaderMock = new NativeFileReaderMock();
 
 			return nativeReaderMock;
@@ -25,27 +22,27 @@ describe( 'FileReader', () => {
 	} );
 
 	it( 'should initialize loaded property', () => {
-		expect( reader.loaded ).to.equal( 0 );
+		expect( reader.loaded ).toEqual( 0 );
 	} );
 
 	it( 'should update loaded property', () => {
 		nativeReaderMock.mockProgress( 10 );
-		expect( reader.loaded ).to.equal( 10 );
+		expect( reader.loaded ).toEqual( 10 );
 		nativeReaderMock.mockProgress( 20 );
-		expect( reader.loaded ).to.equal( 20 );
+		expect( reader.loaded ).toEqual( 20 );
 		nativeReaderMock.mockProgress( 55 );
-		expect( reader.loaded ).to.equal( 55 );
+		expect( reader.loaded ).toEqual( 55 );
 	} );
 
 	describe( 'data', () => {
 		it( 'should be undefined if file was not loaded', () => {
-			expect( reader.data ).to.be.undefined;
+			expect( reader.data ).toBeUndefined();
 		} );
 
 		it( 'should equal to loaded file data', () => {
 			const promise = reader.read( fileMock )
 				.then( () => {
-					expect( reader.data ).to.equal( 'File contents.' );
+					expect( reader.data ).toEqual( 'File contents.' );
 				} );
 
 			nativeReaderMock.mockSuccess( 'File contents.' );
@@ -62,7 +59,7 @@ describe( 'FileReader', () => {
 		it( 'should resolve on loading complete', () => {
 			const promise = reader.read( fileMock )
 				.then( result => {
-					expect( result ).to.equal( 'File contents.' );
+					expect( result ).toEqual( 'File contents.' );
 				} );
 
 			nativeReaderMock.mockSuccess( 'File contents.' );
@@ -75,8 +72,8 @@ describe( 'FileReader', () => {
 				.then( () => {
 					throw new Error( 'Reader should not resolve.' );
 				}, status => {
-					expect( status ).to.equal( 'error' );
-					expect( reader.error ).to.equal( 'Error during file reading.' );
+					expect( status ).toEqual( 'error' );
+					expect( reader.error ).toEqual( 'Error during file reading.' );
 				} );
 
 			nativeReaderMock.mockError( 'Error during file reading.' );
@@ -89,7 +86,7 @@ describe( 'FileReader', () => {
 				.then( () => {
 					throw new Error( 'Reader should not resolve.' );
 				}, status => {
-					expect( status ).to.equal( 'aborted' );
+					expect( status ).toEqual( 'aborted' );
 				} );
 
 			nativeReaderMock.abort();
@@ -104,7 +101,7 @@ describe( 'FileReader', () => {
 				.then( () => {
 					throw new Error( 'Reader should not resolve.' );
 				}, status => {
-					expect( status ).to.equal( 'aborted' );
+					expect( status ).toEqual( 'aborted' );
 				} );
 
 			reader.abort();

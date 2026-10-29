@@ -1,18 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/button/switchbuttonview
  */
 
-import View from '../view';
-import ButtonView from './buttonview';
+import { View } from '../view.js';
+import { ButtonView } from './buttonview.js';
 
 import type { Locale } from '@ckeditor/ckeditor5-utils';
-
-import '../../theme/components/button/switchbutton.css';
 
 /**
  * The switch button view class.
@@ -30,7 +28,7 @@ import '../../theme/components/button/switchbutton.css';
  * document.body.append( view.element );
  * ```
  */
-export default class SwitchButtonView extends ButtonView {
+export class SwitchButtonView extends ButtonView {
 	/**
 	 * The toggle switch of the button.
 	 */

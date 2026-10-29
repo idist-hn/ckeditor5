@@ -1,23 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/dev-utils/operationreplayer
  */
 
-/* global setTimeout */
+import { OperationFactory } from '../model/operation/operationfactory.js';
 
-import OperationFactory from '../model/operation/operationfactory';
-
-import type Model from '../model/model';
-import type Operation from '../model/operation/operation';
+import { type Model } from '../model/model.js';
+import { type Operation } from '../model/operation/operation.js';
 
 /**
  * Operation replayer is a development tool created for easy replaying of operations on the document from stringified operations.
+ *
+ * @internal
  */
-export default class OperationReplayer {
+export class OperationReplayer {
 	private _model: Model;
 	private _logSeparator: string;
 	private _operationsToReplay!: Array<Operation>;

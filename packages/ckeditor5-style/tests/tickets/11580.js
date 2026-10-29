@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import GeneralHtmlSupport from '@ckeditor/ckeditor5-html-support/src/generalhtmlsupport';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import CodeBlock from '@ckeditor/ckeditor5-code-block/src/codeblock';
-import RemoveFormat from '@ckeditor/ckeditor5-remove-format/src/removeformat';
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
+import { RemoveFormat } from '@ckeditor/ckeditor5-remove-format';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import Style from '../../src/style';
+import { Style } from '../../src/style.js';
 
 describe( 'Integration with RemoveFormat', () => {
 	let editor, editorElement, model;
@@ -83,7 +83,7 @@ describe( 'Integration with RemoveFormat', () => {
 	} );
 
 	it( 'can remove inline styles', () => {
-		setData(
+		_setModelData(
 			model,
 			'<paragraph>[' +
 				'<$text htmlSpan=\'{"classes":["marker"]}\'>aaa</$text>' +
@@ -94,7 +94,7 @@ describe( 'Integration with RemoveFormat', () => {
 
 		editor.execute( 'removeFormat' );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<paragraph>aaabbbccc</paragraph>'
 		);
 	} );

@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import InputView from '../../src/input/inputview';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { InputView } from '../../src/input/inputview.js';
 
 describe( 'InputView', () => {
 	let view;
@@ -20,15 +21,15 @@ describe( 'InputView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'should create element from template', () => {
-			expect( view.element.tagName ).to.equal( 'INPUT' );
-			expect( view.element.type ).to.equal( 'text' );
-			expect( view.element.getAttribute( 'type' ) ).to.be.null;
-			expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-input' ) ).to.be.true;
+			expect( view.element.tagName ).toBe( 'INPUT' );
+			expect( view.element.type ).toBe( 'text' );
+			expect( view.element.getAttribute( 'type' ) ).toBeNull();
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-input' ) ).toBe( true );
 		} );
 
 		it( 'should set the #inputMode observable property', () => {
-			expect( view.inputMode ).to.equal( 'text' );
+			expect( view.inputMode ).toBe( 'text' );
 		} );
 	} );
 
@@ -40,11 +41,11 @@ describe( 'InputView', () => {
 
 		describe( 'inputmode attribute', () => {
 			it( 'should react on view#inputMode', () => {
-				expect( view.element.getAttribute( 'inputmode' ) ).to.equal( 'text' );
+				expect( view.element.getAttribute( 'inputmode' ) ).toBe( 'text' );
 
 				view.inputMode = 'numeric';
 
-				expect( view.element.getAttribute( 'inputmode' ) ).to.equal( 'numeric' );
+				expect( view.element.getAttribute( 'inputmode' ) ).toBe( 'numeric' );
 			} );
 		} );
 	} );

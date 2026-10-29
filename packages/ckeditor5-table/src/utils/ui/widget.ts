@@ -1,18 +1,35 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/utils/ui/widget
  */
 
-import type { ViewDocumentFragment, ViewDocumentSelection, ViewElement, ViewNode } from 'ckeditor5/src/engine';
+import type { ViewDocumentFragment, ViewDocumentSelection, ViewElement, ViewNode } from '@ckeditor/ckeditor5-engine';
 
-import { isWidget } from 'ckeditor5/src/widget';
+import { isWidget } from '@ckeditor/ckeditor5-widget';
+
+/**
+ * Depending on the position of the selection either return the selected table or the table higher in the hierarchy.
+ *
+ * @internal
+ */
+export function getSelectionAffectedTableWidget( selection: ViewDocumentSelection ): ViewElement | null {
+	const selectedTable = getSelectedTableWidget( selection );
+
+	if ( selectedTable ) {
+		return selectedTable;
+	}
+
+	return getTableWidgetAncestor( selection );
+}
 
 /**
  * Returns a table widget editing view element if one is selected.
+ *
+ * @internal
  */
 export function getSelectedTableWidget( selection: ViewDocumentSelection ): ViewElement | null {
 	const viewElement = selection.getSelectedElement();
@@ -26,6 +43,8 @@ export function getSelectedTableWidget( selection: ViewDocumentSelection ): View
 
 /**
  * Returns a table widget editing view element if one is among the selection's ancestors.
+ *
+ * @internal
  */
 export function getTableWidgetAncestor( selection: ViewDocumentSelection ): ViewElement | null {
 	const selectionPosition = selection.getFirstPosition();
@@ -49,7 +68,9 @@ export function getTableWidgetAncestor( selection: ViewDocumentSelection ): View
 
 /**
  * Checks if a given view element is a table widget.
+ *
+ * @internal
  */
-function isTableWidget( viewElement: ViewElement ): boolean {
-	return !!viewElement.getCustomProperty( 'table' ) && isWidget( viewElement );
+export function isTableWidget( viewNode: ViewNode ): boolean {
+	return viewNode.is( 'element' ) && !!viewNode.getCustomProperty( 'table' ) && isWidget( viewNode );
 }

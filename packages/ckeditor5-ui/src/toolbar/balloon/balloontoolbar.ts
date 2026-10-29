@@ -1,24 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/toolbar/balloon/balloontoolbar
  */
 
-import ContextualBalloon from '../../panel/balloon/contextualballoon';
-import ToolbarView, { type ToolbarViewGroupedItemsUpdateEvent } from '../toolbarview';
-import BalloonPanelView, { generatePositions } from '../../panel/balloon/balloonpanelview';
-import normalizeToolbarConfig from '../normalizetoolbarconfig';
+import { ContextualBalloon } from '../../panel/balloon/contextualballoon.js';
+import { ToolbarView, type ToolbarViewGroupedItemsUpdateEvent } from '../toolbarview.js';
+import { BalloonPanelView } from '../../panel/balloon/balloonpanelview.js';
+import { normalizeToolbarConfig } from '../normalizetoolbarconfig.js';
 
-import type { EditorUIReadyEvent, EditorUIUpdateEvent } from '../../editorui/editorui';
+import type {
+	EditorUIReadyEvent,
+	EditorUIUpdateEvent
+} from '../../editorui/editorui.js';
 
-import {
-	Plugin,
-	type Editor,
-	type EditorReadyEvent
-} from '@ckeditor/ckeditor5-core';
+import { Plugin, type Editor, type EditorReadyEvent, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
 import {
 	FocusTracker,
@@ -30,22 +29,23 @@ import {
 	type ObservableChangeEvent
 } from '@ckeditor/ckeditor5-utils';
 
-import type {
-	DocumentSelection,
-	DocumentSelectionChangeRangeEvent,
-	Schema
+import {
+	Observer,
+	type ModelDocumentSelection,
+	type ModelDocumentSelectionChangeRangeEvent,
+	type ModelSchema
 } from '@ckeditor/ckeditor5-engine';
 
-import { debounce, type DebouncedFunc } from 'lodash-es';
+import { debounce } from 'es-toolkit/compat';
 
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * The contextual toolbar.
  *
  * It uses the {@link module:ui/panel/balloon/contextualballoon~ContextualBalloon contextual balloon plugin}.
  */
-export default class BalloonToolbar extends Plugin {
+export class BalloonToolbar extends Plugin {
 	/**
 	 * The toolbar view displayed in the balloon.
 	 */
@@ -79,7 +79,7 @@ export default class BalloonToolbar extends Plugin {
 	private readonly _balloon: ContextualBalloon;
 
 	/**
-	 * Fires `_selectionChangeDebounced` event using `lodash#debounce`.
+	 * Fires `_selectionChangeDebounced` event using `es-toolkit#debounce`.
 	 *
 	 * This event is an internal plugin event which is fired 200 ms after model selection last change.
 	 * This is to makes easy test debounced action without need to use `setTimeout`.
@@ -87,7 +87,7 @@ export default class BalloonToolbar extends Plugin {
 	 * This function is stored as a plugin property to make possible to cancel
 	 * trailing debounced invocation on destroy.
 	 */
-	private readonly _fireSelectionChangeDebounced: DebouncedFunc<() => void>;
+	private readonly _fireSelectionChangeDebounced: ReturnType<typeof debounce<() => unknown>>;
 
 	/**
 	 * @inheritDoc
@@ -99,8 +99,15 @@ export default class BalloonToolbar extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ContextualBalloon ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ContextualBalloon ]> {
+		return [ ContextualBalloon ];
 	}
 
 	/**
@@ -113,11 +120,9 @@ export default class BalloonToolbar extends Plugin {
 		this.toolbarView = this._createToolbarView();
 		this.focusTracker = new FocusTracker();
 
-		// Wait for the EditorUI#init. EditableElement is not available before.
-		editor.ui.once<EditorUIReadyEvent>( 'ready', () => {
-			this.focusTracker.add( editor.ui.getEditableElement()! );
-			this.focusTracker.add( this.toolbarView.element! );
-		} );
+		// Track focusable elements in the toolbar and the editable elements.
+		this._trackFocusableEditableElements();
+		this.focusTracker.add( this.toolbarView );
 
 		// Register the toolbar so it becomes available for Alt+F10 and Esc navigation.
 		editor.ui.addToolbar( this.toolbarView, {
@@ -143,9 +148,7 @@ export default class BalloonToolbar extends Plugin {
 
 		// Show/hide the toolbar on editable focus/blur.
 		this.listenTo<ObservableChangeEvent<boolean>>( this.focusTracker, 'change:isFocused', ( evt, name, isFocused ) => {
-			const isToolbarVisible = this._balloon.visibleView === this.toolbarView;
-
-			if ( !isFocused && isToolbarVisible ) {
+			if ( !isFocused && this._isToolbarVisible ) {
 				this.hide();
 			} else if ( isFocused ) {
 				this.show();
@@ -153,7 +156,7 @@ export default class BalloonToolbar extends Plugin {
 		} );
 
 		// Hide the toolbar when the selection is changed by a direct change or has changed to collapsed.
-		this.listenTo<DocumentSelectionChangeRangeEvent>( selection, 'change:range', ( evt, data ) => {
+		this.listenTo<ModelDocumentSelectionChangeRangeEvent>( selection, 'change:range', ( evt, data ) => {
 			if ( data.directChange || selection.isCollapsed ) {
 				this.hide();
 			}
@@ -192,16 +195,19 @@ export default class BalloonToolbar extends Plugin {
 		this.listenTo<ToolbarViewGroupedItemsUpdateEvent>( this.toolbarView, 'groupedItemsUpdate', () => {
 			this._updatePosition();
 		} );
+
+		// Creates toolbar components based on given configuration.
+		// This needs to be done when all plugins are ready.
+		editor.ui.once<EditorUIReadyEvent>( 'ready', () => {
+			this.toolbarView.fillFromConfig( this._balloonConfig, this.editor.ui.componentFactory );
+		} );
 	}
 
 	/**
-	 * Creates toolbar components based on given configuration.
-	 * This needs to be done when all plugins are ready.
+	 * Returns whether the toolbar is visible in the ContextualBalloon.
 	 */
-	public afterInit(): void {
-		const factory = this.editor.ui.componentFactory;
-
-		this.toolbarView.fillFromConfig( this._balloonConfig, factory );
+	private get _isToolbarVisible(): boolean {
+		return this._balloon.visibleView === this.toolbarView;
 	}
 
 	/**
@@ -250,7 +256,7 @@ export default class BalloonToolbar extends Plugin {
 			return;
 		}
 
-		// Don not show the toolbar when all components inside are disabled
+		// Do not show the toolbar when all components inside are disabled
 		// see https://github.com/ckeditor/ckeditor5-ui/issues/269.
 		if ( Array.from( this.toolbarView.items ).every( ( item: any ) => item.isEnabled !== undefined && !item.isEnabled ) ) {
 			return;
@@ -277,6 +283,31 @@ export default class BalloonToolbar extends Plugin {
 			this.stopListening( this.editor.ui, 'update' );
 			this._balloon.remove( this.toolbarView );
 		}
+	}
+
+	/**
+	 * Add or remove editable elements to the focus tracker. It watches added and removed roots
+	 * and adds or removes their editable elements to the focus tracker.
+	 */
+	private _trackFocusableEditableElements() {
+		const { editor, focusTracker } = this;
+		const { editing } = editor;
+
+		editing.view.addObserver( class TrackEditableElements extends Observer {
+			/**
+			 * @inheritDoc
+			 */
+			public observe( domElement: HTMLElement ) {
+				focusTracker.add( domElement );
+			}
+
+			/**
+			 * @inheritDoc
+			 */
+			public stopObserving( domElement: HTMLElement ) {
+				focusTracker.remove( domElement );
+			}
+		} );
 	}
 
 	/**
@@ -326,7 +357,9 @@ export default class BalloonToolbar extends Plugin {
 	 * * or the geometry of the balloon toolbar itself (e.g. the toolbar has grouped or ungrouped some items and it is shorter or longer).
 	 */
 	private _updatePosition() {
-		this._balloon.updatePosition( this._getBalloonPositionData() );
+		if ( this._isToolbarVisible ) {
+			this._balloon.updatePosition( this._getBalloonPositionData() );
+		}
 	}
 
 	/**
@@ -352,7 +385,7 @@ export default class BalloonToolbar extends Plugin {
 		const isSafariIniOS = env.isSafari && env.isiOS;
 
 		// https://github.com/ckeditor/ckeditor5/issues/7707
-		const positions = isSafariIniOS ? generatePositions( {
+		const positions = isSafariIniOS ? BalloonPanelView.generatePositions( {
 			// 20px when zoomed out. Less then 20px when zoomed in; the "radius" of the native selection handle gets
 			// smaller as the user zooms in. No less than the default v-offset, though.
 			heightOffset: Math.max(
@@ -391,7 +424,7 @@ export default class BalloonToolbar extends Plugin {
  * Returns "true" when the selection has multiple ranges and each range contains a selectable element
  * and nothing else.
  */
-function selectionContainsOnlyMultipleSelectables( selection: DocumentSelection, schema: Schema ) {
+function selectionContainsOnlyMultipleSelectables( selection: ModelDocumentSelection, schema: ModelSchema ) {
 	// It doesn't contain multiple objects if there is only one range.
 	if ( selection.rangeCount === 1 ) {
 		return false;

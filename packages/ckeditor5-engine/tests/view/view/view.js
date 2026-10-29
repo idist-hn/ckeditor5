@@ -1,44 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, console, setTimeout, FocusEvent */
+import { EditingView } from '../../../src/view/view.js';
+import { Observer } from '../../../src/view/observer/observer.js';
+import { KeyObserver } from '../../../src/view/observer/keyobserver.js';
+import { TabObserver } from '../../../src/view/observer/tabobserver.js';
+import { InputObserver } from '../../../src/view/observer/inputobserver.js';
+import { FakeSelectionObserver } from '../../../src/view/observer/fakeselectionobserver.js';
+import { MutationObserver } from '../../../src/view/observer/mutationobserver.js';
+import { SelectionObserver } from '../../../src/view/observer/selectionobserver.js';
+import { FocusObserver } from '../../../src/view/observer/focusobserver.js';
+import { CompositionObserver } from '../../../src/view/observer/compositionobserver.js';
+import { ArrowKeysObserver } from '../../../src/view/observer/arrowkeysobserver.js';
+import { ViewRange } from '../../../src/view/range.js';
+import { ViewElement } from '../../../src/view/element.js';
+import { ViewContainerElement } from '../../../src/view/containerelement.js';
+import { ViewText } from '../../../src/view/text.js';
+import { ViewPosition } from '../../../src/view/position.js';
+import { ViewSelection } from '../../../src/view/selection.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
-import View from '../../../src/view/view';
-import Observer from '../../../src/view/observer/observer';
-import KeyObserver from '../../../src/view/observer/keyobserver';
-import TabObserver from '../../../src/view/observer/tabobserver';
-import InputObserver from '../../../src/view/observer/inputobserver';
-import FakeSelectionObserver from '../../../src/view/observer/fakeselectionobserver';
-import MutationObserver from '../../../src/view/observer/mutationobserver';
-import SelectionObserver from '../../../src/view/observer/selectionobserver';
-import FocusObserver from '../../../src/view/observer/focusobserver';
-import CompositionObserver from '../../../src/view/observer/compositionobserver';
-import ArrowKeysObserver from '../../../src/view/observer/arrowkeysobserver';
-import ViewRange from '../../../src/view/range';
-import ViewElement from '../../../src/view/element';
-import ViewContainerElement from '../../../src/view/containerelement';
-import ViewText from '../../../src/view/text';
-import ViewPosition from '../../../src/view/position';
-import ViewSelection from '../../../src/view/selection';
-import { StylesProcessor } from '../../../src/view/stylesmap';
-
-import count from '@ckeditor/ckeditor5-utils/src/count';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import createViewRoot from '../_utils/createroot';
-import createElement from '@ckeditor/ckeditor5-utils/src/dom/createelement';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { stubGeometry, assertScrollPosition } from '@ckeditor/ckeditor5-utils/tests/_utils/scroll';
-import env from '@ckeditor/ckeditor5-utils/src/env';
-import CKEditorError from '@ckeditor/ckeditor5-utils/src/ckeditorerror';
+import { count, global, createElement, env, CKEditorError } from '@ckeditor/ckeditor5-utils';
+import { createViewRoot } from '../_utils/createroot.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { stubGeometry, assertScrollPosition } from '@ckeditor/ckeditor5-utils/tests/_utils/scroll.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe( 'view', () => {
 	const DEFAULT_OBSERVERS_COUNT = 9;
 	let domRoot, view, viewDocument, ObserverMock, instantiated, enabled, ObserverMockGlobalCount;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		domRoot = createElement( document, 'div', {
@@ -48,18 +40,18 @@ describe( 'view', () => {
 
 		document.body.appendChild( domRoot );
 
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 
 		ObserverMock = class extends Observer {
 			constructor( view ) {
 				super( view );
 
-				this.enable = sinon.spy();
-				this.disable = sinon.spy();
-				this.observe = sinon.spy();
-				this.stopObserving = sinon.spy();
-				this.destroy = sinon.spy();
+				this.enable = vi.fn();
+				this.disable = vi.fn();
+				this.observe = vi.fn();
+				this.stopObserving = vi.fn();
+				this.destroy = vi.fn();
 			}
 		};
 
@@ -71,7 +63,7 @@ describe( 'view', () => {
 				super( view );
 				instantiated++;
 
-				this.observe = sinon.spy();
+				this.observe = vi.fn();
 			}
 
 			enable() {
@@ -81,13 +73,12 @@ describe( 'view', () => {
 	} );
 
 	afterEach( () => {
-		sinon.restore();
 		domRoot.remove();
 		view.destroy();
 	} );
 
 	it( 'should add default observers', () => {
-		expect( count( view._observers ) ).to.equal( DEFAULT_OBSERVERS_COUNT );
+		expect( count( view._observers ) ).toEqual( DEFAULT_OBSERVERS_COUNT );
 		expect( view.getObserver( MutationObserver ) ).to.be.instanceof( MutationObserver );
 		expect( view.getObserver( SelectionObserver ) ).to.be.instanceof( SelectionObserver );
 		expect( view.getObserver( FocusObserver ) ).to.be.instanceof( FocusObserver );
@@ -104,16 +95,16 @@ describe( 'view', () => {
 			const domDiv = document.createElement( 'div' );
 			const viewRoot = createViewRoot( viewDocument, 'div', 'main' );
 
-			expect( count( view.domRoots ) ).to.equal( 0 );
+			expect( count( view.domRoots ) ).toEqual( 0 );
 
 			view.attachDomRoot( domDiv );
 
-			expect( count( view.domRoots ) ).to.equal( 1 );
+			expect( count( view.domRoots ) ).toEqual( 1 );
 
-			expect( view.getDomRoot() ).to.equal( domDiv );
-			expect( view.domConverter.mapViewToDom( viewRoot ) ).to.equal( domDiv );
+			expect( view.getDomRoot() ).toBe( domDiv );
+			expect( view.domConverter.mapViewToDom( viewRoot ) ).toBe( domDiv );
 
-			expect( view._renderer.markedChildren.has( viewRoot ) ).to.be.true;
+			expect( view._renderer.markedChildren.has( viewRoot ) ).toBe( true );
 			domDiv.remove();
 		} );
 
@@ -121,14 +112,27 @@ describe( 'view', () => {
 			const domH1 = document.createElement( 'h1' );
 			const viewH1 = createViewRoot( viewDocument, 'h1', 'header' );
 
-			expect( count( view.domRoots ) ).to.equal( 0 );
+			expect( count( view.domRoots ) ).toEqual( 0 );
 
 			view.attachDomRoot( domH1, 'header' );
 
-			expect( count( view.domRoots ) ).to.equal( 1 );
-			expect( view.getDomRoot( 'header' ) ).to.equal( domH1 );
-			expect( view.domConverter.mapViewToDom( viewH1 ) ).to.equal( domH1 );
-			expect( view._renderer.markedChildren.has( viewH1 ) ).to.be.true;
+			expect( count( view.domRoots ) ).toEqual( 1 );
+			expect( view.getDomRoot( 'header' ) ).toBe( domH1 );
+			expect( view.domConverter.mapViewToDom( viewH1 ) ).toBe( domH1 );
+			expect( view._renderer.markedChildren.has( viewH1 ) ).toBe( true );
+		} );
+
+		it( 'should register the editing root with the renderer so its DOM selection can be managed', () => {
+			const domDiv = document.createElement( 'div' );
+
+			document.body.appendChild( domDiv );
+
+			createViewRoot( viewDocument, 'div', 'main' );
+			view.attachDomRoot( domDiv );
+
+			expect( view._renderer._domRoots.has( domDiv ) ).toBe( true );
+
+			domDiv.remove();
 		} );
 
 		it( 'should handle the "contenteditable" attribute management on #isReadOnly change', () => {
@@ -138,10 +142,10 @@ describe( 'view', () => {
 			view.attachDomRoot( domDiv );
 
 			viewRoot.isReadOnly = false;
-			expect( viewRoot.getAttribute( 'contenteditable' ) ).to.equal( 'true' );
+			expect( viewRoot.getAttribute( 'contenteditable' ) ).toEqual( 'true' );
 
 			viewRoot.isReadOnly = true;
-			expect( viewRoot.getAttribute( 'contenteditable' ) ).to.equal( 'false' );
+			expect( viewRoot.getAttribute( 'contenteditable' ) ).toEqual( 'false' );
 		} );
 
 		it( 'should handle the ".ck-read-only" class management on #isReadOnly change', () => {
@@ -151,19 +155,19 @@ describe( 'view', () => {
 			view.attachDomRoot( domDiv );
 
 			viewRoot.isReadOnly = false;
-			expect( viewRoot.hasClass( 'ck-read-only' ) ).to.be.false;
+			expect( viewRoot.hasClass( 'ck-read-only' ) ).toBe( false );
 
 			viewRoot.isReadOnly = true;
-			expect( viewRoot.hasClass( 'ck-read-only' ) ).to.be.true;
+			expect( viewRoot.hasClass( 'ck-read-only' ) ).toBe( true );
 		} );
 
 		it( 'should call observe on each observer', () => {
 			// The variable will be overwritten.
 			view.destroy();
 
-			view = new View( new StylesProcessor() );
+			view = new EditingView( new StylesProcessor() );
 			viewDocument = view.document;
-			view._renderer.render = sinon.spy();
+			view._renderer.render = vi.fn();
 
 			const domDiv1 = document.createElement( 'div' );
 			domDiv1.setAttribute( 'id', 'editor' );
@@ -177,8 +181,38 @@ describe( 'view', () => {
 			createViewRoot( viewDocument, 'div', 'root1' );
 			view.attachDomRoot( document.createElement( 'div' ), 'root1' );
 
-			sinon.assert.calledOnce( observerMock.observe );
-			sinon.assert.calledOnce( observerMockGlobalCount.observe );
+			expect( observerMock.observe ).toHaveBeenCalledOnce();
+			expect( observerMockGlobalCount.observe ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should transfer all DOM attributes to the root element', () => {
+			const domDiv = document.createElement( 'div' );
+			const viewRoot = createViewRoot( viewDocument, 'div', 'main' );
+
+			domDiv.setAttribute( 'foo', 'bar' );
+			domDiv.setAttribute( 'baz', 'qux' );
+
+			view.attachDomRoot( domDiv );
+
+			expect( viewRoot.getAttribute( 'foo' ) ).toEqual( 'bar' );
+			expect( viewRoot.getAttribute( 'baz' ) ).toEqual( 'qux' );
+		} );
+
+		it( 'should not transfer a DOM attribute to the root element if already exists before attaching', () => {
+			const domDiv = document.createElement( 'div' );
+			const viewRoot = createViewRoot( viewDocument, 'div', 'main' );
+
+			domDiv.setAttribute( 'foo', 'bar' );
+			domDiv.setAttribute( 'baz', 'qux' );
+
+			view.change( writer => {
+				writer.setAttribute( 'foo', 'pre-existing', viewRoot );
+			} );
+
+			view.attachDomRoot( domDiv );
+
+			expect( viewRoot.getAttribute( 'foo' ) ).toEqual( 'pre-existing' );
+			expect( viewRoot.getAttribute( 'baz' ) ).toEqual( 'qux' );
 		} );
 	} );
 
@@ -188,12 +222,26 @@ describe( 'view', () => {
 			const viewRoot = createViewRoot( viewDocument, 'div', 'main' );
 
 			view.attachDomRoot( domDiv );
-			expect( count( view.domRoots ) ).to.equal( 1 );
-			expect( view.domConverter.mapViewToDom( viewRoot ) ).to.equal( domDiv );
+			expect( count( view.domRoots ) ).toEqual( 1 );
+			expect( view.domConverter.mapViewToDom( viewRoot ) ).toBe( domDiv );
 
 			view.detachDomRoot( 'main' );
-			expect( count( view.domRoots ) ).to.equal( 0 );
-			expect( view.domConverter.mapViewToDom( viewRoot ) ).to.be.undefined;
+			expect( count( view.domRoots ) ).toEqual( 0 );
+			expect( view.domConverter.mapViewToDom( viewRoot ) ).toBeUndefined();
+
+			domDiv.remove();
+		} );
+
+		it( 'should stop tracking the editing root in the renderer', () => {
+			const domDiv = document.createElement( 'div' );
+
+			createViewRoot( viewDocument, 'div', 'main' );
+
+			view.attachDomRoot( domDiv );
+			expect( view._renderer._domRoots.has( domDiv ) ).toBe( true );
+
+			view.detachDomRoot( 'main' );
+			expect( view._renderer._domRoots.has( domDiv ) ).toBe( false );
 
 			domDiv.remove();
 		} );
@@ -222,13 +270,35 @@ describe( 'view', () => {
 				attributes[ attribute.name ] = attribute.value;
 			}
 
-			expect( attributes ).to.deep.equal( {
+			expect( attributes ).toEqual( {
 				foo: 'bar',
 				'data-baz': 'qux',
 				class: 'foo-class'
 			} );
 
 			domDiv.remove();
+		} );
+
+		it( 'should restore the DOM root attributes that have been set on the view root before attaching', () => {
+			const domDiv = document.createElement( 'div' );
+			const viewRoot = createViewRoot( viewDocument, 'div', 'main' );
+
+			domDiv.setAttribute( 'foo', 'bar' );
+			domDiv.setAttribute( 'baz', 'qux' );
+
+			view.change( writer => {
+				writer.setAttribute( 'foo', 'pre-existing', viewRoot );
+			} );
+
+			view.attachDomRoot( domDiv );
+
+			expect( viewRoot.getAttribute( 'foo' ) ).toEqual( 'pre-existing' );
+			expect( viewRoot.getAttribute( 'baz' ) ).toEqual( 'qux' );
+
+			view.detachDomRoot( 'main' );
+
+			expect( domDiv.getAttribute( 'foo' ) ).toEqual( 'bar' );
+			expect( domDiv.getAttribute( 'baz' ) ).toEqual( 'qux' );
 		} );
 
 		it( 'should remove the "contenteditable" attribute from the DOM root', () => {
@@ -239,11 +309,11 @@ describe( 'view', () => {
 			view.forceRender();
 
 			viewRoot.isReadOnly = false;
-			expect( domDiv.getAttribute( 'contenteditable' ) ).to.equal( 'true' );
+			expect( domDiv.getAttribute( 'contenteditable' ) ).toEqual( 'true' );
 
 			view.detachDomRoot( 'main' );
 
-			expect( domDiv.hasAttribute( 'contenteditable' ) ).to.be.false;
+			expect( domDiv.hasAttribute( 'contenteditable' ) ).toBe( false );
 
 			domDiv.remove();
 		} );
@@ -256,11 +326,11 @@ describe( 'view', () => {
 			view.forceRender();
 
 			viewRoot.isReadOnly = true;
-			expect( domDiv.classList.contains( 'ck-read-only' ) ).to.be.true;
+			expect( domDiv.classList.contains( 'ck-read-only' ) ).toBe( true );
 
 			view.detachDomRoot( 'main' );
 
-			expect( domDiv.classList.contains( 'ck-read-only' ) ).to.be.false;
+			expect( domDiv.classList.contains( 'ck-read-only' ) ).toBe( false );
 
 			domDiv.remove();
 		} );
@@ -273,11 +343,11 @@ describe( 'view', () => {
 
 			view.attachDomRoot( domDiv );
 
-			expect( observerMock.stopObserving.calledOnce ).to.be.false;
+			expect( observerMock.stopObserving ).not.toHaveBeenCalled();
 
 			view.detachDomRoot( 'main' );
 
-			expect( observerMock.stopObserving.calledOnce ).to.be.true;
+			expect( observerMock.stopObserving ).toHaveBeenCalledOnce();
 
 			domDiv.remove();
 		} );
@@ -288,9 +358,9 @@ describe( 'view', () => {
 			// The variable will be overwritten.
 			view.destroy();
 
-			view = new View( new StylesProcessor() );
+			view = new EditingView( new StylesProcessor() );
 			viewDocument = view.document;
-			view._renderer.render = sinon.spy();
+			view._renderer.render = vi.fn();
 		} );
 
 		afterEach( () => {
@@ -300,10 +370,10 @@ describe( 'view', () => {
 		it( 'should be instantiated and enabled on adding', () => {
 			const observerMock = view.addObserver( ObserverMock );
 
-			expect( view._observers.size ).to.equal( DEFAULT_OBSERVERS_COUNT + 1 );
+			expect( view._observers.size ).toBe( DEFAULT_OBSERVERS_COUNT + 1 );
 
-			expect( observerMock ).to.have.property( 'document', viewDocument );
-			sinon.assert.calledOnce( observerMock.enable );
+			expect( observerMock ).toHaveProperty( 'document', viewDocument );
+			expect( observerMock.enable ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should return observer instance each time addObserver is called', () => {
@@ -312,19 +382,19 @@ describe( 'view', () => {
 
 			expect( observerMock1 ).to.be.instanceof( ObserverMock );
 			expect( observerMock2 ).to.be.instanceof( ObserverMock );
-			expect( observerMock1 ).to.equals( observerMock2 );
+			expect( observerMock1 ).toEqual( observerMock2 );
 		} );
 
 		it( 'should instantiate one observer only once', () => {
 			view.addObserver( ObserverMockGlobalCount );
 			view.addObserver( ObserverMockGlobalCount );
 
-			expect( view._observers.size ).to.equal( DEFAULT_OBSERVERS_COUNT + 1 );
-			expect( instantiated ).to.equal( 1 );
-			expect( enabled ).to.equal( 1 );
+			expect( view._observers.size ).toEqual( DEFAULT_OBSERVERS_COUNT + 1 );
+			expect( instantiated ).toEqual( 1 );
+			expect( enabled ).toEqual( 1 );
 
 			view.addObserver( ObserverMock );
-			expect( view._observers.size ).to.equal( DEFAULT_OBSERVERS_COUNT + 2 );
+			expect( view._observers.size ).toEqual( DEFAULT_OBSERVERS_COUNT + 2 );
 		} );
 
 		it( 'should instantiate child class of already registered observer', () => {
@@ -338,16 +408,16 @@ describe( 'view', () => {
 			view.addObserver( ObserverMock );
 			view.addObserver( ChildObserverMock );
 
-			expect( view._observers.size ).to.equal( DEFAULT_OBSERVERS_COUNT + 2 );
+			expect( view._observers.size ).toEqual( DEFAULT_OBSERVERS_COUNT + 2 );
 		} );
 
 		it( 'should be disabled and re-enabled on render', () => {
 			const observerMock = view.addObserver( ObserverMock );
 			view.forceRender();
 
-			sinon.assert.calledOnce( observerMock.disable );
-			sinon.assert.calledOnce( view._renderer.render );
-			sinon.assert.calledTwice( observerMock.enable );
+			expect( observerMock.disable ).toHaveBeenCalledOnce();
+			expect( view._renderer.render ).toHaveBeenCalledOnce();
+			expect( observerMock.enable ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should call observe on each root', () => {
@@ -359,7 +429,7 @@ describe( 'view', () => {
 
 			const observerMock = view.addObserver( ObserverMock );
 
-			sinon.assert.calledTwice( observerMock.observe );
+			expect( observerMock.observe ).toHaveBeenCalledTimes( 2 );
 		} );
 	} );
 
@@ -369,13 +439,13 @@ describe( 'view', () => {
 			const getObserverMock = view.getObserver( ObserverMock );
 
 			expect( getObserverMock ).to.be.instanceof( ObserverMock );
-			expect( getObserverMock ).to.equal( addedObserverMock );
+			expect( getObserverMock ).toEqual( addedObserverMock );
 		} );
 
 		it( 'should return undefined if observer is not added', () => {
 			const getObserverMock = view.getObserver( ObserverMock );
 
-			expect( getObserverMock ).to.be.undefined;
+			expect( getObserverMock ).toBeUndefined();
 		} );
 	} );
 
@@ -391,18 +461,18 @@ describe( 'view', () => {
 
 			view.attachDomRoot( domRoot );
 
-			stubGeometry( testUtils, domRootAncestor, {
+			stubGeometry( domRootAncestor, {
 				top: 0, right: 100, bottom: 100, left: 0, width: 100, height: 100
 			}, {
 				scrollLeft: 100, scrollTop: 100
 			} );
 
-			testUtils.sinon.stub( global.window, 'innerWidth' ).value( 1000 );
-			testUtils.sinon.stub( global.window, 'innerHeight' ).value( 500 );
-			testUtils.sinon.stub( global.window, 'scrollX' ).value( 100 );
-			testUtils.sinon.stub( global.window, 'scrollY' ).value( 100 );
-			testUtils.sinon.stub( global.window, 'scrollTo' );
-			testUtils.sinon.stub( global.window, 'getComputedStyle' ).returns( {
+			vi.spyOn( global.window, 'innerWidth', 'get' ).mockReturnValue( 1000 );
+			vi.spyOn( global.window, 'innerHeight', 'get' ).mockReturnValue( 500 );
+			vi.spyOn( global.window, 'scrollX', 'get' ).mockReturnValue( 100 );
+			vi.spyOn( global.window, 'scrollY', 'get' ).mockReturnValue( 100 );
+			vi.spyOn( global.window, 'scrollTo' ).mockImplementation( () => {} );
+			vi.spyOn( global.window, 'getComputedStyle' ).mockReturnValue( {
 				borderTopWidth: '0px',
 				borderRightWidth: '0px',
 				borderBottomWidth: '0px',
@@ -411,7 +481,7 @@ describe( 'view', () => {
 			} );
 
 			// Assuming 20px v- and h-scrollbars here.
-			testUtils.sinon.stub( global.window.document, 'documentElement' ).value( {
+			vi.spyOn( global.window.document, 'documentElement', 'get' ).mockReturnValue( {
 				clientWidth: 980,
 				clientHeight: 480
 			} );
@@ -426,7 +496,7 @@ describe( 'view', () => {
 
 			view.scrollToTheSelection();
 			assertScrollPosition( domRootAncestor, { scrollTop: 100, scrollLeft: 100 } );
-			sinon.assert.notCalled( global.window.scrollTo );
+			expect( global.window.scrollTo ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should scroll to the first range in the selection (default offsets)', () => {
@@ -435,7 +505,7 @@ describe( 'view', () => {
 			view.scrollToTheSelection();
 
 			assertScrollPosition( domRootAncestor, { scrollTop: -120, scrollLeft: 220 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, -120 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, -120 );
 		} );
 
 		it( 'should support configurable viewport offset', () => {
@@ -446,7 +516,7 @@ describe( 'view', () => {
 			} );
 
 			assertScrollPosition( domRootAncestor, { scrollTop: -120, scrollLeft: 220 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, -150 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, -150 );
 		} );
 
 		it( 'should support configurable ancestors offset', () => {
@@ -457,7 +527,7 @@ describe( 'view', () => {
 			} );
 
 			assertScrollPosition( domRootAncestor, { scrollTop: -150, scrollLeft: 250 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, -120 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, -120 );
 		} );
 
 		it( 'should support scrolling to the top of the viewport', () => {
@@ -470,7 +540,7 @@ describe( 'view', () => {
 			} );
 
 			assertScrollPosition( domRootAncestor, { scrollTop: 650, scrollLeft: 250 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, 670 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, 670 );
 		} );
 
 		it( 'should support force-scrolling to the top of the viewport despite the selection being visible', () => {
@@ -484,7 +554,7 @@ describe( 'view', () => {
 			} );
 
 			assertScrollPosition( domRootAncestor, { scrollTop: 75, scrollLeft: 100 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, 95 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, 95 );
 		} );
 
 		it( 'should not call scrollTo when selection is null', () => {
@@ -494,11 +564,11 @@ describe( 'view', () => {
 
 			view.scrollToTheSelection();
 
-			sinon.assert.notCalled( global.window.scrollTo );
+			expect( global.window.scrollTo ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should fire the #scrollToTheSelection event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			view.on( 'scrollToTheSelection', spy );
 
@@ -507,7 +577,7 @@ describe( 'view', () => {
 
 			const range = view.document.selection.getFirstRange();
 
-			sinon.assert.calledWith( spy, sinon.match.object, {
+			expect( spy ).toHaveBeenCalledWith( expect.any( Object ), {
 				target: view.domConverter.viewRangeToDom( range ),
 				alignToTop: undefined,
 				forceScroll: undefined,
@@ -521,11 +591,11 @@ describe( 'view', () => {
 			} );
 
 			assertScrollPosition( domRootAncestor, { scrollTop: -120, scrollLeft: 220 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, -120 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, -120 );
 		} );
 
 		it( 'should allow dynamic injection of options through the #scrollToTheSelection event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			view.on( 'scrollToTheSelection', ( evt, data ) => {
 				data.viewportOffset.top += 10;
@@ -542,7 +612,7 @@ describe( 'view', () => {
 
 			const range = view.document.selection.getFirstRange();
 
-			sinon.assert.calledWith( spy, sinon.match.object, {
+			expect( spy ).toHaveBeenCalledWith( expect.any( Object ), {
 				target: view.domConverter.viewRangeToDom( range ),
 				alignToTop: true,
 				forceScroll: undefined,
@@ -556,11 +626,11 @@ describe( 'view', () => {
 			} );
 
 			assertScrollPosition( domRootAncestor, { scrollTop: -120, scrollLeft: 220 } );
-			sinon.assert.calledWithExactly( global.window.scrollTo, 100, -130 );
+			expect( global.window.scrollTo ).toHaveBeenCalledWith( 100, -130 );
 		} );
 
 		it( 'should pass the original method arguments along the #scrollToTheSelection event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			view.on( 'scrollToTheSelection', ( evt, data ) => {
 				data.viewportOffset.top += 10;
@@ -586,7 +656,7 @@ describe( 'view', () => {
 
 			const range = view.document.selection.getFirstRange();
 
-			sinon.assert.calledWith( spy, sinon.match.object, {
+			expect( spy ).toHaveBeenCalledWith( expect.any( Object ), {
 				target: view.domConverter.viewRangeToDom( range ),
 				alignToTop: true,
 				forceScroll: true,
@@ -610,13 +680,13 @@ describe( 'view', () => {
 			domRange.setStart( domRoot, 0 );
 			domRange.setEnd( domRoot, 0 );
 
-			stubGeometry( testUtils, domRange, geometry );
+			stubGeometry( domRange, geometry );
 
 			view.change( writer => {
 				writer.setSelection( ViewRange._createIn( viewRoot ) );
 			} );
 
-			sinon.stub( view.domConverter, 'viewRangeToDom' ).returns( domRange );
+			vi.spyOn( view.domConverter, 'viewRangeToDom' ).mockReturnValue( domRange );
 		}
 	} );
 
@@ -624,13 +694,13 @@ describe( 'view', () => {
 		it( 'should disable observers', () => {
 			const addedObserverMock = view.addObserver( ObserverMock );
 
-			expect( addedObserverMock.enable.calledOnce ).to.be.true;
-			expect( addedObserverMock.disable.called ).to.be.false;
+			expect( addedObserverMock.enable ).toHaveBeenCalledOnce();
+			expect( addedObserverMock.disable ).not.toHaveBeenCalled();
 
 			view.disableObservers();
 
-			expect( addedObserverMock.enable.calledOnce ).to.be.true;
-			expect( addedObserverMock.disable.calledOnce ).to.be.true;
+			expect( addedObserverMock.enable ).toHaveBeenCalledOnce();
+			expect( addedObserverMock.disable ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -640,13 +710,13 @@ describe( 'view', () => {
 
 			view.disableObservers();
 
-			expect( addedObserverMock.enable.calledOnce ).to.be.true;
-			expect( addedObserverMock.disable.calledOnce ).to.be.true;
+			expect( addedObserverMock.enable ).toHaveBeenCalledOnce();
+			expect( addedObserverMock.disable ).toHaveBeenCalledOnce();
 
 			view.enableObservers();
 
-			expect( addedObserverMock.enable.calledTwice ).to.be.true;
-			expect( addedObserverMock.disable.calledOnce ).to.be.true;
+			expect( addedObserverMock.enable ).toHaveBeenCalledTimes( 2 );
+			expect( addedObserverMock.disable ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -670,90 +740,90 @@ describe( 'view', () => {
 		} );
 
 		it( 'should focus editable with selection', () => {
-			const converterFocusSpy = sinon.spy( view.domConverter, 'focus' );
-			const renderSpy = sinon.spy( view, 'forceRender' );
+			const converterFocusSpy = vi.spyOn( view.domConverter, 'focus' );
+			const renderSpy = vi.spyOn( view, 'forceRender' );
 
 			view.focus();
 
-			expect( converterFocusSpy.called ).to.be.true;
-			expect( renderSpy.calledOnce ).to.be.true;
-			expect( document.activeElement ).to.equal( domEditable );
+			expect( converterFocusSpy ).toHaveBeenCalled();
+			expect( renderSpy ).toHaveBeenCalledOnce();
+			expect( document.activeElement ).toBe( domEditable );
 			const domSelection = document.getSelection();
-			expect( domSelection.rangeCount ).to.equal( 1 );
+			expect( domSelection.rangeCount ).toEqual( 1 );
 			const domRange = domSelection.getRangeAt( 0 );
-			expect( domRange.startContainer ).to.equal( domEditable );
-			expect( domRange.startOffset ).to.equal( 0 );
-			expect( domRange.collapsed ).to.be.true;
+			expect( domRange.startContainer ).toBe( domEditable );
+			expect( domRange.startOffset ).toEqual( 0 );
+			expect( domRange.collapsed ).toBe( true );
 		} );
 
 		it( 'should not focus if document is already focused', () => {
-			const converterFocusSpy = sinon.spy( view.domConverter, 'focus' );
-			const renderSpy = sinon.spy( view, 'forceRender' );
+			const converterFocusSpy = vi.spyOn( view.domConverter, 'focus' );
+			const renderSpy = vi.spyOn( view, 'forceRender' );
 			viewDocument.isFocused = true;
 
 			view.focus();
 
-			expect( converterFocusSpy.called ).to.be.false;
-			expect( renderSpy.called ).to.be.false;
+			expect( converterFocusSpy ).not.toHaveBeenCalled();
+			expect( renderSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not crash when there is no selection', () => {
 			// Catches the `There is no selection in any editable to focus.` warning in the CK_DEBUG mode.
-			sinon.stub( console, 'warn' );
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
 			view.change( writer => {
 				writer.setSelection( null );
 			} );
 
-			view.focus();
+			expect( () => view.focus() ).not.toThrow();
 		} );
 	} );
 
 	describe( 'Renderer property bindings to the document', () => {
 		it( 'Renderer#isFocused should be bound to Document#isFocused', () => {
-			expect( viewDocument.isFocused ).to.equal( false );
-			expect( view._renderer.isFocused ).to.equal( false );
+			expect( viewDocument.isFocused ).toEqual( false );
+			expect( view._renderer.isFocused ).toEqual( false );
 
 			viewDocument.isFocused = true;
 
-			expect( viewDocument.isFocused ).to.equal( true );
-			expect( view._renderer.isFocused ).to.equal( true );
+			expect( viewDocument.isFocused ).toEqual( true );
+			expect( view._renderer.isFocused ).toEqual( true );
 		} );
 
 		it( 'Renderer#isSelecting should be bound to Document#isSelecting', () => {
-			expect( viewDocument.isSelecting ).to.equal( false );
-			expect( view._renderer.isSelecting ).to.equal( false );
+			expect( viewDocument.isSelecting ).toEqual( false );
+			expect( view._renderer.isSelecting ).toEqual( false );
 
 			viewDocument.isSelecting = true;
 
-			expect( viewDocument.isSelecting ).to.equal( true );
-			expect( view._renderer.isSelecting ).to.equal( true );
+			expect( viewDocument.isSelecting ).toEqual( true );
+			expect( view._renderer.isSelecting ).toEqual( true );
 		} );
 
 		it( 'Renderer#isComposing should be bound to Document#isComposing', () => {
-			expect( viewDocument.isComposing ).to.equal( false );
-			expect( view._renderer.isComposing ).to.equal( false );
+			expect( viewDocument.isComposing ).toEqual( false );
+			expect( view._renderer.isComposing ).toEqual( false );
 
 			viewDocument.isComposing = true;
 
-			expect( viewDocument.isComposing ).to.equal( true );
-			expect( view._renderer.isComposing ).to.equal( true );
+			expect( viewDocument.isComposing ).toEqual( true );
+			expect( view._renderer.isComposing ).toEqual( true );
 		} );
 	} );
 
 	describe( 'isRenderingInProgress', () => {
 		it( 'should be true while rendering is in progress', () => {
-			expect( view.isRenderingInProgress ).to.equal( false );
+			expect( view.isRenderingInProgress ).toBe( false );
 
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			view.on( 'change:isRenderingInProgress', spy );
 
 			view.fire( 'render' );
 
-			sinon.assert.calledTwice( spy );
-			sinon.assert.calledWith( spy.firstCall, sinon.match.any, 'isRenderingInProgress', true );
-			sinon.assert.calledWith( spy.secondCall, sinon.match.any, 'isRenderingInProgress', false );
+			expect( spy ).toHaveBeenCalledTimes( 2 );
+			expect( spy.mock.calls[ 0 ][ 2 ] ).toBe( true );
+			expect( spy.mock.calls[ 1 ][ 2 ] ).toBe( false );
 		} );
 	} );
 
@@ -790,7 +860,7 @@ describe( 'view', () => {
 			domElement.remove();
 		} );
 
-		it( 'should be true if selection is inside a DOM root element', done => {
+		it( 'should be true if selection is inside a DOM root element', () => new Promise( resolve => {
 			domRoot.focus();
 
 			// Both selection need to stay in sync to avoid inf selection loops
@@ -801,13 +871,13 @@ describe( 'view', () => {
 
 			// Wait for async selectionchange event on DOM document.
 			setTimeout( () => {
-				expect( view.hasDomSelection ).to.be.true;
+				expect( view.hasDomSelection ).toBe( true );
 
-				done();
+				resolve();
 			}, 1000 );
-		} );
+		} ) );
 
-		it( 'should be true if selection is inside a DOM root element - no focus', done => {
+		it( 'should be true if selection is inside a DOM root element - no focus', () => new Promise( resolve => {
 			domRoot.focus();
 
 			// See the previous test.
@@ -821,52 +891,55 @@ describe( 'view', () => {
 
 				// Wait for async selectionchange event on DOM document.
 				setTimeout( () => {
-					expect( view.hasDomSelection ).to.be.true;
-					expect( view.document.isFocused ).to.be.false;
+					expect( view.hasDomSelection ).toBe( true );
+					expect( view.document.isFocused ).toBe( false );
 
-					done();
+					resolve();
 				}, 100 );
 			}, 100 );
-		} );
+		} ) );
 
-		it( 'should be false if selection is outside DOM root element', done => {
+		it( 'should be false if selection is outside DOM root element', () => new Promise( resolve => {
 			domSelection.collapse( domElement, 0 );
 
 			// Wait for async selectionchange event on DOM document.
 			setTimeout( () => {
-				expect( view.hasDomSelection ).to.be.false;
+				expect( view.hasDomSelection ).toBe( false );
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 	} );
 
 	describe( 'forceRender()', () => {
 		it( 'disable observers, renders and enable observers', () => {
 			const observerMock = view.addObserver( ObserverMock );
-			const renderStub = sinon.stub( view._renderer, 'render' );
+			const callOrder = [];
+			observerMock.disable.mockImplementation( () => callOrder.push( 'disable' ) );
+			vi.spyOn( view._renderer, 'render' ).mockImplementation( () => callOrder.push( 'render' ) );
+			observerMock.enable.mockImplementation( () => callOrder.push( 'enable' ) );
 
 			view.forceRender();
 
-			sinon.assert.callOrder( observerMock.disable, renderStub, observerMock.enable );
+			expect( callOrder ).toEqual( [ 'disable', 'render', 'enable' ] );
 		} );
 
 		it( 'should fire `render` and `layoutChanged` even if there were no changes', () => {
-			const renderSpy = sinon.spy();
-			const layoutChangedSpy = sinon.spy();
+			const renderSpy = vi.fn();
+			const layoutChangedSpy = vi.fn();
 
 			view.on( 'render', renderSpy );
 			view.document.on( 'layoutChanged', layoutChangedSpy );
 
 			view.forceRender();
 
-			sinon.assert.calledOnce( renderSpy );
-			sinon.assert.calledOnce( layoutChangedSpy );
+			expect( renderSpy ).toHaveBeenCalledOnce();
+			expect( layoutChangedSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should fire `render` and `layoutChanged` if there is some buffered change', () => {
-			const renderSpy = sinon.spy();
-			const layoutChangedSpy = sinon.spy();
+			const renderSpy = vi.fn();
+			const layoutChangedSpy = vi.fn();
 
 			view.on( 'render', renderSpy );
 			view.document.on( 'layoutChanged', layoutChangedSpy );
@@ -874,8 +947,8 @@ describe( 'view', () => {
 			view.document.selection._setTo( null );
 			view.forceRender();
 
-			sinon.assert.calledOnce( renderSpy );
-			sinon.assert.calledOnce( layoutChangedSpy );
+			expect( renderSpy ).toHaveBeenCalledOnce();
+			expect( layoutChangedSpy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -886,15 +959,15 @@ describe( 'view', () => {
 				createElement( document, 'p' )
 			] );
 
-			const view = new View( new StylesProcessor() );
+			const view = new EditingView( new StylesProcessor() );
 			const viewDocument = view.document;
 
 			createViewRoot( viewDocument, 'div', 'main' );
 			view.attachDomRoot( domDiv );
 			view.forceRender();
 
-			expect( domDiv.childNodes.length ).to.equal( 1 );
-			expect( view.domConverter.isBlockFiller( domDiv.childNodes[ 0 ] ) ).to.be.true;
+			expect( domDiv.childNodes.length ).toEqual( 1 );
+			expect( view.domConverter.isBlockFiller( domDiv.childNodes[ 0 ] ) ).toBe( true );
 
 			view.destroy();
 			domDiv.remove();
@@ -903,7 +976,7 @@ describe( 'view', () => {
 		it( 'should render changes in the Document', () => {
 			const domDiv = document.createElement( 'div' );
 
-			const view = new View( new StylesProcessor() );
+			const view = new EditingView( new StylesProcessor() );
 			const viewDocument = view.document;
 			createViewRoot( viewDocument, 'div', 'main' );
 			view.attachDomRoot( domDiv );
@@ -911,8 +984,8 @@ describe( 'view', () => {
 			viewDocument.getRoot()._appendChild( new ViewElement( viewDocument, 'p' ) );
 			view.forceRender();
 
-			expect( domDiv.childNodes.length ).to.equal( 1 );
-			expect( domDiv.childNodes[ 0 ].tagName ).to.equal( 'P' );
+			expect( domDiv.childNodes.length ).toEqual( 1 );
+			expect( domDiv.childNodes[ 0 ].tagName ).toEqual( 'P' );
 
 			view.destroy();
 		} );
@@ -920,7 +993,7 @@ describe( 'view', () => {
 		it( 'should render attribute changes', () => {
 			const domRoot = document.createElement( 'div' );
 
-			const view = new View( new StylesProcessor() );
+			const view = new EditingView( new StylesProcessor() );
 			const viewDocument = view.document;
 			const viewRoot = createViewRoot( viewDocument, 'div', 'main' );
 
@@ -930,14 +1003,14 @@ describe( 'view', () => {
 			viewRoot._appendChild( viewP );
 			view.forceRender();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].getAttribute( 'class' ) ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toEqual( 1 );
+			expect( domRoot.childNodes[ 0 ].getAttribute( 'class' ) ).toEqual( 'foo' );
 
 			viewP._setAttribute( 'class', 'bar' );
 			view.forceRender();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].getAttribute( 'class' ) ).to.equal( 'bar' );
+			expect( domRoot.childNodes.length ).toEqual( 1 );
+			expect( domRoot.childNodes[ 0 ].getAttribute( 'class' ) ).toEqual( 'bar' );
 
 			view.destroy();
 			domRoot.remove();
@@ -953,7 +1026,7 @@ describe( 'view', () => {
 				document.body.appendChild( domDiv );
 				document.body.appendChild( domOtherDiv );
 
-				view = new View( new StylesProcessor() );
+				view = new EditingView( new StylesProcessor() );
 				viewDocument = view.document;
 
 				createViewRoot( viewDocument, 'div', 'main' );
@@ -976,58 +1049,170 @@ describe( 'view', () => {
 			} );
 
 			it( 'should clear DOM selection on editor blur on iOS', () => {
-				sinon.stub( env, 'isiOS' ).value( true );
+				vi.spyOn( env, 'isiOS', 'get' ).mockReturnValue( true );
 
 				setupTest();
 
-				expect( document.getSelection().focusNode ).to.equal( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( document.getSelection().focusOffset ).to.equal( 3 );
+				expect( document.getSelection().focusNode ).toBe( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( document.getSelection().focusOffset ).toEqual( 3 );
 
 				domDiv.dispatchEvent( new FocusEvent( 'blur' ) );
 
-				expect( document.getSelection().rangeCount ).to.equal( 0 );
+				expect( document.getSelection().rangeCount ).toEqual( 0 );
 			} );
 
 			it( 'should not clear DOM selection on editor blur on non-iOS browser', () => {
 				setupTest();
 
-				expect( document.getSelection().focusNode ).to.equal( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( document.getSelection().focusOffset ).to.equal( 3 );
+				expect( document.getSelection().focusNode ).toBe( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( document.getSelection().focusOffset ).toEqual( 3 );
 
 				domDiv.dispatchEvent( new FocusEvent( 'blur' ) );
 
-				expect( document.getSelection().rangeCount ).to.equal( 1 );
-				expect( document.getSelection().focusNode ).to.equal( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( document.getSelection().focusOffset ).to.equal( 3 );
+				expect( document.getSelection().rangeCount ).toEqual( 1 );
+				expect( document.getSelection().focusNode ).toBe( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( document.getSelection().focusOffset ).toEqual( 3 );
 			} );
 
 			it( 'should clear DOM selection on editor blur on iOS (focus to some other element outside editor)', () => {
-				sinon.stub( env, 'isiOS' ).value( true );
+				vi.spyOn( env, 'isiOS', 'get' ).mockReturnValue( true );
 
 				setupTest();
 
-				expect( document.getSelection().focusNode ).to.equal( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( document.getSelection().focusOffset ).to.equal( 3 );
+				expect( document.getSelection().focusNode ).toBe( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( document.getSelection().focusOffset ).toEqual( 3 );
 
 				domDiv.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: domOtherDiv } ) );
 
-				expect( document.getSelection().rangeCount ).to.equal( 0 );
+				expect( document.getSelection().rangeCount ).toEqual( 0 );
 			} );
 
 			it( 'should not clear DOM selection on editor blur on iOS (focus to the editor editable)', () => {
-				sinon.stub( env, 'isiOS' ).value( true );
+				vi.spyOn( env, 'isiOS', 'get' ).mockReturnValue( true );
 
 				setupTest();
 
-				expect( document.getSelection().focusNode ).to.equal( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( document.getSelection().focusOffset ).to.equal( 3 );
+				expect( document.getSelection().focusNode ).toBe( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( document.getSelection().focusOffset ).toEqual( 3 );
 
 				domDiv.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: domDiv } ) );
 
-				expect( document.getSelection().rangeCount ).to.equal( 1 );
-				expect( document.getSelection().focusNode ).to.equal( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( document.getSelection().focusOffset ).to.equal( 3 );
+				expect( document.getSelection().rangeCount ).toEqual( 1 );
+				expect( document.getSelection().focusNode ).toBe( domDiv.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( document.getSelection().focusOffset ).toEqual( 3 );
 			} );
+		} );
+
+		describe( 'DOM selection clearing on editable blur inside a shadow root', () => {
+			// The observers listen on the DOM roots themselves, so a `relatedTarget` in the tree a root lives in –
+			// or anywhere above it – arrives as the real node rather than a retargeted stand-in.
+			let view, viewDocument, editorHost, unrelatedHost, domRoot, siblingDomRoot;
+
+			function setupTest() {
+				vi.spyOn( env, 'isiOS', 'get' ).mockReturnValue( true );
+
+				editorHost = document.body.appendChild( createElement( document, 'div' ) );
+				unrelatedHost = document.body.appendChild( createElement( document, 'div' ) );
+
+				unrelatedHost.attachShadow( { mode: 'open' } );
+
+				const shadowRoot = editorHost.attachShadow( { mode: 'open' } );
+
+				domRoot = shadowRoot.appendChild( createElement( document, 'div' ) );
+				siblingDomRoot = shadowRoot.appendChild( createElement( document, 'div' ) );
+
+				view = new EditingView( new StylesProcessor() );
+				viewDocument = view.document;
+
+				createViewRoot( viewDocument, 'div', 'main' );
+				createViewRoot( viewDocument, 'div', 'second' );
+
+				view.attachDomRoot( domRoot, 'main' );
+				view.attachDomRoot( siblingDomRoot, 'second' );
+
+				const viewText = new ViewText( viewDocument, 'foobar' );
+				const viewP = new ViewContainerElement( viewDocument, 'p', null, viewText );
+
+				viewDocument.getRoot( 'main' )._appendChild( viewP );
+				viewDocument.selection._setTo( viewText, 3 );
+				viewDocument.isFocused = true;
+
+				view.forceRender();
+			}
+
+			afterEach( () => {
+				view.destroy();
+				editorHost.remove();
+				unrelatedHost.remove();
+			} );
+
+			it( 'should not clear DOM selection when focus moves to another DOM root in the same shadow root', () => {
+				setupTest();
+
+				expect( document.getSelection().rangeCount ).toEqual( 1 );
+
+				// A related target in the tree the blurred root lives in is reported as the real node, so it is
+				// recognized as an editable of this editor.
+				domRoot.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: siblingDomRoot } ) );
+
+				expect( document.getSelection().rangeCount ).toEqual( 1 );
+			} );
+
+			it( 'should clear DOM selection when focus moves into a shadow root holding no DOM root of this editor', () => {
+				setupTest();
+
+				expect( document.getSelection().rangeCount ).toEqual( 1 );
+
+				domRoot.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: unrelatedHost } ) );
+
+				expect( document.getSelection().rangeCount ).toEqual( 0 );
+			} );
+
+			it( 'should clear DOM selection when focus moves to the shadow host wrapping the editor', () => {
+				setupTest();
+
+				expect( document.getSelection().rangeCount ).toEqual( 1 );
+
+				domRoot.dispatchEvent( new FocusEvent( 'blur', { relatedTarget: editorHost } ) );
+
+				expect( document.getSelection().rangeCount ).toEqual( 0 );
+			} );
+		} );
+
+		it( 'should revert unexpected DOM changes', () => {
+			const domDiv = document.createElement( 'div' );
+
+			const view = new EditingView( new StylesProcessor() );
+			const viewDocument = view.document;
+			createViewRoot( viewDocument, 'div', 'main' );
+			view.attachDomRoot( domDiv );
+
+			const viewP = new ViewElement( viewDocument, 'p' );
+			const viewText = new ViewText( viewDocument, 'foo' );
+
+			viewDocument.getRoot()._appendChild( viewP );
+			viewP._appendChild( viewText );
+			view.forceRender();
+
+			expect( domDiv.childNodes.length ).toEqual( 1 );
+			expect( domDiv.childNodes[ 0 ].tagName ).toEqual( 'P' );
+			expect( domDiv.childNodes[ 0 ].childNodes.length ).toEqual( 1 );
+			expect( domDiv.childNodes[ 0 ].childNodes[ 0 ].data ).toEqual( 'foo' );
+
+			domDiv.childNodes[ 0 ].childNodes[ 0 ].data = 'bar';
+			domDiv.appendChild( document.createElement( 'h1' ) );
+
+			expect( domDiv.childNodes.length ).toEqual( 2 );
+			expect( domDiv.childNodes[ 0 ].childNodes[ 0 ].data ).toEqual( 'bar' );
+
+			view.getObserver( MutationObserver ).flush();
+
+			expect( domDiv.childNodes.length ).toEqual( 1 );
+			expect( domDiv.childNodes[ 0 ].tagName ).toEqual( 'P' );
+			expect( domDiv.childNodes[ 0 ].childNodes.length ).toEqual( 1 );
+			expect( domDiv.childNodes[ 0 ].childNodes[ 0 ].data ).toEqual( 'foo' );
+
+			view.destroy();
 		} );
 	} );
 
@@ -1054,7 +1239,7 @@ describe( 'view', () => {
 				writer.insert( ViewPosition._createAt( viewRoot, 0 ), p );
 			} );
 
-			expect( renderingCalled ).to.be.true;
+			expect( renderingCalled ).toBe( true );
 			domDiv.remove();
 		} );
 
@@ -1074,8 +1259,9 @@ describe( 'view', () => {
 		} );
 
 		it( 'should fire render event and it should trigger rendering before listeners on normal priority', () => {
-			const renderSpy = sinon.spy( view._renderer, 'render' );
-			const eventSpy = sinon.spy();
+			const callOrder = [];
+			const renderSpy = vi.spyOn( view._renderer, 'render' ).mockImplementation( () => callOrder.push( 'render' ) );
+			const eventSpy = vi.fn( () => callOrder.push( 'event' ) );
 
 			view.on( 'render', eventSpy );
 
@@ -1083,12 +1269,15 @@ describe( 'view', () => {
 				writer.setSelection( null );
 			} );
 
-			sinon.assert.callOrder( renderSpy, eventSpy );
+			expect( renderSpy ).toHaveBeenCalled();
+			expect( eventSpy ).toHaveBeenCalled();
+			expect( callOrder ).toEqual( [ 'render', 'event' ] );
 		} );
 
 		it( 'should fire render event once for nested change blocks', () => {
-			const renderSpy = sinon.spy( view._renderer, 'render' );
-			const eventSpy = sinon.spy();
+			const callOrder = [];
+			const renderSpy = vi.spyOn( view._renderer, 'render' ).mockImplementation( () => callOrder.push( 'render' ) );
+			const eventSpy = vi.fn( () => callOrder.push( 'event' ) );
 			const viewEditable = createViewRoot( viewDocument, 'div', 'main' );
 
 			view.on( 'render', eventSpy );
@@ -1109,14 +1298,15 @@ describe( 'view', () => {
 				} );
 			} );
 
-			sinon.assert.calledOnce( renderSpy );
-			sinon.assert.calledOnce( eventSpy );
-			sinon.assert.callOrder( renderSpy, eventSpy );
+			expect( renderSpy ).toHaveBeenCalledOnce();
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( callOrder ).toEqual( [ 'render', 'event' ] );
 		} );
 
 		it( 'should fire render event once even if render is called during the change', () => {
-			const renderSpy = sinon.spy( view._renderer, 'render' );
-			const eventSpy = sinon.spy();
+			const callOrder = [];
+			const renderSpy = vi.spyOn( view._renderer, 'render' ).mockImplementation( () => callOrder.push( 'render' ) );
+			const eventSpy = vi.fn( () => callOrder.push( 'event' ) );
 
 			view.on( 'render', eventSpy );
 
@@ -1129,16 +1319,23 @@ describe( 'view', () => {
 				view.forceRender();
 			} );
 
-			sinon.assert.calledOnce( renderSpy );
-			sinon.assert.calledOnce( eventSpy );
-			sinon.assert.callOrder( renderSpy, eventSpy );
+			expect( renderSpy ).toHaveBeenCalledOnce();
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( callOrder ).toEqual( [ 'render', 'event' ] );
 		} );
 
 		it( 'should call post-fixers after change but before rendering', () => {
-			const postFixer1 = sinon.spy( () => false );
-			const postFixer2 = sinon.spy( () => false );
-			const changeSpy = sinon.spy();
-			const eventSpy = sinon.spy();
+			const callOrder = [];
+			const postFixer1 = vi.fn( () => {
+				callOrder.push( 'postFixer1' );
+				return false;
+			} );
+			const postFixer2 = vi.fn( () => {
+				callOrder.push( 'postFixer2' );
+				return false;
+			} );
+			const changeSpy = vi.fn( () => callOrder.push( 'change' ) );
+			const eventSpy = vi.fn( () => callOrder.push( 'event' ) );
 
 			viewDocument.registerPostFixer( postFixer1 );
 			viewDocument.registerPostFixer( postFixer2 );
@@ -1149,20 +1346,21 @@ describe( 'view', () => {
 				writer.setSelection( null );
 			} );
 
-			sinon.assert.calledOnce( postFixer1 );
-			sinon.assert.calledOnce( postFixer2 );
-			sinon.assert.calledOnce( changeSpy );
-			sinon.assert.calledOnce( eventSpy );
+			expect( postFixer1 ).toHaveBeenCalledOnce();
+			expect( postFixer2 ).toHaveBeenCalledOnce();
+			expect( changeSpy ).toHaveBeenCalledOnce();
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			sinon.assert.callOrder( changeSpy, postFixer1, postFixer2, eventSpy );
+			expect( callOrder ).toEqual( [ 'change', 'postFixer1', 'postFixer2', 'event' ] );
 		} );
 
 		it( 'should call post-fixers until all are done', () => {
 			let called = false;
-			const postFixer1 = sinon.spy();
-			const postFixer2 = sinon.spy();
-			const changeSpy = sinon.spy();
-			const eventSpy = sinon.spy();
+			const callOrder = [];
+			const postFixer1 = vi.fn( () => callOrder.push( 'postFixer1' ) );
+			const postFixer2 = vi.fn( () => callOrder.push( 'postFixer2' ) );
+			const changeSpy = vi.fn( () => callOrder.push( 'change' ) );
+			const eventSpy = vi.fn( () => callOrder.push( 'event' ) );
 
 			viewDocument.registerPostFixer( () => {
 				if ( !called ) {
@@ -1183,12 +1381,12 @@ describe( 'view', () => {
 				writer.setSelection( null );
 			} );
 
-			sinon.assert.calledOnce( postFixer1 );
-			sinon.assert.calledOnce( postFixer2 );
-			sinon.assert.calledOnce( changeSpy );
-			sinon.assert.calledOnce( eventSpy );
+			expect( postFixer1 ).toHaveBeenCalledOnce();
+			expect( postFixer2 ).toHaveBeenCalledOnce();
+			expect( changeSpy ).toHaveBeenCalledOnce();
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			sinon.assert.callOrder( changeSpy, postFixer1, postFixer2, eventSpy );
+			expect( callOrder ).toEqual( [ 'change', 'postFixer1', 'postFixer2', 'event' ] );
 		} );
 
 		it( 'should return result of the callback', () => {
@@ -1196,7 +1394,7 @@ describe( 'view', () => {
 				return 'FooBar';
 			} );
 
-			expect( result ).to.equal( 'FooBar' );
+			expect( result ).toBe( 'FooBar' );
 		} );
 
 		it( 'should return result of the callback with nested change block', () => {
@@ -1214,9 +1412,9 @@ describe( 'view', () => {
 				} );
 			} );
 
-			expect( result1 ).to.equal( 42 );
-			expect( result2 ).to.equal( true );
-			expect( result3 ).to.undefined;
+			expect( result1 ).toEqual( 42 );
+			expect( result2 ).toEqual( true );
+			expect( result3 ).toBeUndefined();
 		} );
 
 		it.skip( 'should rethrow native errors as they are in the dubug=true mode', () => {
@@ -1232,10 +1430,17 @@ describe( 'view', () => {
 		it( 'should rethrow custom CKEditorError errors', () => {
 			expectToThrowCKEditorError( () => {
 				view.change( () => {
-					// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
 					throw new CKEditorError( 'foo', view );
 				} );
 			}, /foo/, view );
+		} );
+
+		it( 'should rethrow unexpected errors thrown in change() callback', () => {
+			expect( () => {
+				view.change( () => {
+					throw new Error( 'Test error' );
+				} );
+			} ).toThrow( 'Test error' );
 		} );
 	} );
 
@@ -1308,7 +1513,7 @@ describe( 'view', () => {
 
 			view.destroy();
 
-			sinon.assert.calledOnce( observerMock.destroy );
+			expect( observerMock.destroy ).toHaveBeenCalledOnce();
 		} );
 	} );
 } );

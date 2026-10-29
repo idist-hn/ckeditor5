@@ -1,19 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { EditingView } from '../../../src/view/view.js';
+import { INLINE_FILLER_LENGTH, isInlineFiller, startsWithFiller } from '../../../src/view/filler.js';
 
-import View from '../../../src/view/view';
-import { INLINE_FILLER_LENGTH, isInlineFiller, startsWithFiller } from '../../../src/view/filler';
+import { createViewRoot } from '../_utils/createroot.js';
+import { keyCodes, createElement } from '@ckeditor/ckeditor5-utils';
 
-import createViewRoot from '../_utils/createroot';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import createElement from '@ckeditor/ckeditor5-utils/src/dom/createelement';
-
-import { parse, setData } from '../../../src/dev-utils/view';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { _parseView, _setViewData } from '../../../src/dev-utils/view.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'View', () => {
 	let view, viewDocument, domRoot;
@@ -24,7 +22,7 @@ describe( 'View', () => {
 		} );
 		document.body.appendChild( domRoot );
 
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 		createViewRoot( viewDocument );
 		view.attachDomRoot( domRoot );
@@ -42,7 +40,7 @@ describe( 'View', () => {
 
 	describe( 'jump over inline filler hack', () => {
 		it( 'should jump over inline filler when left arrow is pressed after inline filler', () => {
-			setData( view, '<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
+			_setViewData( view, '<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
 			view.forceRender();
 
 			viewDocument.fire( 'keydown', { keyCode: keyCodes.arrowleft, domTarget: view.domRoots.get( 'main' ) } );
@@ -51,62 +49,58 @@ describe( 'View', () => {
 
 			// There's a problem now. We expect that the selection was moved to "foo<b>^FILLER</b>", but Safari
 			// will render it on "foo^<b>...". Both options are correct.
+			const isAnchorInText = domSelection.anchorNode.data == 'foo';
+			const expectedAnchorOffset = isAnchorInText ? 3 : 0;
 
-			if ( domSelection.anchorNode.data == 'foo' ) {
-				expect( domSelection.anchorNode.data ).to.equal( 'foo' );
-				expect( domSelection.anchorOffset ).to.equal( 3 );
-			} else {
-				expect( isInlineFiller( domSelection.anchorNode ) ).to.be.true;
-				expect( domSelection.anchorOffset ).to.equal( 0 );
-			}
-
-			expect( domSelection.isCollapsed ).to.be.true;
+			expect( isAnchorInText || isInlineFiller( domSelection.anchorNode ) ).toBe( true );
+			expect( domSelection.anchorOffset ).toBe( expectedAnchorOffset );
+			expect( domSelection.isCollapsed ).toBe( true );
 		} );
 
 		it( 'should do nothing when another key is pressed', () => {
-			setData( view, '<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
+			_setViewData( view, '<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
 			view.forceRender();
 
 			viewDocument.fire( 'keydown', { keyCode: keyCodes.arrowright, domTarget: view.domRoots.get( 'main' ) } );
 
 			const domSelection = document.getSelection();
 
-			expect( isInlineFiller( domSelection.anchorNode ) ).to.be.true;
-			expect( domSelection.anchorOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.isCollapsed ).to.be.true;
+			expect( isInlineFiller( domSelection.anchorNode ) ).toBe( true );
+			expect( domSelection.anchorOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.isCollapsed ).toBe( true );
 		} );
 
 		it( 'should do nothing if range is not collapsed', () => {
-			setData( view, '<container:p>foo<attribute:b>{x}</attribute:b>bar</container:p>' );
+			_setViewData( view, '<container:p>foo<attribute:b>{x}</attribute:b>bar</container:p>' );
 			view.forceRender();
 
 			viewDocument.fire( 'keydown', { keyCode: keyCodes.arrowleft, domTarget: view.domRoots.get( 'main' ) } );
 
 			const domSelection = document.getSelection();
 
-			expect( domSelection.anchorNode.data ).to.equal( 'x' );
-			expect( domSelection.anchorOffset ).to.equal( 0 );
-			expect( domSelection.focusNode.data ).to.equal( 'x' );
-			expect( domSelection.focusOffset ).to.equal( 1 );
+			expect( domSelection.anchorNode.data ).toBe( 'x' );
+			expect( domSelection.anchorOffset ).toBe( 0 );
+			expect( domSelection.focusNode.data ).toBe( 'x' );
+			expect( domSelection.focusOffset ).toBe( 1 );
 		} );
 
-		// See #664
-		// it( 'should do nothing if node does not start with the filler', () => {
-		// 	setData( view, '<container:p>foo<attribute:b>{}x</attribute:b>bar</container:p>' );
-		// 	viewDocument.render();
+		// See https://github.com/ckeditor/ckeditor5-engine/issues/664
+		it.skip( 'should do nothing if node does not start with the filler', () => {
+			_setViewData( view, '<container:p>foo<attribute:b>{}x</attribute:b>bar</container:p>' );
+			view.forceRender();
 
-		// 	viewDocument.fire( 'keydown', { keyCode: keyCodes.arrowleft, domTarget: viewDocument.domRoots.get( 'main' ) } );
+			viewDocument.fire( 'keydown', { keyCode: keyCodes.arrowleft, domTarget: view.domRoots.get( 'main' ) } );
 
-		// 	const domSelection = document.getSelection();
+			const domSelection = document.getSelection();
 
-		// 	expect( domSelection.anchorNode.data ).to.equal( 'x' );
-		// 	expect( domSelection.anchorOffset ).to.equal( INLINE_FILLER_LENGTH );
-		// 	expect( domSelection.isCollapsed ).to.be.true;
-		// } );
+			expect( domSelection.anchorNode.data ).toBe( 'x' );
+			expect( domSelection.anchorOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.isCollapsed ).toBe( true );
+		} );
 
 		it( 'should do nothing if caret is not directly before the filler', () => {
 			view.change( () => {
-				setData( view, '<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
+				_setViewData( view, '<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
 			} );
 
 			const domSelection = document.getSelection();
@@ -114,7 +108,7 @@ describe( 'View', () => {
 				// Insert a letter to the <b>: '<container:p>foo<attribute:b>x{}</attribute:b>bar</container:p>'
 				// Do this both in the view and in the DOM to simulate typing and to avoid rendering (which would remove the filler).
 				const viewB = writer.document.selection.getFirstPosition().parent;
-				const viewTextX = parse( 'x' );
+				const viewTextX = _parseView( 'x' );
 				viewB._appendChild( viewTextX );
 				writer.setSelection( viewTextX, 1 );
 
@@ -130,9 +124,9 @@ describe( 'View', () => {
 
 			viewDocument.fire( 'keydown', { keyCode: keyCodes.arrowleft, domTarget: view.domRoots.get( 'main' ) } );
 
-			expect( startsWithFiller( domSelection.anchorNode ) ).to.be.true;
-			expect( domSelection.anchorOffset ).to.equal( INLINE_FILLER_LENGTH + 1 );
-			expect( domSelection.isCollapsed ).to.be.true;
+			expect( startsWithFiller( domSelection.anchorNode ) ).toBe( true );
+			expect( domSelection.anchorOffset ).toBe( INLINE_FILLER_LENGTH + 1 );
+			expect( domSelection.isCollapsed ).toBe( true );
 		} );
 	} );
 } );

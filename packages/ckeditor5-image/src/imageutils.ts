@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,31 +8,31 @@
  */
 
 import type {
-	Element,
+	ModelElement,
 	ViewElement,
 	ViewNode,
-	DocumentSelection,
+	ModelDocumentSelection,
 	ViewDocumentSelection,
-	Selection,
+	ModelSelection,
 	ViewSelection,
-	DocumentFragment,
+	ModelDocumentFragment,
 	ViewDocumentFragment,
-	DowncastWriter,
+	ViewDowncastWriter,
 	Model,
-	Position,
+	ModelPosition,
 	ViewContainerElement
-} from 'ckeditor5/src/engine';
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import { findOptimalInsertionRange, isWidget, toWidget } from 'ckeditor5/src/widget';
-import { determineImageTypeForInsertionAtSelection } from './image/utils';
-import { DomEmitterMixin, type DomEmitter, global } from 'ckeditor5/src/utils';
+} from '@ckeditor/ckeditor5-engine';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import { findOptimalInsertionRange, isWidget, toWidget } from '@ckeditor/ckeditor5-widget';
+import { determineImageTypeForInsertionAtSelection } from './image/utils.js';
+import { DomEmitterMixin, type DomEmitter, global } from '@ckeditor/ckeditor5-utils';
 
 const IMAGE_WIDGETS_CLASSES_MATCH_REGEXP = /^(image|image-inline)$/;
 
 /**
  * A set of helpers related to images.
  */
-export default class ImageUtils extends Plugin {
+export class ImageUtils extends Plugin {
 	/**
 	 * DOM Emitter.
 	 */
@@ -46,9 +46,16 @@ export default class ImageUtils extends Plugin {
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
 	 * Checks if the provided model element is an `image` or `imageInline`.
 	 */
-	public isImage( modelElement?: Element | null ): modelElement is Element & { name: 'imageInline' | 'imageBlock' } {
+	public isImage( modelElement?: ModelElement | null ): modelElement is ModelElement & { name: 'imageInline' | 'imageBlock' } {
 		return this.isInlineImage( modelElement ) || this.isBlockImage( modelElement );
 	}
 
@@ -81,7 +88,7 @@ export default class ImageUtils extends Plugin {
 	 * ```
 	 *
 	 * @param attributes Attributes of the inserted image.
-	 * This method filters out the attributes which are disallowed by the {@link module:engine/model/schema~Schema}.
+	 * This method filters out the attributes which are disallowed by the {@link module:engine/model/schema~ModelSchema}.
 	 * @param selectable Place to insert the image. If not specified,
 	 * the {@link module:widget/utils~findOptimalInsertionRange} logic will be applied for the block images
 	 * and `model.document.selection` for the inline images.
@@ -97,15 +104,15 @@ export default class ImageUtils extends Plugin {
 	 */
 	public insertImage(
 		attributes: Record<string, unknown> = {},
-		selectable: Selection | Position | null = null,
+		selectable: ModelSelection | ModelPosition | null = null,
 		imageType: ( 'imageBlock' | 'imageInline' | null ) = null,
 		options: { setImageSizes?: boolean } = {}
-	): Element | null {
+	): ModelElement | null {
 		const editor = this.editor;
 		const model = editor.model;
 		const selection = model.document.selection;
 
-		imageType = determineImageTypeForInsertion( editor, selectable || selection, imageType );
+		const determinedImageType = determineImageTypeForInsertion( editor, selectable || selection, imageType );
 
 		// Mix declarative attributes with selection attributes because the new image should "inherit"
 		// the latter for best UX. For instance, inline images inserted into existing links
@@ -116,20 +123,20 @@ export default class ImageUtils extends Plugin {
 		};
 
 		for ( const attributeName in attributes ) {
-			if ( !model.schema.checkAttribute( imageType, attributeName ) ) {
+			if ( !model.schema.checkAttribute( determinedImageType, attributeName ) ) {
 				delete attributes[ attributeName ];
 			}
 		}
 
 		return model.change( writer => {
 			const { setImageSizes = true } = options;
-			const imageElement = writer.createElement( imageType!, attributes );
+			const imageElement = writer.createElement( determinedImageType, attributes );
 
 			model.insertObject( imageElement, selectable, null, {
 				setSelection: 'on',
 				// If we want to insert a block image (for whatever reason) then we don't want to split text blocks.
 				// This applies only when we don't have the selectable specified (i.e., we insert multiple block images at once).
-				findOptimalPosition: !selectable && imageType != 'imageInline' ? 'auto' : undefined
+				findOptimalPosition: !selectable && determinedImageType != 'imageInline' ? 'auto' : undefined
 			} );
 
 			// Inserting an image might've failed due to schema regulations.
@@ -151,7 +158,7 @@ export default class ImageUtils extends Plugin {
 	 * The `src` attribute may not be available if the user is using an upload adapter. In such a case,
 	 * this method is called again after the upload process is complete and the `src` attribute is available.
 	 */
-	public setImageNaturalSizeAttributes( imageElement: Element ): void {
+	public setImageNaturalSizeAttributes( imageElement: ModelElement ): void {
 		const src = imageElement.getAttribute( 'src' ) as string;
 
 		if ( !src ) {
@@ -214,7 +221,7 @@ export default class ImageUtils extends Plugin {
 	/**
 	 * Returns a image model element if one is selected or is among the selection's ancestors.
 	 */
-	public getClosestSelectedImageElement( selection: Selection | DocumentSelection ): Element | null {
+	public getClosestSelectedImageElement( selection: ModelSelection | ModelDocumentSelection ): ModelElement | null {
 		const selectedElement = selection.getSelectedElement();
 
 		return this.isImage( selectedElement ) ? selectedElement : selection.getFirstPosition()!.findAncestor( 'imageBlock' );
@@ -240,15 +247,15 @@ export default class ImageUtils extends Plugin {
 	}
 
 	/**
-	 * Converts a given {@link module:engine/view/element~Element} to an image widget:
-	 * * Adds a {@link module:engine/view/element~Element#_setCustomProperty custom property} allowing to recognize the image widget
+	 * Converts a given {@link module:engine/view/element~ViewElement} to an image widget:
+	 * * Adds a {@link module:engine/view/element~ViewElement#_setCustomProperty custom property} allowing to recognize the image widget
 	 * element.
 	 * * Calls the {@link module:widget/utils~toWidget} function with the proper element's label creator.
 	 *
 	 * @param writer An instance of the view writer.
 	 * @param label The element's label. It will be concatenated with the image `alt` attribute if one is present.
 	 */
-	public toImageWidget( viewElement: ViewElement, writer: DowncastWriter, label: string ): ViewElement {
+	public toImageWidget( viewElement: ViewElement, writer: ViewDowncastWriter, label: string ): ViewElement {
 		writer.setCustomProperty( 'image', true, viewElement );
 
 		const labelCreator = () => {
@@ -271,14 +278,14 @@ export default class ImageUtils extends Plugin {
 	/**
 	 * Checks if the provided model element is an `image`.
 	 */
-	public isBlockImage( modelElement?: Element | null ): boolean {
+	public isBlockImage( modelElement?: ModelElement | null ): boolean {
 		return !!modelElement && modelElement.is( 'element', 'imageBlock' );
 	}
 
 	/**
 	 * Checks if the provided model element is an `imageInline`.
 	 */
-	public isInlineImage( modelElement?: Element | null ): boolean {
+	public isInlineImage( modelElement?: ModelElement | null ): boolean {
 		return !!modelElement && modelElement.is( 'element', 'imageInline' );
 	}
 
@@ -314,41 +321,49 @@ export default class ImageUtils extends Plugin {
 /**
  * Checks if image is allowed by schema in optimal insertion parent.
  */
-function isImageAllowedInParent( editor: Editor, selection: Selection | DocumentSelection ): boolean {
+function isImageAllowedInParent( editor: Editor, selection: ModelSelection | ModelDocumentSelection ): boolean {
 	const imageType = determineImageTypeForInsertion( editor, selection, null );
 
 	if ( imageType == 'imageBlock' ) {
-		const parent = getInsertImageParent( selection, editor.model );
-
-		if ( editor.model.schema.checkChild( parent as Element, 'imageBlock' ) ) {
-			return true;
-		}
-	} else if ( editor.model.schema.checkChild( selection.focus!, 'imageInline' ) ) {
-		return true;
+		return isBlockImageAllowedAtInsertion( editor.model, selection );
 	}
 
-	return false;
+	return editor.model.schema.checkChild( selection.focus!, 'imageInline' );
 }
 
 /**
  * Checks if selection is not placed inside an image (e.g. its caption).
  */
-function isNotInsideImage( selection: DocumentSelection ): boolean {
+function isNotInsideImage( selection: ModelDocumentSelection ): boolean {
 	return [ ...selection.focus!.getAncestors() ].every( ancestor => !ancestor.is( 'element', 'imageBlock' ) );
 }
 
 /**
  * Returns a node that will be used to insert image with `model.insertContent`.
  */
-function getInsertImageParent( selection: Selection | DocumentSelection, model: Model ): Element | DocumentFragment {
+function getInsertImageParent( selection: ModelSelection | ModelDocumentSelection, model: Model ): ModelElement | ModelDocumentFragment {
 	const insertionRange = findOptimalInsertionRange( selection, model );
 	const parent = insertionRange.start.parent;
 
-	if ( parent.isEmpty && !parent.is( 'element', '$root' ) ) {
+	if ( parent.isEmpty && !parent.is( 'rootElement' ) ) {
 		return parent.parent!;
 	}
 
 	return parent;
+}
+
+/**
+ * Checks whether a block image is allowed by the schema at the optimal insertion point for the given selectable
+ * (e.g. it is not allowed inside `$inlineRoot` or any other inline-only container).
+ */
+function isBlockImageAllowedAtInsertion(
+	model: Model,
+	selectable: ModelPosition | ModelSelection | ModelDocumentSelection
+): boolean {
+	const selection = selectable.is( 'position' ) ? model.createSelection( selectable ) : selectable;
+	const insertionParent = getInsertImageParent( selection, model );
+
+	return model.schema.checkChild( insertionParent as ModelElement, 'imageBlock' );
 }
 
 /**
@@ -359,7 +374,7 @@ function getInsertImageParent( selection: Selection | DocumentSelection, model: 
  */
 function determineImageTypeForInsertion(
 	editor: Editor,
-	selectable: Position | Selection | DocumentSelection,
+	selectable: ModelPosition | ModelSelection | ModelDocumentSelection,
 	imageType: 'imageBlock' | 'imageInline' | null
 ): 'imageBlock' | 'imageInline' {
 	const schema = editor.model.schema;
@@ -377,11 +392,18 @@ function determineImageTypeForInsertion(
 		return imageType;
 	}
 
+	// Force `imageInline` when a block image cannot be placed at the insertion location (e.g. inside
+	// `$inlineRoot` or another inline-only container). Otherwise the `image.insert.type` config
+	// (default: `'block'`) could pick a type the schema would later reject.
+	if ( !isBlockImageAllowedAtInsertion( editor.model, selectable ) ) {
+		return 'imageInline';
+	}
+
 	if ( configImageInsertType === 'inline' ) {
 		return 'imageInline';
 	}
 
-	if ( configImageInsertType === 'block' ) {
+	if ( configImageInsertType !== 'auto' ) {
 		return 'imageBlock';
 	}
 

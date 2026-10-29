@@ -19,20 +19,20 @@ If needed, you can revert the automatic change by pressing <kbd>Backspace</kbd>.
 
 {@snippet features/autoformat}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Block formatting
 
 The following block formatting options are available:
 
 * {@link features/lists Bulleted list} &ndash; Start a line with `*` or `-` followed by a space.
-* {@link features/lists Numbered list} &ndash; Start a line with `1.` or `1)` followed by a space.
+* {@link features/lists Numbered list} &ndash; Start a line with any number followed by `.` or `)` and a space.
 * {@link features/todo-lists To-do list} &ndash; Start a line with `[ ]` or `[x]` followed by a space to insert an unchecked or checked list item, respectively.
 * {@link features/headings Headings} &ndash; Start a line with `#` or `##` or `###` followed by a space to create a heading 1, heading 2, or heading 3 (up to heading 6 if {@link module:heading/headingconfig~HeadingConfig#options} defines more headings).
 * {@link features/block-quote Block quote} &ndash; Start a line with `>` followed by a space.
-* {@link features/code-blocks Code block} &ndash; Start a line with `` ``` ``.
+* {@link features/code-blocks Code block} &ndash; Start a line with `` `backticks` ``.
 * {@link features/horizontal-line Horizontal line} &ndash; Start a line with `---`.
 
 ## Inline formatting
@@ -46,36 +46,25 @@ The following {@link features/basic-styles basic styles} inline formatting optio
 
 ## Installation
 
-<info-box info>
-	This feature is enabled by default in all {@link installation/getting-started/predefined-builds predefined builds}. The installation instructions are for developers interested in building their own, custom editor.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your editor install the [`@ckeditor/ckeditor5-autoformat`](https://www.npmjs.com/package/@ckeditor/ckeditor5-autoformat) package:
-
-```bash
-npm install --save @ckeditor/ckeditor5-autoformat
-```
-
-And add it to your plugin list:
-
+<code-switcher>
 ```js
-import { Autoformat } from '@ckeditor/ckeditor5-autoformat';
+import { ClassicEditor, Autoformat } from 'ckeditor5';
 
-ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+ClassicEditor.
+	create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ Autoformat, /* ... */ ],
 		toolbar: [ /* ... */ ]
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
+</code-switcher>
 
 <info-box hint>
 	Remember to add proper features to the editor configuration. Autoformatting will be enabled only for the commands that are included in the actual configuration. For example, `bold` autoformatting will not work if there is no `bold` command registered in the editor.
-</info-box>
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
 </info-box>
 
 ## Creating custom autoformatters

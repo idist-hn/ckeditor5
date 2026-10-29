@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -13,7 +13,7 @@
  * @param node Node which index is tested.
  * @returns Index of the node in the parent element. Returns 0 if node has no parent.
  */
-export default function indexOf( node: Node ): number {
+export function indexOf( node: Node ): number {
 	let index = 0;
 
 	while ( node.previousSibling ) {

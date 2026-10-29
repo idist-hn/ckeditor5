@@ -1,35 +1,139 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-:root {
-	--ck-dropdown-max-width: 75vw;
+:root,
+:host {
+	/* Size */
+	--ck-dropdown-arrow-size: calc(0.5 * var(--ck-icon-size));
+
+	/* Spacing */
+	/* Space between the dropdown label and its arrow, the same in both text directions. */
+	--ck-dropdown-arrow-gap: var(--ck-spacing-control-padding-inline);
+	--ck-dropdown-panel-padding: 0;
+
+	/* Radius */
+	/* Uniform (fully rounded) corners by default; set this to initial to restore the attached-corner (squared connecting edge) look, as the legacy theme does. */
+	--ck-dropdown-panel-uniform-border-radius: var(--ck-border-radius-uniform);
+	/* The radius of an open dropdown button. Defaults to the button radius (the same value as the control radius), so
+	   overriding `--ck-button-border-radius` on `:root` also reaches open dropdowns. */
+	--ck-dropdown-panel-uniform-button-border-radius: var(--ck-button-border-radius);
+	--ck-dropdown-panel-border-radius: var(--ck-border-radius-surface-attached);
+
+	/* Color */
+	--ck-dropdown-panel-background-color: var(--ck-color-surface-container);
+	--ck-dropdown-panel-border-color: var(--ck-color-border-container);
+	--ck-dropdown-list-background-color: transparent;
+
+	/* Border */
+	/* Override-only: the border is composed at the point of use, so a legacy color or a part set on a narrower selector applies. */
+	--ck-dropdown-panel-border: initial;
 }
 
 .ck.ck-dropdown {
+	/* Enable font size inheritance, which allows fluid UI scaling. */
+	font-size: inherit;
 	display: inline-block;
 	position: relative;
 
 	& .ck-dropdown__arrow {
+		width: var(--ck-dropdown-arrow-size);
 		pointer-events: none;
-		z-index: var(--ck-z-default);
+		z-index: var(--ck-layer-base);
+	}
+
+	[dir="ltr"] & {
+		& .ck-dropdown__arrow {
+			right: var(--ck-spacing-control-padding-inline);
+
+			/* A space to accommodate the triangle. */
+			margin-left: var(--ck-dropdown-arrow-gap);
+		}
+	}
+
+	[dir="rtl"] & {
+		& .ck-dropdown__arrow {
+			left: var(--ck-spacing-control-padding-inline);
+
+			/* A space to accommodate the triangle. */
+			margin-right: var(--ck-dropdown-arrow-gap);
+		}
+	}
+
+	&.ck-disabled .ck-dropdown__arrow {
+		/* Backward compatibility: falls back to legacy --ck-disabled-opacity if overridden. */
+		opacity: var(--ck-disabled-opacity, var(--ck-opacity-disabled));
+	}
+
+	& .ck-button.ck-dropdown__button {
+		[dir="ltr"] & {
+			&:not(.ck-button_with-text) {
+				/* Make sure dropdowns with just an icon have the right inner spacing */
+				padding-left: var(--ck-spacing-control-padding-inline-compact);
+			}
+		}
+
+		[dir="rtl"] & {
+			&:not(.ck-button_with-text) {
+				/* Make sure dropdowns with just an icon have the right inner spacing */
+				padding-right: var(--ck-spacing-control-padding-inline-compact);
+			}
+		}
+
+		/* https://github.com/ckeditor/ckeditor5/issues/23 */
+		& .ck-button__label {
+			width: 7em;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		/* https://github.com/ckeditor/ckeditor5/issues/3362 */
+		&.ck-disabled .ck-button__label {
+			/* Backward compatibility: falls back to legacy --ck-disabled-opacity if overridden. */
+			opacity: var(--ck-disabled-opacity, var(--ck-opacity-disabled));
+		}
+
+		/* https://github.com/ckeditor/ckeditor5/issues/816 */
+		/* In a toolbar, `--_ck-button-context-border-radius` carries `--ck-toolbar-button-border-radius` (unset by default). */
+		&.ck-on {
+			border-radius: var(--_ck-button-context-border-radius, var(--ck-dropdown-panel-uniform-button-border-radius, var(--ck-border-radius-surface-attached-bottom)));
+		}
+
+		&.ck-dropdown__button_label-width_auto .ck-button__label {
+			width: auto;
+		}
+
+		/* https://github.com/ckeditor/ckeditor5/issues/8699 */
+		&.ck-off:active,
+		&.ck-on:active {
+			box-shadow: none;
+
+			&:focus {
+				box-shadow: var(--ck-focus-outer-shadow, var(--ck-interactive-focus-shadow)), 0 0;
+			}
+		}
+		width: 100%
 	}
 
 	/* Dropdown button should span horizontally, e.g. in vertical toolbars */
-	& .ck-button.ck-dropdown__button {
-		width: 100%;
-	}
 
 	& .ck-dropdown__panel {
 		display: none;
-		z-index: var(--ck-z-modal);
-		max-width: var(--ck-dropdown-max-width);
+		z-index: var(--ck-layer-panel);
+		/* Backward compatibility: falls back to legacy --ck-dropdown-max-width if overridden. */
+		max-width: var(--ck-dropdown-max-width, 75vw);
 
 		position: absolute;
 
 		&.ck-dropdown__panel-visible {
 			display: inline-block;
+		}
+
+		/* Do not limit the width of panels with content that cannot shrink, for example the color grid.
+		   Otherwise, it would stick out of the panel. */
+		&.ck-dropdown__panel_fit-content {
+			max-width: var(--ck-dropdown-max-width, none);
 		}
 
 		&.ck-dropdown__panel_ne,
@@ -86,10 +190,52 @@
 	}
 }
 
+.ck.ck-dropdown__panel {
+	border-radius: var(--ck-dropdown-panel-border-radius);
+	/* Backward compatibility: falls back to legacy --ck-drop-shadow if overridden. */
+	box-shadow: var(--ck-drop-shadow, var(--ck-shadow-surface-floating)), 0 0;
+	padding: var(--ck-dropdown-panel-padding);
+
+	background: var(--ck-color-dropdown-panel-background, var(--ck-dropdown-panel-background-color));
+	border: var(--ck-dropdown-panel-border, var(--ck-border-width-surface) solid var(--ck-color-dropdown-panel-border, var(--ck-dropdown-panel-border-color)));
+	bottom: 0;
+
+	/* Make sure the panel is at least as wide as the drop-down's button. */
+	min-width: 100%;
+
+	/* Disabled corner border radius to be consistent with the .dropdown__button
+	https://github.com/ckeditor/ckeditor5/issues/816 */
+	&.ck-dropdown__panel_se {
+		border-radius: var(--ck-dropdown-panel-uniform-border-radius, var(--ck-border-radius-surface-cut-top-left));
+	}
+
+	&.ck-dropdown__panel_sw {
+		border-radius: var(--ck-dropdown-panel-uniform-border-radius, var(--ck-border-radius-surface-cut-top-right));
+	}
+
+	&.ck-dropdown__panel_ne {
+		border-radius: var(--ck-dropdown-panel-uniform-border-radius, var(--ck-border-radius-surface-cut-bottom-left));
+	}
+
+	&.ck-dropdown__panel_nw {
+		border-radius: var(--ck-dropdown-panel-uniform-border-radius, var(--ck-border-radius-surface-cut-bottom-right));
+	}
+
+	/* Prevent the list's own background from overlapping the panel's rounded corners. */
+	& > .ck-list {
+		background: var(--ck-dropdown-list-background-color);
+	}
+
+	&:focus {
+		outline: none;
+	}
+}
+
 /*
  * Toolbar dropdown panels should be always above the UI (eg. other dropdown panels) from the editor's content.
  * See https://github.com/ckeditor/ckeditor5/issues/7874
  */
+
 .ck.ck-toolbar .ck-dropdown__panel {
-	z-index: calc( var(--ck-z-modal) + 1 );
+	z-index: var(--ck-layer-panel-above);
 }

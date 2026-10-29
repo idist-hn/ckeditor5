@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/utils/table-properties
  */
 
-import type { BoxSides } from 'ckeditor5/src/engine';
-import { isObject } from 'lodash-es';
+import type { BoxStyleSides } from '@ckeditor/ckeditor5-engine';
+import { isObject } from 'es-toolkit/compat';
 
 /**
  * Returns a string if all four values of box sides are equal.
@@ -24,8 +24,10 @@ import { isObject } from 'lodash-es';
  * getSingleValue( { top: 'foo', right: 'foo', bottom: 'bar', left: 'foo' } );
  * getSingleValue( { top: 'foo', right: 'foo' } );
  * ```
+ *
+ * @internal
  */
-export function getSingleValue( objectOrString: BoxSides | string | undefined ): string | undefined {
+export function getSingleValue( objectOrString: BoxStyleSides | string | undefined ): string | undefined {
 	if ( !objectOrString || !isObject( objectOrString ) ) {
 		return objectOrString;
 	}
@@ -49,6 +51,7 @@ export function getSingleValue( objectOrString: BoxSides | string | undefined ):
  * getSingleValue( 'foo', 'px' ); // 'foo'
  * ```
  *
+ * @internal
  * @param defaultUnit A default unit added to a numeric value.
  */
 export function addDefaultUnitToNumericValue( value: string | number | undefined, defaultUnit: string ): string | number | undefined {
@@ -65,6 +68,11 @@ export function addDefaultUnitToNumericValue( value: string | number | undefined
 	return `${ numericValue }${ defaultUnit }`;
 }
 
+/**
+ * Interface representing the normalized default properties for table and cell elements.
+ *
+ * @internal
+ */
 export interface NormalizedDefaultProperties {
 	borderStyle: string;
 	borderWidth: string;
@@ -79,23 +87,48 @@ export interface NormalizedDefaultProperties {
 }
 
 /**
+ * Options used to determine which properties should be added to the normalized configuration.
+ *
+ * @internal
+ */
+export type NormalizeTableDefaultPropertiesOptions = {
+
+	/**
+	 * Whether the "alignment" property should be added.
+	 */
+	includeAlignmentProperty?: boolean;
+
+	/**
+	 * Whether the "padding" property should be added.
+	 */
+	includePaddingProperty?: boolean;
+
+	/**
+	 * Whether the "verticalAlignment" property should be added.
+	 */
+	includeVerticalAlignmentProperty?: boolean;
+
+	/**
+	 * Whether the "horizontalAlignment" property should be added.
+	 */
+	includeHorizontalAlignmentProperty?: boolean;
+
+	/**
+	 * Whether the content is right-to-left.
+	 */
+	isRightToLeftContent?: boolean;
+};
+
+/**
  * Returns the normalized configuration.
  *
- * @param options.includeAlignmentProperty Whether the "alignment" property should be added.
- * @param options.includePaddingProperty Whether the "padding" property should be added.
- * @param options.includeVerticalAlignmentProperty Whether the "verticalAlignment" property should be added.
- * @param options.includeHorizontalAlignmentProperty Whether the "horizontalAlignment" property should be added.
- * @param options.isRightToLeftContent Whether the content is right-to-left.
+ * @internal
+ * @param config The configuration to normalize.
+ * @param options Options used to determine which properties should be added.
  */
 export function getNormalizedDefaultProperties(
-	config: Partial<NormalizedDefaultProperties> | undefined,
-	options: {
-		includeAlignmentProperty?: boolean;
-		includePaddingProperty?: boolean;
-		includeVerticalAlignmentProperty?: boolean;
-		includeHorizontalAlignmentProperty?: boolean;
-		isRightToLeftContent?: boolean;
-	} = {}
+	config?: Partial<NormalizedDefaultProperties>,
+	options: NormalizeTableDefaultPropertiesOptions = {}
 ): NormalizedDefaultProperties {
 	const normalizedConfig: NormalizedDefaultProperties = {
 		borderStyle: 'none',
@@ -124,4 +157,46 @@ export function getNormalizedDefaultProperties(
 	}
 
 	return normalizedConfig;
+}
+
+/**
+ * Returns the normalized default table properties.
+ *
+ * @internal
+ * @param config The configuration to normalize.
+ * @param options Options used to determine which properties should be added.
+ */
+export function getNormalizedDefaultTableProperties(
+	config?: Partial<NormalizedDefaultProperties>,
+	options?: NormalizeTableDefaultPropertiesOptions
+): NormalizedDefaultProperties {
+	return getNormalizedDefaultProperties( {
+		// It adds support for border none in the table element, keep it in sync with the content styles
+		// See more: https://github.com/ckeditor/ckeditor5/issues/6841#issuecomment-1959195608
+		borderStyle: 'double',
+		borderColor: 'hsl(0, 0%, 70%)',
+		borderWidth: '1px',
+		...config
+	}, options );
+}
+
+/**
+ * Returns the normalized default cell properties.
+ *
+ * @internal
+ * @param config The configuration to normalize.
+ * @param options Options used to determine which properties should be added.
+ */
+export function getNormalizedDefaultCellProperties(
+	config?: Partial<NormalizedDefaultProperties>,
+	options?: NormalizeTableDefaultPropertiesOptions
+): NormalizedDefaultProperties {
+	return getNormalizedDefaultProperties( {
+		// It adds support for border none in the table element, keep it in sync with the content styles
+		// See more: https://github.com/ckeditor/ckeditor5/issues/6841#issuecomment-1959195608
+		borderStyle: 'solid',
+		borderColor: 'hsl(0, 0%, 75%)',
+		borderWidth: '1px',
+		...config
+	}, options );
 }

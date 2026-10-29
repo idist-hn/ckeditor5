@@ -1,23 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-
-import TextTransformation from '../src/texttransformation';
-import Typing from '../src/typing';
+import { TextTransformation } from '../src/texttransformation.js';
+import { Typing } from '../src/typing.js';
 
 describe( 'Text transformation feature - integration', () => {
 	let editorElement, editor, model, doc;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
@@ -51,15 +47,15 @@ describe( 'Text transformation feature - integration', () => {
 
 			editor.execute( 'insertText', { text: ')' } );
 
-			expect( editor.getData(), 'inserted text' ).to.equal( '<p>foo©</p>' );
+			expect( editor.getData(), 'inserted text' ).toEqual( '<p>foo©</p>' );
 
 			editor.execute( 'undo' );
 
-			expect( editor.getData(), 'after undo' ).to.equal( '<p>foo(c)</p>' );
+			expect( editor.getData(), 'after undo' ).toEqual( '<p>foo(c)</p>' );
 
 			editor.execute( 'redo' );
 
-			expect( editor.getData(), 'after redo' ).to.equal( '<p>foo©</p>' );
+			expect( editor.getData(), 'after redo' ).toEqual( '<p>foo©</p>' );
 		} );
 
 		it( 'should allow to undo-redo steps', () => {
@@ -72,19 +68,19 @@ describe( 'Text transformation feature - integration', () => {
 
 			editor.execute( 'insertText', { text: ')' } );
 
-			expect( editor.getData() ).to.equal( '<p>foo bar baz©</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo bar baz©</p>' );
 
 			editor.execute( 'undo' );
-			expect( editor.getData() ).to.equal( '<p>foo bar baz(c)</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo bar baz(c)</p>' );
 
 			editor.execute( 'undo' );
-			expect( editor.getData() ).to.equal( '<p>foo bar baz(c</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo bar baz(c</p>' );
 
 			editor.execute( 'redo' );
-			expect( editor.getData() ).to.equal( '<p>foo bar baz(c)</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo bar baz(c)</p>' );
 
 			editor.execute( 'redo' );
-			expect( editor.getData() ).to.equal( '<p>foo bar baz©</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo bar baz©</p>' );
 		} );
 	} );
 } );

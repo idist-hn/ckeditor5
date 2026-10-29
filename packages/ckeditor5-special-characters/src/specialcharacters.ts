@@ -1,28 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module special-characters/specialcharacters
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import { Typing, type InsertTextCommand } from 'ckeditor5/src/typing';
-import { createDropdown, type DropdownView } from 'ckeditor5/src/ui';
-import { CKEditorError, type Locale } from 'ckeditor5/src/utils';
-import SpecialCharactersNavigationView from './ui/specialcharactersnavigationview';
-import CharacterGridView, {
-	type CharacterGridViewExecuteEvent,
-	type CharacterGridViewTileFocusEvent,
-	type CharacterGridViewTileHoverEvent
-} from './ui/charactergridview';
-import CharacterInfoView from './ui/characterinfoview';
-import SpecialCharactersView from './ui/specialcharactersview';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Typing } from '@ckeditor/ckeditor5-typing';
+import { IconSpecialCharacters } from '@ckeditor/ckeditor5-icons';
+import { ButtonView, MenuBarMenuListItemButtonView, DialogViewPosition, Dialog } from '@ckeditor/ckeditor5-ui';
+import { CKEditorError, type Locale } from '@ckeditor/ckeditor5-utils';
+import {
+	CharacterGridView,
+	type SpecialCharactersGridViewExecuteEvent,
+	type SpecialCharactersGridViewTileFocusEvent,
+	type SpecialCharactersGridViewTileHoverEvent
+} from './ui/charactergridview.js';
+import { CharacterInfoView } from './ui/characterinfoview.js';
+import { SpecialCharactersView } from './ui/specialcharactersview.js';
 
-import specialCharactersIcon from '../theme/icons/specialcharacters.svg';
-
-import '../theme/specialcharacters.css';
+import { SpecialCharactersCategoriesView } from './ui/specialcharacterscategoriesview.js';
 
 const ALL_SPECIAL_CHARACTERS_GROUP = 'All';
 
@@ -31,7 +30,7 @@ const ALL_SPECIAL_CHARACTERS_GROUP = 'All';
  *
  * Introduces the `'specialCharacters'` dropdown.
  */
-export default class SpecialCharacters extends Plugin {
+export class SpecialCharacters extends Plugin {
 	/**
 	 * Registered characters. A pair of a character name and its symbol.
 	 */
@@ -50,8 +49,8 @@ export default class SpecialCharacters extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ Typing ] as const;
+	public static get requires(): PluginDependenciesOf<[ Typing, Dialog ]> {
+		return [ Typing, Dialog ];
 	}
 
 	/**
@@ -59,6 +58,28 @@ export default class SpecialCharacters extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'SpecialCharacters' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @internal
+	 */
+	public static get licenseFeatureCode(): string {
+		return 'SCH';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isPremiumPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -79,50 +100,19 @@ export default class SpecialCharacters extends Plugin {
 	 */
 	public init(): void {
 		const editor = this.editor;
-		const t = editor.t;
 
-		const inputCommand: InsertTextCommand = editor.commands.get( 'insertText' )!;
+		editor.ui.componentFactory.add( 'specialCharacters', () => {
+			const button = this._createDialogButton( ButtonView );
 
-		// Add the `specialCharacters` dropdown button to feature components.
-		editor.ui.componentFactory.add( 'specialCharacters', locale => {
-			const dropdownView = createDropdown( locale );
-			let dropdownPanelContent: DropdownPanelContent;
-
-			dropdownView.buttonView.set( {
-				label: t( 'Special characters' ),
-				icon: specialCharactersIcon,
+			button.set( {
 				tooltip: true
 			} );
 
-			dropdownView.bind( 'isEnabled' ).to( inputCommand );
+			return button;
+		} );
 
-			// Insert a special character when a tile was clicked.
-			dropdownView.on<CharacterGridViewExecuteEvent>( 'execute', ( evt, data ) => {
-				editor.execute( 'insertText', { text: data.character } );
-				editor.editing.view.focus();
-			} );
-
-			dropdownView.on( 'change:isOpen', () => {
-				if ( !dropdownPanelContent ) {
-					dropdownPanelContent = this._createDropdownPanelContent( locale, dropdownView );
-
-					const specialCharactersView = new SpecialCharactersView(
-						locale,
-						dropdownPanelContent.navigationView,
-						dropdownPanelContent.gridView,
-						dropdownPanelContent.infoView
-					);
-
-					dropdownView.panelView.children.add( specialCharactersView );
-				}
-
-				dropdownPanelContent.infoView.set( {
-					character: null,
-					name: null
-				} );
-			} );
-
-			return dropdownView;
+		editor.ui.componentFactory.add( 'menuBar:specialCharacters', () => {
+			return this._createDialogButton( MenuBarMenuListItemButtonView );
 		} );
 	}
 
@@ -240,10 +230,10 @@ export default class SpecialCharacters extends Plugin {
 	/**
 	 * Initializes the dropdown, used for lazy loading.
 	 *
-	 * @returns An object with `navigationView`, `gridView` and `infoView` properties, containing UI parts.
+	 * @returns An object with `categoriesView`, `gridView` and `infoView` properties, containing UI parts.
 	 */
-	private _createDropdownPanelContent( locale: Locale, dropdownView: DropdownView ): DropdownPanelContent {
-		const groupEntries: Array<[string, string]> = Array
+	private _createDropdownPanelContent( locale: Locale ): DropdownPanelContent {
+		const groupEntries: Array<[ string, string ]> = Array
 			.from( this.getGroups() )
 			.map( name => ( [ name, this._groups.get( name )!.label ] ) );
 
@@ -254,29 +244,87 @@ export default class SpecialCharacters extends Plugin {
 			...groupEntries
 		] );
 
-		const navigationView = new SpecialCharactersNavigationView( locale, specialCharsGroups );
+		const categoriesView = new SpecialCharactersCategoriesView( locale, specialCharsGroups );
 		const gridView = new CharacterGridView( locale );
 		const infoView = new CharacterInfoView( locale );
 
-		gridView.delegate( 'execute' ).to( dropdownView );
-
-		gridView.on<CharacterGridViewTileHoverEvent>( 'tileHover', ( evt, data ) => {
+		gridView.on<SpecialCharactersGridViewTileHoverEvent>( 'tileHover', ( evt, data ) => {
 			infoView.set( data );
 		} );
 
-		gridView.on<CharacterGridViewTileFocusEvent>( 'tileFocus', ( evt, data ) => {
+		gridView.on<SpecialCharactersGridViewTileFocusEvent>( 'tileFocus', ( evt, data ) => {
 			infoView.set( data );
 		} );
 
 		// Update the grid of special characters when a user changed the character group.
-		navigationView.on( 'execute', () => {
-			this._updateGrid( navigationView.currentGroupName, gridView );
+		categoriesView.on( 'change:currentGroupName', ( evt, propertyName, newValue ) => {
+			this._updateGrid( newValue, gridView );
 		} );
 
 		// Set the initial content of the special characters grid.
-		this._updateGrid( navigationView.currentGroupName, gridView );
+		this._updateGrid( categoriesView.currentGroupName, gridView );
 
-		return { navigationView, gridView, infoView };
+		return { categoriesView, gridView, infoView };
+	}
+
+	/**
+	 * Creates a button for toolbar and menu bar that will show special characters dialog.
+	 */
+	private _createDialogButton<T extends typeof ButtonView>( ButtonClass: T ): InstanceType<T> {
+		const editor = this.editor;
+		const locale = editor.locale;
+		const buttonView = new ButtonClass( editor.locale ) as InstanceType<T>;
+		const command = editor.commands.get( 'insertText' )!;
+		const t = locale.t;
+		const dialogPlugin = this.editor.plugins.get( 'Dialog' );
+
+		buttonView.set( {
+			label: t( 'Special characters' ),
+			icon: IconSpecialCharacters,
+			isToggleable: true
+		} );
+
+		buttonView.bind( 'isOn' ).to( dialogPlugin, 'id', id => id === 'specialCharacters' );
+		buttonView.bind( 'isEnabled' ).to( command, 'isEnabled' );
+
+		buttonView.on( 'execute', () => {
+			if ( dialogPlugin.id === 'specialCharacters' ) {
+				dialogPlugin.hide();
+
+				return;
+			}
+
+			this._showDialog();
+		} );
+
+		return buttonView;
+	}
+
+	private _showDialog() {
+		const editor = this.editor;
+		const dialog = editor.plugins.get( 'Dialog' );
+		const locale = editor.locale;
+		const t = locale.t;
+
+		const { categoriesView, gridView, infoView } = this._createDropdownPanelContent( locale );
+		const content = new SpecialCharactersView(
+			locale,
+			categoriesView,
+			gridView,
+			infoView
+		);
+
+		gridView.on<SpecialCharactersGridViewExecuteEvent>( 'execute', ( evt, data ) => {
+			editor.execute( 'insertText', { text: data.character } );
+		} );
+
+		dialog.show( {
+			id: 'specialCharacters',
+			title: t( 'Special characters' ),
+			className: 'ck-special-characters',
+			content,
+			position: DialogViewPosition.EDITOR_TOP_SIDE
+		} );
 	}
 }
 
@@ -299,7 +347,7 @@ interface Group {
 }
 
 interface DropdownPanelContent {
-	navigationView: SpecialCharactersNavigationView;
+	categoriesView: SpecialCharactersCategoriesView;
 	gridView: CharacterGridView;
 	infoView: CharacterInfoView;
 }

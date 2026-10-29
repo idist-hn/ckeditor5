@@ -1,16 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import spy from '../src/spy';
+import { describe, expect, it } from 'vitest';
+import { spy } from '../src/spy.js';
 
 describe( 'utils', () => {
 	describe( 'spy', () => {
 		it( 'should not have `called` after creation', () => {
 			const fn = spy();
 
-			expect( fn.called ).to.not.be.true;
+			expect( fn.called ).not.toBe( true );
 		} );
 
 		it( 'should register calls', () => {
@@ -19,8 +20,8 @@ describe( 'utils', () => {
 
 			fn1();
 
-			expect( fn1.called ).to.be.true;
-			expect( fn2.called ).to.not.be.true;
+			expect( fn1.called ).toBe( true );
+			expect( fn2.called ).not.toBe( true );
 		} );
 	} );
 } );

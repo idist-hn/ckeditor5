@@ -1,9 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { _translate, add, _clear } from '../src/translation-service';
+import { describe, it, expect, afterEach } from 'vitest';
+import { _translate, add, _clear, _unifyTranslations } from '../src/translation-service.js';
+import { global } from '../src/dom/global.js';
+import { expectToThrowCKEditorError } from '../tests/_utils/utils.js';
 
 describe( 'translation-service', () => {
 	afterEach( () => {
@@ -18,8 +21,8 @@ describe( 'translation-service', () => {
 			const translatedFoo = _translate( 'pl', { string: 'foo' } );
 			const translatedBar = _translate( 'pl', { string: 'bar' } );
 
-			expect( translatedFoo ).to.equal( 'foo_pl' );
-			expect( translatedBar ).to.equal( 'bar_pl' );
+			expect( translatedFoo ).toBe( 'foo_pl' );
+			expect( translatedBar ).toBe( 'bar_pl' );
 		} );
 
 		it( 'should overwrite previously added translations for the same message ids', () => {
@@ -28,7 +31,7 @@ describe( 'translation-service', () => {
 
 			const translatedFoo = _translate( 'pl', { string: 'foo' } );
 
-			expect( translatedFoo ).to.equal( 'Second' );
+			expect( translatedFoo ).toBe( 'Second' );
 		} );
 
 		it( 'should set the plural form function if it is provided', () => {
@@ -39,10 +42,10 @@ describe( 'translation-service', () => {
 			// eslint-disable-next-line no-nested-ternary
 			add( 'pl', {}, n => n == 1 ? 0 : n % 10 >= 2 && n % 10 <= 4 && ( n % 100 < 10 || n % 100 >= 20 ) ? 1 : 2 );
 
-			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).to.equal( 'Dodaj %0 spacji' );
-			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).to.equal( 'Dodaj spację' );
-			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).to.equal( 'Dodaj %0 spacje' );
-			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).to.equal( 'Dodaj %0 spacji' );
+			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).toBe( 'Dodaj %0 spacji' );
+			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).toBe( 'Dodaj spację' );
+			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).toBe( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).toBe( 'Dodaj %0 spacji' );
 		} );
 	} );
 
@@ -61,22 +64,22 @@ describe( 'translation-service', () => {
 			const translatedCancelPL = _translate( 'pl', { string: 'Cancel' } );
 			const translatedCancelEN = _translate( 'en', { string: 'Cancel' } );
 
-			expect( translatedCancelPL ).to.equal( 'Anuluj' );
-			expect( translatedCancelEN ).to.equal( 'Cancel' );
+			expect( translatedCancelPL ).toBe( 'Anuluj' );
+			expect( translatedCancelEN ).toBe( 'Cancel' );
 		} );
 
 		it( 'should return the original message string if no translation exists for the given message', () => {
 			const translatedBold = _translate( 'pl', { string: 'Bold' } );
 
-			expect( translatedBold ).to.equal( 'Bold' );
+			expect( translatedBold ).toBe( 'Bold' );
 		} );
 
 		it( 'should return the correct plural form of english message if no translation exists for the given message', () => {
 			const addSpaces = _translate( 'pl', { string: 'Add a space', plural: 'Add %0 spaces' }, 3 );
 			const addASpace = _translate( 'pl', { string: 'Add a space', plural: 'Add %0 spaces' }, 1 );
 
-			expect( addSpaces ).to.equal( 'Add %0 spaces' );
-			expect( addASpace ).to.equal( 'Add a space' );
+			expect( addSpaces ).toBe( 'Add %0 spaces' );
+			expect( addASpace ).toBe( 'Add a space' );
 		} );
 
 		it( 'should return the original message string if a translation for the target language does not exist' +
@@ -88,7 +91,7 @@ describe( 'translation-service', () => {
 
 			const translatedBold = _translate( 'pl', { string: 'Bold' } );
 
-			expect( translatedBold ).to.equal( 'Bold' );
+			expect( translatedBold ).toBe( 'Bold' );
 		} );
 
 		it( 'should return a translated message when only one language is provided', () => {
@@ -99,7 +102,7 @@ describe( 'translation-service', () => {
 
 			const translatedCancel = _translate( 'de', { string: 'Cancel' } );
 
-			expect( translatedCancel ).to.equal( 'Anuluj' );
+			expect( translatedCancel ).toBe( 'Anuluj' );
 		} );
 
 		it( 'should return a translated message based on message id when it was passed', () => {
@@ -109,7 +112,7 @@ describe( 'translation-service', () => {
 
 			const translatedFooBar = _translate( 'pl', { string: 'image', id: 'ADD_IMAGE' } );
 
-			expect( translatedFooBar ).to.equal( 'obraz' );
+			expect( translatedFooBar ).toBe( 'obraz' );
 		} );
 
 		it( 'should return the correct plural form of the message based on the provided function', () => {
@@ -119,10 +122,10 @@ describe( 'translation-service', () => {
 				// eslint-disable-next-line no-nested-ternary
 			}, n => n == 1 ? 0 : n % 10 >= 2 && n % 10 <= 4 && ( n % 100 < 10 || n % 100 >= 20 ) ? 1 : 2 );
 
-			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).to.equal( 'Dodaj %0 spacji' );
-			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).to.equal( 'Dodaj spację' );
-			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).to.equal( 'Dodaj %0 spacje' );
-			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).to.equal( 'Dodaj %0 spacji' );
+			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).toBe( 'Dodaj %0 spacji' );
+			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).toBe( 'Dodaj spację' );
+			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).toBe( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).toBe( 'Dodaj %0 spacji' );
 		} );
 
 		it( 'should return a plural form based on rules for English if no function to determine the plural form was provided', () => {
@@ -131,11 +134,11 @@ describe( 'translation-service', () => {
 				'Cancel': 'Anuluj'
 			} );
 
-			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).to.equal( 'Dodaj spację' );
+			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).toBe( 'Dodaj spację' );
 
-			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).to.equal( 'Dodaj %0 spacje' );
-			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).to.equal( 'Dodaj %0 spacje' );
-			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).to.equal( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).toBe( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).toBe( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).toBe( 'Dodaj %0 spacje' );
 		} );
 
 		it( 'should support a plural form rule that returns a boolean', () => {
@@ -144,11 +147,100 @@ describe( 'translation-service', () => {
 				'Cancel': 'Anuluj'
 			}, n => n !== 1 );
 
-			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).to.equal( 'Dodaj spację' );
+			expect( _translate( 'pl', { string: 'Add space' }, 1 ) ).toBe( 'Dodaj spację' );
 
-			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).to.equal( 'Dodaj %0 spacje' );
-			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).to.equal( 'Dodaj %0 spacje' );
-			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).to.equal( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 0 ) ).toBe( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 3 ) ).toBe( 'Dodaj %0 spacje' );
+			expect( _translate( 'pl', { string: 'Add space' }, 13 ) ).toBe( 'Dodaj %0 spacje' );
+		} );
+
+		it( 'should return a translated message based on message id when translations were passed from config', () => {
+			const translations = {
+				pl: {
+					dictionary: {
+						bold: 'Pogrubienie'
+					}
+				}
+			};
+
+			expect( _translate( 'pl', { string: 'bold' }, 1, translations ) ).toBe( 'Pogrubienie' );
+		} );
+
+		it( 'should throw error if quantity is not a number', () => {
+			expectToThrowCKEditorError( () => {
+				_translate( 'pl', { string: 'Add space' }, null );
+			}, /^translation-service-quantity-not-a-number/ );
+		} );
+	} );
+
+	describe( '_unifyTranslations()', () => {
+		it( 'should merge two objects if array', () => {
+			const translations = [ {
+				pl: {
+					dictionary: {
+						bold: 'Pogrubienie'
+					}
+				}
+			},
+			{
+				de: {
+					dictionary: {
+						bold: 'Fett'
+					}
+				}
+			}
+			];
+
+			expect( _unifyTranslations( translations ) ).toEqual( {
+				pl: {
+					dictionary: {
+						bold: 'Pogrubienie'
+					}
+				},
+				de: {
+					dictionary: {
+						bold: 'Fett'
+					}
+				}
+			} );
+		} );
+
+		it( 'should return actual object', () => {
+			const translations = {
+				pl: {
+					dictionary: {
+						bold: 'Pogrubienie'
+					}
+				}
+			};
+
+			expect( _unifyTranslations( translations ) ).toEqual(
+				{
+					pl: {
+						dictionary: {
+							bold: 'Pogrubienie'
+						}
+					}
+				}
+			);
+		} );
+
+		it( 'should return undefined if undefined', () => {
+			expect( _unifyTranslations( undefined ) ).toBeUndefined();
+		} );
+
+		it( 'should not crash if passed empty array', () => {
+			expect( _unifyTranslations( [] ) ).toEqual( {} );
+		} );
+	} );
+
+	describe( '_clear()', () => {
+		it( 'should not recreate translations dictionary when it does not exist', () => {
+			delete global.window.CKEDITOR_TRANSLATIONS;
+
+			_clear();
+
+			expect( global.window.CKEDITOR_TRANSLATIONS ).toBeUndefined();
 		} );
 	} );
 } );

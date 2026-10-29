@@ -1,22 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document */
-
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { List } from '@ckeditor/ckeditor5-list';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
-
-import { Command, Plugin } from '@ckeditor/ckeditor5-core';
-import { Widget, toWidget, viewToModelPositionOutsideModelElement } from '@ckeditor/ckeditor5-widget';
-
-import { Model, addListToDropdown, createDropdown } from '@ckeditor/ckeditor5-ui';
-import { Collection } from '@ckeditor/ckeditor5-utils';
+import {
+	ClassicEditor,
+	Bold,
+	Italic,
+	Essentials,
+	Heading,
+	List,
+	Paragraph,
+	Command,
+	Plugin,
+	Widget,
+	toWidget,
+	viewToModelPositionOutsideModelElement,
+	UIModel,
+	addListToDropdown,
+	createDropdown,
+	Collection
+} from 'ckeditor5';
+import {
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
 class PlaceholderCommand extends Command {
 	execute( { value } ) {
@@ -97,7 +106,7 @@ function getDropdownItemsDefinitions( placeholderNames ) {
 	for ( const name of placeholderNames ) {
 		const definition = {
 			type: 'button',
-			model: new Model( {
+			model: new UIModel( {
 				commandParam: name,
 				label: name,
 				withText: true
@@ -203,7 +212,8 @@ class PlaceholderEditing extends Plugin {
 }
 
 ClassicEditor
-	.create( document.querySelector( '#snippet-inline-widget' ), {
+	.create( {
+		attachTo: document.querySelector( '#snippet-inline-widget' ),
 		plugins: [ Essentials, Paragraph, Heading, List, Bold, Italic, Placeholder ],
 		toolbar: {
 			items: [
@@ -219,7 +229,7 @@ ClassicEditor
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		}
 	} )
@@ -229,10 +239,8 @@ ClassicEditor
 		// Expose for playing in the console.
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar,
-				item => item.buttonView && item.buttonView.label && item.buttonView.label.startsWith( 'Placeholder' )
-			),
+		attachTourBalloon( {
+			target: findToolbarItem( editor.ui.view.toolbar, item => item.buttonView?.label?.startsWith( 'Placeholder' ) ),
 			text: 'Click to add a placeholder.',
 			tippyOptions: {
 				placement: 'bottom-start'

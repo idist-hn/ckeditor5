@@ -1,29 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module list/todolist
  */
 
-import TodoListEditing from './todolist/todolistediting';
-import TodoListUI from './todolist/todolistui';
-import { Plugin } from 'ckeditor5/src/core';
-import '../theme/todolist.css';
+import { TodoListEditing } from './todolist/todolistediting.js';
+import { TodoListUI } from './todolist/todolistui.js';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
 /**
  * The to-do list feature.
  *
- * This is a "glue" plugin that loads the {@link module:list/todolist/todolistediting~TodoListEditing to-do list editing feature}
- * and the {@link module:list/todolist/todolistui~TodoListUI to-do list UI feature}.
+ * This is a "glue" plugin that loads the {@link module:list/todolist/todolistediting~TodoListEditing to-do list
+ * editing feature} and the {@link module:list/todolist/todolistui~TodoListUI to-do list UI feature}.
  */
-export default class TodoList extends Plugin {
+export class TodoList extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ TodoListEditing, TodoListUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ TodoListEditing, TodoListUI ]> {
+		return [ TodoListEditing, TodoListUI ];
 	}
 
 	/**
@@ -31,5 +30,12 @@ export default class TodoList extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'TodoList' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

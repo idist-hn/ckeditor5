@@ -1,59 +1,83 @@
 ---
 category: examples-builds
-meta-title: Multi-root editor build example | CKEditor 5 Documentation
+meta-title: Multi-root editor example | CKEditor 5 Documentation
+meta-description: Explore the multi-root editor implementation with multiple editable areas sharing a single editor instance and toolbar.
 order: 60
 toc: false
+contributeUrl: false
 classes: main__content--no-toc
+badges: [ premium ]
 ---
 
 # Multi-root editor
 
-{@link installation/getting-started/predefined-builds#multi-root-editor Multi-root editor} is an editor type that features multiple, separate editable areas.
+The multi-root editor type is an editor type that features multiple, separate editable areas. The main difference between using a multi-root editor and using multiple separate editors (like in the {@link examples/builds/inline-editor inline editor demo}) is the fact that in a multi-root editor all editable areas belong to the same editor instance share the same configuration, toolbar and the undo stack, and produce one document.
 
-The main difference between using a multi-root editor and using multiple separate editors (like in the {@link examples/builds/inline-editor inline editor demo}) is the fact that in a multi-root editor all editable areas belong to the same editor instance share the same configuration, toolbar and the undo stack, and produce one document.
+{@snippet getting-started/unlock-feature}
 
 {@snippet examples/multi-root-editor}
 
 ## Editor example configuration
 
-Check out the {@link installation/getting-started/predefined-builds#installation-example Quick start} guide to learn more about implementing this kind of editor. You will find implementation steps there. You can see this example editor’s code below.
+Check out the {@link getting-started/setup/editor-types#multi-root-editor Editor types} guide to learn more about implementing this kind of editor. You will find implementation steps there. To learn how to configure individual roots to accept different content — for example, an inline-only title alongside a block content body — see the {@link getting-started/setup/root-types Root types} guide. You can see this example editor's code below.
 
 <details>
 <summary>View editor configuration script</summary>
 
 ```js
-import MultiRootEditor from '@ckeditor/ckeditor5-build-multi-root';
+import {
+	MultiRootEditor,
+	Essentials,
+	Bold,
+	Italic,
+	Heading,
+	Link,
+	Table,
+	MediaEmbed,
+	List,
+	Indent
+} from 'ckeditor5';
+
+import 'ckeditor5/ckeditor5.css';
 
 MultiRootEditor
-	.create(
-		// Define roots / editable areas:
-		{
-			header: document.querySelector( '#header' ),
-			content: document.querySelector( '#content' ),
-			leftSide: document.querySelector( '#left-side' ),
-			rightSide: document.querySelector( '#right-side' )
+	.create( {
+		licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
+		plugins: [
+			Essentials,
+			Heading,
+			Bold,
+			Italic,
+			Link,
+			Table,
+			MediaEmbed,
+			List,
+			Indent
+		],
+		toolbar: {
+			items: [
+				'undo', 'redo',
+				'|', 'heading',
+				'|', 'bold', 'italic',
+				'|', 'link', 'insertTable', 'mediaEmbed',
+				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
+			]
 		},
-		// Editor configration:
-		{
-			cloudServices: {
-				// All predefined builds include the Easy Image feature.
-				// Provide correct configuration values to use it.
-				tokenUrl: 'https://example.com/cs-token-endpoint',
-				uploadUrl: 'https://your-organization-id.cke-cs.com/easyimage/upload/'
-				// Read more about Easy Image - https://ckeditor.com/docs/ckeditor5/latest/features/images/image-upload/easy-image.html.
-				// For other image upload methods see the guide - https://ckeditor.com/docs/ckeditor5/latest/features/images/image-upload/image-upload.html.
+		roots: {
+			header: {
+				element: document.querySelector( '#header' ),
 			},
-			toolbar: {
-				items: [
-					'undo', 'redo',
-					'|', 'heading',
-					'|', 'bold', 'italic',
-					'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
-					'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
-				]
+			content: {
+				element: document.querySelector( '#content' ),
+			},
+			leftSide: {
+				element: document.querySelector( '#left-side' ),
+			},
+			rightSide: {
+				element: document.querySelector( '#right-side' )
 			}
 		}
-	)
+	} )
 	.then( editor => {
 		window.editor = editor;
 
@@ -73,7 +97,6 @@ MultiRootEditor
 	.catch( error => {
 		console.error( 'There was a problem initializing the editor.', error );
 	} );
-
 ```
 
 </details>
@@ -88,17 +111,21 @@ MultiRootEditor
 	contenteditable="true" + contenteditable="false" elements
 	is required to provide proper caret handling when
 	using arrow keys at the start and end of an editable area.
-	
+
 	You can skip them if you don't want to move the
 	caret between editable areas using arrow keys.
-!--> 
+!-->
 <div contenteditable="true">
 	<div contenteditable="false">
-		<div id="header">
-			Header content is inserted here.
+		<div class="editor">
+			<div id="header">
+				Header content is inserted here.
+			</div>
 		</div>
-		<div id="content">
-			Main content is inserted here.
+		<div class="editor">
+			<div id="content">
+				Main content is inserted here.
+			</div>
 		</div>
 		<div class="boxes">
 			<div class="box box-left editor">
@@ -116,8 +143,28 @@ MultiRootEditor
 </div>
 
 <style>
+	.editor {
+		border: #ccced1 1px solid;
+		margin-top: 10px;
+	}
+
+	.boxes {
+		margin-top: 10px;
+		display: flex;
+	}
+
 	.box {
+		margin-top: 0px;
 		width: 50%;
+	}
+
+	/*
+		Make the editable "fill" the whole box.
+		The box will grow if the other box grows too.
+		This makes the whole box "clickable".
+	*/
+	.box .ck-editor__editable {
+		height: 100%;
 	}
 
 	.box-left {
@@ -125,19 +172,10 @@ MultiRootEditor
 	}
 
 	/*
-		Make the editable "fill" the whole box.
-		The box will grow if the other box grows too.
-		This makes the whole box "clickable".
-	 */
-	.box .ck-editor__editable {
-		height: 100%;
-	}
-
-	/*
 		When toolbar receives this class, it becomes sticky.
 		If the toolbar would be scrolled outside of the visible area,
 		instead it is kept at the top edge of the window.
-	 */
+	*/
 	#toolbar.sticky {
 		position: sticky;
 		top: 0px;
@@ -165,21 +203,27 @@ Setting the data using `editor.setData()`:
 	} );
 ```
 
-Setting the data through `config.initialData`:
+Setting the data through `config.roots.<root name>.initialData`:
 ```js
 	MultiRootEditor.create(
 		{
-			header: document.querySelector( '#header' ),
-			content: document.querySelector( '#content' ),
-			leftSide: document.querySelector( '#left-side' ),
-			rightSide: document.querySelector( '#right-side' )
-		},
-		{
-			initialData: {
-				header: '<p>Content for header part.</p>',
-				content: '<p>Content for main part.</p>',
-				leftSide: '<p>Content for left-side box.</p>',
-				rightSide: '<p>Content for right-side box.</p>'
+			roots: {
+				header: {
+					initialData: '<p>Content for header part.</p>',
+					element: document.querySelector( '#header' )
+				},
+				content: {
+					initialData: '<p>Content for main part.</p>',
+					element: document.querySelector( '#content' )
+				},
+				leftSide: {
+					initialData: '<p>Content for left-side box.</p>',
+					element: document.querySelector( '#left-side' )
+				},
+				rightSide: {
+					initialData: '<p>Content for right-side box.</p>',
+					element: document.querySelector( '#right-side' )
+				}
 			}
 		}
 	);

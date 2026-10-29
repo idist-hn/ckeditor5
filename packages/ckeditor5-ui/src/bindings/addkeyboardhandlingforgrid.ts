@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,8 +8,8 @@
  */
 
 import type { FocusTracker, KeystrokeHandler } from '@ckeditor/ckeditor5-utils';
-import type { FocusableView } from '../focuscycler';
-import type ViewCollection from '../viewcollection';
+import type { FocusableView } from '../focuscycler.js';
+import { type ViewCollection } from '../viewcollection.js';
 
 /**
  * A helper that adds a keyboard navigation support (arrow up/down/left/right) for grids.
@@ -22,7 +22,7 @@ import type ViewCollection from '../viewcollection';
  * the number (e.g. for responsive grids).
  * @param options.uiLanguageDirection String of ui language direction.
  */
-export default function addKeyboardHandlingForGrid(
+export function addKeyboardHandlingForGrid(
 	{ keystrokeHandler, focusTracker, gridItems, numberOfColumns, uiLanguageDirection }: {
 		keystrokeHandler: KeystrokeHandler;
 		focusTracker: FocusTracker;

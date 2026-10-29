@@ -1,41 +1,54 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document */
-
-import { Base64UploadAdapter } from '@ckeditor/ckeditor5-upload';
-
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
+import { Base64UploadAdapter } from 'ckeditor5';
+import {
+	ClassicEditor,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
 ClassicEditor.builtinPlugins.push( Base64UploadAdapter );
 
 ClassicEditor
-	.create( document.querySelector( '#snippet-image-base64-upload' ), {
+	.create( {
+		attachTo: document.querySelector( '#snippet-image-base64-upload' ),
+		removePlugins: [
+			'CKBox'
+		],
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		}
 	} )
 	.then( editor => {
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem(
-				editor.ui.view.toolbar, item => item.buttonView && item.buttonView.label && item.buttonView.label === 'Insert image'
+		attachTourBalloon( {
+			target: findToolbarItem(
+				editor.ui.view.toolbar,
+				item => item.buttonView && item.buttonView.label && item.buttonView.label === 'Upload image from computer'
 			),
 			text: 'Click to insert an image.',
 			editor
+		} );
+
+		window.umberto.afterReady( () => {
+			const { throttle, formatHtml } = window.umberto;
+			const { codeBlock } = document.getElementById( 'base64-upload-console' );
+
+			const refreshDevTools = throttle( () => {
+				codeBlock.setCode( formatHtml( editor.getData() ) );
+			}, 200 );
+
+			editor.model.document.on( 'change:data', refreshDevTools );
+			refreshDevTools();
 		} );
 	} )
 	.catch( err => {
 		console.error( err.stack );
 	} );
-
-// The "Log editor data" button logic.
-document.querySelector( '#log-data' ).addEventListener( 'click', () => {
-	console.log( window.editor.getData() );
-} );

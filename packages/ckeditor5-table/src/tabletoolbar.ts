@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tabletoolbar
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { WidgetToolbarRepository } from 'ckeditor5/src/widget';
-import { getSelectedTableWidget, getTableWidgetAncestor } from './utils/ui/widget';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { WidgetToolbarRepository } from '@ckeditor/ckeditor5-widget';
+import { getSelectedTableWidget, getTableWidgetAncestor } from './utils/ui/widget.js';
 
 /**
  * The table toolbar class. It creates toolbars for the table feature and its content (for now only for the table cell content).
@@ -20,12 +20,12 @@ import { getSelectedTableWidget, getTableWidgetAncestor } from './utils/ui/widge
  * Table content toolbar shows up when the selection is inside the content of a table. It creates its component based on the
  * {@link module:table/tableconfig~TableConfig#contentToolbar `table.contentToolbar` configuration option}.
  */
-export default class TableToolbar extends Plugin {
+export class TableToolbar extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ WidgetToolbarRepository ] as const;
+	public static get requires(): PluginDependenciesOf<[ WidgetToolbarRepository ]> {
+		return [ WidgetToolbarRepository ];
 	}
 
 	/**
@@ -33,6 +33,13 @@ export default class TableToolbar extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'TableToolbar' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

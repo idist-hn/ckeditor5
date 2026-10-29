@@ -1,22 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import Alignment from '../src/alignment';
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import ImageCaption from '@ckeditor/ckeditor5-image/src/imagecaption';
-import List from '@ckeditor/ckeditor5-list/src/list';
-import Enter from '@ckeditor/ckeditor5-enter/src/enter';
-import Delete from '@ckeditor/ckeditor5-typing/src/delete';
+import { Alignment } from '../src/alignment.js';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { Image, ImageCaption } from '@ckeditor/ckeditor5-image';
+import { List } from '@ckeditor/ckeditor5-list';
+import { Enter } from '@ckeditor/ckeditor5-enter';
+import { Delete } from '@ckeditor/ckeditor5-typing';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Alignment integration', () => {
 	let editor, model, element;
@@ -43,26 +42,26 @@ describe( 'Alignment integration', () => {
 
 	describe( 'compatibility with images', () => {
 		it( 'does not work inside image caption', () => {
-			setModelData( model, '<imageBlock src="/assets/sample.png"><caption>Foo[]</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src="/sample.png"><caption>Foo[]</caption></imageBlock>' );
 
 			editor.execute( 'alignment', { value: 'center' } );
 
-			expect( getModelData( model ) ).to.equal( '<imageBlock src="/assets/sample.png"><caption>Foo[]</caption></imageBlock>' );
+			expect( _getModelData( model ) ).toBe( '<imageBlock src="/sample.png"><caption>Foo[]</caption></imageBlock>' );
 		} );
 
 		it( 'does not work inside image caption when selection overlaps image', () => {
-			setModelData(
+			_setModelData(
 				model,
 				'<paragraph>foo[foo</paragraph>' +
-				'<imageBlock src="/assets/sample.png"><caption>bar</caption></imageBlock>' +
+				'<imageBlock src="/sample.png"><caption>bar</caption></imageBlock>' +
 				'<paragraph>baz]baz</paragraph>'
 			);
 
 			editor.execute( 'alignment', { value: 'center' } );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'<paragraph alignment="center">foo[foo</paragraph>' +
-				'<imageBlock src="/assets/sample.png"><caption>bar</caption></imageBlock>' +
+				'<imageBlock src="/sample.png"><caption>bar</caption></imageBlock>' +
 				'<paragraph alignment="center">baz]baz</paragraph>'
 			);
 		} );
@@ -70,28 +69,31 @@ describe( 'Alignment integration', () => {
 
 	describe( 'compatibility with blockQuote', () => {
 		it( 'does work inside BlockQuote on paragraph', () => {
-			setModelData( model, '<blockQuote><paragraph>Foo[]</paragraph></blockQuote>' );
+			_setModelData( model, '<blockQuote><paragraph>Foo[]</paragraph></blockQuote>' );
 
 			editor.execute( 'alignment', { value: 'center' } );
 
-			expect( getModelData( model ) ).to.equal( '<blockQuote><paragraph alignment="center">Foo[]</paragraph></blockQuote>' );
+			expect( _getModelData( model ) ).toBe( '<blockQuote><paragraph alignment="center">Foo[]</paragraph></blockQuote>' );
 		} );
 
 		it( 'does work inside blockQuote on heading', () => {
-			setModelData( model, '<blockQuote><heading1>Foo[]</heading1></blockQuote>' );
+			_setModelData( model, '<blockQuote><heading1>Foo[]</heading1></blockQuote>' );
 
 			editor.execute( 'alignment', { value: 'center' } );
 
-			expect( getModelData( model ) ).to.equal( '<blockQuote><heading1 alignment="center">Foo[]</heading1></blockQuote>' );
+			expect( _getModelData( model ) ).toBe( '<blockQuote><heading1 alignment="center">Foo[]</heading1></blockQuote>' );
 		} );
 
-		it( 'does work inside blockQuote on listItem', () => {
-			setModelData( model, '<blockQuote><listItem listIndent="0" listType="numbered">Foo[]</listItem></blockQuote>' );
+		it( 'does work inside blockQuote on list item', () => {
+			_setModelData(
+				model,
+				'<blockQuote><paragraph listIndent="0" listItemId="a" listType="numbered">Foo[]</paragraph></blockQuote>'
+			);
 
 			editor.execute( 'alignment', { value: 'center' } );
 
-			expect( getModelData( model ) ).to.equal(
-				'<blockQuote><listItem alignment="center" listIndent="0" listType="numbered">Foo[]</listItem></blockQuote>'
+			expect( _getModelData( model ) ).toBe(
+				'<blockQuote><paragraph alignment="center" listIndent="0" listItemId="a" listType="numbered">Foo[]</paragraph></blockQuote>'
 			);
 		} );
 	} );
@@ -136,8 +138,8 @@ describe( 'Alignment integration', () => {
 
 			// As we do not allow for the `alignment` attribute for the `div` element, we expect
 			// that the `customAlignment` property will be set.
-			expect( getModelData( editor.model, { withoutSelection: true } ) ).to.equal( '<div customAlignment="right">foo</div>' );
-			expect( editor.getData() ).to.equal( '<div style="text-align:right;">foo</div>' );
+			expect( _getModelData( editor.model, { withoutSelection: true } ) ).toBe( '<div customAlignment="right">foo</div>' );
+			expect( editor.getData() ).toBe( '<div style="text-align:right;">foo</div>' );
 		} );
 	} );
 } );

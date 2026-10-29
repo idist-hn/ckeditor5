@@ -1,15 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module show-blocks
  */
 
-export { default as ShowBlocks } from './showblocks';
-export { default as ShowBlocksCommand } from './showblockscommand';
-export { default as ShowBlocksEditing } from './showblocksediting';
-export { default as ShowBlocksUI } from './showblocksui';
+export { ShowBlocks } from './showblocks.js';
+export { ShowBlocksCommand } from './showblockscommand.js';
+export { ShowBlocksEditing } from './showblocksediting.js';
+export { ShowBlocksUI } from './showblocksui.js';
 
-import './augmentation';
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

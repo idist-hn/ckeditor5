@@ -4,8 +4,6 @@ category: api-reference
 
 # CKEditor&nbsp;5 headings feature
 
-[![npm version](https://badge.fury.io/js/%40ckeditor%2Fckeditor5-heading.svg)](https://www.npmjs.com/package/@ckeditor/ckeditor5-heading)
-
 This package implements the headings and title features for CKEditor&nbsp;5.
 
 ## Documentation
@@ -18,8 +16,10 @@ See the {@link features/headings Headings} and {@link features/title document ti
 
 ## Installation
 
+This package is part of our open-source aggregate package.
+
 ```bash
-npm install --save @ckeditor/ckeditor5-heading
+npm install ckeditor5
 ```
 
 ## Contribute

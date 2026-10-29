@@ -1,30 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import BalloonEditor from '../src/ballooneditor';
-import BalloonEditorUI from '../src/ballooneditorui';
-import EditorUI from '@ckeditor/ckeditor5-ui/src/editorui/editorui';
-import BalloonEditorUIView from '../src/ballooneditoruiview';
-import BalloonToolbar from '@ckeditor/ckeditor5-ui/src/toolbar/balloon/balloontoolbar';
+import { BalloonEditor } from '../src/ballooneditor.js';
+import { BalloonEditorUI } from '../src/ballooneditorui.js';
+import { EditorUI, BalloonToolbar } from '@ckeditor/ckeditor5-ui';
+import { BalloonEditorUIView } from '../src/ballooneditoruiview.js';
 import { Image, ImageCaption, ImageToolbar } from '@ckeditor/ckeditor5-image';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
 
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import { isElement } from 'lodash-es';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { assertBinding } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { keyCodes } from '@ckeditor/ckeditor5-utils';
+import { isElement } from 'es-toolkit/compat';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { assertBinding } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { normalizeRootsConfig, Plugin } from '@ckeditor/ckeditor5-core';
 
 describe( 'BalloonEditorUI', () => {
 	let editor, view, ui, viewElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return VirtualBalloonTestEditor
@@ -39,19 +36,19 @@ describe( 'BalloonEditorUI', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'extends EditorUI', () => {
-			expect( ui ).to.instanceof( EditorUI );
+			expect( ui ).toBeInstanceOf( EditorUI );
 		} );
 	} );
 
 	describe( 'init()', () => {
 		it( 'initializes the #view', () => {
-			expect( view.isRendered ).to.be.true;
+			expect( view.isRendered ).toBe( true );
 		} );
 
 		describe( 'editable', () => {
@@ -65,11 +62,11 @@ describe( 'BalloonEditorUI', () => {
 				ui.focusTracker.isFocused = false;
 
 				view.editable.element.dispatchEvent( new Event( 'focus' ) );
-				expect( ui.focusTracker.isFocused ).to.true;
+				expect( ui.focusTracker.isFocused ).toBe( true );
 			} );
 
 			it( 'sets view.editable#name', () => {
-				expect( view.editable.name ).to.equal( editable.rootName );
+				expect( view.editable.name ).toBe( editable.rootName );
 			} );
 
 			it( 'binds view.editable#isFocused', () => {
@@ -84,7 +81,119 @@ describe( 'BalloonEditorUI', () => {
 			} );
 		} );
 
+		it( 'marks view.editable as an editing root (adds the ck-editor__editable_root class)', () => {
+			expect( view.editable.isMainFrameEditingRoot ).toBe( true );
+			expect( view.editable.element.classList.contains( 'ck-editor__editable_root' ) ).toBe( true );
+		} );
+
+		describe( 'inline root', () => {
+			it( 'leaves view.editable#isInlineRoot false for a block root', () => {
+				expect( view.editable.isInlineRoot ).toBe( false );
+				expect( view.editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( false );
+			} );
+
+			it( 'sets view.editable#isInlineRoot to true when the root is $inlineRoot', () => {
+				return VirtualBalloonTestEditor
+					.create( '', {
+						extraPlugins: [ BalloonToolbar ],
+						root: { modelElement: '$inlineRoot' }
+					} )
+					.then( newEditor => {
+						const editable = newEditor.ui.view.editable;
+
+						expect( editable.isInlineRoot ).toBe( true );
+						expect( editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( true );
+
+						return newEditor.destroy();
+					} );
+			} );
+
+			it( 'sets isInlineRoot=false for a custom block-like root registered by a plugin', () => {
+				class CustomBlockRootPlugin extends Plugin {
+					init() {
+						this.editor.model.schema.register( 'customBlockRoot', {
+							isLimit: true,
+							allowContentOf: '$root'
+						} );
+					}
+				}
+
+				return VirtualBalloonTestEditor
+					.create( '', {
+						extraPlugins: [ BalloonToolbar, CustomBlockRootPlugin ],
+						root: { modelElement: 'customBlockRoot' }
+					} )
+					.then( newEditor => {
+						const editable = newEditor.ui.view.editable;
+
+						expect( editable.isInlineRoot ).toBe( false );
+						expect( editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( false );
+
+						return newEditor.destroy();
+					} );
+			} );
+
+			it( 'sets isInlineRoot=true for a custom inline-only root registered by a plugin', () => {
+				class CustomInlineRootPlugin extends Plugin {
+					init() {
+						this.editor.model.schema.register( 'customInlineRoot', {
+							isLimit: true,
+							allowContentOf: '$inlineRoot'
+						} );
+					}
+				}
+
+				return VirtualBalloonTestEditor
+					.create( '', {
+						extraPlugins: [ BalloonToolbar, CustomInlineRootPlugin ],
+						root: { modelElement: 'customInlineRoot' }
+					} )
+					.then( newEditor => {
+						const editable = newEditor.ui.view.editable;
+
+						expect( editable.isInlineRoot ).toBe( true );
+						expect( editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( true );
+
+						return newEditor.destroy();
+					} );
+			} );
+		} );
+
 		describe( 'placeholder', () => {
+			it( 'sets placeholder from editor.config.root.placeholder - string', () => {
+				return VirtualBalloonTestEditor
+					.create( 'foo', {
+						extraPlugins: [ BalloonToolbar, Paragraph ],
+						root: { placeholder: 'placeholder-text' }
+					} )
+					.then( newEditor => {
+						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
+
+						expect( firstChild.getAttribute( 'data-placeholder' ) ).toBe( 'placeholder-text' );
+
+						return newEditor.destroy();
+					} );
+			} );
+
+			it( 'sets the placeholder directly on the root for an inline root (no block child to host it)', () => {
+				return VirtualBalloonTestEditor
+					.create( '', {
+						extraPlugins: [ BalloonToolbar ],
+						root: { modelElement: '$inlineRoot', placeholder: 'placeholder-text' }
+					} )
+					.then( newEditor => {
+						const root = newEditor.editing.view.document.getRoot();
+
+						// Inline roots have no block children, so the placeholder is hosted on the root itself
+						// (isDirectHost: true) rather than on the first child.
+						expect( root.getAttribute( 'data-placeholder' ) ).toBe( 'placeholder-text' );
+
+						return newEditor.destroy();
+					} );
+			} );
+		} );
+
+		describe( 'placeholder - legacy config', () => {
 			it( 'sets placeholder from editor.config.placeholder - string', () => {
 				return VirtualBalloonTestEditor
 					.create( 'foo', {
@@ -94,37 +203,7 @@ describe( 'BalloonEditorUI', () => {
 					.then( newEditor => {
 						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
 
-						expect( firstChild.getAttribute( 'data-placeholder' ) ).to.equal( 'placeholder-text' );
-
-						return newEditor.destroy();
-					} );
-			} );
-
-			it( 'sets placeholder from editor.config.placeholder - object', () => {
-				return VirtualBalloonTestEditor
-					.create( 'foo', {
-						extraPlugins: [ BalloonToolbar, Paragraph ],
-						placeholder: { main: 'placeholder-text' }
-					} )
-					.then( newEditor => {
-						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
-
-						expect( firstChild.getAttribute( 'data-placeholder' ) ).to.equal( 'placeholder-text' );
-
-						return newEditor.destroy();
-					} );
-			} );
-
-			it( 'sets placeholder from editor.config.placeholder - object (invalid root name)', () => {
-				return VirtualBalloonTestEditor
-					.create( 'foo', {
-						extraPlugins: [ BalloonToolbar, Paragraph ],
-						placeholder: { 'root-name-that-not-exists': 'placeholder-text' }
-					} )
-					.then( newEditor => {
-						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
-
-						expect( firstChild.hasAttribute( 'data-placeholder' ) ).to.equal( false );
+						expect( firstChild.getAttribute( 'data-placeholder' ) ).toBe( 'placeholder-text' );
 
 						return newEditor.destroy();
 					} );
@@ -139,12 +218,14 @@ describe( 'BalloonEditorUI', () => {
 					plugins: [ BalloonToolbar ]
 				} )
 				.then( newEditor => {
-					const destroySpy = sinon.spy( newEditor.ui.view, 'destroy' );
-					const detachSpy = sinon.spy( newEditor.editing.view, 'detachDomRoot' );
+					const destroySpy = vi.spyOn( newEditor.ui.view, 'destroy' );
+					const detachSpy = vi.spyOn( newEditor.editing.view, 'detachDomRoot' );
 
 					return newEditor.destroy()
 						.then( () => {
-							sinon.assert.callOrder( detachSpy, destroySpy );
+							expect( detachSpy ).toHaveBeenCalled();
+							expect( destroySpy ).toHaveBeenCalled();
+							expect( detachSpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( destroySpy.mock.invocationCallOrder[ 0 ] );
 						} );
 				} );
 		} );
@@ -169,7 +250,7 @@ describe( 'BalloonEditorUI', () => {
 								attributes[ attribute.name ] = attribute.value;
 							}
 
-							expect( attributes ).to.deep.equal( {
+							expect( attributes ).toEqual( {
 								foo: 'bar',
 								'data-baz': 'qux',
 								class: 'foo-class'
@@ -182,40 +263,48 @@ describe( 'BalloonEditorUI', () => {
 			const newEditor = await VirtualBalloonTestEditor.create( '' );
 			const parentEditorUIPrototype = Object.getPrototypeOf( newEditor.ui.constructor.prototype );
 
-			const parentDestroySpy = testUtils.sinon.spy( parentEditorUIPrototype, 'destroy' );
-			const viewDestroySpy = testUtils.sinon.spy( newEditor.ui.view, 'destroy' );
+			const parentDestroySpy = vi.spyOn( parentEditorUIPrototype, 'destroy' );
+			const viewDestroySpy = vi.spyOn( newEditor.ui.view, 'destroy' );
 
 			await newEditor.destroy();
 
-			sinon.assert.callOrder( parentDestroySpy, viewDestroySpy );
+			expect( parentDestroySpy ).toHaveBeenCalled();
+			expect( viewDestroySpy ).toHaveBeenCalled();
+			expect( parentDestroySpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( viewDestroySpy.mock.invocationCallOrder[ 0 ] );
+		} );
+
+		it( 'should not crash if called twice', async () => {
+			const newEditor = await VirtualBalloonTestEditor.create( '' );
+
+			await newEditor.destroy();
+
+			await expect( newEditor.destroy() ).resolves.toBeUndefined();
 		} );
 	} );
 
 	describe( 'element()', () => {
 		it( 'returns correct element instance', () => {
-			expect( ui.element ).to.equal( viewElement );
+			expect( ui.element ).toBe( viewElement );
 		} );
 	} );
 
 	describe( 'getEditableElement()', () => {
 		it( 'returns editable element (default)', () => {
-			expect( ui.getEditableElement() ).to.equal( view.editable.element );
+			expect( ui.getEditableElement() ).toBe( view.editable.element );
 		} );
 
 		it( 'returns editable element (root name passed)', () => {
-			expect( ui.getEditableElement( 'main' ) ).to.equal( view.editable.element );
+			expect( ui.getEditableElement( 'main' ) ).toBe( view.editable.element );
 		} );
 
 		it( 'returns undefined if editable with the given name is absent', () => {
-			expect( ui.getEditableElement( 'absent' ) ).to.be.undefined;
+			expect( ui.getEditableElement( 'absent' ) ).toBeUndefined();
 		} );
 	} );
 } );
 
 describe( 'Focus handling and navigation between editing root and editor toolbar', () => {
 	let editorElement, editor, ui, toolbarView, domRoot;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = document.body.appendChild( document.createElement( 'div' ) );
@@ -247,23 +336,23 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 		} );
 
 		it( 'should focus the main toolbar when the focus is in the editing root', () => {
-			const spy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const spy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			ui.focusTracker.isFocused = true;
 			ui.focusTracker.focusedElement = domRoot;
 
 			pressAltF10();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should do nothing if the toolbar is already focused', () => {
-			const domRootFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
-			const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const domRootFocusSpy = vi.spyOn( domRoot, 'focus' );
+			const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			// Focus the toolbar.
 			pressAltF10();
@@ -272,18 +361,18 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 			// Try Alt+F10 again.
 			pressAltF10();
 
-			sinon.assert.calledOnce( toolbarFocusSpy );
-			sinon.assert.notCalled( domRootFocusSpy );
+			expect( toolbarFocusSpy ).toHaveBeenCalledTimes( 1 );
+			expect( domRootFocusSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should prioritize widget toolbar over the global toolbar', () => {
 			const widgetToolbarRepository = editor.plugins.get( 'WidgetToolbarRepository' );
 			const imageToolbar = widgetToolbarRepository._toolbarDefinitions.get( 'image' ).view;
 
-			const toolbarSpy = testUtils.sinon.spy( toolbarView, 'focus' );
-			const imageToolbarSpy = testUtils.sinon.spy( imageToolbar, 'focus' );
+			const toolbarSpy = vi.spyOn( toolbarView, 'focus' );
+			const imageToolbarSpy = vi.spyOn( imageToolbar, 'focus' );
 
-			setModelData( editor.model,
+			_setModelData( editor.model,
 				'<paragraph>foo</paragraph>' +
 				'[<imageBlock src="https://ckeditor.com/docs/ckeditor5/latest/assets/img/warsaw.jpg"><caption>bar</caption></imageBlock>]' +
 				'<paragraph>baz</paragraph>'
@@ -293,8 +382,8 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 			pressAltF10();
 			ui.focusTracker.focusedElement = imageToolbar.element;
 
-			sinon.assert.calledOnce( imageToolbarSpy );
-			sinon.assert.notCalled( toolbarSpy );
+			expect( imageToolbarSpy ).toHaveBeenCalledTimes( 1 );
+			expect( toolbarSpy ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -305,10 +394,10 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 		} );
 
 		it( 'should move the focus back from the main toolbar to the editing root', () => {
-			const domRootFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
-			const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const domRootFocusSpy = vi.spyOn( domRoot, 'focus' );
+			const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			// Focus the toolbar.
 			pressAltF10();
@@ -316,19 +405,21 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 
 			pressEsc();
 
-			sinon.assert.callOrder( toolbarFocusSpy, domRootFocusSpy );
+			expect( toolbarFocusSpy ).toHaveBeenCalled();
+			expect( domRootFocusSpy ).toHaveBeenCalled();
+			expect( toolbarFocusSpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( domRootFocusSpy.mock.invocationCallOrder[ 0 ] );
 		} );
 
 		it( 'should do nothing if it was pressed when no toolbar was focused', () => {
-			const domRootFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
-			const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const domRootFocusSpy = vi.spyOn( domRoot, 'focus' );
+			const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			pressEsc();
 
-			sinon.assert.notCalled( domRootFocusSpy );
-			sinon.assert.notCalled( toolbarFocusSpy );
+			expect( domRootFocusSpy ).not.toHaveBeenCalled();
+			expect( toolbarFocusSpy ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -336,16 +427,16 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 		editor.keystrokes.press( {
 			keyCode: keyCodes.f10,
 			altKey: true,
-			preventDefault: sinon.spy(),
-			stopPropagation: sinon.spy()
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn()
 		} );
 	}
 
 	function pressEsc() {
 		editor.keystrokes.press( {
 			keyCode: keyCodes.esc,
-			preventDefault: sinon.spy(),
-			stopPropagation: sinon.spy()
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn()
 		} );
 	}
 } );
@@ -353,6 +444,8 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 class VirtualBalloonTestEditor extends VirtualTestEditor {
 	constructor( sourceElementOrData, config ) {
 		super( config );
+
+		normalizeRootsConfig( sourceElementOrData, this.config );
 
 		if ( isElement( sourceElementOrData ) ) {
 			this.sourceElement = sourceElementOrData;

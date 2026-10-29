@@ -1,12 +1,19 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* See ckeditor/ckeditor5#936. */
-.ck.ck-placeholder,
-.ck .ck-placeholder {
+
+.ck.ck-placeholder, .ck .ck-placeholder {
 	position: relative;
+
+	@media (forced-colors: active) {
+		/*
+		 * This is needed for Edge on Windows to use the right color for the placeholder content (::before).
+		 * See https://github.com/ckeditor/ckeditor5/issues/14907.
+		 */
+		forced-color-adjust: preserve-parent-color;
+	}
 
 	&::before {
 		position: absolute;
@@ -14,18 +21,53 @@
 		right: 0;
 		content: attr(data-placeholder);
 
-		/* See ckeditor/ckeditor5#469. */
+		cursor: text;
+
+		/* See https://github.com/ckeditor/ckeditor5/issues/469. */
 		pointer-events: none;
+
+		/*
+		 * Inherit the content styles padding of the placeholder host.
+		 * This ensures the placeholder stays at the padding just like the native caret does, and not at the edge of editable.
+		 */
+		padding-left: inherit;
+		padding-right: inherit;
+
+		/*
+		 * The padding should not expand element width when some other style set width to 100%.
+		 */
+		box-sizing: border-box;
+
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+
+		@media (forced-colors: none) {
+			color: var(--ck-color-engine-placeholder-text);
+		}
+
+		@media (forced-colors: active) {
+			/*
+			 * In the high contrast mode there is no telling between regular and placeholder text. Using
+			 * italic text to address that issue. See https://github.com/ckeditor/ckeditor5/issues/14907.
+			 */
+			font-style: italic;
+
+			/*
+			 * Without this margin, the caret will not show up and blink when the user puts the selection
+			 * in the placeholder (Edge on Windows). See https://github.com/ckeditor/ckeditor5/issues/14907.
+			 */
+			margin-left: 1px;
+		}
 	}
 }
 
-/* See ckeditor/ckeditor5#1987. */
+/* See https://github.com/ckeditor/ckeditor5/issues/1987. */
 .ck.ck-read-only .ck-placeholder {
 	&::before {
 		display: none;
 	}
 }
-
 /*
  * Rules for the `ck-placeholder` are loaded before the rules for `ck-reset_all` in the base CKEditor 5 DLL build.
  * This fix overwrites the incorrectly set `position: static` from `ck-reset_all`.

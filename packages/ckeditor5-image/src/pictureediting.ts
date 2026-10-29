@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/pictureediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import ImageEditing from './image/imageediting';
-import ImageUtils from './imageutils';
-import { downcastSourcesAttribute, upcastPicture } from './image/converters';
-import type { default as ImageUploadEditing, ImageUploadCompleteEvent } from './imageupload/imageuploadediting';
+import { ImageEditing } from './image/imageediting.js';
+import { ImageUtils } from './imageutils.js';
+import { downcastSourcesAttribute, upcastPicture } from './image/converters.js';
+import type { ImageUploadEditing, ImageUploadCompleteEvent } from './imageupload/imageuploadediting.js';
 
 /**
  * This plugin enables the [`<picture>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/picture) element support in the editor.
@@ -67,12 +67,12 @@ import type { default as ImageUploadEditing, ImageUploadCompleteEvent } from './
  *
  * @private
  */
-export default class PictureEditing extends Plugin {
+export class PictureEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageEditing, ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageEditing, ImageUtils ]> {
+		return [ ImageEditing, ImageUtils ];
 	}
 
 	/**
@@ -80,6 +80,13 @@ export default class PictureEditing extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'PictureEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

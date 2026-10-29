@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module media-embed/mediaembedcommand
  */
 
-import type { DocumentSelection, Element, Model, Selection } from 'ckeditor5/src/engine';
-import { Command } from 'ckeditor5/src/core';
-import { findOptimalInsertionRange } from 'ckeditor5/src/widget';
+import type { ModelDocumentSelection, ModelElement, Model, ModelSelection } from '@ckeditor/ckeditor5-engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { findOptimalInsertionRange } from '@ckeditor/ckeditor5-widget';
 
-import { getSelectedMediaModelWidget, insertMedia } from './utils';
+import { getSelectedMediaModelWidget, insertMedia } from './utils.js';
 
 /**
  * The insert media command.
@@ -24,7 +24,7 @@ import { getSelectedMediaModelWidget, insertMedia } from './utils';
  * editor.execute( 'mediaEmbed', 'http://url.to.the/media' );
  * ```
  */
-export default class MediaEmbedCommand extends Command {
+export class MediaEmbedCommand extends Command {
 	/**
 	 * Media url.
 	 */
@@ -70,13 +70,13 @@ export default class MediaEmbedCommand extends Command {
 /**
  * Checks if the media embed is allowed in the parent.
  */
-function isAllowedInParent( selection: Selection | DocumentSelection, model: Model ): boolean {
+function isAllowedInParent( selection: ModelSelection | ModelDocumentSelection, model: Model ): boolean {
 	const insertionRange = findOptimalInsertionRange( selection, model );
-	let parent = insertionRange.start.parent as Element;
+	let parent = insertionRange.start.parent as ModelElement;
 
 	// The model.insertContent() will remove empty parent (unless it is a $root or a limit).
 	if ( parent.isEmpty && !model.schema.isLimit( parent ) ) {
-		parent = parent.parent as Element;
+		parent = parent.parent as ModelElement;
 	}
 
 	return model.schema.checkChild( parent, 'media' );
@@ -85,7 +85,7 @@ function isAllowedInParent( selection: Selection | DocumentSelection, model: Mod
 /**
  * Checks if the media object is selected.
  */
-function isMediaSelected( selection: Selection | DocumentSelection ): boolean {
+function isMediaSelected( selection: ModelSelection | ModelDocumentSelection ): boolean {
 	const element = selection.getSelectedElement();
 	return !!element && element.name === 'media';
 }

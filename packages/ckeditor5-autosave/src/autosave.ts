@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -13,28 +13,28 @@ import {
 	type Editor,
 	type PendingAction,
 	type EditorDestroyEvent,
-	type EditorReadyEvent
-} from 'ckeditor5/src/core';
+	type EditorReadyEvent,
+	type PluginDependenciesOf
+} from '@ckeditor/ckeditor5-core';
 
-import { DomEmitterMixin, type DomEmitter } from 'ckeditor5/src/utils';
+import { DomEmitterMixin, type DomEmitter } from '@ckeditor/ckeditor5-utils';
 
-import type { DocumentChangeEvent } from 'ckeditor5/src/engine';
+import type { ModelDocumentChangeEvent } from '@ckeditor/ckeditor5-engine';
 
-import { debounce, type DebouncedFunc } from 'lodash-es';
-
-/* globals window */
+import { debounce } from 'es-toolkit/compat';
 
 /**
  * The {@link module:autosave/autosave~Autosave} plugin allows you to automatically save the data (e.g. send it to the server)
  * when needed (when the user changed the content).
  *
- * It listens to the {@link module:engine/model/document~Document#event:change:data `editor.model.document#change:data`}
+ * It listens to the {@link module:engine/model/document~ModelDocument#event:change:data `editor.model.document#change:data`}
  * and `window#beforeunload` events and calls the
  * {@link module:autosave/autosave~AutosaveAdapter#save `config.autosave.save()`} function.
  *
  * ```ts
  * ClassicEditor
- * 	.create( document.querySelector( '#editor' ), {
+ * 	.create( {
+ * 		attachTo: document.querySelector( '#editor' ),
  * 		plugins: [ ArticlePluginSet, Autosave ],
  * 		toolbar: [ 'heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', 'undo', 'redo' ],
  * 		image: {
@@ -52,7 +52,7 @@ import { debounce, type DebouncedFunc } from 'lodash-es';
  *
  * Read more about this feature in the {@glink features/autosave Autosave} feature guide.
  */
-export default class Autosave extends Plugin {
+export class Autosave extends Plugin {
 	/**
 	 * The adapter is an object with a `save()` method. That method will be called whenever
 	 * the data changes. It might be called some time after the change,
@@ -81,7 +81,7 @@ export default class Autosave extends Plugin {
 	 * Debounced save method. The `save()` method is called the specified `waitingTime` after `debouncedSave()` is called,
 	 * unless a new action happens in the meantime.
 	 */
-	private _debouncedSave: DebouncedFunc<( () => void )>;
+	private _debouncedSave: ReturnType<typeof debounce<() => void>>;
 
 	/**
 	 * The last saved document version.
@@ -134,8 +134,15 @@ export default class Autosave extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ PendingActions ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ PendingActions ]> {
+		return [ PendingActions ];
 	}
 
 	/**
@@ -170,7 +177,7 @@ export default class Autosave extends Plugin {
 
 		// Add the listener only after the editor is initialized to prevent firing save callback on data init.
 		this.listenTo<EditorReadyEvent>( editor, 'ready', () => {
-			this.listenTo<DocumentChangeEvent>( doc, 'change:data', ( evt, batch ) => {
+			this.listenTo<ModelDocumentChangeEvent>( doc, 'change:data', ( evt, batch ) => {
 				if ( !this._saveCallbacks.length ) {
 					return;
 				}
@@ -199,9 +206,9 @@ export default class Autosave extends Plugin {
 		// `editor.getData()` will be called before plugins are destroyed.
 		this.listenTo<EditorDestroyEvent>( editor, 'destroy', () => this._flush(), { priority: 'highest' } );
 
-		// It's not possible to easy test it because karma uses `beforeunload` event
-		// to warn before full page reload and this event cannot be dispatched manually.
-		/* istanbul ignore next -- @preserve */
+		// This is not easily testable because the `beforeunload` event cannot be dispatched manually
+		// in a way that exercises the native full-page reload warning.
+		/* v8 ignore next -- @preserve */
 		this._domEmitter.listenTo( window, 'beforeunload', ( evtInfo, domEvt ) => {
 			if ( this._pendingActions.hasAny ) {
 				domEvt.returnValue = this._pendingActions.first!.message;
@@ -362,7 +369,8 @@ export interface AutosaveAdapter {
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
+ * 		attachTo: editorElement,
  * 		autosave: {
  * 			save( editor: Editor ) {
  * 				// The saveData() function must return a promise
@@ -388,7 +396,8 @@ export interface AutosaveConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
+	 * 		attachTo: editorElement,
 	 * 		autosave: {
 	 * 			save( editor: Editor ) {
 	 * 				return saveData( editor.getData() );
@@ -407,7 +416,8 @@ export interface AutosaveConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
+	 * 		attachTo: editorElement,
 	 * 		autosave: {
 	 * 			save( editor: Editor ) {
 	 * 				return saveData( editor.getData() );

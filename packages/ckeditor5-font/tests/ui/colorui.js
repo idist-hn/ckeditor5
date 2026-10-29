@@ -1,21 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
+import { TestColorPlugin } from '../_utils/testcolorplugin.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ColorGridView } from '@ckeditor/ckeditor5-ui';
+import { global, add as addTranslations, _clearTranslations } from '@ckeditor/ckeditor5-utils';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Undo } from '@ckeditor/ckeditor5-undo';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
 
-import TestColorPlugin from '../_utils/testcolorplugin';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ColorGridView from '@ckeditor/ckeditor5-ui/src/colorgrid/colorgridview';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import Undo from '@ckeditor/ckeditor5-undo/src/undo';
-import { add as addTranslations, _clear as clearTranslations } from '@ckeditor/ckeditor5-utils/src/translation-service';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-describe( 'ColorUI', () => {
+describe( 'FontColorUIBase', () => {
 	const testColorConfig = {
 		colors: [
 			'yellow',
@@ -40,9 +37,7 @@ describe( 'ColorUI', () => {
 		columns: 3
 	};
 
-	testUtils.createSinonSandbox();
-
-	before( () => {
+	beforeAll( () => {
 		addTranslations( 'pl', {
 			'Test Color': 'Testowy plugin',
 			'Remove color': 'Usuń kolor',
@@ -61,8 +56,8 @@ describe( 'ColorUI', () => {
 		} );
 	} );
 
-	after( () => {
-		clearTranslations();
+	afterAll( () => {
+		_clearTranslations();
 	} );
 
 	let editor, element, model, testColorPlugin, command;
@@ -91,28 +86,28 @@ describe( 'ColorUI', () => {
 
 	describe( 'constructor()', () => {
 		it( 'has assigned proper commandName', () => {
-			expect( testColorPlugin.commandName ).to.equal( 'testColorCommand' );
+			expect( testColorPlugin.commandName ).toEqual( 'testColorCommand' );
 		} );
 
 		it( 'has assigned proper componentName', () => {
-			expect( testColorPlugin.componentName ).to.equal( 'testColor' );
+			expect( testColorPlugin.componentName ).toEqual( 'testColor' );
 		} );
 
 		it( 'has assigned proper icon', () => {
-			expect( testColorPlugin.icon ).to.equal( '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"></svg>' );
+			expect( testColorPlugin.icon ).toEqual( '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"></svg>' );
 		} );
 
 		it( 'has assigned proper dropdownLabel', () => {
-			expect( testColorPlugin.dropdownLabel ).to.equal( 'Test Color' );
+			expect( testColorPlugin.dropdownLabel ).toEqual( 'Test Color' );
 		} );
 
 		it( 'has assigned proper amount of columns', () => {
 			// Value taken from editor's config above.
-			expect( testColorPlugin.columns ).to.equal( 3 );
+			expect( testColorPlugin.columns ).toEqual( 3 );
 		} );
 	} );
 
-	describe( 'testColor Dropdown', () => {
+	describe( 'toolbar testColor Dropdown', () => {
 		let dropdown;
 
 		beforeEach( () => {
@@ -135,24 +130,25 @@ describe( 'ColorUI', () => {
 			expect( button ).to.have.property( 'icon', '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"></svg>' );
 		} );
 
-		it( 'should add custom CSS class to dropdown', () => {
-			expect( dropdown.element.classList.contains( 'ck-color-ui-dropdown' ) ).to.be.true;
+		it( 'should add custom CSS classes to dropdown and its panel', () => {
+			expect( dropdown.element.classList.contains( 'ck-color-ui-dropdown' ) ).toBe( true );
+			expect( dropdown.panelView.element.classList.contains( 'ck-dropdown__panel_fit-content' ) ).toBe( true );
 		} );
 
 		it( 'should focus view after command execution from dropdown', () => {
-			const focusSpy = testUtils.sinon.spy( editor.editing.view, 'focus' );
+			const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 			const dropdown = editor.ui.componentFactory.create( 'testColor' );
 
 			dropdown.commandName = 'testColorCommand';
 			dropdown.colorSelectorView.fire( 'execute', { value: null } );
 
-			sinon.assert.calledOnce( focusSpy );
+			expect( focusSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'colorSelectorView has set proper default attributes', () => {
 			const colorSelectorView = dropdown.colorSelectorView.colorGridsFragmentView;
 
-			expect( colorSelectorView.documentColorsCount ).to.equal( 3 );
+			expect( colorSelectorView.documentColorsCount ).toEqual( 3 );
 		} );
 
 		it( 'does not initialize grids when not open', () => {
@@ -160,7 +156,7 @@ describe( 'ColorUI', () => {
 			localDropdown.render();
 
 			for ( const item of localDropdown.colorSelectorView.colorGridsFragmentView.items ) {
-				expect( item ).not.to.be.instanceOf( ColorGridView );
+				expect( item ).not.toBeInstanceOf( ColorGridView );
 			}
 		} );
 
@@ -168,12 +164,12 @@ describe( 'ColorUI', () => {
 			global.document.body.appendChild( dropdown.element );
 
 			const secondButton = dropdown.colorSelectorView.colorGridsFragmentView.staticColorsGrid.items.get( 1 );
-			const spy = sinon.spy( secondButton, 'focus' );
+			const spy = vi.spyOn( secondButton, 'focus' );
 
 			secondButton.isOn = true;
 			dropdown.isOpen = false;
 			dropdown.isOpen = true;
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 
 			dropdown.element.remove();
 		} );
@@ -181,15 +177,15 @@ describe( 'ColorUI', () => {
 		it( 'should show the color grids fragment of the color selector when opened', () => {
 			global.document.body.appendChild( dropdown.element );
 
-			const showGridsSpy = sinon.spy( dropdown.colorSelectorView, 'showColorGridsFragment' );
+			const showGridsSpy = vi.spyOn( dropdown.colorSelectorView, 'showColorGridsFragment' );
 
 			dropdown.isOpen = false;
 
-			sinon.assert.notCalled( showGridsSpy );
+			expect( showGridsSpy ).not.toHaveBeenCalled();
 
 			dropdown.isOpen = true;
 
-			sinon.assert.calledOnce( showGridsSpy );
+			expect( showGridsSpy ).toHaveBeenCalledOnce();
 
 			dropdown.element.remove();
 		} );
@@ -197,42 +193,42 @@ describe( 'ColorUI', () => {
 		it( 'should update selected colors of the color selector when opened', () => {
 			global.document.body.appendChild( dropdown.element );
 
-			const updateColorSpy = sinon.spy( dropdown.colorSelectorView, 'updateSelectedColors' );
+			const updateColorSpy = vi.spyOn( dropdown.colorSelectorView, 'updateSelectedColors' );
 
 			dropdown.isOpen = false;
 
-			sinon.assert.notCalled( updateColorSpy );
+			expect( updateColorSpy ).not.toHaveBeenCalled();
 
 			dropdown.isOpen = true;
 
-			sinon.assert.calledOnce( updateColorSpy );
+			expect( updateColorSpy ).toHaveBeenCalledOnce();
 
 			dropdown.element.remove();
 		} );
 
 		describe( 'color picker', () => {
 			it( 'should execute command if the color gets changed when dropdown is open', () => {
-				const spy = sinon.spy( editor, 'execute' );
+				const spy = vi.spyOn( editor, 'execute' );
 
 				dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.fire( 'colorSelected', { color: '#a37474' } );
 
-				sinon.assert.calledWithExactly( spy, 'testColorCommand', sinon.match( { value: '#a37474' } ) );
+				expect( spy ).toHaveBeenCalledWith( 'testColorCommand', expect.objectContaining( { value: '#a37474' } ) );
 			} );
 
 			it( 'should not execute command if the color gets changed when dropdown is closed', () => {
-				const spy = sinon.spy( editor, 'execute' );
+				const spy = vi.spyOn( editor, 'execute' );
 
 				dropdown.isOpen = false;
 				dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.color = '#a37474';
 
-				sinon.assert.notCalled( spy );
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should undo changes', () => {
-				const spyUndo = sinon.spy( editor.commands.get( 'undo' ), 'execute' );
+				const spyUndo = vi.spyOn( editor.commands.get( 'undo' ), 'execute' );
 
 				dropdown.isOpen = true;
-				testColorPlugin.colorSelectorView.fire( 'colorPicker:show' );
+				dropdown.colorSelectorView.fire( 'colorPicker:show' );
 
 				dropdown.colorSelectorView.selectedColor = 'hsl( 0, 0%, 100% )';
 
@@ -245,12 +241,12 @@ describe( 'ColorUI', () => {
 
 				dropdown.colorSelectorView.colorPickerFragmentView.cancelButtonView.fire( 'execute' );
 
-				sinon.assert.calledOnce( spyUndo );
+				expect( spyUndo ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should create new batch when color picker is showed', () => {
 				dropdown.isOpen = true;
-				testColorPlugin.colorSelectorView.colorGridsFragmentView.colorPickerButtonView.fire( 'execute' );
+				dropdown.colorSelectorView.colorGridsFragmentView.colorPickerButtonView.fire( 'execute' );
 
 				dropdown.colorSelectorView.selectedColor = '#000000';
 
@@ -262,7 +258,7 @@ describe( 'ColorUI', () => {
 				} );
 
 				expect( testColorPlugin._undoStepBatch.operations.length,
-					'should have 1 change in batch' ).to.equal( 1 );
+					'should have 1 change in batch' ).toEqual( 1 );
 
 				dropdown.colorSelectorView.fire( 'execute', {
 					value: 'hsl( 110, 60%, 12% )',
@@ -270,18 +266,18 @@ describe( 'ColorUI', () => {
 				} );
 
 				dropdown.isOpen = true;
-				testColorPlugin.colorSelectorView.colorGridsFragmentView.colorPickerButtonView.fire( 'execute' );
+				dropdown.colorSelectorView.colorGridsFragmentView.colorPickerButtonView.fire( 'execute' );
 
 				expect( testColorPlugin._undoStepBatch.operations.length,
-					'should have 0 changes in batch' ).to.equal( 0 );
+					'should have 0 changes in batch' ).toEqual( 0 );
 			} );
 
 			it( 'should avoid call the command multiple times', () => {
-				const spy = sinon.spy( editor, 'execute' );
+				const spy = vi.spyOn( editor, 'execute' );
 				// Color format normalization could result with command being called multiple times.
 				dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.fire( 'colorSelected', { color: '#a37474' } );
 
-				expect( spy.callCount ).to.equal( 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 			} );
 
 			it( 'should close dropdown when "save button" is pressed', () => {
@@ -291,7 +287,7 @@ describe( 'ColorUI', () => {
 					source: 'colorPickerSaveButton'
 				} );
 
-				expect( dropdown.isOpen ).to.be.false;
+				expect( dropdown.isOpen ).toBe( false );
 			} );
 
 			it( 'should call _appendColorPickerFragment() when dropdown is opened', async () => {
@@ -313,17 +309,17 @@ describe( 'ColorUI', () => {
 					} );
 
 				const dropdown = editor.ui.componentFactory.create( 'testColor' );
-				const spy = sinon.spy( dropdown.colorSelectorView, '_appendColorPickerFragment' );
+				const spy = vi.spyOn( dropdown.colorSelectorView, '_appendColorPickerFragment' );
 
 				dropdown.isOpen = true;
 
-				spy.restore();
+				expect( spy ).toHaveBeenCalledOnce();
+
+				spy.mockRestore();
 
 				element.remove();
 				dropdown.destroy();
 				await editor.destroy();
-
-				sinon.assert.calledOnce( spy );
 			} );
 		} );
 
@@ -331,10 +327,10 @@ describe( 'ColorUI', () => {
 			it( 'isEnabled', () => {
 				command.isEnabled = false;
 
-				expect( dropdown.buttonView.isEnabled ).to.be.false;
+				expect( dropdown.buttonView.isEnabled ).toBe( false );
 
 				command.isEnabled = true;
-				expect( dropdown.buttonView.isEnabled ).to.be.true;
+				expect( dropdown.buttonView.isEnabled ).toBe( true );
 			} );
 		} );
 
@@ -352,7 +348,7 @@ describe( 'ColorUI', () => {
 			} );
 
 			it( 'adds to model colors from editor and not duplicates it', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph><$text testColor="gold">Bar</$text></paragraph>' +
 					'<paragraph><$text testColor="rgb(10,20,30)">Foo</$text></paragraph>' +
 					'<paragraph><$text testColor="gold">New Foo</$text></paragraph>' +
@@ -387,13 +383,13 @@ describe( 'ColorUI', () => {
 			} );
 
 			it( 'reacts on document model changes', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph><$text testColor="rgb(10,20,30)">Foo</$text></paragraph>'
 				);
 
 				dropdown.isOpen = true;
 
-				expect( documentColorsModel.length ).to.equal( 1 );
+				expect( documentColorsModel.length ).toEqual( 1 );
 				expect( documentColorsModel.get( 0 ) ).to.deep.include( {
 					color: 'rgb(10,20,30)',
 					label: 'rgb(10,20,30)',
@@ -404,14 +400,14 @@ describe( 'ColorUI', () => {
 
 				dropdown.isOpen = false;
 
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph><$text testColor="gold">Bar</$text></paragraph>' +
 					'<paragraph><$text testColor="#FFAACC">Baz</$text></paragraph>'
 				);
 
 				dropdown.isOpen = true;
 
-				expect( documentColorsModel.length ).to.equal( 2 );
+				expect( documentColorsModel.length ).toEqual( 2 );
 
 				expect( documentColorsModel.get( 0 ) ).to.deep.include( {
 					color: 'gold',
@@ -454,7 +450,7 @@ describe( 'ColorUI', () => {
 				const colorSelectorView = dropdown.colorSelectorView.colorGridsFragmentView;
 
 				// expect( colorSelectorView.removeButtonLabel ).to.equal( 'Usuń kolor' );
-				expect( colorSelectorView.items.first.label ).to.equal( 'Usuń kolor' );
+				expect( colorSelectorView.items.first.label ).toEqual( 'Usuń kolor' );
 			} );
 
 			describe( 'works for', () => {
@@ -487,7 +483,7 @@ describe( 'ColorUI', () => {
 						const colorGrid = dropdown.colorSelectorView.colorGridsFragmentView.items.get( 1 );
 						const tile = colorGrid.items.find( colorTile => test.color === colorTile.color );
 
-						expect( tile.label ).to.equal( test.label );
+						expect( tile.label ).toEqual( test.label );
 					} );
 				} );
 			} );
@@ -503,6 +499,256 @@ describe( 'ColorUI', () => {
 					.then( newEditor => {
 						editor = newEditor;
 						dropdown = editor.ui.componentFactory.create( 'testColor' );
+						command = editor.commands.get( 'testColorCommand' );
+
+						return editor;
+					} );
+			}
+		} );
+	} );
+
+	describe( 'menu bar testColor menu', () => {
+		let subMenu, colorSelectorView;
+
+		beforeEach( () => {
+			command = editor.commands.get( 'testColorCommand' );
+			subMenu = editor.ui.componentFactory.create( 'menuBar:testColor' );
+			subMenu.isOpen = true;
+			colorSelectorView = subMenu.panelView.children.get( 0 );
+
+			subMenu.render();
+		} );
+
+		afterEach( () => {
+			subMenu.destroy();
+		} );
+
+		it( 'button has the base properties', () => {
+			const button = subMenu.buttonView;
+
+			expect( button ).to.have.property( 'label', 'Test Color' );
+			expect( button ).to.have.property( 'icon', '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"></svg>' );
+		} );
+
+		it( 'should let the sub menu panel fit the color grid', () => {
+			expect( subMenu.panelView.element.classList.contains( 'ck-menu-bar__menu__panel_fit-content' ) ).toBe( true );
+		} );
+
+		it( 'should focus view after command execution from sub menu', () => {
+			const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
+
+			colorSelectorView.fire( 'execute', { value: null } );
+
+			expect( focusSpy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'colorSelectorView has set proper default attributes', () => {
+			expect( colorSelectorView.colorGridsFragmentView.documentColorsCount ).toEqual( 3 );
+		} );
+
+		describe( 'model to command binding', () => {
+			it( 'isEnabled', () => {
+				command.isEnabled = false;
+				expect( subMenu.buttonView.isEnabled ).toBe( false );
+
+				command.isEnabled = true;
+				expect( subMenu.buttonView.isEnabled ).toBe( true );
+			} );
+		} );
+
+		it( 'should not use document colors if they have value 0 in config', async () => {
+			const emptyColorConfig = {
+				colors: [],
+				columns: 0,
+				documentColors: 0
+			};
+
+			const editorElement = document.createElement( 'div' );
+			document.body.appendChild( editorElement );
+
+			const customizedEditor = await ClassicTestEditor
+				.create( editorElement, {
+					plugins: [ Paragraph, TestColorPlugin ],
+					testColor: {
+						...emptyColorConfig,
+						colorPicker: false
+					}
+				} );
+
+			const subMenu = customizedEditor.ui.componentFactory.create( 'menuBar:testColor' );
+
+			subMenu.isOpen = true;
+
+			expect( subMenu.panelView.children.first.colorGridsFragmentView._documentColorsLabel ).toEqual( '' );
+
+			editorElement.remove();
+			await customizedEditor.destroy();
+		} );
+
+		describe( 'properly detects document colors on dropdown open', () => {
+			let documentColorsModel;
+
+			beforeEach( () => {
+				documentColorsModel = colorSelectorView.colorGridsFragmentView.documentColors;
+				global.document.body.appendChild( subMenu.panelView.element );
+			} );
+
+			afterEach( () => {
+				subMenu.panelView.element.remove();
+				subMenu.destroy();
+			} );
+
+			it( 'adds to model colors from editor and not duplicates it', () => {
+				_setModelData( model,
+					'<paragraph><$text testColor="gold">Bar</$text></paragraph>' +
+					'<paragraph><$text testColor="rgb(10,20,30)">Foo</$text></paragraph>' +
+					'<paragraph><$text testColor="gold">New Foo</$text></paragraph>' +
+					'<paragraph><$text testColor="#FFAACC">Baz</$text></paragraph>'
+				);
+
+				subMenu.isOpen = false;
+				subMenu.isOpen = true;
+
+				expect( documentColorsModel.get( 0 ) ).to.deep.include( {
+					color: 'gold',
+					label: 'gold',
+					options: {
+						hasBorder: false
+					}
+				} );
+
+				expect( documentColorsModel.get( 1 ) ).to.deep.include( {
+					color: 'rgb(10,20,30)',
+					label: 'rgb(10,20,30)',
+					options: {
+						hasBorder: false
+					}
+				} );
+
+				expect( documentColorsModel.get( 2 ) ).to.deep.include( {
+					color: '#FFAACC',
+					label: '#FFAACC',
+					options: {
+						hasBorder: false
+					}
+				} );
+			} );
+
+			it( 'reacts on document model changes', () => {
+				_setModelData( model,
+					'<paragraph><$text testColor="rgb(10,20,30)">Foo</$text></paragraph>'
+				);
+
+				subMenu.isOpen = false;
+				subMenu.isOpen = true;
+
+				expect( documentColorsModel.length ).toEqual( 1 );
+				expect( documentColorsModel.get( 0 ) ).to.deep.include( {
+					color: 'rgb(10,20,30)',
+					label: 'rgb(10,20,30)',
+					options: {
+						hasBorder: false
+					}
+				} );
+
+				_setModelData( model,
+					'<paragraph><$text testColor="gold">Bar</$text></paragraph>' +
+					'<paragraph><$text testColor="#FFAACC">Baz</$text></paragraph>'
+				);
+
+				subMenu.isOpen = false;
+				subMenu.isOpen = true;
+
+				expect( documentColorsModel.length ).toEqual( 2 );
+
+				expect( documentColorsModel.get( 0 ) ).to.deep.include( {
+					color: 'gold',
+					label: 'gold',
+					options: {
+						hasBorder: false
+					}
+				} );
+
+				expect( documentColorsModel.get( 1 ) ).to.deep.include( {
+					color: '#FFAACC',
+					label: '#FFAACC',
+					options: {
+						hasBorder: false
+					}
+				} );
+			} );
+		} );
+
+		describe( 'localization', () => {
+			let editor, editorElement;
+
+			beforeEach( () => {
+				editorElement = document.createElement( 'div' );
+				document.body.appendChild( editorElement );
+
+				return createLocalizedEditor( editorElement )
+					.then( localizedEditor => {
+						editor = localizedEditor;
+					} );
+			} );
+
+			afterEach( () => {
+				editorElement.remove();
+
+				return editor.destroy();
+			} );
+
+			it( 'works for the colorSelectorView#items in the panel', () => {
+				expect( colorSelectorView.colorGridsFragmentView.items.first.label ).toEqual( 'Usuń kolor' );
+			} );
+
+			describe( 'works for', () => {
+				const colors = [
+					{
+						color: 'yellow',
+						label: 'yellow'
+					},
+					{
+						color: '#000',
+						label: '#000'
+					},
+					{
+						color: 'rgb(255, 255, 255)',
+						label: 'Biały'
+					},
+					{
+						color: 'red',
+						label: 'Czerwony'
+					},
+					{
+						color: '#00FF00',
+						label: 'Zielony'
+					}
+				];
+
+				colors.forEach( test => {
+					it( `tested color "${ test.color }" translated to "${ test.label }".`, () => {
+						const colorGrid = colorSelectorView.colorGridsFragmentView.items.get( 1 );
+						const tile = colorGrid.items.find( colorTile => test.color === colorTile.color );
+
+						expect( tile.label ).toEqual( test.label );
+					} );
+				} );
+			} );
+
+			function createLocalizedEditor( editorElement ) {
+				return ClassicTestEditor
+					.create( editorElement, {
+						plugins: [ TestColorPlugin ],
+						testColor: testColorConfig,
+						toolbar: [ 'testColor' ],
+						language: 'pl'
+					} )
+					.then( newEditor => {
+						editor = newEditor;
+						subMenu = editor.ui.componentFactory.create( 'menuBar:testColor' );
+						subMenu.isOpen = true;
+						colorSelectorView = subMenu.panelView.children.get( 0 );
 						command = editor.commands.get( 'testColorCommand' );
 
 						return editor;
@@ -532,7 +778,68 @@ describe( 'ColorUI', () => {
 			editorElement.remove();
 			await customizedEditor.destroy();
 
-			expect( dropdown.colorSelectorView.colorPickerView ).to.be.undefined;
+			expect( dropdown.colorSelectorView.colorPickerView ).toBeUndefined();
+		} );
+	} );
+
+	// Issue: https://github.com/ckeditor/ckeditor5/issues/15580
+	// For simplicity we create editor with two same buttons in toolbar
+	// instead overcomplicating stuff with ballon toolbar.
+	describe( 'toolbar with two same instance of testColor', () => {
+		let editor, element;
+
+		beforeEach( () => {
+			element = document.createElement( 'div' );
+			document.body.appendChild( element );
+
+			return ClassicTestEditor
+				.create( element, {
+					plugins: [ Paragraph, TestColorPlugin, Undo ],
+					testColor: testColorConfig,
+					toolbar: [ 'testColor' ]
+				} )
+				.then( newEditor => {
+					editor = newEditor;
+					model = editor.model;
+					testColorPlugin = newEditor.plugins.get( 'TestColorPlugin' );
+				} );
+		} );
+
+		afterEach( () => {
+			element.remove();
+
+			return editor.destroy();
+		} );
+
+		describe( 'testColor Dropdown', () => {
+			let dropdown, dropdown2;
+
+			beforeEach( () => {
+				command = editor.commands.get( 'testColorCommand' );
+				dropdown = editor.ui.componentFactory.create( 'testColor' );
+				dropdown2 = editor.ui.componentFactory.create( 'testColor' );
+			} );
+
+			afterEach( () => {
+				dropdown.destroy();
+				dropdown2.destroy();
+			} );
+
+			it( 'should execute command if in toolbar there are more than one dropdowns', () => {
+				const spy = vi.spyOn( editor, 'execute' );
+
+				dropdown.isOpen = true;
+
+				dropdown.colorSelectorView.colorPickerFragmentView.colorPickerView.fire( 'colorSelected', { color: '#a37474' } );
+
+				expect( spy ).toHaveBeenCalledWith( 'testColorCommand', expect.objectContaining( { value: '#a37474' } ) );
+
+				dropdown2.isOpen = true;
+
+				dropdown2.colorSelectorView.colorPickerFragmentView.colorPickerView.fire( 'colorSelected', { color: '#ffffff' } );
+
+				expect( spy ).toHaveBeenCalledWith( 'testColorCommand', expect.objectContaining( { value: '#ffffff' } ) );
+			} );
 		} );
 	} );
 } );

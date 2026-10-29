@@ -1,54 +1,49 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module editor-classic/classiceditor
  */
 
-import ClassicEditorUI from './classiceditorui';
-import ClassicEditorUIView from './classiceditoruiview';
+import { CKEditorError } from '@ckeditor/ckeditor5-utils';
+import { ClassicEditorUI } from './classiceditorui.js';
+import { ClassicEditorUIView } from './classiceditoruiview.js';
 
 import {
 	Editor,
-	Context,
-	DataApiMixin,
 	ElementApiMixin,
 	attachToForm,
+	normalizeRootsConfig,
+	normalizeSingleRootEditorConstructorParams,
+	registerAndInitializeRootConfigAttributes,
+	verifyRootElements,
 	type EditorConfig,
-	type EditorReadyEvent
-} from 'ckeditor5/src/core';
-import { getDataFromElement, CKEditorError } from 'ckeditor5/src/utils';
+	type EditorReadyEvent,
+	type ViewRootElementDefinition,
+	type ElementApiMixinConstructor
+} from '@ckeditor/ckeditor5-core';
 
-import { ContextWatchdog, EditorWatchdog } from 'ckeditor5/src/watchdog';
+import { isElement as _isElement } from 'es-toolkit/compat';
 
-import { isElement as _isElement } from 'lodash-es';
+const ClassicEditorBase: ElementApiMixinConstructor<typeof Editor> = /* #__PURE__ */ ElementApiMixin( Editor );
 
 /**
- * The {@glink installation/getting-started/predefined-builds#classic-editor classic editor} implementation.
- * It uses an inline editable and a sticky toolbar, all enclosed in a boxed UI.
+ * The classic editor implementation. It uses an inline editable and a sticky toolbar, all enclosed in a boxed UI.
  * See the {@glink examples/builds/classic-editor demo}.
  *
  * In order to create a classic editor instance, use the static
  * {@link module:editor-classic/classiceditor~ClassicEditor.create `ClassicEditor.create()`} method.
- *
- * # Classic editor and classic build
- *
- * The classic editor can be used directly from source (if you installed the
- * [`@ckeditor/ckeditor5-editor-classic`](https://www.npmjs.com/package/@ckeditor/ckeditor5-editor-classic) package)
- * but it is also available in the {@glink installation/getting-started/predefined-builds#classic-editor classic build}.
- *
- * {@glink installation/getting-started/predefined-builds Builds}
- * are ready-to-use editors with plugins bundled in. When using the editor from
- * source you need to take care of loading all plugins by yourself
- * (through the {@link module:core/editor/editorconfig~EditorConfig#plugins `config.plugins`} option).
- * Using the editor from source gives much better flexibility and allows easier customization.
- *
- * Read more about initializing the editor from source or as a build in
- * {@link module:editor-classic/classiceditor~ClassicEditor.create `ClassicEditor.create()`}.
  */
-export default class ClassicEditor extends DataApiMixin( ElementApiMixin( Editor ) ) {
+export class ClassicEditor extends ClassicEditorBase {
+	/**
+	 * @inheritDoc
+	 */
+	public static override get editorName(): 'ClassicEditor' {
+		return 'ClassicEditor';
+	}
+
 	/**
 	 * @inheritDoc
 	 */
@@ -60,34 +55,69 @@ export default class ClassicEditor extends DataApiMixin( ElementApiMixin( Editor
 	 * **Note:** do not use the constructor to create editor instances. Use the static
 	 * {@link module:editor-classic/classiceditor~ClassicEditor.create `ClassicEditor.create()`} method instead.
 	 *
+	 * @param config The editor configuration.
+	 */
+	protected constructor( config: EditorConfig );
+
+	/**
+	 * Creates an instance of the classic editor.
+	 *
+	 * **Note:** do not use the constructor to create editor instances. Use the static
+	 * {@link module:editor-classic/classiceditor~ClassicEditor.create `ClassicEditor.create()`} method instead.
+	 *
+	 * **Note**: This constructor signature is deprecated and will be removed in the future release.
+	 *
+	 * @deprecated
 	 * @param sourceElementOrData The DOM element that will be the source for the created editor
 	 * or the editor's initial data. For more information see
 	 * {@link module:editor-classic/classiceditor~ClassicEditor.create `ClassicEditor.create()`}.
 	 * @param config The editor configuration.
 	 */
-	protected constructor( sourceElementOrData: HTMLElement | string, config: EditorConfig = {} ) {
-		// If both `config.initialData` is set and initial data is passed as the constructor parameter, then throw.
-		if ( !isElement( sourceElementOrData ) && config.initialData !== undefined ) {
-			// Documented in core/editor/editorconfig.jsdoc.
-			// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
-			throw new CKEditorError( 'editor-create-initial-data', null );
+	protected constructor( sourceElementOrData: HTMLElement | string, config: EditorConfig );
+
+	protected constructor( sourceElementOrDataOrConfig: HTMLElement | string | EditorConfig, config: EditorConfig = {} ) {
+		const {
+			sourceElementOrData,
+			editorConfig
+		} = normalizeSingleRootEditorConstructorParams( sourceElementOrDataOrConfig, config );
+
+		super( editorConfig );
+
+		normalizeRootsConfig( sourceElementOrData, this.config, 'main', true );
+
+		// From this point use only normalized `roots.main.element`.
+		const sourceElement = this.config.get( 'attachTo' );
+
+		this.config.define( 'menuBar.isVisible', false );
+
+		if ( isElement( sourceElement ) ) {
+			if ( !sourceElement.isConnected ) {
+				/**
+				 * Cannot initialize the editor because the provided source element is not attached to the DOM and cannot be replaced.
+				 *
+				 * @error editor-source-element-not-attached
+				 */
+				throw new CKEditorError( 'editor-source-element-not-attached', null );
+			}
+
+			this.sourceElement = sourceElement;
 		}
 
-		super( config );
-
-		if ( this.config.get( 'initialData' ) === undefined ) {
-			this.config.set( 'initialData', getInitialData( sourceElementOrData ) );
-		}
-
-		if ( isElement( sourceElementOrData ) ) {
-			this.sourceElement = sourceElementOrData;
-		}
-
-		this.model.document.createRoot();
+		this.model.document.createRoot( this.config.get( 'roots' )!.main.modelElement );
+		registerAndInitializeRootConfigAttributes( this );
 
 		const shouldToolbarGroupWhenFull = !this.config.get( 'toolbar.shouldNotGroupWhenFull' );
+
+		const menuBarConfig = this.config.get( 'menuBar' )!;
+
+		// The `normalizeRootsConfig()` already normalized this.
+		const editableElement = this.config.get( 'roots' )!.main.element as ViewRootElementDefinition | undefined;
+
 		const view = new ClassicEditorUIView( this.locale, this.editing.view, {
-			shouldToolbarGroupWhenFull
+			shouldToolbarGroupWhenFull,
+			useMenuBar: menuBarConfig.isVisible,
+			label: this.config.get( 'roots' )!.main.label,
+			editableElement
 		} );
 
 		this.ui = new ClassicEditorUI( this, view );
@@ -102,18 +132,107 @@ export default class ClassicEditor extends DataApiMixin( ElementApiMixin( Editor
 	 * {@link module:core/editor/editorconfig~EditorConfig#updateSourceElementOnDestroy `updateSourceElementOnDestroy`}
 	 * configuration option is set to `true`.
 	 */
-	public override destroy(): Promise<unknown> {
+	public override async destroy(): Promise<unknown> {
 		if ( this.sourceElement ) {
 			this.updateSourceElement();
 		}
 
 		this.ui.destroy();
 
-		return super.destroy();
+		await super.destroy();
+
+		// To satisfy the return type and to keep it backward compatible.
+		// eslint-disable-next-line no-useless-return
+		return;
 	}
 
 	/**
 	 * Creates a new classic editor instance.
+	 *
+	 * There are three ways how the editor can be initialized.
+	 *
+	 * # Replacing a DOM element (and loading data from it)
+	 *
+	 * You can initialize the editor using an existing DOM element:
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( {
+	 * 		attachTo: document.querySelector( '#editor' )
+	 * 	} )
+	 * 	.then( editor => {
+	 * 		console.log( 'Editor was initialized', editor );
+	 * 	} )
+	 * 	.catch( err => {
+	 * 		console.error( err.stack );
+	 * 	} );
+	 * ```
+	 *
+	 * The element's content will be used as the editor data and the element will be replaced by the editor UI.
+	 *
+	 * # Creating a detached editor
+	 *
+	 * Alternatively, you can initialize the editor by passing the initial data directly as a string.
+	 * In this case, the editor will render an element that must be inserted into the DOM:
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( {
+	 * 		root: {
+	 * 			initialData: '<p>Hello world!</p>'
+	 * 		}
+	 * 	} )
+	 * 	.then( editor => {
+	 * 		console.log( 'Editor was initialized', editor );
+	 *
+	 * 		// Initial data was provided so the editor UI element needs to be added manually to the DOM.
+	 * 		document.body.appendChild( editor.ui.element );
+	 * 	} )
+	 * 	.catch( err => {
+	 * 		console.error( err.stack );
+	 * 	} );
+	 * ```
+	 *
+	 * This lets you dynamically append the editor to your web page whenever it is convenient for you. You may use this method if your
+	 * web page content is generated on the client side and the DOM structure is not ready at the moment when you initialize the editor.
+	 *
+	 * # Replacing a DOM element (and data provided in `config.root.initialData`)
+	 *
+	 * You can also mix these two ways by providing a DOM element to be used and passing the initial data through the configuration:
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( {
+	 * 		attachTo: document.querySelector( '#editor' ),
+	 * 		root: {
+	 * 			initialData: '<p>Hello world!</p>'
+	 * 		}
+	 * 	} )
+	 * 	.then( editor => {
+	 * 		console.log( 'Editor was initialized', editor );
+	 * 	} )
+	 * 	.catch( err => {
+	 * 		console.error( err.stack );
+	 * 	} );
+	 * ```
+	 *
+	 * This method can be used to initialize the editor on an existing element with the specified content in case if your integration
+	 * makes it difficult to set the content of the source element.
+	 *
+	 * # Configuring the editor
+	 *
+	 * See the {@link module:core/editor/editorconfig~EditorConfig editor configuration documentation} to learn more about
+	 * customizing plugins, toolbar and more.
+	 *
+	 * @param config The editor configuration.
+	 * @returns A promise resolved once the editor is ready. The promise resolves with the created editor instance.
+	 */
+	public static override create( config: EditorConfig ): Promise<ClassicEditor>;
+
+	/**
+	 * Creates a new classic editor instance.
+	 *
+	 * **Note**: This method signature is deprecated and will be removed in the future release.
 	 *
 	 * There are three ways how the editor can be initialized.
 	 *
@@ -156,14 +275,16 @@ export default class ClassicEditor extends DataApiMixin( ElementApiMixin( Editor
 	 * This lets you dynamically append the editor to your web page whenever it is convenient for you. You may use this method if your
 	 * web page content is generated on the client side and the DOM structure is not ready at the moment when you initialize the editor.
 	 *
-	 * # Replacing a DOM element (and data provided in `config.initialData`)
+	 * # Replacing a DOM element (and data provided in `config.root.initialData`)
 	 *
 	 * You can also mix these two ways by providing a DOM element to be used and passing the initial data through the configuration:
 	 *
 	 * ```ts
 	 * ClassicEditor
 	 * 	.create( document.querySelector( '#editor' ), {
-	 * 		initialData: '<h2>Initial data</h2><p>Foo bar.</p>'
+	 * 		root: {
+	 * 			initialData: '<p>Hello world!</p>'
+	 * 		}
 	 * 	} )
 	 * 	.then( editor => {
 	 * 		console.log( 'Editor was initialized', editor );
@@ -183,17 +304,7 @@ export default class ClassicEditor extends DataApiMixin( ElementApiMixin( Editor
 	 * See the {@link module:core/editor/editorconfig~EditorConfig editor configuration documentation} to learn more about
 	 * customizing plugins, toolbar and more.
 	 *
-	 * # Using the editor from source
-	 *
-	 * The code samples listed in the previous sections of this documentation assume that you are using an
-	 * {@glink installation/getting-started/predefined-builds editor build} (for example – `@ckeditor/ckeditor5-build-classic`).
-	 *
-	 * If you want to use the classic editor from source (`@ckeditor/ckeditor5-editor-classic/src/classiceditor`),
-	 * you need to define the list of
-	 * {@link module:core/editor/editorconfig~EditorConfig#plugins plugins to be initialized} and
-	 * {@link module:core/editor/editorconfig~EditorConfig#toolbar toolbar items}. Read more about using the editor from
-	 * source in the {@glink installation/advanced/alternative-setups/integrating-from-source-webpack dedicated guide}.
-	 *
+	 * @deprecated
 	 * @param sourceElementOrData The DOM element that will be the source for the created editor
 	 * or the editor's initial data.
 	 *
@@ -212,44 +323,28 @@ export default class ClassicEditor extends DataApiMixin( ElementApiMixin( Editor
 	 * @param config The editor configuration.
 	 * @returns A promise resolved once the editor is ready. The promise resolves with the created editor instance.
 	 */
-	public static override create( sourceElementOrData: HTMLElement | string, config: EditorConfig = {} ): Promise<ClassicEditor> {
-		return new Promise( resolve => {
-			const editor = new this( sourceElementOrData, config );
+	public static override create( sourceElementOrData: HTMLElement | string, config: EditorConfig ): Promise<ClassicEditor>;
 
-			resolve(
-				editor.initPlugins()
-					.then( () => editor.ui.init( isElement( sourceElementOrData ) ? sourceElementOrData : null ) )
-					.then( () => editor.data.init( editor.config.get( 'initialData' )! ) )
-					.then( () => editor.fire<EditorReadyEvent>( 'ready' ) )
-					.then( () => editor )
-			);
-		} );
+	public static override async create(
+		sourceElementOrDataOrConfig: HTMLElement | string | EditorConfig,
+		config: EditorConfig = {}
+	): Promise<ClassicEditor> {
+		const editor = new this( sourceElementOrDataOrConfig as any, config );
+
+		await editor.initPlugins();
+
+		// Roots are created in the editor constructor (before plugins are loaded), but the schema is only fully
+		// built after plugins register their items during init(). Custom root element names (e.g. registered by a
+		// plugin) may not exist in the schema at construction time, so we defer this check until here.
+		verifyRootElements( editor );
+
+		await editor.ui.init( editor.config.get( 'attachTo' ) || null );
+		await editor.data.init( editor.config.get( 'roots' )!.main.initialData! );
+
+		editor.fire<EditorReadyEvent>( 'ready' );
+
+		return editor;
 	}
-
-	/**
-	 * The {@link module:core/context~Context} class.
-	 *
-	 * Exposed as static editor field for easier access in editor builds.
-	 */
-	public static Context = Context;
-
-	/**
-	 * The {@link module:watchdog/editorwatchdog~EditorWatchdog} class.
-	 *
-	 * Exposed as static editor field for easier access in editor builds.
-	 */
-	public static EditorWatchdog = EditorWatchdog;
-
-	/**
-	 * The {@link module:watchdog/contextwatchdog~ContextWatchdog} class.
-	 *
-	 * Exposed as static editor field for easier access in editor builds.
-	 */
-	public static ContextWatchdog = ContextWatchdog;
-}
-
-function getInitialData( sourceElementOrData: HTMLElement | string ): string {
-	return isElement( sourceElementOrData ) ? getDataFromElement( sourceElementOrData ) : sourceElementOrData;
 }
 
 function isElement( value: any ): value is Element {

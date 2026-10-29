@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/link
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import LinkEditing from './linkediting';
-import LinkUI from './linkui';
-import AutoLink from './autolink';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { LinkEditing } from './linkediting.js';
+import { LinkUI } from './linkui.js';
+import { AutoLink } from './autolink.js';
 
 /**
  * The link plugin.
@@ -18,12 +18,12 @@ import AutoLink from './autolink';
  * This is a "glue" plugin that loads the {@link module:link/linkediting~LinkEditing link editing feature}
  * and {@link module:link/linkui~LinkUI link UI feature}.
  */
-export default class Link extends Plugin {
+export class Link extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ LinkEditing, LinkUI, AutoLink ] as const;
+	public static get requires(): PluginDependenciesOf<[ LinkEditing, LinkUI, AutoLink ]> {
+		return [ LinkEditing, LinkUI, AutoLink ];
 	}
 
 	/**
@@ -31,5 +31,12 @@ export default class Link extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Link' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

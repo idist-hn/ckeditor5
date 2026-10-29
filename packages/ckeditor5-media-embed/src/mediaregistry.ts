@@ -1,30 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module media-embed/mediaregistry
  */
 
-import type { DowncastWriter, ViewElement } from 'ckeditor5/src/engine';
-import { IconView, Template } from 'ckeditor5/src/ui';
-import { type Locale, logWarning, toArray } from 'ckeditor5/src/utils';
+import { IconView, Template } from '@ckeditor/ckeditor5-ui';
+import { IconMediaPlaceholder } from '@ckeditor/ckeditor5-icons';
+import { logWarning, toArray, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import mediaPlaceholderIcon from '../theme/icons/media-placeholder.svg';
-import type { MediaEmbedConfig, MediaEmbedProvider } from './mediaembedconfig';
-import type { MediaOptions } from './utils';
+import type { ViewDowncastWriter, ViewElement } from '@ckeditor/ckeditor5-engine';
+import type { MediaEmbedConfig, MediaEmbedProvider } from './mediaembedconfig.js';
+import type { MediaOptions } from './utils.js';
 
 const mediaPlaceholderIconViewBox = '0 0 64 42';
 
 /**
  * A bridge between the raw media content provider definitions and the editor view content.
  *
- * It helps translating media URLs to corresponding {@link module:engine/view/element~Element view elements}.
+ * It helps translating media URLs to corresponding {@link module:engine/view/element~ViewElement view elements}.
  *
  * Mostly used by the {@link module:media-embed/mediaembedediting~MediaEmbedEditing} plugin.
  */
-export default class MediaRegistry {
+export class MediaRegistry {
 	/**
 	 * The {@link module:utils/locale~Locale} instance.
 	 */
@@ -81,7 +81,7 @@ export default class MediaRegistry {
 	}
 
 	/**
-	 * For the given media URL string and options, it returns the {@link module:engine/view/element~Element view element}
+	 * For the given media URL string and options, it returns the {@link module:engine/view/element~ViewElement view element}
 	 * representing that media.
 	 *
 	 * **Note:** If no URL is specified, an empty view element is returned.
@@ -90,7 +90,7 @@ export default class MediaRegistry {
 	 * @param url The URL to be translated into a view element.
 	 */
 	public getMediaViewElement(
-		writer: DowncastWriter,
+		writer: ViewDowncastWriter,
 		url: string,
 		options: MediaOptions
 	): ViewElement {
@@ -163,7 +163,7 @@ export default class MediaRegistry {
 /**
  * Represents media defined by the provider configuration.
  *
- * It can be rendered to the {@link module:engine/view/element~Element view element} and used in the editing or data pipeline.
+ * It can be rendered to the {@link module:engine/view/element~ViewElement view element} and used in the editing or data pipeline.
  */
 class Media {
 	/**
@@ -201,7 +201,7 @@ class Media {
 	 * @param writer The view writer used to produce a view element.
 	 */
 	public getViewElement(
-		writer: DowncastWriter,
+		writer: ViewDowncastWriter,
 		options: MediaOptions
 	): ViewElement {
 		const attributes: Record<string, unknown> = {};
@@ -258,7 +258,7 @@ class Media {
 		const icon = new IconView();
 		const t = this._locale.t;
 
-		icon.content = mediaPlaceholderIcon;
+		icon.content = IconMediaPlaceholder;
 		icon.viewBox = mediaPlaceholderIconViewBox;
 
 		const placeholder = new Template( {

@@ -2,51 +2,48 @@
 category: features
 menu-title: Page break
 meta-title: Page break | CKEditor 5 Documentation
+meta-description: Insert page breaks in CKEditor 5 to control content flow and ensure proper pagination in printed or exported documents.
+badges: [ premium ]
 ---
 
 # Page break
 
 The page break feature lets you insert page breaks into your content. This gives you more control over the final structure of a document that is printed or [exported to PDF](https://ckeditor.com/docs/ckeditor5/latest/features/converters/export-pdf.html) or [Word](https://ckeditor.com/docs/ckeditor5/latest/features/converters/export-word.html).
 
+{@snippet getting-started/unlock-feature}
+
 ## Demo
 
-Use the insert page break toolbar button {@icon @ckeditor/ckeditor5-page-break/theme/icons/pagebreak.svg Insert page break} to see the feature in action. Use the "Open print preview" button below the editor to preview the content.
+Use the insert page break toolbar button {@icon @ckeditor/ckeditor5-icons/theme/icons/page-break.svg Insert page break} to see the feature in action. Use the "Open print preview" button below the editor to preview the content.
 
 {@snippet features/page-break}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
+
+<ck:button type="button" id="print-data-action">Open print preview</ck:button>
+
+<iframe id="print-data-container" aria-hidden="true" tabindex="-1"></iframe>
 
 ## Installation
 
-<info-box info>
-	The Page break feature is enabled by default in the {@link installation/getting-started/predefined-builds#superbuild superbuild} only.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your rich-text editor, install the [`@ckeditor/ckeditor5-page-break`](https://www.npmjs.com/package/@ckeditor/ckeditor5-page-break) package:
-
-```plaintext
-npm install --save @ckeditor/ckeditor5-page-break
-```
-
-And add it to your plugin list configuration:
-
+<code-switcher>
 ```js
-import { PageBreak } from '@ckeditor/ckeditor5-page-break';
+import { ClassicEditor, PageBreak } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ PageBreak, /* ... */ ],
-		toolbar: [ 'pageBreak', /* ... */ ],
+		toolbar: [ 'pageBreak', /* ... */ ]
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+</code-switcher>
 
 ## Related features
 
@@ -63,7 +60,7 @@ The {@link module:page-break/pagebreak~PageBreak} plugin registers:
 * the UI button component (`'pageBreak'`),
 * the `'pageBreak'` command implemented by {@link module:page-break/pagebreakcommand~PageBreakCommand}.
 
-The command can be executed using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
+You can execute the command using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
 
 ```js
 // Inserts a page break into the selected content.

@@ -1,36 +1,42 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import TableEditing from '../../src/tableediting';
-import TableCellPropertiesEditing from '../../src/tablecellproperties/tablecellpropertiesediting';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { AlignmentEditing } from '@ckeditor/ckeditor5-alignment';
 
-import TableCellBorderColorCommand from '../../src/tablecellproperties/commands/tablecellbordercolorcommand';
-import TableCellBorderStyleCommand from '../../src/tablecellproperties/commands/tablecellborderstylecommand';
-import TableCellBorderWidthCommand from '../../src/tablecellproperties/commands/tablecellborderwidthcommand';
-import TableCellHorizontalAlignmentCommand from '../../src/tablecellproperties/commands/tablecellhorizontalalignmentcommand';
-import TableCellHeightCommand from '../../src/tablecellproperties/commands/tablecellheightcommand';
-import TableCellVerticalAlignmentCommand from '../../src/tablecellproperties/commands/tablecellverticalalignmentcommand';
-import TableCellPaddingCommand from '../../src/tablecellproperties/commands/tablecellpaddingcommand';
-import TableCellBackgroundColorCommand from '../../src/tablecellproperties/commands/tablecellbackgroundcolorcommand';
+import { TableEditing } from '../../src/tableediting.js';
+import { TableLayoutEditing } from '../../src/tablelayout/tablelayoutediting.js';
+import { TablePropertiesEditing } from '../../src/tableproperties/tablepropertiesediting.js';
+import { TableCellPropertiesEditing } from '../../src/tablecellproperties/tablecellpropertiesediting.js';
 
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { assertTableCellStyle, assertTRBLAttribute } from '../_utils/utils';
+import { TableCellBorderColorCommand } from '../../src/tablecellproperties/commands/tablecellbordercolorcommand.js';
+import { TableCellBorderStyleCommand } from '../../src/tablecellproperties/commands/tablecellborderstylecommand.js';
+import { TableCellBorderWidthCommand } from '../../src/tablecellproperties/commands/tablecellborderwidthcommand.js';
+import { TableCellHorizontalAlignmentCommand } from '../../src/tablecellproperties/commands/tablecellhorizontalalignmentcommand.js';
+import { TableCellHeightCommand } from '../../src/tablecellproperties/commands/tablecellheightcommand.js';
+import { TableCellVerticalAlignmentCommand } from '../../src/tablecellproperties/commands/tablecellverticalalignmentcommand.js';
+import { TableCellPaddingCommand } from '../../src/tablecellproperties/commands/tablecellpaddingcommand.js';
+import { TableCellBackgroundColorCommand } from '../../src/tablecellproperties/commands/tablecellbackgroundcolorcommand.js';
+
+import { _getModelData, _getViewData, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { assertTableCellStyle, assertTRBLAttribute, modelTable, viewTable } from '../_utils/utils.js';
 
 describe( 'table cell properties', () => {
 	describe( 'TableCellPropertiesEditing', () => {
-		let editor, model;
+		let editor, model, schema;
 
 		beforeEach( async () => {
 			editor = await VirtualTestEditor.create( {
-				plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ]
+				plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing, AlignmentEditing ]
 			} );
 
 			model = editor.model;
+			schema = model.schema;
 		} );
 
 		afterEach( async () => {
@@ -38,7 +44,19 @@ describe( 'table cell properties', () => {
 		} );
 
 		it( 'should have pluginName', () => {
-			expect( TableCellPropertiesEditing.pluginName ).to.equal( 'TableCellPropertiesEditing' );
+			expect( TableCellPropertiesEditing.pluginName ).toEqual( 'TableCellPropertiesEditing' );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( TableCellPropertiesEditing.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `true`', () => {
+			expect( TableCellPropertiesEditing.isPremiumPlugin ).toBe( true );
+		} );
+
+		it( 'should have `licenseFeatureCode` static flag set to `TCP`', () => {
+			expect( TableCellPropertiesEditing.licenseFeatureCode ).toEqual( 'TCP' );
 		} );
 
 		it( 'should define table.tableCellProperties config', () => {
@@ -46,7 +64,7 @@ describe( 'table cell properties', () => {
 
 			expect( config ).to.be.an( 'object' );
 			expect( config ).to.have.property( 'defaultProperties' );
-			expect( config.defaultProperties ).to.deep.equal( {} );
+			expect( config.defaultProperties ).toEqual( {} );
 		} );
 
 		it( 'adds tableCellBorderColor command', () => {
@@ -83,20 +101,38 @@ describe( 'table cell properties', () => {
 
 		describe( 'border', () => {
 			it( 'should set proper schema rules', () => {
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBorderColor' ) ).to.be.true;
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBorderStyle' ) ).to.be.true;
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBorderWidth' ) ).to.be.true;
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBorderColor' ) ).toBe( true );
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBorderStyle' ) ).toBe( true );
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBorderWidth' ) ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellBorderColor' ).isFormatting ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellBorderStyle' ).isFormatting ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellBorderWidth' ).isFormatting ).toBe( true );
 			} );
 
 			describe( 'upcast conversion', () => {
-				it( 'should upcast border shorthand', () => {
+				it( 'should not upcast border values which are same as default', () => {
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'border' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
 					editor.setData( '<table><tr><td style="border:1px solid #f00">foo</td></tr></table>' );
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).to.equal( '#f00' );
-					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).to.equal( 'solid' );
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.equal( '1px' );
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toEqual( '#f00' );
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toBeUndefined();
+				} );
+
+				it( 'should upcast border shorthand', () => {
+					editor.setData( '<table><tr><td style="border:2px dashed #f00">foo</td></tr></table>' );
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toEqual( '#f00' );
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toEqual( 'dashed' );
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '2px' );
 				} );
 
 				it( 'should upcast border-color shorthand', () => {
@@ -104,7 +140,7 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).to.equal( '#f00' );
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toEqual( '#f00' );
 				} );
 
 				it( 'should upcast border-style shorthand', () => {
@@ -112,25 +148,25 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).to.equal( 'ridge' );
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toEqual( 'ridge' );
 				} );
 
 				it( 'should upcast border-width shorthand', () => {
-					editor.setData( '<table><tr><td style="border-width:1px">foo</td></tr></table>' );
+					editor.setData( '<table><tr><td style="border-width:3px">foo</td></tr></table>' );
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.equal( '1px' );
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '3px' );
 				} );
 
 				it( 'should upcast border-top shorthand', () => {
-					editor.setData( '<table><tr><td style="border-top:1px solid #f00">foo</td></tr></table>' );
+					editor.setData( '<table><tr><td style="border-top:2px double #f00">foo</td></tr></table>' );
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
 					assertTRBLAttribute( tableCell, 'tableCellBorderColor', '#f00', null, null, null );
-					assertTRBLAttribute( tableCell, 'tableCellBorderStyle', 'solid', null, null, null );
-					assertTRBLAttribute( tableCell, 'tableCellBorderWidth', '1px', null, null, null );
+					assertTRBLAttribute( tableCell, 'tableCellBorderStyle', 'double', null, null, null );
+					assertTRBLAttribute( tableCell, 'tableCellBorderWidth', '2px', null, null, null );
 				} );
 
 				it( 'should upcast border-right shorthand', () => {
@@ -246,9 +282,206 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).to.be.undefined;
-					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).to.be.undefined;
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toBeUndefined();
+				} );
+
+				describe( 'border attribute handling', () => {
+					beforeEach( async () => {
+						editor = await VirtualTestEditor.create( {
+							plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+							table: {
+								tableCellProperties: {
+									defaultProperties: {
+										borderWidth: '5px'
+									}
+								}
+							}
+						} );
+
+						model = editor.model;
+					} );
+
+					it( 'should convert border="0" to tableCellBorderWidth="0px" on all table cells', () => {
+						editor.setData(
+							'<table border="0">' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '0px' );
+						}
+					} );
+
+					it( 'should convert border (without value) to tableCellBorderWidth="0px" on all table cells', () => {
+						editor.setData(
+							'<table border>' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '1px' );
+						}
+					} );
+
+					it( 'should convert border="abc" to tableCellBorderWidth="1px" on all table cells', () => {
+						editor.setData(
+							'<table border="abc">' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '1px' );
+						}
+					} );
+
+					it( 'should convert border="3" to tableCellBorderWidth="1px" on all table cells', () => {
+						editor.setData(
+							'<table border="3">' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '1px' );
+						}
+					} );
+
+					it( 'should convert border="Infinite" to tableCellBorderWidth="1px" on all table cells', () => {
+						editor.setData(
+							'<table border="Infinite">' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '1px' );
+						}
+					} );
+
+					it( 'should convert negative border values to tableCellBorderWidth="1px" on all table cells', () => {
+						editor.setData(
+							'<table border="-5">' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '1px' );
+						}
+					} );
+
+					it( 'should not override existing tableCellBorderStyle attribute', () => {
+						editor.setData(
+							'<table border="0">' +
+								'<tr>' +
+									'<td style="border-style: dashed;">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellBorderStyle' ) ).toEqual( 'dashed' );
+					} );
+
+					it( 'should not override table cell custom border color and width', () => {
+						editor.setData(
+							'<table border="0">' +
+								'<tr>' +
+									'<td style="border: 2px solid #f00;">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellBorderColor' ) ).toEqual( '#f00' );
+						expect( cell.getAttribute( 'tableCellBorderWidth' ) ).toEqual( '2px' );
+						expect( cell.hasAttribute( 'tableCellBorderStyle' ) ).toBe( false );
+					} );
 				} );
 			} );
 
@@ -256,7 +489,7 @@ describe( 'table cell properties', () => {
 				let tableCell;
 
 				beforeEach( () => {
-					setModelData(
+					_setModelData(
 						model,
 						'<table headingRows="0" headingColumns="0">' +
 							'<tableRow>' +
@@ -272,7 +505,7 @@ describe( 'table cell properties', () => {
 				it( 'should consume converted item tableCellBorderColor attribute', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellBorderColor:tableCell', ( evt, data, conversionApi ) => {
-							expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+							expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 						} ) );
 
 					model.change( writer => writer.setAttribute( 'tableCellBorderColor', '#f00', tableCell ) );
@@ -319,7 +552,7 @@ describe( 'table cell properties', () => {
 				it( 'should consume converted item tableCellBorderStyle attribute', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellBorderStyle:tableCell', ( evt, data, conversionApi ) => {
-							expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+							expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 						} ) );
 
 					model.change( writer => writer.setAttribute( 'tableCellBorderStyle', 'ridge', tableCell ) );
@@ -366,7 +599,7 @@ describe( 'table cell properties', () => {
 				it( 'should consume converted item tableCellBorderWidth attribute', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellBorderWidth:tableCell', ( evt, data, conversionApi ) => {
-							expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+							expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 						} ) );
 
 					model.change( writer => writer.setAttribute( 'tableCellBorderWidth', '2px', tableCell ) );
@@ -568,7 +801,7 @@ describe( 'table cell properties', () => {
 						} );
 
 						expect(
-							editor.getData() ).to.equalMarkup(
+							editor.getData() ).toEqualMarkup(
 							'<figure class="table"><table><tbody><tr><td>foo</td></tr></tbody></table></figure>'
 						);
 					} );
@@ -576,9 +809,369 @@ describe( 'table cell properties', () => {
 			} );
 		} );
 
+		describe( 'cellpadding', () => {
+			describe( 'upcast conversion', () => {
+				describe( '`cellpadding` attribute handling', () => {
+					beforeEach( async () => {
+						editor = await VirtualTestEditor.create( {
+							plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ]
+						} );
+
+						model = editor.model;
+					} );
+
+					it( 'should convert table `cellpadding="10"` to `tableCellPadding="10px"` on single table cell', () => {
+						editor.setData(
+							'<table cellpadding="10">' +
+								'<tr>' +
+									'<td>foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '10px' );
+					} );
+
+					it( 'should convert table `cellpadding="10"` to `tableCellPadding="10px"` on all table cells', () => {
+						editor.setData(
+							'<table cellpadding="10">' +
+								'<tr>' +
+									'<td>foo</td>' +
+									'<td>bar</td>' +
+								'</tr>' +
+								'<tr>' +
+									'<td>baz</td>' +
+									'<td>qux</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const table = model.document.getRoot().getChild( 0 );
+						const cells = Array.from( table.getChildren() )
+							.flatMap( row => Array.from( row.getChildren() ) );
+
+						expect( cells ).to.have.lengthOf( 4 );
+
+						for ( const cell of cells ) {
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '10px' );
+						}
+					} );
+
+					it( 'should convert table `cellpadding="0"` to `tableCellPadding="0px"` on single table cell', () => {
+						editor.setData(
+							'<table cellpadding="0">' +
+								'<tr>' +
+									'<td>foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+					} );
+
+					it( 'should convert table `cellpadding` to `tableCellPadding="1px"` to match how browser works', () => {
+						editor.setData(
+							'<table cellpadding>' +
+								'<tr>' +
+									'<td>foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '1px' );
+					} );
+
+					it( 'should convert table `cellpadding="abc"` to `tableCellPadding="0px"` to match how browser works', () => {
+						editor.setData(
+							'<table cellpadding="abc">' +
+								'<tr>' +
+									'<td>foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+					} );
+
+					it( 'should convert negative `cellpadding` values to `tableCellPadding="0px"` to match how browser works', () => {
+						editor.setData(
+							'<table cellpadding="-10">' +
+								'<tr>' +
+									'<td>foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+					} );
+
+					it( 'should convert table `cellpadding="Infinite"` to `tableCellPadding="0px"` to match how browser works', () => {
+						editor.setData(
+							'<table cellpadding="Infinite">' +
+								'<tr>' +
+									'<td>foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+					} );
+
+					it( 'should not convert cellpadding="10" to tableCellPadding="10px" when inline padding (5px) style is present', () => {
+						editor.setData(
+							'<table cellpadding="10">' +
+								'<tr>' +
+									'<td style="padding: 5px;">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '5px' );
+					} );
+
+					it( 'should not convert cellpadding="10" on left cell side when inline padding-left (5px) style is present', () => {
+						editor.setData(
+							'<table cellpadding="10">' +
+								'<tr>' +
+									'<td style="padding-left: 5px;">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( {
+							left: '5px',
+							bottom: '10px',
+							right: '10px',
+							top: '10px'
+						} );
+					} );
+
+					describe( 'when default table cell padding is set to `10px`', () => {
+						beforeEach( async () => {
+							await editor.destroy();
+
+							editor = await VirtualTestEditor.create( {
+								plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+								table: {
+									tableCellProperties: {
+										defaultProperties: {
+											padding: '10px'
+										}
+									}
+								}
+							} );
+
+							model = editor.model;
+						} );
+
+						it( 'should not convert `cellpadding="10"` to `tableCellPadding="10px"`', () => {
+							editor.setData(
+								'<table cellpadding="10">' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toBeUndefined();
+						} );
+
+						it( 'should not convert `cellpadding="10"` on table cell sides that doesn\'t contain inline padding', () => {
+							editor.setData(
+								'<table cellpadding="10">' +
+									'<tr>' +
+										'<td style="padding-left: 5px; padding-right: 5px;">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( {
+								left: '5px',
+								right: '5px'
+							} );
+						} );
+					} );
+
+					describe( 'with `TablePropertiesEditing` enabled', () => {
+						beforeEach( async () => {
+							editor = await VirtualTestEditor.create( {
+								plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing, TablePropertiesEditing ]
+							} );
+
+							model = editor.model;
+						} );
+
+						it( 'should convert table `cellpadding="10"` to `tableCellPadding="10px"` on single table cell', () => {
+							editor.setData(
+								'<table cellpadding="10">' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '10px' );
+						} );
+
+						it( 'should convert table `cellpadding="10"` to `tableCellPadding="10px"` on all table cells', () => {
+							editor.setData(
+								'<table cellpadding="10">' +
+									'<tr>' +
+										'<td>foo</td>' +
+										'<td>bar</td>' +
+									'</tr>' +
+									'<tr>' +
+										'<td>baz</td>' +
+										'<td>qux</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const table = model.document.getRoot().getChild( 0 );
+							const cells = Array.from( table.getChildren() )
+								.flatMap( row => Array.from( row.getChildren() ) );
+
+							expect( cells ).to.have.lengthOf( 4 );
+
+							for ( const cell of cells ) {
+								expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '10px' );
+							}
+						} );
+
+						it( 'should convert table `cellpadding="0"` to `tableCellPadding="0px"` on single table cell', () => {
+							editor.setData(
+								'<table cellpadding="0">' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+						} );
+
+						it( 'should convert table `cellpadding` to `tableCellPadding="1px"` to match how browser works', () => {
+							editor.setData(
+								'<table cellpadding>' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '1px' );
+						} );
+
+						it( 'should convert table `cellpadding="abc"` to `tableCellPadding="0px"` to match how browser works', () => {
+							editor.setData(
+								'<table cellpadding="abc">' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+						} );
+
+						it( 'should convert negative `cellpadding` values to `tableCellPadding="0px"` to match how browser works', () => {
+							editor.setData(
+								'<table cellpadding="-10">' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+						} );
+
+						it( 'should convert table `cellpadding="Infinite"` to `tableCellPadding="0px"` to match how browser works', () => {
+							editor.setData(
+								'<table cellpadding="Infinite">' +
+									'<tr>' +
+										'<td>foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '0px' );
+						} );
+
+						it( 'should not convert cellpadding="10" to tableCellPadding="10px" ' +
+							'when inline padding (5px) style is present', () => {
+							editor.setData(
+								'<table cellpadding="10">' +
+									'<tr>' +
+										'<td style="padding: 5px;">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( '5px' );
+						} );
+
+						it( 'should not convert cellpadding="10" on left cell side when inline padding-left (5px) style is present', () => {
+							editor.setData(
+								'<table cellpadding="10">' +
+									'<tr>' +
+										'<td style="padding-left: 5px;">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							const cell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( cell.getAttribute( 'tableCellPadding' ) ).toEqual( {
+								left: '5px',
+								bottom: '10px',
+								right: '10px',
+								top: '10px'
+							} );
+						} );
+					} );
+				} );
+			} );
+		} );
+
 		describe( 'background color', () => {
 			it( 'should set proper schema rules', () => {
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBackgroundColor' ) ).to.be.true;
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellBackgroundColor' ) ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellBackgroundColor' ).isFormatting ).toBe( true );
 			} );
 
 			describe( 'upcast conversion', () => {
@@ -586,21 +1179,87 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="background-color:#f00">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).to.equal( '#f00' );
+					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).toEqual( '#f00' );
 				} );
 
 				it( 'should upcast from tableCellBackgroundColor shorthand', () => {
 					editor.setData( '<table><tr><td style="background:#f00 center center">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).to.equal( '#f00' );
+					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).toEqual( '#f00' );
 				} );
 
 				it( 'should upcast from tableCellBackgroundColor shorthand (rbg color value with spaces)', () => {
 					editor.setData( '<table><tr><td style="background:rgb(253, 253, 119) center center">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).to.equal( 'rgb(253, 253, 119)' );
+					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).toEqual( 'rgb(253, 253, 119)' );
+				} );
+
+				it( 'should upcast bgcolor attribute', () => {
+					editor.setData( '<table><tr><td bgcolor="#f00">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).toEqual( '#f00' );
+				} );
+
+				it( 'should upcast background-color style and ignore bgcolor attribute', () => {
+					editor.setData( '<table><tr><td bgcolor="blue" style="background-color:#f00">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellBackgroundColor' ) ).toEqual( '#f00' );
+				} );
+
+				it( 'should consume background color style even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									backgroundColor: '#f00'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'background-color' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td style="background-color:#f00">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellBackgroundColor' ) ).toBe( false );
+
+					await editor.destroy();
+				} );
+
+				it( 'should consume bgcolor attribute even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									backgroundColor: '#f00'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { attributes: 'bgcolor' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td bgcolor="#f00">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellBackgroundColor' ) ).toBe( false );
+
+					await editor.destroy();
 				} );
 			} );
 
@@ -608,7 +1267,7 @@ describe( 'table cell properties', () => {
 				let tableCell;
 
 				beforeEach( () => {
-					setModelData(
+					_setModelData(
 						model,
 						'<table headingRows="0" headingColumns="0">' +
 							'<tableRow>' +
@@ -624,7 +1283,7 @@ describe( 'table cell properties', () => {
 				it( 'should consume converted item tableCellBackgroundColor attribute', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellBackgroundColor:tableCell', ( evt, data, conversionApi ) => {
-							expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+							expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 						} ) );
 
 					model.change( writer => writer.setAttribute( 'tableCellBackgroundColor', '#f00', tableCell ) );
@@ -669,66 +1328,357 @@ describe( 'table cell properties', () => {
 
 		describe( 'horizontal alignment', () => {
 			it( 'should set proper schema rules', () => {
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellHorizontalAlignment' ) ).to.be.true;
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellHorizontalAlignment' ) ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellHorizontalAlignment' ).isFormatting ).toBe( true );
 			} );
 
 			describe( 'upcast conversion', () => {
 				it( 'should upcast text-align:left style (due to the default value of the property)', () => {
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'text-align' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
 					editor.setData( '<table><tr><td style="text-align:left">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should upcast text-align:right style', () => {
 					editor.setData( '<table><tr><td style="text-align:right">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'right' );
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'right' );
 				} );
 
 				it( 'should not upcast text-align:center style', () => {
 					editor.setData( '<table><tr><td style="text-align:center">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'center' );
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'center' );
 				} );
 
 				it( 'should upcast text-align:justify style', () => {
 					editor.setData( '<table><tr><td style="text-align:justify">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'justify' );
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'justify' );
 				} );
 
 				describe( 'the [align] attribute', () => {
-					it( 'should not upcast the align=left attribute (due to the default value of the property)', () => {
-						editor.setData( '<table><tr><td align="left">foo</td></tr></table>' );
-						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+					beforeEach( async () => {
+						editor = await VirtualTestEditor.create( {
+							plugins: [ TablePropertiesEditing, TableCellPropertiesEditing, Paragraph, TableEditing, AlignmentEditing ]
+						} );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+						model = editor.model;
+						schema = model.schema;
 					} );
 
-					it( 'should upcast the align=right attribute', () => {
-						editor.setData( '<table><tr><td align="right">foo</td></tr></table>' );
-						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
-
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'right' );
+					afterEach( async () => {
+						await editor.destroy();
 					} );
 
-					it( 'should upcast the align=center attribute', () => {
-						editor.setData( '<table><tr><td align="center">foo</td></tr></table>' );
-						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+					it( 'should apply align=left to paragraph child', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="left">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+						const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'center' );
+						// `left` is default value of alignment attribute.
+						expect( paragraph.getAttribute( 'alignment' ) ).toBeUndefined();
 					} );
 
-					it( 'should upcast the align=justify attribute', () => {
-						editor.setData( '<table><tr><td align="justify">foo</td></tr></table>' );
+					it( 'should apply align=right to paragraph child', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="right">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+						const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+						expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'right' );
+					} );
+
+					it( 'should apply align=center to paragraph child', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="center">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+						const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+						expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'center' );
+					} );
+
+					it( 'should apply align=justify to paragraph child', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="justify">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+						const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+						expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'justify' );
+					} );
+
+					it( 'should NOT set tableCellHorizontalAlignment on tableCell', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="right">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
 						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'justify' );
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 					} );
+
+					it( 'should apply alignment to ALL block children (paragraph and nested table)', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="center">' +
+										'<p>text</p>' +
+										'<table>' +
+											'<tr>' +
+												'<td><p>a</p></td>' +
+											'</tr>' +
+										'</table>' +
+									'</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+						const paragraph = tableCell.getChild( 0 );
+						const nestedTable = tableCell.getChild( 1 );
+
+						expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'center' );
+						expect( nestedTable.is( 'element', 'table' ) ).toBe( true );
+						expect( nestedTable.getAttribute( 'tableAlignment' ) ).toBeUndefined();
+					} );
+
+					it( 'should apply alignment to all direct block children independently per td level', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="right">' +
+										'<p>outer</p>' +
+										'<table>' +
+											'<tr>' +
+												'<td align="center">' +
+													'<p>inner</p>' +
+													'<table>' +
+														'<tr>' +
+															'<td><p>deepest</p></td>' +
+														'</tr>' +
+													'</table>' +
+												'</td>' +
+											'</tr>' +
+										'</table>' +
+									'</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								'<paragraph alignment="right">outer</paragraph>' +
+									modelTable( [
+										[
+											'<paragraph alignment="center">inner</paragraph>' +
+											modelTable( [
+												[ '<paragraph>deepest</paragraph>' ]
+											] )
+										]
+									], { tableAlignment: 'blockRight' } )
+							]
+						] ) );
+					} );
+
+					it( 'should not propagate alignment into nested table cells that have no align attribute (shallow iteration)', () => {
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="right">' +
+										'<p>outer</p>' +
+										'<table>' +
+											'<tr>' +
+												'<td>' +
+													'<p>inner</p>' +
+												'</td>' +
+											'</tr>' +
+										'</table>' +
+									'</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								'<paragraph alignment="right">outer</paragraph>' +
+									modelTable( [
+										[ '<paragraph>inner</paragraph>' ]
+									], { tableAlignment: 'blockRight' } )
+							]
+						] ) );
+					} );
+
+					it( 'should consume the align attribute so GHS will not store it', () => {
+						editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+							expect( conversionApi.consumable.test( data.viewItem, { attributes: [ 'align' ] } ) ).toBe( false );
+						}, { priority: 'lowest' } ) );
+
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="right">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+					} );
+
+					it( 'should do nothing if attribute is already consumed', () => {
+						editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+							conversionApi.consumable.consume( data.viewItem, { attributes: [ 'align' ] } );
+						}, { priority: 'highest' } ) );
+
+						editor.setData(
+							'<table>' +
+								'<tr>' +
+									'<td align="right">foo</td>' +
+								'</tr>' +
+							'</table>'
+						);
+
+						expect( _getModelData( model, { withoutSelection: true } ) )
+							.toEqual( modelTable( [ [ '<paragraph>foo</paragraph>' ] ] ) );
+					} );
+
+					describe( 'with table properties editing', () => {
+						beforeEach( async () => {
+							await editor.destroy();
+
+							editor = await VirtualTestEditor.create( {
+								plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing, TablePropertiesEditing, AlignmentEditing ]
+							} );
+
+							model = editor.model;
+						} );
+
+						it( 'should block align nested table', () => {
+							editor.setData(
+								'<table>' +
+									'<tr>' +
+										'<td align="right">' +
+											'<p>text</p>' +
+											'<table>' +
+												'<tr>' +
+													'<td><p>a</p></td>' +
+												'</tr>' +
+											'</table>' +
+										'</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+								[
+									'<paragraph alignment="right">text</paragraph>' +
+										modelTable( [ [ '<paragraph>a</paragraph>' ] ], { tableAlignment: 'blockRight' } )
+								]
+							] ) );
+						} );
+
+						it( 'should not override alignment if already present', () => {
+							editor.setData(
+								'<table>' +
+									'<tr>' +
+										'<td align="center">' +
+											'<p style="text-align: right">text</p>' +
+											'<table style="margin-left:0;margin-right:auto;">' +
+												'<tr>' +
+													'<td><p>a</p></td>' +
+												'</tr>' +
+											'</table>' +
+										'</td>' +
+									'</tr>' +
+								'</table>'
+							);
+
+							expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+								[
+									'<paragraph alignment="right">text</paragraph>' +
+										modelTable( [ [ '<paragraph>a</paragraph>' ] ], { tableAlignment: 'blockLeft' } )
+								]
+							] ) );
+						} );
+					} );
+				} );
+
+				it( 'should consume horizontal alignment style even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									horizontalAlignment: 'center'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'text-align' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td style="text-align:center">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellHorizontalAlignment' ) ).toBe( false );
+
+					await editor.destroy();
+				} );
+
+				it( 'should consume align attribute even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									horizontalAlignment: 'center'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { attributes: 'align' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td align="center">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellHorizontalAlignment' ) ).toBe( false );
+
+					await editor.destroy();
 				} );
 
 				describe( 'for RTL content language', () => {
@@ -736,7 +1686,7 @@ describe( 'table cell properties', () => {
 
 					beforeEach( async () => {
 						editor = await VirtualTestEditor.create( {
-							plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+							plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing, AlignmentEditing ],
 							language: 'ar'
 						} );
 
@@ -751,57 +1701,82 @@ describe( 'table cell properties', () => {
 						editor.setData( '<table><tr><td style="text-align:right">foo</td></tr></table>' );
 						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 					} );
 
 					it( 'should upcast text-align:left style', () => {
 						editor.setData( '<table><tr><td style="text-align:left">foo</td></tr></table>' );
 						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'left' );
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'left' );
 					} );
 
 					it( 'should not upcast text-align:center style', () => {
 						editor.setData( '<table><tr><td style="text-align:center">foo</td></tr></table>' );
 						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'center' );
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'center' );
 					} );
 
 					it( 'should upcast text-align:justify style', () => {
 						editor.setData( '<table><tr><td style="text-align:justify">foo</td></tr></table>' );
 						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'justify' );
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'justify' );
 					} );
 
 					describe( 'the [align] attribute', () => {
-						it( 'should upcast the align=left attribute', () => {
-							editor.setData( '<table><tr><td align="left">foo</td></tr></table>' );
-							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+						it( 'should apply align=left to paragraph child', () => {
+							editor.setData(
+								'<table>' +
+									'<tr>' +
+										'<td align="left">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
 
-							expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'left' );
+							expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'left' );
 						} );
 
-						it( 'should not upcast the align=right attribute  (due to the default value of the property)', () => {
-							editor.setData( '<table><tr><td align="right">foo</td></tr></table>' );
-							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+						it( 'should apply align=right to paragraph child', () => {
+							editor.setData(
+								'<table>' +
+									'<tr>' +
+										'<td align="right">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
 
-							expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+							// `right` is default value of alignment attribute.
+							expect( paragraph.getAttribute( 'alignment' ) ).toBeUndefined();
 						} );
 
-						it( 'should upcast the align=center attribute', () => {
-							editor.setData( '<table><tr><td align="center">foo</td></tr></table>' );
-							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+						it( 'should apply align=center to paragraph child', () => {
+							editor.setData(
+								'<table>' +
+									'<tr>' +
+										'<td align="center">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
 
-							expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'center' );
+							expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'center' );
 						} );
 
-						it( 'should upcast the align=justify attribute', () => {
-							editor.setData( '<table><tr><td align="justify">foo</td></tr></table>' );
-							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+						it( 'should apply align=justify to paragraph child', () => {
+							editor.setData(
+								'<table>' +
+									'<tr>' +
+										'<td align="justify">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
 
-							expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.equal( 'justify' );
+							expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'justify' );
 						} );
 					} );
 				} );
@@ -811,7 +1786,7 @@ describe( 'table cell properties', () => {
 				let tableCell;
 
 				beforeEach( () => {
-					setModelData(
+					_setModelData(
 						model,
 						'<table headingRows="0" headingColumns="0">' +
 							'<tableRow>' +
@@ -828,7 +1803,7 @@ describe( 'table cell properties', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellHorizontalAlignment:tableCell',
 							( evt, data, conversionApi ) => {
-								expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+								expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 							}
 						) );
 
@@ -883,7 +1858,7 @@ describe( 'table cell properties', () => {
 
 						model = editor.model;
 
-						setModelData(
+						_setModelData(
 							model,
 							'<table headingRows="0" headingColumns="0">' +
 								'<tableRow>' +
@@ -905,7 +1880,7 @@ describe( 'table cell properties', () => {
 						editor.conversion.for( 'downcast' )
 							.add( dispatcher => dispatcher.on( 'attribute:tableCellHorizontalAlignment:tableCell',
 								( evt, data, conversionApi ) => {
-									expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+									expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 								}
 							) );
 
@@ -954,7 +1929,8 @@ describe( 'table cell properties', () => {
 
 		describe( 'vertical alignment', () => {
 			it( 'should set proper schema rules', () => {
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellVerticalAlignment' ) ).to.be.true;
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellVerticalAlignment' ) ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellVerticalAlignment' ).isFormatting ).toBe( true );
 			} );
 
 			describe( 'upcast conversion', () => {
@@ -962,42 +1938,99 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="vertical-align:top">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.equal( 'top' );
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'top' );
 				} );
 
 				it( 'should upcast "bottom" vertical-align', () => {
 					editor.setData( '<table><tr><td style="vertical-align:bottom">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.equal( 'bottom' );
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'bottom' );
 				} );
 
 				it( 'should not upcast "middle" vertical-align (due to the default value of the property)', () => {
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'vertical-align' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
 					editor.setData( '<table><tr><td style="vertical-align:middle">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should upcast "top" valign attribute', () => {
 					editor.setData( '<table><tr><td valign="top">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.equal( 'top' );
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'top' );
 				} );
 
 				it( 'should upcast "bottom" valign attribute', () => {
 					editor.setData( '<table><tr><td valign="bottom">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.equal( 'bottom' );
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'bottom' );
 				} );
 
 				it( 'should not upcast "middle" valign attribute (due to the default value of the property)', () => {
 					editor.setData( '<table><tr><td valign="middle">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
+				} );
+
+				it( 'should consume vertical alignment style even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									verticalAlignment: 'bottom'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'vertical-align' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td style="vertical-align:bottom">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellVerticalAlignment' ) ).toBe( false );
+
+					await editor.destroy();
+				} );
+
+				it( 'should consume valign attribute even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									verticalAlignment: 'bottom'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { attributes: 'valign' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td valign="bottom">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellVerticalAlignment' ) ).toBe( false );
+
+					await editor.destroy();
 				} );
 			} );
 
@@ -1005,7 +2038,7 @@ describe( 'table cell properties', () => {
 				let tableCell;
 
 				beforeEach( () => {
-					setModelData(
+					_setModelData(
 						model,
 						'<table headingRows="0" headingColumns="0">' +
 							'<tableRow>' +
@@ -1022,7 +2055,7 @@ describe( 'table cell properties', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellVerticalAlignment:tableCell',
 							( evt, data, conversionApi ) => {
-								expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+								expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 							}
 						) );
 
@@ -1051,7 +2084,8 @@ describe( 'table cell properties', () => {
 
 		describe( 'padding', () => {
 			it( 'should set proper schema rules', () => {
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellPadding' ) ).to.be.true;
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellPadding' ) ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellPadding' ).isFormatting ).toBe( true );
 			} );
 
 			describe( 'upcast conversion', () => {
@@ -1067,7 +2101,7 @@ describe( 'table cell properties', () => {
 				let tableCell;
 
 				beforeEach( () => {
-					setModelData(
+					_setModelData(
 						model,
 						'<table headingRows="0" headingColumns="0">' +
 							'<tableRow>' +
@@ -1083,7 +2117,7 @@ describe( 'table cell properties', () => {
 				it( 'should consume converted item tableCellBorderColor attribute', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellPadding:tableCell', ( evt, data, conversionApi ) => {
-							expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+							expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 						} ) );
 
 					model.change( writer => writer.setAttribute( 'tableCellPadding', '1px', tableCell ) );
@@ -1144,15 +2178,151 @@ describe( 'table cell properties', () => {
 
 		describe( 'cell height', () => {
 			it( 'should set proper schema rules', () => {
-				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellHeight' ) ).to.be.true;
+				expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellHeight' ) ).toBe( true );
+				expect( model.schema.getAttributeProperties( 'tableCellHeight' ).isFormatting ).toBe( true );
 			} );
 
 			describe( 'upcast conversion', () => {
-				it( 'should upcast height attribute on table cell', () => {
+				it( 'should upcast height style on table cell', () => {
 					editor.setData( '<table><tr><td style="height:20px">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHeight' ) ).to.equal( '20px' );
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '20px' );
+				} );
+
+				it( 'should upcast height attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="20">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '20px' );
+				} );
+
+				it( 'should upcast height style on table cell and ignore height attribute', () => {
+					editor.setData( '<table><tr><td height="100" style="height:20px">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '20px' );
+				} );
+
+				it( 'should upcast height (float) attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="100.5">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5px' );
+				} );
+
+				it( 'should upcast height (float) with space between number and unit attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="100.5 px">foo</td></tr></table>' );
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5px' );
+				} );
+
+				it( 'should upcast height (float) with spaces around attribute and unit on table cell', () => {
+					editor.setData( '<table><tr><td height="  100.5   px  ">foo</td></tr></table>' );
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5px' );
+				} );
+
+				it( 'should not upcast NaN height attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="not-a-number">foo</td></tr></table>' );
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toBeUndefined();
+				} );
+
+				it( 'should upcast only the digits before the unknown unit in height attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="100.5abc11">foo</td></tr></table>' );
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5px' );
+				} );
+
+				it( 'should upcast only the digits before the percentage unit in height attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="  100.5%11  ">foo</td></tr></table>' );
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5%' );
+				} );
+
+				it( 'should upcast height (px) attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="100.5px">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5px' );
+				} );
+
+				it( 'should upcast height (%) attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="100.5%">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5%' );
+				} );
+
+				it( 'should upcast height (em) attribute on table cell', () => {
+					editor.setData( '<table><tr><td height="100.5em">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					// Normalize to px as other units are not supported by browsers.
+					expect( tableCell.getAttribute( 'tableCellHeight' ) ).toEqual( '100.5px' );
+				} );
+
+				it( 'should consume height style even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									height: '123px'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { styles: 'height' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td style="height:123px">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellHeight' ) ).toBe( false );
+
+					await editor.destroy();
+				} );
+
+				it( 'should consume height attribute even if it is default', async () => {
+					const editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+						table: {
+							tableCellProperties: {
+								defaultProperties: {
+									height: '123px'
+								}
+							}
+						}
+					} );
+					const model = editor.model;
+
+					// But it should consume it, so GHS won't store it.
+					editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+						expect( conversionApi.consumable.test( data.viewItem, { attributes: 'height' } ) ).toBe( false );
+					}, { priority: 'lowest' } ) );
+
+					editor.setData( '<table><tr><td height="123">foo</td></tr></table>' );
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					expect( tableCell.hasAttribute( 'tableCellHeight' ) ).toBe( false );
+
+					await editor.destroy();
 				} );
 			} );
 
@@ -1160,7 +2330,7 @@ describe( 'table cell properties', () => {
 				let tableCell;
 
 				beforeEach( () => {
-					setModelData(
+					_setModelData(
 						model,
 						'<table headingRows="0" headingColumns="0">' +
 							'<tableRow>' +
@@ -1177,7 +2347,7 @@ describe( 'table cell properties', () => {
 				it( 'should consume converted item tableCellHeight attribute', () => {
 					editor.conversion.for( 'downcast' )
 						.add( dispatcher => dispatcher.on( 'attribute:tableCellHeight:tableCell', ( evt, data, conversionApi ) => {
-							expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+							expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 						} ) );
 
 					model.change( writer => writer.setAttribute( 'tableCellHeight', '40px', tableCell ) );
@@ -1198,7 +2368,7 @@ describe( 'table cell properties', () => {
 					model.change( writer => writer.setAttribute( 'tableCellHeight', '20px', tableCell ) );
 
 					expect(
-						editor.getData() ).to.equalMarkup(
+						editor.getData() ).toEqualMarkup(
 						'<figure class="table"><table><tbody><tr><td style="height:20px;">foo</td></tr></tbody></table></figure>'
 					);
 				} );
@@ -1219,6 +2389,154 @@ describe( 'table cell properties', () => {
 					model.change( writer => writer.setAttribute( 'tableCellHeight', '1410em', tableCell ) );
 
 					assertTableCellStyle( editor, 'height:1410em;' );
+				} );
+			} );
+		} );
+
+		describe( 'table layout', () => {
+			beforeEach( async () => {
+				editor = await VirtualTestEditor.create( {
+					plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing, TableLayoutEditing, AlignmentEditing ]
+				} );
+
+				model = editor.model;
+			} );
+
+			afterEach( async () => {
+				await editor.destroy();
+			} );
+
+			describe( 'upcast', () => {
+				describe( 'horizontal alignment', () => {
+					it( 'should not upcast text-align:left style (due to the default value of the property)', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="text-align:left">foo</td></tr></table>' );
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
+					} );
+
+					it( 'should upcast text-align:right style', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="text-align:right">foo</td></tr></table>' );
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'right' );
+					} );
+
+					it( 'should upcast text-align:center style', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="text-align:center">foo</td></tr></table>' );
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'center' );
+					} );
+
+					it( 'should upcast text-align:justify style', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="text-align:justify">foo</td></tr></table>' );
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toEqual( 'justify' );
+					} );
+
+					describe( 'the `align` attribute', () => {
+						it( 'should apply align="left" to paragraph child', () => {
+							editor.setData(
+								'<table class="layout-table">' +
+									'<tr>' +
+										'<td align="left">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+							// `left` is default value of alignment attribute.
+							expect( paragraph.getAttribute( 'alignment' ) ).toBeUndefined();
+						} );
+
+						it( 'should apply align="right" to paragraph child', () => {
+							editor.setData(
+								'<table class="layout-table">' +
+									'<tr>' +
+										'<td align="right">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+							expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'right' );
+						} );
+
+						it( 'should apply align="center" to paragraph child', () => {
+							editor.setData(
+								'<table class="layout-table">' +
+									'<tr>' +
+										'<td align="center">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+							expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'center' );
+						} );
+
+						it( 'should apply align="justify" to paragraph child', () => {
+							editor.setData(
+								'<table class="layout-table">' +
+									'<tr>' +
+										'<td align="justify">foo</td>' +
+									'</tr>' +
+								'</table>'
+							);
+							const paragraph = model.document.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] );
+
+							expect( paragraph.getAttribute( 'alignment' ) ).toEqual( 'justify' );
+						} );
+					} );
+				} );
+
+				describe( 'vertical alignment', () => {
+					it( 'should upcast "top" vertical-align', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="vertical-align:top">foo</td></tr></table>' );
+
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'top' );
+					} );
+
+					it( 'should upcast "bottom" vertical-align', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="vertical-align:bottom">foo</td></tr></table>' );
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'bottom' );
+					} );
+
+					it( 'should not upcast "middle" vertical-align (due to the default value of the property)', () => {
+						editor.setData( '<table class="layout-table"><tr><td style="vertical-align:middle">foo</td></tr></table>' );
+						const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+						expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
+					} );
+
+					describe( 'the `valign` attribute', () => {
+						it( 'should upcast "top" valign attribute', () => {
+							editor.setData( '<table class="layout-table"><tr><td valign="top">foo</td></tr></table>' );
+							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'top' );
+						} );
+
+						it( 'should upcast "bottom" valign attribute', () => {
+							editor.setData( '<table class="layout-table"><tr><td valign="bottom">foo</td></tr></table>' );
+							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toEqual( 'bottom' );
+						} );
+
+						it( 'should not upcast "middle" valign attribute (due to the default value of the property)', () => {
+							editor.setData( '<table class="layout-table"><tr><td valign="middle">foo</td></tr></table>' );
+							const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+							expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
+						} );
+					} );
 				} );
 			} );
 		} );
@@ -1253,8 +2571,8 @@ describe( 'table cell properties', () => {
 					} );
 			} );
 
-			afterEach( () => {
-				editor.destroy();
+			afterEach( async () => {
+				await editor.destroy();
 			} );
 
 			describe( 'border', () => {
@@ -1263,9 +2581,9 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).to.be.undefined;
-					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).to.be.undefined;
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `border` values from <th>', () => {
@@ -1273,9 +2591,9 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).to.be.undefined;
-					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).to.be.undefined;
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toBeUndefined();
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `border-color` value from <td>', () => {
@@ -1283,7 +2601,7 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderColor' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `border-style` value from <th>', () => {
@@ -1291,7 +2609,7 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderStyle' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `border-width` value from <td>', () => {
@@ -1299,7 +2617,7 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `border-width` value from <th>', () => {
@@ -1307,7 +2625,7 @@ describe( 'table cell properties', () => {
 
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellBorderWidth' ) ).toBeUndefined();
 				} );
 			} );
 
@@ -1316,27 +2634,27 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="background-color:#00f">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'backgroundColor' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'backgroundColor' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `background` value from <td>', () => {
 					editor.setData( '<table><tr><td style="background:#00f">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'backgroundColor' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'backgroundColor' ) ).toBeUndefined();
 				} );
 				it( 'should not upcast the default `background-color` value from <th>', () => {
 					editor.setData( '<table><tr><th style="background-color:#00f">foo</th></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'backgroundColor' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'backgroundColor' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `background` value from <th>', () => {
 					editor.setData( '<table><tr><th style="background:#00f">foo</th></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'backgroundColor' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'backgroundColor' ) ).toBeUndefined();
 				} );
 			} );
 
@@ -1345,14 +2663,14 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="height:150px">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'height' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'height' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `height` value from <th>', () => {
 					editor.setData( '<table><tr><td style="height:150px">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'height' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'height' ) ).toBeUndefined();
 				} );
 			} );
 
@@ -1361,14 +2679,14 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="padding:10px">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'padding' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'padding' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default `padding` value from <th>', () => {
 					editor.setData( '<table><tr><td style="padding:10px">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'padding' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'padding' ) ).toBeUndefined();
 				} );
 			} );
 
@@ -1377,28 +2695,28 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="text-align:left">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default value from the style attribute (text-align:left) from <th>', () => {
 					editor.setData( '<table><tr><th style="text-align:left">foo</th></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default value from the align attribute (left) from <td>', () => {
 					editor.setData( '<table><tr><td align="left">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default value from the align attribute (left) from <th>', () => {
 					editor.setData( '<table><tr><th align="left">foo</th></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellHorizontalAlignment' ) ).toBeUndefined();
 				} );
 			} );
 
@@ -1407,28 +2725,1643 @@ describe( 'table cell properties', () => {
 					editor.setData( '<table><tr><td style="vertical-align:bottom;">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default value from the style attribute (vertical-align:bottom;) from <th>', () => {
 					editor.setData( '<table><tr><th style="vertical-align:bottom;">foo</th></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default value from the valign attribute (bottom) from <td>', () => {
 					editor.setData( '<table><tr><td valign="bottom">foo</td></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
 				} );
 
 				it( 'should not upcast the default value from the valign attribute (bottom) from <th>', () => {
 					editor.setData( '<table><tr><th valign="bottom">foo</th></tr></table>' );
 					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).to.be.undefined;
+					expect( tableCell.getAttribute( 'tableCellVerticalAlignment' ) ).toBeUndefined();
+				} );
+			} );
+		} );
+
+		describe( 'cell type', () => {
+			describe( 'schema', () => {
+				it( 'should register tableCellType attribute in the schema', () => {
+					expect( schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellType' ) ).toBe( true );
+				} );
+
+				it( 'should register tableCellType attribute as a formatting attribute', () => {
+					expect( schema.getAttributeProperties( 'tableCellType' ).isFormatting ).toBe( true );
+				} );
+
+				it( 'should disallow tableCellType attribute in layout tables', () => {
+					model.change( writer => {
+						const table = writer.createElement( 'table', { tableType: 'layout' } );
+						const tableRow = writer.createElement( 'tableRow' );
+						const tableCell = writer.createElement( 'tableCell' );
+
+						writer.insert( tableRow, table );
+						writer.insert( tableCell, tableRow );
+
+						expect( schema.checkAttribute( tableCell, 'tableCellType' ) ).toBe( false );
+					} );
+				} );
+			} );
+
+			describe( 'upcast conversion', () => {
+				it( 'should upcast `th` to `tableCellType=header` attribute', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should upcast whole table made of `th` except for first cell', () => {
+					editor.setData(
+						viewTable( [
+							[
+								'00',
+								{ contents: '01', isHeading: true }
+							],
+							[
+								{ contents: '10', isHeading: true },
+								{ contents: '11', isHeading: true }
+							]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							'00',
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						]
+					] ) );
+				} );
+
+				it( 'should transform layout tables to content tables if `th` is present in the table', async () => {
+					await editor.destroy();
+
+					editor = await VirtualTestEditor.create( {
+						plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing, TableLayoutEditing ]
+					} );
+
+					model = editor.model;
+
+					editor.setData(
+						'<table>' +
+							'<tr>' +
+								'<th>00</th><td>01</td>' +
+							'</tr>' +
+							'<tr>' +
+								'<td>10</td><td>11</td>' +
+							'</tr>' +
+						'</table>'
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					], { tableType: 'content' } ) );
+				} );
+			} );
+
+			describe( 'downcast conversion', () => {
+				it( 'should downcast `tableCellType=header` attribute to `th`', () => {
+					_setModelData( model,
+						modelTable( [
+							[ { contents: '00', tableCellType: 'header' }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true }, '01' ],
+						[ '10', '11' ]
+					], { asWidget: true } ) );
+				} );
+			} );
+
+			describe( 'editing', () => {
+				it( 'should reconvert table cell when `tableCellType` attribute changes to `header`', () => {
+					editor.setData(
+						viewTable( [
+							[ '00', '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'tableCellType', 'header', tableCell );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true }, '01' ],
+						[ '10', '11' ]
+					], { asWidget: true } ) );
+				} );
+
+				it( 'should reconvert table cell when removing `tableCellType`', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					model.change( writer => {
+						writer.removeAttribute( 'tableCellType', tableCell );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( viewTable( [
+						[ { contents: '00' }, '01' ],
+						[ '10', '11' ]
+					], { asWidget: true } ) );
+				} );
+			} );
+
+			describe( 'integration with insert row command', () => {
+				describe( 'inserting rows to tables with heading columns', () => {
+					it( 'should properly set `tableCellType=header` to first cell of heading columns ' +
+							'when appending new row below (single header column)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								'01'
+							]
+						], { headingColumns: 1 } ) );
+
+						editor.execute( 'insertTableRowBelow' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								'01'
+							],
+							[
+								{ contents: '', tableCellType: 'header-row' },
+								''
+							]
+						], { headingColumns: 1 } ) );
+					} );
+
+					it( 'should properly set `tableCellType=header` to cells of heading columns ' +
+							'when appending new row below (multiple header columns)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								{ contents: '01', tableCellType: 'header' },
+								'02'
+							]
+						], { headingColumns: 2 } ) );
+
+						editor.execute( 'insertTableRowBelow' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '01', tableCellType: 'header' },
+								'02'
+							],
+							[
+								{ contents: '', tableCellType: 'header-row' },
+								{ contents: '', tableCellType: 'header-row' },
+								''
+							]
+						], { headingColumns: 2 } ) );
+					} );
+
+					it( 'should properly set `tableCellType=header` to first cell of heading columns ' +
+							'when inserting new row above (single header column)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								'01'
+							]
+						], { headingColumns: 1 } ) );
+
+						editor.execute( 'insertTableRowAbove' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '', tableCellType: 'header-row' },
+								''
+							],
+							[
+								{ contents: '00', tableCellType: 'header' },
+								'01'
+							]
+						], { headingColumns: 1 } ) );
+					} );
+
+					it( 'should properly set `tableCellType=header` to cells of heading columns ' +
+							'when inserting new row above (multiple header columns)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								{ contents: '01', tableCellType: 'header' },
+								'02'
+							]
+						], { headingColumns: 2 } ) );
+
+						editor.execute( 'insertTableRowAbove' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '', tableCellType: 'header-row' },
+								{ contents: '', tableCellType: 'header-row' },
+								''
+							],
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '01', tableCellType: 'header' },
+								'02'
+							]
+						], { headingColumns: 2 } ) );
+					} );
+				} );
+
+				describe( 'inserting rows to tables with heading rows', () => {
+					it( 'should not set `tableCellType=header` when inserting row below the first row (header)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[ '10', '11' ]
+						], { headingRows: 1 } ) );
+
+						editor.execute( 'insertTableRowBelow' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[ { contents: '00', tableCellType: 'header' }, { contents: '01', tableCellType: 'header' } ],
+							[ '', '' ],
+							[ '10', '11' ]
+						], { headingRows: 1 } ) );
+					} );
+
+					it( 'should properly set `tableCellType=header` when inserting row above the first row (header)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								{ contents: '01', tableCellType: 'header', isSelected: true }
+							],
+							[ '10', '11' ]
+						], { headingRows: 1 } ) );
+
+						editor.execute( 'insertTableRowAbove' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[ { contents: '', tableCellType: 'header-column' }, { contents: '', tableCellType: 'header-column' } ],
+							[ { contents: '00', tableCellType: 'header' }, { contents: '01', tableCellType: 'header' } ],
+							[ '10', '11' ]
+						], { headingRows: 2 } ) );
+					} );
+
+					it( 'should not set `tableCellType=header` when inserting row below the last row (body)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[
+								{ contents: '10', isSelected: true },
+								'11'
+							]
+						], { headingRows: 1 } ) );
+
+						editor.execute( 'insertTableRowBelow' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[ '10', '11' ],
+							[ '', '' ]
+						], { headingRows: 1 } ) );
+					} );
+
+					it( 'should not set `tableCellType=header` when inserting row above the last row (body)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[
+								{ contents: '10', isSelected: true },
+								'11'
+							]
+						], { headingRows: 1 } ) );
+
+						editor.execute( 'insertTableRowAbove' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[ '', '' ],
+							[ '10', '11' ]
+						], { headingRows: 1 } ) );
+					} );
+				} );
+			} );
+
+			describe( 'integration with insert column command', () => {
+				describe( 'inserting columns to tables with heading rows', () => {
+					it( 'should properly set `tableCellType=header` to second cell of heading row ' +
+							'when appending new column to the right (single header row)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[ '10', '11' ]
+						], { headingRows: 1 } ) );
+
+						editor.execute( 'insertTableColumnRight' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '', tableCellType: 'header-column' },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[
+								'10',
+								'',
+								'11'
+							]
+						], { headingRows: 1 } ) );
+					} );
+
+					it( 'should properly set `tableCellType=header` to cells of heading rows ' +
+							'when appending new column to the right (multiple header rows)', () => {
+						_setModelData( model, modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header', isSelected: true },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[
+								{ contents: '10', tableCellType: 'header' },
+								{ contents: '11', tableCellType: 'header' }
+							],
+							[ '20', '21' ]
+						], { headingRows: 2 } ) );
+
+						editor.execute( 'insertTableColumnRight' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								{ contents: '', tableCellType: 'header-column' },
+								{ contents: '01', tableCellType: 'header' }
+							],
+							[
+								{ contents: '10', tableCellType: 'header' },
+								{ contents: '', tableCellType: 'header-column' },
+								{ contents: '11', tableCellType: 'header' }
+							],
+							[
+								'20',
+								'',
+								'21'
+							]
+						], { headingRows: 2 } ) );
+					} );
+				} );
+
+				describe( 'inserting columns to tables with heading columns', () => {
+					it( 'should not set `tableCellType=header` when inserting column right of the first column (header)', () => {
+						_setModelData( model, modelTable( [
+							[ { contents: '00', tableCellType: 'header', isSelected: true }, '01' ],
+							[ { contents: '10', tableCellType: 'header' }, '11' ]
+						], { headingColumns: 1 } ) );
+
+						editor.execute( 'insertTableColumnRight' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								'',
+								'01'
+							],
+							[
+								{ contents: '10', tableCellType: 'header' },
+								'',
+								'11'
+							]
+						], { headingColumns: 1 } ) );
+					} );
+
+					it( 'should properly set `tableCellType=header` when inserting column left of the first column (header)', () => {
+						_setModelData( model, modelTable( [
+							[ { contents: '00', tableCellType: 'header', isSelected: true }, '01' ],
+							[ { contents: '10', tableCellType: 'header' }, '11' ]
+						], { headingColumns: 1 } ) );
+
+						editor.execute( 'insertTableColumnLeft' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '', tableCellType: 'header-row' },
+								{ contents: '00', tableCellType: 'header' },
+								'01'
+							],
+							[
+								{ contents: '', tableCellType: 'header-row' },
+								{ contents: '10', tableCellType: 'header' },
+								'11'
+							]
+						], { headingColumns: 2 } ) );
+					} );
+
+					it( 'should not set `tableCellType=header` when inserting column right of the last column (body)', () => {
+						_setModelData( model, modelTable( [
+							[ { contents: '00', tableCellType: 'header' }, { contents: '01', isSelected: true } ],
+							[ { contents: '10', tableCellType: 'header' }, '11' ]
+						], { headingColumns: 1 } ) );
+
+						editor.execute( 'insertTableColumnRight' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								'01',
+								''
+							],
+							[
+								{ contents: '10', tableCellType: 'header' },
+								'11',
+								''
+							]
+						], { headingColumns: 1 } ) );
+					} );
+
+					it( 'should not set `tableCellType=header` when inserting column left of the last column (body)', () => {
+						_setModelData( model, modelTable( [
+							[ { contents: '00', tableCellType: 'header' }, { contents: '01', isSelected: true } ],
+							[ { contents: '10', tableCellType: 'header' }, '11' ]
+						], { headingColumns: 1 } ) );
+
+						editor.execute( 'insertTableColumnLeft' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+							[
+								{ contents: '00', tableCellType: 'header' },
+								'',
+								'01'
+							],
+							[
+								{ contents: '10', tableCellType: 'header' },
+								'',
+								'11'
+							]
+						], { headingColumns: 1 } ) );
+					} );
+				} );
+			} );
+
+			describe( 'auto increment of heading attributes', () => {
+				it( 'should increment headingRows when the next row is all headers', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', isSelected: true }, '01' ],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableRowHeader' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header-column' },
+							{ contents: '01', tableCellType: 'header-column' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 2 } ) );
+				} );
+
+				it( 'should increment headingColumns when the next column is all headers', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', isSelected: true },
+							{ contents: '01', tableCellType: 'header' },
+							'02'
+						],
+						[
+							'10',
+							{ contents: '11', tableCellType: 'header' },
+							'12'
+						]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableColumnHeader' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header-row' },
+							{ contents: '01', tableCellType: 'header' },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header-row' },
+							{ contents: '11', tableCellType: 'header' },
+							'12'
+						]
+					], { headingColumns: 2 } ) );
+				} );
+
+				it( 'should stop incrementing headingRows when a row contains non-header cell', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', isSelected: true }, '01' ],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[
+							{ contents: '20', tableCellType: 'header' },
+							'21'
+						],
+						[
+							{ contents: '30', tableCellType: 'header' },
+							{ contents: '31', tableCellType: 'header' }
+						]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableRowHeader' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 2 );
+				} );
+
+				it( 'should stop incrementing headingColumns when a column contains non-header cell', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', isSelected: true },
+							{ contents: '01', tableCellType: 'header' },
+							{ contents: '02', tableCellType: 'header' },
+							{ contents: '03', tableCellType: 'header' }
+						],
+						[
+							'10',
+							{ contents: '11', tableCellType: 'header' },
+							'12',
+							{ contents: '13', tableCellType: 'header' }
+						]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableColumnHeader' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 2 );
+				} );
+
+				it( 'should not increment if the next row is not all headers', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', isSelected: true }, '01' ],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'11'
+						]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableRowHeader' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+				} );
+
+				it( 'should not set heading attributes when other table attributes change', () => {
+					schema.extend( 'table', { allowAttributes: 'foo' } );
+
+					_setModelData( model, modelTable( [
+						[ '00', '01' ],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'foo', 'bar', table );
+					} );
+
+					expect( table.getAttribute( 'headingRows' ) ).toBeUndefined();
+				} );
+
+				it( 'should properly decrement headingRows when all cells are placed within headingColumns range', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header', isSelected: true },
+							{ contents: '11', tableCellType: 'header' }
+						]
+					], { headingRows: 2, headingColumns: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableRowHeader' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+				} );
+
+				it( 'should properly decrement headingColumns when all cells are placed within headingRows range', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header', isSelected: true }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						]
+					], { headingRows: 2, headingColumns: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'setTableColumnHeader' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 1 );
+				} );
+			} );
+
+			describe( 'syncing tableCellType with heading attributes', () => {
+				it( 'should set `tableCellType=header` when increasing `headingRows`', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', isSelected: true }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					editor.execute( 'setTableRowHeader' );
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header-column' },
+							{ contents: '01', tableCellType: 'header-column' }
+						],
+						[ '10', '11' ]
+					], { headingRows: 1 } ) );
+				} );
+
+				it( 'should remove `tableCellType` when decreasing `headingRows`', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header', isSelected: true },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[ '10', '11' ]
+					], { headingRows: 1 } ) );
+
+					editor.execute( 'setTableRowHeader' );
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ '00', '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should set `tableCellType=header` when increasing `headingColumns`', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', isSelected: true }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					editor.execute( 'setTableColumnHeader' );
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header-row' },
+							'01'
+						],
+						[
+							{ contents: '10', tableCellType: 'header-row' },
+							'11'
+						]
+					], { headingColumns: 1 } ) );
+				} );
+
+				it( 'should remove `tableCellType` when removing `headingColumns`', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header', isSelected: true },
+							'01'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'11'
+						]
+					], { headingColumns: 1 } ) );
+
+					editor.execute( 'setTableColumnHeader' );
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ '00', '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+			} );
+
+			describe( 'integration with remove row command', () => {
+				it( 'should remove first row without headingRows and heading cells as expected', () => {
+					_setModelData( model, modelTable( [
+						[ '[00]', '[01]' ],
+						[ '10', '11' ]
+					] ) );
+
+					editor.execute( 'removeTableRow' );
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should merge heading sections when removing a data row between them', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', isSelected: true },
+							'11'
+						],
+						[
+							{ contents: '20', tableCellType: 'header' },
+							{ contents: '21', tableCellType: 'header' }
+						],
+						[ '30', '31' ]
+					], { headingRows: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableRow' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '20', tableCellType: 'header' },
+							{ contents: '21', tableCellType: 'header' }
+						],
+						[ '30', '31' ]
+					], { headingRows: 2 } ) );
+				} );
+
+				it( 'should merge heading sections when removing multiple data rows between them', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', isSelected: true },
+							{ contents: '11', isSelected: true } ],
+						[
+							{ contents: '20', isSelected: true },
+							{ contents: '21', isSelected: true } ],
+						[
+							{ contents: '30', tableCellType: 'header' },
+							{ contents: '31', tableCellType: 'header' }
+						],
+						[ '40', '41' ]
+					], { headingRows: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableRow' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '30', tableCellType: 'header' },
+							{ contents: '31', tableCellType: 'header' }
+						],
+						[ '40', '41' ]
+					], { headingRows: 2 } ) );
+				} );
+
+				it( 'should decrement headingRows when removing a heading row', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header', isSelected: true },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableRow' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 1 } ) );
+				} );
+
+				it( 'should change preceding rows to data when removing heading row that splits heading section', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header', isSelected: true },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ],
+						[
+							{ contents: '30', tableCellType: 'header' },
+							{ contents: '31', tableCellType: 'header' }
+						]
+					], { headingRows: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableRow' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[ '20', '21' ],
+						[
+							{ contents: '30', tableCellType: 'header' },
+							{ contents: '31', tableCellType: 'header' }
+						]
+					], { headingRows: 1 } ) );
+				} );
+
+				it( 'should not change headingRows when removing data row', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', isSelected: true },
+							'11'
+						],
+						[ '20', '21' ]
+					], { headingRows: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableRow' );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 1 } ) );
+				} );
+			} );
+
+			describe( 'integration with remove column command', () => {
+				it( 'remove column without heading columns and header cells should work as expected', () => {
+					_setModelData( model, modelTable( [
+						[ '[00]', '01', '02' ],
+						[ '[10]', '11', '12' ]
+					] ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableColumn' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toBeUndefined();
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ '01', '02' ],
+						[ '11', '12' ]
+					] ) );
+				} );
+
+				it( 'should merge heading sections when removing a data column between them', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', isSelected: true },
+							{ contents: '02', tableCellType: 'header' },
+							'03'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'11',
+							{ contents: '12', tableCellType: 'header' },
+							'13'
+						]
+					], { headingColumns: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableColumn' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '02', tableCellType: 'header' },
+							'03'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '12', tableCellType: 'header' },
+							'13'
+						]
+					], { headingColumns: 2 } ) );
+				} );
+
+				it( 'should merge heading sections when removing multiple data columns between them', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', isSelected: true },
+							'02',
+							{ contents: '03', tableCellType: 'header' },
+							'04'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'11',
+							{ contents: '12', isSelected: true },
+							{ contents: '13', tableCellType: 'header' },
+							'14'
+						]
+					], { headingColumns: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableColumn' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '03', tableCellType: 'header' },
+							'04'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '13', tableCellType: 'header' },
+							'14'
+						]
+					], { headingColumns: 2 } ) );
+				} );
+
+				it( 'should decrement headingColumns when removing a heading column', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header', isSelected: true },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' },
+							'12'
+						]
+					], { headingColumns: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableColumn' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'12'
+						]
+					], { headingColumns: 1 } ) );
+				} );
+
+				it( 'should change preceding columns to data when removing heading column that splits heading section', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header', isSelected: true },
+							'02',
+							{ contents: '03', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' },
+							'12',
+							{ contents: '13', tableCellType: 'header' }
+						]
+					], { headingColumns: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableColumn' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							'02',
+							{ contents: '03', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'12',
+							{ contents: '13', tableCellType: 'header' }
+						]
+					], { headingColumns: 1 } ) );
+				} );
+
+				it( 'should not change headingColumns when removing data column', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', isSelected: true },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'11',
+							'12'
+						]
+					], { headingColumns: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					editor.execute( 'removeTableColumn' );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							'12'
+						]
+					], { headingColumns: 1 } ) );
+				} );
+			} );
+
+			describe( 'postfixer', () => {
+				it( 'should decrement headingRows when changing tableCellType within the last row', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header', isSelected: true },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.removeAttribute( 'tableCellType', table.getChild( 1 ).getChild( 0 ) );
+					} );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							'10',
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 1 } ) );
+				} );
+
+				it( 'should transform `headingColumns` to `headingRows` if changed all heading columns cells ' +
+						'but whole heading row was kept', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header', isSelected: true }
+						]
+					], { headingColumns: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.removeAttribute( 'tableCellType', table.getChild( 1 ).getChild( 0 ) );
+					} );
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10' },
+							{ contents: '11', tableCellType: 'header' }
+						]
+					], { headingRows: 1 } ) );
+				} );
+
+				it( 'should decrement headingColumns when changing tableCellType within the last column', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header', isSelected: true }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						]
+					], { headingColumns: 2 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.removeAttribute( 'tableCellType', table.getChild( 0 ).getChild( 1 ) );
+					} );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							'01'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						]
+					], { headingColumns: 1 } ) );
+				} );
+
+				it( 'should increment headingRows when changing a cell to header makes the whole row headers', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', isSelected: true }
+						],
+						[ '20', '21' ]
+					], { headingRows: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'tableCellType', 'header', table.getChild( 1 ).getChild( 1 ) );
+					} );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[ '20', '21' ]
+					], { headingRows: 2 } ) );
+				} );
+
+				it( 'should increment headingColumns when changing a cell to header makes the whole column headers', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', isSelected: true },
+							'12'
+						]
+					], { headingColumns: 1 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'tableCellType', 'header', table.getChild( 1 ).getChild( 1 ) );
+					} );
+
+					expect( table.getAttribute( 'headingColumns' ) ).toEqual( 2 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' },
+							'02'
+						],
+						[
+							{ contents: '10', tableCellType: 'header' },
+							{ contents: '11', tableCellType: 'header' },
+							'12'
+						]
+					], { headingColumns: 2 } ) );
+				} );
+
+				it( 'should split headingRows when a cell in the middle of heading section becomes data', () => {
+					_setModelData( model, modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							{ contents: '10', tableCellType: 'header', isSelected: true },
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[
+							{ contents: '20', tableCellType: 'header' },
+							{ contents: '21', tableCellType: 'header' }
+						]
+					], { headingRows: 3 } ) );
+
+					const table = model.document.getRoot().getNodeByPath( [ 0 ] );
+
+					model.change( writer => {
+						writer.removeAttribute( 'tableCellType', table.getChild( 1 ).getChild( 0 ) );
+					} );
+
+					expect( table.getAttribute( 'headingRows' ) ).toEqual( 1 );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[
+							{ contents: '00', tableCellType: 'header' },
+							{ contents: '01', tableCellType: 'header' }
+						],
+						[
+							'10',
+							{ contents: '11', tableCellType: 'header' }
+						],
+						[
+							{ contents: '20', tableCellType: 'header' },
+							{ contents: '21', tableCellType: 'header' }
+						]
+					], { headingRows: 1 } ) );
+				} );
+
+				it( 'should ignore a `tableCellType` attribute change on an element that is not a table cell', () => {
+					// Allow the attribute on a paragraph so the change is recorded by the differ.
+					model.schema.extend( 'paragraph', { allowAttributes: [ 'tableCellType' ] } );
+
+					_setModelData( model, '<paragraph>foo</paragraph>' );
+
+					const paragraph = model.document.getRoot().getChild( 0 );
+
+					expect( () => {
+						model.change( writer => {
+							writer.setAttribute( 'tableCellType', 'header', paragraph );
+						} );
+					} ).to.not.throw();
+
+					expect( paragraph.getAttribute( 'tableCellType' ) ).toEqual( 'header' );
+				} );
+
+				it( 'should ignore a `headingRows` attribute change on an element that is not a table', () => {
+					// Allow the attribute on a paragraph so the change is recorded by the differ.
+					model.schema.extend( 'paragraph', { allowAttributes: [ 'headingRows' ] } );
+
+					_setModelData( model, '<paragraph>foo</paragraph>' );
+
+					const paragraph = model.document.getRoot().getChild( 0 );
+
+					expect( () => {
+						model.change( writer => {
+							writer.setAttribute( 'headingRows', 1, paragraph );
+						} );
+					} ).to.not.throw();
+
+					expect( paragraph.getAttribute( 'headingRows' ) ).toEqual( 1 );
+				} );
+			} );
+		} );
+
+		describe( 'disabled scoped headers', () => {
+			beforeEach( async () => {
+				editor = await VirtualTestEditor.create( {
+					plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+					table: {
+						tableCellProperties: {
+							scopedHeaders: false
+						}
+					}
+				} );
+
+				model = editor.model;
+				schema = model.schema;
+			} );
+
+			afterEach( async () => {
+				await editor.destroy();
+			} );
+
+			describe( 'upcast conversion', () => {
+				it( 'should not upcast `th scope="col"` to `tableCellType="header-column"` attribute', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true, scope: 'col' }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should not upcast `th scope="row"` to `tableCellType="header-row"` attribute', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true, scope: 'row' }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+			} );
+
+			describe( 'downcast conversion', () => {
+				it( 'should not downcast `tableCellType="header-column"` to `th scope="col"`', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', tableCellType: 'header-column' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					expect( editor.getData() ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should not downcast `tableCellType="header-row"` to `th scope="row"`', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', tableCellType: 'header-row' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					expect( editor.getData() ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+			} );
+		} );
+
+		describe( 'scoped headers', () => {
+			describe( 'upcast conversion', () => {
+				it( 'should upcast `th scope="col"` to `tableCellType="header-column"` attribute', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true, scope: 'col' }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header-column' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should upcast `th scope="row"` to `tableCellType="header-row"` attribute', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true, scope: 'row' }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header-row' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should upcast `th` without scope to `tableCellType="header"` attribute', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should not upcast `th` with invalid scope', () => {
+					editor.setData(
+						viewTable( [
+							[ { contents: '00', isHeading: true, scope: 'invalidScope' }, '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should not crash when a scoped `th` cannot be placed in the model (e.g. inline root)', () => {
+					// Disallow the table in the root, simulating an `$inlineRoot` context where block
+					// elements are not allowed. The `th` then produces no model range during upcast.
+					model.schema.addChildCheck( ( context, childDefinition ) => {
+						if ( childDefinition.name === 'table' && context.endsWith( '$root' ) ) {
+							return false;
+						}
+					} );
+
+					expect( () => {
+						editor.setData(
+							viewTable( [
+								[ { contents: '00', isHeading: true, scope: 'row' }, '01' ],
+								[ '10', '11' ]
+							] )
+						);
+					} ).to.not.throw();
+
+					expect( _getModelData( model, { withoutSelection: true } ) )
+						.toEqual( '<paragraph>00</paragraph><paragraph>01</paragraph><paragraph>10</paragraph><paragraph>11</paragraph>' );
+				} );
+			} );
+
+			describe( 'downcast conversion', () => {
+				it( 'should downcast `tableCellType="header-column"` to `th scope="col"`', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', tableCellType: 'header-column' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					expect( editor.getData() ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true, scope: 'col' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should downcast `tableCellType="header-row"` to `th scope="row"`', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', tableCellType: 'header-row' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					expect( editor.getData() ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true, scope: 'row' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+
+				it( 'should downcast `tableCellType="header"` to `th` without scope', () => {
+					_setModelData( model, modelTable( [
+						[ { contents: '00', tableCellType: 'header' }, '01' ],
+						[ '10', '11' ]
+					] ) );
+
+					expect( editor.getData() ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true }, '01' ],
+						[ '10', '11' ]
+					] ) );
+				} );
+			} );
+
+			describe( 'editing', () => {
+				it( 'should reconvert table cell when `tableCellType` attribute changes to `header-column`', () => {
+					editor.setData(
+						viewTable( [
+							[ '00', '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'tableCellType', 'header-column', tableCell );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true, scope: 'col' }, '01' ],
+						[ '10', '11' ]
+					], { asWidget: true } ) );
+				} );
+
+				it( 'should reconvert table cell when `tableCellType` attribute changes to `header-row`', () => {
+					editor.setData(
+						viewTable( [
+							[ '00', '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'tableCellType', 'header-row', tableCell );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true, scope: 'row' }, '01' ],
+						[ '10', '11' ]
+					], { asWidget: true } ) );
+				} );
+
+				it( 'should reconvert table cell when `tableCellType` attribute changes to `header`', () => {
+					editor.setData(
+						viewTable( [
+							[ '00', '01' ],
+							[ '10', '11' ]
+						] )
+					);
+
+					const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+					model.change( writer => {
+						writer.setAttribute( 'tableCellType', 'header', tableCell );
+					} );
+
+					expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( viewTable( [
+						[ { contents: '00', isHeading: true }, '01' ],
+						[ '10', '11' ]
+					], { asWidget: true } ) );
 				} );
 			} );
 		} );

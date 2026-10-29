@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/subscript/subscriptediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import AttributeCommand from '../attributecommand';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { AttributeCommand } from '../attributecommand.js';
 
 const SUBSCRIPT = 'subscript';
 
@@ -18,12 +18,19 @@ const SUBSCRIPT = 'subscript';
  * It registers the `sub` command and introduces the `sub` attribute in the model which renders to the view
  * as a `<sub>` element.
  */
-export default class SubscriptEditing extends Plugin {
+export class SubscriptEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'SubscriptEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

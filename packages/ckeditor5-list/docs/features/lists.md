@@ -1,140 +1,75 @@
 ---
 menu-title: Ordered and unordered lists
-meta-title: Ordered and unordered lists | CKEditor 5 Documentation
+meta-title: Lists | CKEditor 5 Documentation
+meta-description: Create and manage ordered and unordered lists in CKEditor 5 to organize content clearly and improve readability.
 category: features-lists
+toc-limit: 2
 order: 10
-modified_at: 2022-05-12
 ---
 
 # Ordered and unordered lists
 
-The list feature lets you create ordered (numbered) and unordered (bulleted) lists. You can use ordered lists where the order of the items matters (as in instructions) and unordered lists where it is not that important (as in a list of ingredients).
+The list feature lets you create ordered (numbered) and unordered (bulleted) lists. The unique thing about them is that you can put any content inside each list item (including block elements like paragraphs and tables), retaining the continuity of numbering and indentation.
 
 <info-box warning>
-	The regular lists feature will be replaced with the new {@link features/document-lists document lists} in the upcoming releases and will be sunset at the beginning of 2024. Consider migrating if you need that functionality. If you wish to switch to the document lists feature, you need to {@link features/document-lists#installation install it} first.
-	See [#14767](https://github.com/ckeditor/ckeditor5/issues/14767) for more details.
+	Since version 41.0.0, the list support plugin has changed for CKEditor&nbsp;5. You can read more about this change in the `#breaking-changes-to-the-list-plugin` section of `Update to 41.x` in {@link updating/updating-from-older-versions updating from older versions}  guide.
 </info-box>
-
-{@snippet features/lists-source}
 
 ## Demo
 
-Use the editor below to see the list feature in action. You can use toolbar buttons to insert both ordered {@icon @ckeditor/ckeditor5-list/theme/icons/numberedlist.svg Insert ordered list} and unordered lists {@icon @ckeditor/ckeditor5-list/theme/icons/bulletedlist.svg Insert unordered list}.
+Use the editor below to see the list feature in action. You can use toolbar buttons to insert both ordered {@icon @ckeditor/ckeditor5-icons/theme/icons/numbered-list.svg Insert ordered list} and unordered lists {@icon @ckeditor/ckeditor5-icons/theme/icons/bulleted-list.svg Insert unordered list}.
 
 You can also use Markdown code recognized by the {@link features/autoformat autoformatting feature}:
 
 * Start a line with `*` or `-` followed by a space for a bulleted list.
-* Start a line with `1.` or `1)` followed by a space for a numbered list.
+* Start a line with any number followed by `.` or `)` and a space for a numbered list.
 
-{@snippet features/lists-basic}
+{@snippet features/lists-document}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
-
-After reading this guide, check out the [Lists in CKEditor&nbsp;5](https://ckeditor.com/blog/Feature-of-the-month-Lists-in-CKEditor-5/) blog post where you will find more information about lists with examples.
-
-## List properties
-
-In addition to the basic functionality of creating the ordered and unordered lists, CKEditor&nbsp;5 offers formatting tools that let you control the lists. Features such as more styles for list markers, setting the start index, or reversing the list order can be enabled separately or all at once. Check out the individual demos below or see all list properties working together in the {@link examples/builds/full-featured-editor full-featured editor example}.
-
-<info-box info>
-	The {@link module:list/listproperties~ListProperties list properties feature} is enabled by default in the {@link installation/getting-started/predefined-builds#document-editor document editor build} only.
-
-	The {@link module:list/documentlistproperties~DocumentListProperties document list properties feature} is not available in any builds by default.
-
-	See the [installation](#list-properties-2) section to learn how to enable these in your editor.
-</info-box>
-
-### List styles
-
-The list style feature introduces some more styles for the list item markers. When {@link module:list/listconfig~ListPropertiesConfig#styles enabled}, it adds 3 styles for unordered lists and 6 styles for ordered lists to choose from. The user will be able to set or change the list style via the dropdown that opens when you click the arrow next to the appropriate list button in the toolbar.
-
-#### Demo
-
-In the editor below, use the ordered {@icon @ckeditor/ckeditor5-list/theme/icons/numberedlist.svg Insert ordered list} or unordered list dropdown {@icon @ckeditor/ckeditor5-list/theme/icons/bulletedlist.svg Insert unordered list} to choose the desired marker type for each list.
-
-{@snippet features/lists-style}
-
-### List start index
-
-The list start index feature allows the user to choose the starting point of an ordered list. By default, this would be `1` (or `A`, or `I` &mdash; see the [list styles section](#list-styles)), but in certain situations it may be desired to start a list with some other digit or letter.
-
-When this feature is {@link module:list/listconfig~ListPropertiesConfig#startIndex enabled}, an additional dropdown option is available in the ordered list toolbar button. Thanks to it, the user may set or change the starting marker.
-
-#### Demo
-
-In the editor below, notice how the ordering continues in the second list. For continuous numbering of spaceships, go to the first item of the last list. Then use the ordered list {@icon @ckeditor/ckeditor5-list/theme/icons/numberedlist.svg Insert ordered list} dropdown input field to set the start index.
-
-{@snippet features/lists-index}
-
-### Reversed list
-
-The reversed list feature lets the user reverse the numbering order of a list, changing it from ascending to descending. This is especially useful in countdowns and things-to-do lists that need to reproduce steps in a reversed order (for example, in disassembly instructions).
-
-When this feature is {@link module:list/listconfig~ListPropertiesConfig#reversed enabled}, an additional dropdown switch is available in the ordered list toolbar button. Thanks to it,  the user may easily reverse the order of a list with a single click.
-
-#### Demo
-
-Click the second list and use the ordered list {@icon @ckeditor/ckeditor5-list/theme/icons/numberedlist.svg Insert ordered list} dropdown switch to choose whether the numbering order should be reversed.
-
-{@snippet features/lists-reversed}
-
-<info-box info>
-	You can see all the list properties together in action in the {@link examples/builds/full-featured-editor Full-featured editor} and {@link examples/builds/document-editor Document editor} examples.
-</info-box>
-
-## List indentation
-
-Refer to the {@link features/indent#indenting-lists Indenting lists} section of the Block indentation feature guide.
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Installation
 
-There are currently two plugins providing lists support for CKEditor&nbsp;5: this regular **lists feature** and the new {@link features/document-lists document lists feature}, based on a different approach.
-
-<info-box>
-	The lists feature is enabled by default in all {@link installation/getting-started/predefined-builds predefined builds}.
-</info-box>
+The `List` plugin provides the {@link features/lists ordered (numbered) and unordered (bulleted) features} for CKEditor&nbsp;5. {@link features/lists-properties Additional list properties}, such as list marker styles, start index, or reversed list order, are provided by the `ListProperties` plugin.
 
 ### List feature
 
-To add this feature to your editor, install the [`@ckeditor/ckeditor5-list`](https://www.npmjs.com/package/@ckeditor/ckeditor5-list) package:
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-```bash
-npm install --save @ckeditor/ckeditor5-list
-```
-
-Then add the `List` plugin to your plugin list and the toolbar configuration:
-
+<code-switcher>
 ```js
-import { List } from '@ckeditor/ckeditor5-list';
+import { ClassicEditor, List } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ List, /* ... */ ],
-		toolbar: [ 'bulletedList', 'numberedList', /* ... */ ]
+		toolbar: [ 'bulletedList', 'numberedList', /* ... */ ],
+		list: {
+			// Configuration.
+		}
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
+</code-switcher>
 
-#### List properties
+### List properties
 
-To enable the list properties feature, install the [`@ckeditor/ckeditor5-list`](https://www.npmjs.com/package/@ckeditor/ckeditor5-list) package:
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add `ListProperties` to your plugin list and toolbar configuration:
 
-```
-npm install --save @ckeditor/ckeditor5-list
-```
+To enable selected sub-features of the {@link features/lists-properties list properties}, add their configuration to your editor. Set `true` for each feature you want to enable:
 
-Then add the `ListProperties` plugin to your plugin list and configure the toolbar. To enable selected sub-features of the list properties, you need to add their configuration to your editor (set `true` for each feature you want to enable):
-
+<code-switcher>
 ```js
-import { ListProperties } from '@ckeditor/ckeditor5-list';
+import { ClassicEditor, List, ListProperties } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ ListProperties, ... ],
-		toolbar: [ 'bulletedList', 'numberedList', ... ],
+	.create( {
+		plugins: [ List, ListProperties, /* ... */ ],
+		toolbar: [ 'bulletedList', 'numberedList', /* ... */ ],
 		list: {
 			properties: {
 				styles: true,
@@ -143,23 +78,75 @@ ClassicEditor
 			}
 		}
 	} )
-	.then( ... )
-	.catch( ... );
+	.then( /* ... */ )
+	.catch( /* ... */ );
 ```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+</code-switcher>
 
 <info-box warning>
 	The {@link module:list/listproperties~ListProperties} feature overrides UI button implementations from the {@link module:list/list/listui~ListUI}.
 </info-box>
 
+#### Enabling specific enumerators
+
+To enable only selected list item enumerators for the ordered list, you need to explicitly list them in the editor configuration. This can also be used to enable additional, `arabic-indic` numeral enumerators. To achieve this, replace the `styles: true` configuration option with a `styles { }` listing, for example:
+
+```js
+list: {
+	properties: {
+		styles: {
+			listStyleTypes: {
+				numbered: [
+					'decimal',
+					'decimal-leading-zero',
+					'arabic-indic'
+				],
+				bulleted: [
+					'disc',
+					'circle',
+					'square'
+				]
+			}
+		}
+	}
+}
+```
+
+### Editor output configuration
+
+Starting with version 45.1.1, list items (`<li>` elements) in the editor data output contain an additional attribute `data-list-item-id`. The attribute is necessary to ensure that the lists feature work correctly with other editor features and mechanisms.
+
+```html
+<ul>
+	<li data-list-item-id="e72808ee4144975064acb5d66e5cfba13">Hello</li>
+	<li data-list-item-id="e5d719ab356409767e9d4358485476358">There!</li>
+</ul>
+```
+
+If data loaded in the editor does not contain the `data-list-item-id` attributes on list items, they will be automatically added when data is saved.
+
+If you wish to save the editor contents without this attribute, you can set the `skipListItemIds` flag to `true` when calling `editor.getData()` method. **However, please note, that data without IDs should be used only for presentation purposes (such as displaying the document as HTML), and should not be used to initialize the editor.**
+
+```js
+editor.getData( { skipListItemIds: true } );
+```
+
+Such output will not contain `data-list-item-id` attribute:
+
+```html
+<ul>
+	<li>Hello</li>
+	<li>There!</li>
+</ul>
+```
+
 ## Related features
 
-These features provide similar functionality:
+These CKEditor&nbsp;5 features provide similar functionality:
+
 * {@link features/todo-lists To-do lists} &ndash; Create a list of interactive checkboxes with labels.
-* {@link features/indent Block indentation} &ndash; Set indentation for text blocks such as paragraphs or headings and lists.
+* {@link features/multi-level-lists Multi-level lists} &ndash; Multi-level lists allow the user to set different markers (symbols, text or numbers) to display at each level of the list.
+* {@link features/indent Block indentation} &ndash; Set indentation for text blocks such as paragraphs or headings. Also supports {@link features/indent#indenting-lists visual block indentation of lists and list items}.
 * {@link features/autoformat Autoformatting} &ndash; Format the text on the go with Markdown code.
 
 ## Common API
@@ -168,35 +155,35 @@ The {@link module:list/list~List} plugin registers:
 
 * The {@link module:list/list/listcommand~ListCommand `'numberedList'`} command.
 * The {@link module:list/list/listcommand~ListCommand `'bulletedList'`} command.
-* The {@link module:list/list/indentcommand~IndentCommand `'indentList'`} command.
-* The {@link module:list/list/indentcommand~IndentCommand `'outdentList'`} command.
+* The {@link module:list/list/listindentcommand~ListIndentCommand `'indentList'`} command.
+* The {@link module:list/list/listindentcommand~ListIndentCommand `'outdentList'`} command.
 * The `'numberedList'` UI button.
 * The `'bulletedList'` UI button.
 
 The {@link module:list/listproperties~ListProperties} plugin registers:
 
-* The {@link module:list/listproperties/liststylecommand~ListStyleCommand `listStyle`} command that accepts the `type` of the list style to set. If not set, is uses the default marker (usually decimal).
-    ```js
-    editor.execute( 'listStyle', { type: 'lower-roman' } );
-    ```
-    The available types are:
+* The {@link module:list/listproperties/liststylecommand~ListStyleCommand `listStyle`} command. It accepts the `type` of the list style to set. If not set, it uses the default marker (usually decimal).
+	```js
+	editor.execute( 'listStyle', { type: 'lower-roman' } );
+	```
+	The available types are:
 
-    * For bulleted lists: `'disc'`, `'circle'`, and `'square'`.
-    * For numbered lists: `'decimal'`, `'decimal-leading-zero'`, `'lower-roman'`, `'upper-roman'`, `'lower-latin'`, and `'upper-latin'`.
-* The {@link module:list/listproperties/liststartcommand~ListStartCommand `listStart`} command which is a Number and defaults to `1` (meaning a list starts with `1`). If enabled, it accepts a numerical value for the `start` attribute.
+	* For bulleted lists: `'disc'`, `'circle'`, and `'square'`.
+	* For numbered lists: `'decimal'`, `'decimal-leading-zero'`, `'lower-roman'`, `'upper-roman'`, `'lower-latin'`, and `'upper-latin'`.
+* The {@link module:list/listproperties/liststartcommand~ListStartCommand `listStart`} command. It is a number and defaults to `1` (meaning a list starts with `1`). If enabled, it accepts a numerical value for the `start` attribute.
 
 	```js
-    editor.execute( 'listStart', { startIndex: 3 } );
-    ```
+	editor.execute( 'listStart', { startIndex: 3 } );
+	```
 
-* The {@link module:list/listproperties/listreversedcommand~ListReversedCommand `listReversed`} command which is a Boolean and defaults to `false` (meaning the list order is ascending).
+* The {@link module:list/listproperties/listreversedcommand~ListReversedCommand `listReversed`} command. It is a Boolean and defaults to `false` (meaning the list order is ascending).
 
 	```js
-    editor.execute( 'listReversed', { reversed: true } );
-    ```
+	editor.execute( 'listReversed', { reversed: true } );
+	```
 
-* The `numberedList` UI split button that overrides the UI button registered by the `List` plugin.
-* The `bulletedList` UI split button that overrides the UI button registered by the `List` plugin.
+* The `numberedList` UI split button. It overrides the UI button registered by the `List` plugin.
+* The `bulletedList` UI split button. It overrides the UI button registered by the `List` plugin.
 
 ## Contribute
 

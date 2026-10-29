@@ -1,23 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 import {
-	getData as getModelData,
-	setData as setModelData,
-	stringify as stringifyModel
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+	_getModelData,
+	_setModelData,
+	_stringifyModel,
+	ModelDocumentFragment } from '@ckeditor/ckeditor5-engine';
 
-import TableEditing from '../src/tableediting';
-import TableSelection from '../src/tableselection';
-import { assertSelectedCells, modelTable } from './_utils/utils';
-import DocumentFragment from '@ckeditor/ckeditor5-engine/src/model/documentfragment';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
+import { TableEditing } from '../src/tableediting.js';
+import { TableSelection } from '../src/tableselection.js';
+import { assertSelectedCells, modelTable } from './_utils/utils.js';
+import { Typing } from '@ckeditor/ckeditor5-typing';
 
 describe( 'TableSelection', () => {
 	let editorElement, editor, model, tableSelection, modelRoot;
@@ -39,7 +37,7 @@ describe( 'TableSelection', () => {
 			modelRoot = model.document.getRoot();
 			tableSelection = editor.plugins.get( TableSelection );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -47,7 +45,15 @@ describe( 'TableSelection', () => {
 		} );
 
 		it( 'should have pluginName', () => {
-			expect( TableSelection.pluginName ).to.equal( 'TableSelection' );
+			expect( TableSelection.pluginName ).toEqual( 'TableSelection' );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( TableSelection.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( TableSelection.isPremiumPlugin ).toBe( false );
 		} );
 
 		describe( 'plugin disabling support', () => {
@@ -65,8 +71,8 @@ describe( 'TableSelection', () => {
 				const ranges = [ ...model.document.selection.getRanges() ];
 
 				expect( ranges ).to.have.length( 1 );
-				expect( ranges[ 0 ].isCollapsed ).to.be.true;
-				expect( ranges[ 0 ].start.path ).to.deep.equal( [ 0, 0, 0, 0, 0 ] );
+				expect( ranges[ 0 ].isCollapsed ).toBe( true );
+				expect( ranges[ 0 ].start.path ).toEqual( [ 0, 0, 0, 0, 0 ] );
 			} );
 
 			it( 'should reenable table selection when reenabling the plugin', () => {
@@ -94,8 +100,8 @@ describe( 'TableSelection', () => {
 				const ranges = [ ...model.document.selection.getRanges() ];
 
 				expect( ranges ).to.have.length( 1 );
-				expect( ranges[ 0 ].isCollapsed ).to.be.true;
-				expect( ranges[ 0 ].start.path ).to.deep.equal( [ 0, 0, 0, 0, 2 ] );
+				expect( ranges[ 0 ].isCollapsed ).toBe( true );
+				expect( ranges[ 0 ].start.path ).toEqual( [ 0, 0, 0, 0, 2 ] );
 			} );
 		} );
 	} );
@@ -107,7 +113,7 @@ describe( 'TableSelection', () => {
 			modelRoot = model.document.getRoot();
 			tableSelection = editor.plugins.get( TableSelection );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -115,7 +121,7 @@ describe( 'TableSelection', () => {
 		} );
 
 		it( 'should return nothing if selection is not started', () => {
-			expect( tableSelection.getSelectedTableCells() ).to.be.null;
+			expect( tableSelection.getSelectedTableCells() ).toBeNull();
 		} );
 
 		it( 'should return two table cells', () => {
@@ -127,7 +133,7 @@ describe( 'TableSelection', () => {
 				lastCell
 			);
 
-			expect( tableSelection.getSelectedTableCells() ).to.deep.equal( [
+			expect( tableSelection.getSelectedTableCells() ).toEqual( [
 				firstCell, lastCell
 			] );
 		} );
@@ -141,7 +147,7 @@ describe( 'TableSelection', () => {
 				lastCell
 			);
 
-			expect( tableSelection.getSelectedTableCells() ).to.deep.equal( [
+			expect( tableSelection.getSelectedTableCells() ).toEqual( [
 				firstCell, modelRoot.getNodeByPath( [ 0, 0, 1 ] ), modelRoot.getNodeByPath( [ 0, 1, 0 ] ), lastCell
 			] );
 		} );
@@ -155,7 +161,7 @@ describe( 'TableSelection', () => {
 				lastCell
 			);
 
-			expect( tableSelection.getSelectedTableCells() ).to.deep.equal( [
+			expect( tableSelection.getSelectedTableCells() ).toEqual( [
 				firstCell, modelRoot.getNodeByPath( [ 0, 0, 1 ] ), lastCell
 			] );
 		} );
@@ -166,7 +172,7 @@ describe( 'TableSelection', () => {
 
 			tableSelection.setCellSelection( firstCell, lastCell );
 
-			expect( tableSelection.getSelectedTableCells() ).to.deep.equal( [
+			expect( tableSelection.getSelectedTableCells() ).toEqual( [
 				firstCell, modelRoot.getNodeByPath( [ 0, 1, 1 ] ), lastCell
 			] );
 		} );
@@ -177,7 +183,7 @@ describe( 'TableSelection', () => {
 
 			tableSelection.setCellSelection( firstCell, lastCell );
 
-			expect( tableSelection.getSelectedTableCells() ).to.deep.equal( [
+			expect( tableSelection.getSelectedTableCells() ).toEqual( [
 				lastCell, firstCell
 			] );
 		} );
@@ -190,7 +196,7 @@ describe( 'TableSelection', () => {
 			modelRoot = model.document.getRoot();
 			tableSelection = editor.plugins.get( TableSelection );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -198,7 +204,7 @@ describe( 'TableSelection', () => {
 		} );
 
 		it( 'should return undefined if no table cells are selected', () => {
-			expect( tableSelection.getSelectionAsFragment() ).to.be.null;
+			expect( tableSelection.getSelectionAsFragment() ).toBeNull();
 		} );
 
 		it( 'should return document fragment for selected table cells', () => {
@@ -207,7 +213,7 @@ describe( 'TableSelection', () => {
 				modelRoot.getNodeByPath( [ 0, 1, 1 ] )
 			);
 
-			expect( tableSelection.getSelectionAsFragment() ).to.be.instanceOf( DocumentFragment );
+			expect( tableSelection.getSelectionAsFragment() ).to.be.instanceOf( ModelDocumentFragment );
 		} );
 
 		it( 'should return cells in the source order in case of forward selection', () => {
@@ -216,7 +222,7 @@ describe( 'TableSelection', () => {
 				modelRoot.getNodeByPath( [ 0, 1, 1 ] )
 			);
 
-			expect( stringifyModel( tableSelection.getSelectionAsFragment() ) ).to.equal( modelTable( [
+			expect( _stringifyModel( tableSelection.getSelectionAsFragment() ) ).toEqual( modelTable( [
 				[ '11', '12' ],
 				[ '21', '22' ]
 			] ) );
@@ -228,9 +234,9 @@ describe( 'TableSelection', () => {
 				modelRoot.getNodeByPath( [ 0, 0, 0 ] )
 			);
 
-			expect( editor.model.document.selection.isBackward ).to.be.true;
+			expect( editor.model.document.selection.isBackward ).toBe( true );
 
-			expect( stringifyModel( tableSelection.getSelectionAsFragment() ) ).to.equal( modelTable( [
+			expect( _stringifyModel( tableSelection.getSelectionAsFragment() ) ).toEqual( modelTable( [
 				[ '11', '12' ],
 				[ '21', '22' ]
 			] ) );
@@ -244,7 +250,7 @@ describe( 'TableSelection', () => {
 			// +    +    +----+
 			// |    |    | 22 |
 			// +----+----+----+
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01', '02' ],
 				[ { contents: '10', rowspan: 2 }, { contents: '11', rowspan: 2 }, '12' ],
 				[ '22' ]
@@ -262,7 +268,7 @@ describe( 'TableSelection', () => {
 			// +    +    +
 			// |    |    |
 			// +----+----+
-			expect( stringifyModel( tableSelection.getSelectionAsFragment() ) ).to.equal( modelTable( [
+			expect( _stringifyModel( tableSelection.getSelectionAsFragment() ) ).toEqual( modelTable( [
 				[ '00', '01' ],
 				[ { contents: '10', rowspan: 2 }, { contents: '11', rowspan: 2 } ],
 				[] // This is an empty row that should be here to properly handle pasting of this table fragment.
@@ -277,7 +283,7 @@ describe( 'TableSelection', () => {
 			// +----+----+----+
 			// | 20 | 21 | 22 |
 			// +----+----+----+
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { contents: '01', colspan: 2 } ],
 				[ '10', { contents: '11', colspan: 2 } ],
 				[ '20', '21', '22' ]
@@ -293,7 +299,7 @@ describe( 'TableSelection', () => {
 			// +----+----+----+
 			// | 10 | 11      |
 			// +----+----+----+
-			expect( stringifyModel( tableSelection.getSelectionAsFragment() ) ).to.equal( modelTable( [
+			expect( _stringifyModel( tableSelection.getSelectionAsFragment() ) ).toEqual( modelTable( [
 				[ '00', { contents: '01', colspan: 2 } ],
 				[ '10', { contents: '11', colspan: 2 } ]
 			] ) );
@@ -307,7 +313,7 @@ describe( 'TableSelection', () => {
 			// +    +----+----+
 			// |    | 21 | 22 |
 			// +----+----+----+
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { contents: '01', colspan: 2 } ],
 				[ { contents: '10', rowspan: 2 }, '11', '12' ],
 				[ '21', '22' ]
@@ -323,7 +329,7 @@ describe( 'TableSelection', () => {
 			// +----+----+
 			// | 10 | 11 |
 			// +----+----+
-			expect( stringifyModel( tableSelection.getSelectionAsFragment() ) ).to.equal( modelTable( [
+			expect( _stringifyModel( tableSelection.getSelectionAsFragment() ) ).toEqual( modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ]
 			] ) );
@@ -337,7 +343,7 @@ describe( 'TableSelection', () => {
 			modelRoot = model.document.getRoot();
 			tableSelection = editor.plugins.get( TableSelection );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '11[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -352,7 +358,7 @@ describe( 'TableSelection', () => {
 
 			editor.execute( 'delete' );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '', '', '13' ],
 				[ '', '[]', '23' ],
 				[ '31', '32', '33' ]
@@ -367,7 +373,7 @@ describe( 'TableSelection', () => {
 
 			editor.execute( 'delete' );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '', '', '13' ],
 				[ '', '[]', '23' ],
 				[ '31', '32', '33' ]
@@ -382,7 +388,7 @@ describe( 'TableSelection', () => {
 
 			editor.execute( 'deleteForward' );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]', '12', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -399,7 +405,7 @@ describe( 'TableSelection', () => {
 				model.deleteContent( model.document.selection );
 			} );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '', '', '13' ],
 				[ '', '[]', '23' ],
 				[ '31', '32', '33' ]
@@ -423,7 +429,7 @@ describe( 'TableSelection', () => {
 				writer.setSelection( selection );
 			} );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '', '[]', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -449,7 +455,7 @@ describe( 'TableSelection', () => {
 				writer.setSelection( selection );
 			} );
 
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]', '', '13' ],
 				[ '21', '22', '23' ],
 				[ '31', '32', '33' ]
@@ -464,7 +470,7 @@ describe( 'TableSelection', () => {
 			modelRoot = model.document.getRoot();
 			tableSelection = editor.plugins.get( TableSelection );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01', '02' ],
 				[ '10', '11', '12' ],
 				[ '20', '21', '22' ]
@@ -472,8 +478,8 @@ describe( 'TableSelection', () => {
 		} );
 
 		it( 'should return null if no table cell is selected', () => {
-			expect( tableSelection.getAnchorCell() ).to.be.null;
-			expect( tableSelection.getFocusCell() ).to.be.null;
+			expect( tableSelection.getAnchorCell() ).toBeNull();
+			expect( tableSelection.getFocusCell() ).toBeNull();
 		} );
 
 		it( 'getAnchorCell() should return the table cell from the first range in the selection', () => {
@@ -482,7 +488,7 @@ describe( 'TableSelection', () => {
 
 			tableSelection.setCellSelection( anchorCell, focusCell );
 
-			expect( tableSelection.getAnchorCell() ).to.equal( anchorCell );
+			expect( tableSelection.getAnchorCell() ).toEqual( anchorCell );
 		} );
 
 		it( 'getFocusCell() should return the table cell from the last range in the selection', () => {
@@ -491,7 +497,7 @@ describe( 'TableSelection', () => {
 
 			tableSelection.setCellSelection( anchorCell, focusCell );
 
-			expect( tableSelection.getFocusCell() ).to.equal( focusCell );
+			expect( tableSelection.getFocusCell() ).toEqual( focusCell );
 		} );
 	} );
 
@@ -505,7 +511,7 @@ describe( 'TableSelection', () => {
 			modelRoot = model.document.getRoot();
 			tableSelection = editor.plugins.get( TableSelection );
 
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01', '02' ],
 				[ '10', '11', '12' ],
 				[ '20', '21', '22' ]
@@ -521,9 +527,9 @@ describe( 'TableSelection', () => {
 			tableSelection.setCellSelection( anchorCell, focusCell );
 
 			assertSelection( anchorCell, focusCell, 4 );
-			expect( tableSelection.getFocusCell() ).to.equal( focusCell );
-			expect( tableSelection.getAnchorCell() ).to.equal( anchorCell );
-			expect( selection.isBackward ).to.be.false;
+			expect( tableSelection.getFocusCell() ).toEqual( focusCell );
+			expect( tableSelection.getAnchorCell() ).toEqual( anchorCell );
+			expect( selection.isBackward ).toBe( false );
 		} );
 
 		it( 'should be to below left', () => {
@@ -533,9 +539,9 @@ describe( 'TableSelection', () => {
 			tableSelection.setCellSelection( anchorCell, focusCell );
 
 			assertSelection( anchorCell, focusCell, 4 );
-			expect( tableSelection.getFocusCell() ).to.equal( focusCell );
-			expect( tableSelection.getAnchorCell() ).to.equal( anchorCell );
-			expect( selection.isBackward ).to.be.true;
+			expect( tableSelection.getFocusCell() ).toEqual( focusCell );
+			expect( tableSelection.getAnchorCell() ).toEqual( anchorCell );
+			expect( selection.isBackward ).toBe( true );
 		} );
 
 		it( 'should be to above left', () => {
@@ -545,9 +551,9 @@ describe( 'TableSelection', () => {
 			tableSelection.setCellSelection( anchorCell, focusCell );
 
 			assertSelection( anchorCell, focusCell, 4 );
-			expect( tableSelection.getFocusCell() ).to.equal( focusCell );
-			expect( tableSelection.getAnchorCell() ).to.equal( anchorCell );
-			expect( selection.isBackward ).to.be.true;
+			expect( tableSelection.getFocusCell() ).toEqual( focusCell );
+			expect( tableSelection.getAnchorCell() ).toEqual( anchorCell );
+			expect( selection.isBackward ).toBe( true );
 		} );
 
 		it( 'should be to above right', () => {
@@ -557,17 +563,39 @@ describe( 'TableSelection', () => {
 			tableSelection.setCellSelection( anchorCell, focusCell );
 
 			assertSelection( anchorCell, focusCell, 4 );
-			expect( tableSelection.getFocusCell() ).to.equal( focusCell );
-			expect( tableSelection.getAnchorCell() ).to.equal( anchorCell );
-			expect( selection.isBackward ).to.be.true;
+			expect( tableSelection.getFocusCell() ).toEqual( focusCell );
+			expect( tableSelection.getAnchorCell() ).toEqual( anchorCell );
+			expect( selection.isBackward ).toBe( true );
+		} );
+
+		it( 'should select all cells when selecting from a regular row to a row with colspan', () => {
+			_setModelData( model, modelTable( [
+				[ '00', '01', '02' ],
+				[ { contents: '11', colspan: 3 } ]
+			] ) );
+
+			table = modelRoot.getChild( 0 );
+
+			const anchorCell = table.getChild( 0 ).getChild( 0 );
+			const targetCell = table.getChild( 1 ).getChild( 0 );
+
+			tableSelection.setCellSelection( anchorCell, targetCell );
+
+			const selectedCells = tableSelection.getSelectedTableCells();
+
+			expect( selectedCells ).to.have.length( 4 );
+			expect( selectedCells[ 0 ] ).toEqual( table.getChild( 0 ).getChild( 0 ) );
+			expect( selectedCells[ 1 ] ).toEqual( table.getChild( 0 ).getChild( 1 ) );
+			expect( selectedCells[ 2 ] ).toEqual( table.getChild( 0 ).getChild( 2 ) );
+			expect( selectedCells[ 3 ] ).toEqual( table.getChild( 1 ).getChild( 0 ) );
 		} );
 
 		function assertSelection( anchorCell, focusCell, count ) {
 			const cells = [ ...selection.getRanges() ].map( range => range.getContainedElement() );
 
-			expect( selection.rangeCount ).to.equal( count );
-			expect( cells[ 0 ] ).to.equal( anchorCell );
-			expect( cells[ cells.length - 1 ] ).to.equal( focusCell );
+			expect( selection.rangeCount ).toEqual( count );
+			expect( cells[ 0 ] ).toEqual( anchorCell );
+			expect( cells[ cells.length - 1 ] ).toEqual( focusCell );
 		}
 	} );
 

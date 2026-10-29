@@ -1,12 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import setDataInElement from '../../src/dom/setdatainelement';
-import getDataFromElement from '../../src/dom/getdatafromelement';
+import { describe, expect, it } from 'vitest';
+import { setDataInElement } from '../../src/dom/setdatainelement.js';
+import { getDataFromElement } from '../../src/dom/getdatafromelement.js';
 
 describe( 'setDataInElement', () => {
 	[ 'textarea', 'template', 'div' ].forEach( elementName => {
@@ -17,7 +16,7 @@ describe( 'setDataInElement', () => {
 			setDataInElement( el, expectedData );
 
 			const actualData = getDataFromElement( el );
-			expect( actualData ).to.equal( expectedData );
+			expect( actualData ).toEqual( expectedData );
 		} );
 	} );
 } );

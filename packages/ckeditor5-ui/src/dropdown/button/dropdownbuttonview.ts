@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/dropdown/button/dropdownbuttonview
  */
 
-import ButtonView from '../../button/buttonview';
-import type DropdownButton from './dropdownbutton';
-import IconView from '../../icon/iconview';
+import { IconDropdownArrow } from '@ckeditor/ckeditor5-icons';
+import { ButtonView } from '../../button/buttonview.js';
+import { type DropdownButton } from './dropdownbutton.js';
+import { IconView } from '../../icon/iconview.js';
 
 import type { Locale } from '@ckeditor/ckeditor5-utils';
-
-import dropdownArrowIcon from '../../../theme/icons/dropdown-arrow.svg';
 
 /**
  * The default dropdown button view class.
@@ -34,7 +33,7 @@ import dropdownArrowIcon from '../../../theme/icons/dropdown-arrow.svg';
  *
  * Also see the {@link module:ui/dropdown/utils~createDropdown `createDropdown()` util}.
  */
-export default class DropdownButtonView extends ButtonView implements DropdownButton {
+export class DropdownButtonView extends ButtonView implements DropdownButton {
 	/**
 	 * An icon that displays arrow to indicate a dropdown button.
 	 */
@@ -74,7 +73,7 @@ export default class DropdownButtonView extends ButtonView implements DropdownBu
 	private _createArrowView() {
 		const arrowView = new IconView();
 
-		arrowView.content = dropdownArrowIcon;
+		arrowView.content = IconDropdownArrow;
 
 		arrowView.extendTemplate( {
 			attributes: {

@@ -1,25 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+import { describe, it, expect, vi } from 'vitest';
 import {
 	FONT_COLOR,
 	FONT_BACKGROUND_COLOR,
 	addColorSelectorToDropdown,
 	renderDowncastElement
-} from './../src/utils';
-import { createDropdown } from '@ckeditor/ckeditor5-ui/src/dropdown/utils';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+} from './../src/utils.js';
+import { createDropdown, ColorSelectorView } from '@ckeditor/ckeditor5-ui';
 import { Locale } from '@ckeditor/ckeditor5-utils';
-import { ColorSelectorView } from '@ckeditor/ckeditor5-ui';
 
 describe( 'utils', () => {
-	testUtils.createSinonSandbox();
-
 	it( 'plugin names has proper values', () => {
-		expect( FONT_COLOR ).to.equal( 'fontColor' );
-		expect( FONT_BACKGROUND_COLOR ).to.equal( 'fontBackgroundColor' );
+		expect( FONT_COLOR ).toEqual( 'fontColor' );
+		expect( FONT_BACKGROUND_COLOR ).toEqual( 'fontBackgroundColor' );
 	} );
 
 	describe( 'addColorSelectorToDropdown()', () => {
@@ -51,20 +48,20 @@ describe( 'utils', () => {
 			} );
 
 			expect( dropdown.colorSelectorView ).to.be.instanceOf( ColorSelectorView );
-			expect( dropdown.panelView.children.length ).to.equal( 1 );
-			expect( dropdown.colorSelectorView.element ).to.equal( dropdown.panelView.children.first.element );
+			expect( dropdown.panelView.children.length ).toEqual( 1 );
+			expect( dropdown.colorSelectorView.element ).toBe( dropdown.panelView.children.first.element );
 		} );
 	} );
 
 	describe( 'renderDowncastElement()', () => {
 		it( 'should create function executes viewWriter with proper arguments', () => {
 			const downcastViewConverterFn = renderDowncastElement( 'color' );
-			const fake = testUtils.sinon.fake();
+			const fake = vi.fn();
 			const fakeViewWriter = { createAttributeElement: fake };
 
 			downcastViewConverterFn( 'blue', { writer: fakeViewWriter } );
 
-			sinon.assert.calledWithExactly( fake, 'span', { style: 'color:blue' }, { priority: 7 } );
+			expect( fake ).toHaveBeenCalledWith( 'span', { style: 'color:blue' }, { priority: 7 } );
 		} );
 	} );
 } );

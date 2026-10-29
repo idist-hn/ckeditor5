@@ -1,40 +1,50 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document */
+import { GeneralHtmlSupport, ShowBlocks, CKBox, CKBoxImageEdit, ImageInsert, PictureEditing } from 'ckeditor5';
+import { SourceEditingEnhanced } from 'ckeditor5-premium-features';
+import {
+	TOKEN_URL,
+	ClassicEditor,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
-
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
-import { ShowBlocks } from '@ckeditor/ckeditor5-show-blocks';
-import { SourceEditing } from '@ckeditor/ckeditor5-source-editing';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { PictureEditing } from '@ckeditor/ckeditor5-image';
-
-ClassicEditor.builtinPlugins.push( ShowBlocks, GeneralHtmlSupport, SourceEditing, CKBox, PictureEditing );
+ClassicEditor.builtinPlugins.push( ShowBlocks, GeneralHtmlSupport, SourceEditingEnhanced,
+	CKBox, CKBoxImageEdit, ImageInsert, PictureEditing );
 
 ClassicEditor
-	.create( document.querySelector( '#snippet-show-blocks' ), {
-		cloudServices: CS_CONFIG,
+	.create( {
+		attachTo: document.querySelector( '#snippet-show-blocks' ),
 		toolbar: {
 			items: [
 				'undo', 'redo',
 				'|', 'showBlocks',
-				'|', 'sourceEditing',
+				'|', 'sourceEditingEnhanced',
 				'|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
+			]
+		},
+		image: {
+			toolbar: [
+				'imageStyle:inline', 'imageStyle:block', 'imageStyle:wrapText', '|',
+				'toggleImageCaption', 'imageTextAlternative', 'ckboxImageEdit'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		},
 		htmlSupport: {
 			allow: [
@@ -50,8 +60,8 @@ ClassicEditor
 	.then( editor => {
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar, item => item.label && item.label === 'Show blocks' ),
+		attachTourBalloon( {
+			target: findToolbarItem( editor.ui.view.toolbar, item => item.label && item.label === 'Show blocks' ),
 			text: 'Click here to show content blocks.',
 			editor,
 			tippyOptions: {

@@ -1,18 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module indent/indentcommandbehavior/indentusingoffset
  */
 
-import type { IndentBehavior } from './indentbehavior';
+import type { IndentBehavior } from './indentbehavior.js';
 
 /**
  * The block indentation behavior that uses offsets to set indentation.
+ *
+ * @internal
  */
-export default class IndentUsingOffset implements IndentBehavior {
+export class IndentUsingOffset implements IndentBehavior {
 	/**
 	 * The direction of indentation.
 	 */
@@ -58,12 +60,15 @@ export default class IndentUsingOffset implements IndentBehavior {
 		const currentOffset = parseFloat( indentAttributeValue || '0' );
 		const isSameUnit = !indentAttributeValue || indentAttributeValue.endsWith( this.unit );
 
+		if ( currentOffset < 0 ) {
+			return;
+		}
+
 		if ( !isSameUnit ) {
 			return this.isForward ? this.offset + this.unit : undefined;
 		}
 
 		const nextOffset = this.isForward ? this.offset : -this.offset;
-
 		const offsetToSet = currentOffset + nextOffset;
 
 		return offsetToSet > 0 ? offsetToSet + this.unit : undefined;

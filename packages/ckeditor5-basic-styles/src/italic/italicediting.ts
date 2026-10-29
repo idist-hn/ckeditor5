@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/italic/italicediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import AttributeCommand from '../attributecommand';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { AttributeCommand } from '../attributecommand.js';
 
 const ITALIC = 'italic';
 
@@ -18,7 +18,7 @@ const ITALIC = 'italic';
  * It registers the `'italic'` command, the <kbd>Ctrl+I</kbd> keystroke and introduces the `italic` attribute in the model
  * which renders to the view as an `<i>` element.
  */
-export default class ItalicEditing extends Plugin {
+export class ItalicEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -29,8 +29,16 @@ export default class ItalicEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
+		const t = this.editor.t;
 
 		// Allow italic attribute on text nodes.
 		editor.model.schema.extend( '$text', { allowAttributes: ITALIC } );
@@ -57,5 +65,15 @@ export default class ItalicEditing extends Plugin {
 
 		// Set the Ctrl+I keystroke.
 		editor.keystrokes.set( 'CTRL+I', ITALIC );
+
+		// Add the information about the keystroke to the accessibility database.
+		editor.accessibility.addKeystrokeInfos( {
+			keystrokes: [
+				{
+					label: t( 'Italic text' ),
+					keystroke: 'CTRL+I'
+				}
+			]
+		} );
 	}
 }

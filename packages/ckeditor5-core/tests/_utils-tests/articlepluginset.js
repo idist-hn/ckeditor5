@@ -1,30 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import ArticlePluginSet from '../_utils/articlepluginset';
-import ClassicTestEditor from '../_utils/classictesteditor';
+import { ArticlePluginSet } from '../_utils/articlepluginset.js';
+import { ClassicTestEditor } from '../_utils/classictesteditor.js';
 
-import Essentials from '@ckeditor/ckeditor5-essentials/src/essentials';
-import Autoformat from '@ckeditor/ckeditor5-autoformat/src/autoformat';
-import Bold from '@ckeditor/ckeditor5-basic-styles/src/bold';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import ImageCaption from '@ckeditor/ckeditor5-image/src/imagecaption';
-import ImageStyle from '@ckeditor/ckeditor5-image/src/imagestyle';
-import ImageToolbar from '@ckeditor/ckeditor5-image/src/imagetoolbar';
-import Italic from '@ckeditor/ckeditor5-basic-styles/src/italic';
-import Link from '@ckeditor/ckeditor5-link/src/link';
-import List from '@ckeditor/ckeditor5-list/src/list';
-import MediaEmbed from '@ckeditor/ckeditor5-media-embed/src/mediaembed';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import TableToolbar from '@ckeditor/ckeditor5-table/src/tabletoolbar';
+import { Essentials } from '@ckeditor/ckeditor5-essentials';
+import { Autoformat } from '@ckeditor/ckeditor5-autoformat';
+import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { Image, ImageCaption, ImageStyle, ImageToolbar } from '@ckeditor/ckeditor5-image';
+import { Link } from '@ckeditor/ckeditor5-link';
+import { List } from '@ckeditor/ckeditor5-list';
+import { MediaEmbed } from '@ckeditor/ckeditor5-media-embed';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Table, TableToolbar } from '@ckeditor/ckeditor5-table';
 
-import normalizeHtml from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml';
+import { normalizeHtml } from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml.js';
 
 describe( 'ArticlePluginSet', () => {
 	let editor, editorElement;
@@ -48,26 +43,26 @@ describe( 'ArticlePluginSet', () => {
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( ArticlePluginSet ) ).to.be.instanceOf( ArticlePluginSet );
+		expect( editor.plugins.get( ArticlePluginSet ) ).toBeInstanceOf( ArticlePluginSet );
 	} );
 
 	it( 'should load all its dependencies', () => {
-		expect( editor.plugins.get( Essentials ) ).to.be.instanceOf( Essentials );
+		expect( editor.plugins.get( Essentials ) ).toBeInstanceOf( Essentials );
 
-		expect( editor.plugins.get( Autoformat ) ).to.be.instanceOf( Autoformat );
-		expect( editor.plugins.get( Bold ) ).to.be.instanceOf( Bold );
-		expect( editor.plugins.get( Heading ) ).to.be.instanceOf( Heading );
-		expect( editor.plugins.get( Image ) ).to.be.instanceOf( Image );
-		expect( editor.plugins.get( ImageCaption ) ).to.be.instanceOf( ImageCaption );
-		expect( editor.plugins.get( ImageStyle ) ).to.be.instanceOf( ImageStyle );
-		expect( editor.plugins.get( ImageToolbar ) ).to.be.instanceOf( ImageToolbar );
-		expect( editor.plugins.get( Italic ) ).to.be.instanceOf( Italic );
-		expect( editor.plugins.get( Link ) ).to.be.instanceOf( Link );
-		expect( editor.plugins.get( List ) ).to.be.instanceOf( List );
-		expect( editor.plugins.get( MediaEmbed ) ).to.be.instanceOf( MediaEmbed );
-		expect( editor.plugins.get( Paragraph ) ).to.be.instanceOf( Paragraph );
-		expect( editor.plugins.get( Table ) ).to.be.instanceOf( Table );
-		expect( editor.plugins.get( TableToolbar ) ).to.be.instanceOf( TableToolbar );
+		expect( editor.plugins.get( Autoformat ) ).toBeInstanceOf( Autoformat );
+		expect( editor.plugins.get( Bold ) ).toBeInstanceOf( Bold );
+		expect( editor.plugins.get( Heading ) ).toBeInstanceOf( Heading );
+		expect( editor.plugins.get( Image ) ).toBeInstanceOf( Image );
+		expect( editor.plugins.get( ImageCaption ) ).toBeInstanceOf( ImageCaption );
+		expect( editor.plugins.get( ImageStyle ) ).toBeInstanceOf( ImageStyle );
+		expect( editor.plugins.get( ImageToolbar ) ).toBeInstanceOf( ImageToolbar );
+		expect( editor.plugins.get( Italic ) ).toBeInstanceOf( Italic );
+		expect( editor.plugins.get( Link ) ).toBeInstanceOf( Link );
+		expect( editor.plugins.get( List ) ).toBeInstanceOf( List );
+		expect( editor.plugins.get( MediaEmbed ) ).toBeInstanceOf( MediaEmbed );
+		expect( editor.plugins.get( Paragraph ) ).toBeInstanceOf( Paragraph );
+		expect( editor.plugins.get( Table ) ).toBeInstanceOf( Table );
+		expect( editor.plugins.get( TableToolbar ) ).toBeInstanceOf( TableToolbar );
 	} );
 
 	it( 'loads data', () => {
@@ -84,7 +79,7 @@ describe( 'ArticlePluginSet', () => {
 				'<li>OL List item 2</li>' +
 			'</ol>' +
 			'<figure class="image image-style-side">' +
-				'<img alt="bar" src="/assets/sample.png">' +
+				'<img alt="bar" src="/sample.png">' +
 				'<figcaption>Caption</figcaption>' +
 			'</figure>' +
 			'<blockquote>' +
@@ -120,7 +115,7 @@ describe( 'ArticlePluginSet', () => {
 				'<li>OL List item 2</li>' +
 			'</ol>' +
 			'<figure class="image image-style-side">' +
-				'<img alt="bar" src="/assets/sample.png"></img>' +
+				'<img alt="bar" src="/sample.png"></img>' +
 				'<figcaption>Caption</figcaption>' +
 			'</figure>' +
 			'<blockquote>' +
@@ -144,6 +139,6 @@ describe( 'ArticlePluginSet', () => {
 
 		editor.setData( data );
 
-		expect( normalizeHtml( editor.getData() ) ).to.equal( expectedOutput );
+		expect( normalizeHtml( editor.getData() ) ).toBe( expectedOutput );
 	} );
 } );

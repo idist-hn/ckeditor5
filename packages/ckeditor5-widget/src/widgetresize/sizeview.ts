@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,13 +8,15 @@
  */
 
 import { View } from '@ckeditor/ckeditor5-ui';
-import type { ResizerOptions } from '../widgetresize';
-import type ResizeState from './resizerstate';
+import type { WidgetResizerOptions } from '../widgetresize.js';
+import { type WidgetResizeState } from './resizerstate.js';
 
 /**
  * A view displaying the proposed new element size during the resizing.
+ *
+ * @internal
  */
-export default class SizeView extends View {
+export class SizeView extends View {
 	/**
 	 * The visibility of the view defined based on the existence of the host proposed dimensions.
 	 *
@@ -73,7 +75,7 @@ export default class SizeView extends View {
 	 * @param options An object defining the resizer options, used for setting the proper size label.
 	 * @param resizeState The `ResizeState` class instance, used for keeping the `SizeView` state up to date.
 	 */
-	public _bindToState( options: ResizerOptions, resizeState: ResizeState ): void {
+	public _bindToState( options: WidgetResizerOptions, resizeState: WidgetResizeState ): void {
 		this.bind( '_isVisible' ).to( resizeState, 'proposedWidth', resizeState, 'proposedHeight', ( width, height ) =>
 			width !== null && height !== null );
 

@@ -1,20 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document, setTimeout */
-
-import { Underline, Strikethrough } from '@ckeditor/ckeditor5-basic-styles';
-import { Mention } from '@ckeditor/ckeditor5-mention';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
+import { Underline, Strikethrough, Mention } from 'ckeditor5';
+import { ClassicEditor, getViewportTopOffsetConfig, TOKEN_URL } from '@snippets/index.js';
 
 ClassicEditor
-	.create( document.querySelector( '.chat__editor' ), {
-		cloudServices: CS_CONFIG,
+	.create( {
+		attachTo: document.querySelector( '.chat__editor' ),
+		ckbox: {
+			tokenUrl: TOKEN_URL
+		},
 		extraPlugins: [ Mention, MentionLinks, Underline, Strikethrough ],
 		toolbar: {
 			items: [
@@ -26,7 +23,7 @@ ClassicEditor
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		},
 		mention: {
@@ -158,7 +155,7 @@ function MentionLinks( editor ) {
 	// element.
 	editor.conversion.for( 'downcast' ).attributeToElement( {
 		model: 'mention',
-		view: ( modelAttributeValue, { writer } ) => {
+		view: ( modelAttributeValue, { writer, options } ) => {
 			// Do not convert empty attributes (lack of value means no mention).
 			if ( !modelAttributeValue ) {
 				return;
@@ -176,11 +173,13 @@ function MentionLinks( editor ) {
 			return writer.createAttributeElement( 'a', {
 				class: 'mention',
 				'data-mention': modelAttributeValue.id,
-				href
+				href,
+				// Omit `data-mention-uid` in clipboard (copy/cut) to prevent UIDs duplication.
+				...( !options.isClipboardPipeline && { 'data-mention-uid': modelAttributeValue.uid } )
 			}, {
 				// Make mention attribute to be wrapped by other attribute elements.
 				priority: 20,
-				// Prevent merging mentions together.
+				// Prevent merging mentions together in clipboard (when `data-mention-uid` is not available).
 				id: modelAttributeValue.uid
 			} );
 		},

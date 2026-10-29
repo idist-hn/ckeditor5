@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -10,7 +10,7 @@
 /**
  * Checks if the object is a native DOM Node.
  */
-export default function isNode( obj: any ): obj is Node {
+export function isNode( obj: any ): obj is Node {
 	if ( obj ) {
 		if ( obj.defaultView ) {
 			return obj instanceof obj.defaultView.Document;

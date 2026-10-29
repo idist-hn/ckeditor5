@@ -1,9 +1,9 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-export default {
+export const xssTemplates = {
 	'img onerror': '<p><img onerror="%xss%" src="produce404" /></p>',
 	'video onerror': '<p><video onerror="%xss%">foo</video></p>',
 	'video onerror + src': '<p><video onerror="%xss%" src="produce404">foo</video></p>',

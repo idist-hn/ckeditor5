@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagecaption/imagecaptionutils
  */
 
-import type { DocumentSelection, Element, Selection, ViewElement, Match } from 'ckeditor5/src/engine';
-import { Plugin } from 'ckeditor5/src/core';
+import type { ModelDocumentSelection, ModelElement, ModelSelection, ViewElement, Match } from '@ckeditor/ckeditor5-engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import ImageUtils from '../imageutils';
+import { ImageUtils } from '../imageutils.js';
 
 /**
  * The image caption utilities plugin.
  */
-export default class ImageCaptionUtils extends Plugin {
+export class ImageCaptionUtils extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -26,14 +26,21 @@ export default class ImageCaptionUtils extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUtils ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ImageUtils ]> {
+		return [ ImageUtils ];
 	}
 
 	/**
 	 * Returns the caption model element from a given image element. Returns `null` if no caption is found.
 	 */
-	public getCaptionFromImageModelElement( imageModelElement: Element ): Element | null {
+	public getCaptionFromImageModelElement( imageModelElement: ModelElement ): ModelElement | null {
 		for ( const node of imageModelElement.getChildren() ) {
 			if ( !!node && node.is( 'element', 'caption' ) ) {
 				return node;
@@ -46,7 +53,7 @@ export default class ImageCaptionUtils extends Plugin {
 	/**
 	 * Returns the caption model element for a model selection. Returns `null` if the selection has no caption element ancestor.
 	 */
-	public getCaptionFromModelSelection( selection: Selection | DocumentSelection ): Element | null {
+	public getCaptionFromModelSelection( selection: ModelSelection | ModelDocumentSelection ): ModelElement | null {
 		const imageUtils: ImageUtils = this.editor.plugins.get( 'ImageUtils' );
 		const captionElement = selection.getFirstPosition()!.findAncestor( 'caption' );
 
@@ -54,7 +61,7 @@ export default class ImageCaptionUtils extends Plugin {
 			return null;
 		}
 
-		if ( imageUtils.isBlockImage( captionElement.parent as Element ) ) {
+		if ( imageUtils.isBlockImage( captionElement.parent as ModelElement ) ) {
 			return captionElement;
 		}
 

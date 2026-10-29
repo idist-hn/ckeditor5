@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import SwitchButtonView from '../../src/button/switchbuttonview';
-import View from '../../src/view';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { SwitchButtonView } from '../../src/button/switchbuttonview.js';
+import { View } from '../../src/view.js';
 
 describe( 'SwitchButtonView', () => {
 	let locale, view;
@@ -18,21 +19,21 @@ describe( 'SwitchButtonView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'creates #toggleSwitchView', () => {
-			expect( view.toggleSwitchView ).to.be.instanceOf( View );
+			expect( view.toggleSwitchView ).toBeInstanceOf( View );
 		} );
 
 		it( 'sets CSS class', () => {
-			expect( view.element.classList.contains( 'ck-switchbutton' ) ).to.be.true;
+			expect( view.element.classList.contains( 'ck-switchbutton' ) ).toBe( true );
 		} );
 
 		it( 'sets isToggleable flag to true', () => {
-			expect( view.isToggleable ).to.be.true;
+			expect( view.isToggleable ).toBe( true );
 		} );
 	} );
 
 	describe( 'render', () => {
 		it( 'adds #toggleSwitchView to #children', () => {
-			expect( view.children.get( 1 ) ).to.equal( view.toggleSwitchView );
+			expect( view.children.get( 1 ) ).toBe( view.toggleSwitchView );
 		} );
 	} );
 
@@ -40,11 +41,11 @@ describe( 'SwitchButtonView', () => {
 		it( 'has proper DOM structure', () => {
 			const toggleElement = view.toggleSwitchView.element;
 
-			expect( toggleElement.classList.contains( 'ck' ) ).to.be.true;
-			expect( toggleElement.classList.contains( 'ck-button__toggle' ) ).to.be.true;
+			expect( toggleElement.classList.contains( 'ck' ) ).toBe( true );
+			expect( toggleElement.classList.contains( 'ck-button__toggle' ) ).toBe( true );
 
-			expect( toggleElement.firstChild.classList.contains( 'ck' ) ).to.be.true;
-			expect( toggleElement.firstChild.classList.contains( 'ck-button__toggle__inner' ) ).to.be.true;
+			expect( toggleElement.firstChild.classList.contains( 'ck' ) ).toBe( true );
+			expect( toggleElement.firstChild.classList.contains( 'ck-button__toggle__inner' ) ).toBe( true );
 		} );
 	} );
 } );

@@ -1,16 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import TableCellWidthEditing from '../../src/tablecellwidth/tablecellwidthediting';
-import TableCellWidthCommand from '../../src/tablecellwidth/commands/tablecellwidthcommand';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { assertTableCellStyle } from '../_utils/utils';
+import { TableCellWidthEditing } from '../../src/tablecellwidth/tablecellwidthediting.js';
+import { TableCellWidthCommand } from '../../src/tablecellwidth/commands/tablecellwidthcommand.js';
+
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { assertTableCellStyle } from '../_utils/utils.js';
+import { TableCellPropertiesEditing } from '../../src/tablecellproperties/tablecellpropertiesediting.js';
+import { TableEditing } from '../../src/tableediting.js';
 
 describe( 'TableCellWidthEditing', () => {
 	let editor, model;
@@ -28,7 +32,15 @@ describe( 'TableCellWidthEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( TableCellWidthEditing.pluginName ).to.equal( 'TableCellWidthEditing' );
+		expect( TableCellWidthEditing.pluginName ).toEqual( 'TableCellWidthEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TableCellWidthEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TableCellWidthEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'adds tableCellWidth command', () => {
@@ -37,15 +49,52 @@ describe( 'TableCellWidthEditing', () => {
 
 	describe( 'cell width', () => {
 		it( 'should set proper schema rules', () => {
-			expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellWidth' ) ).to.be.true;
+			expect( model.schema.checkAttribute( [ '$root', 'tableCell' ], 'tableCellWidth' ) ).toBe( true );
+			expect( model.schema.getAttributeProperties( 'tableCellWidth' ).isFormatting ).toBe( true );
 		} );
 
 		describe( 'upcast conversion', () => {
-			it( 'should upcast width attribute on table cell', () => {
+			it( 'should upcast width style on table cell', () => {
 				editor.setData( '<table><tr><td style="width:20px">foo</td></tr></table>' );
 				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-				expect( tableCell.getAttribute( 'tableCellWidth' ) ).to.equal( '20px' );
+				expect( tableCell.getAttribute( 'tableCellWidth' ) ).toEqual( '20px' );
+			} );
+
+			it( 'should upcast width style on table cell even if it has width attribute set', () => {
+				editor.setData( '<table><tr><td width="50" style="width:20px">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				expect( tableCell.getAttribute( 'tableCellWidth' ) ).toEqual( '20px' );
+			} );
+
+			it( 'should upcast width attribute on table cell', () => {
+				editor.setData( '<table><tr><td width="50.5">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				expect( tableCell.getAttribute( 'tableCellWidth' ) ).toEqual( '50.5px' );
+			} );
+
+			it( 'should upcast width (px) attribute on table cell', () => {
+				editor.setData( '<table><tr><td width="50.5px">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				expect( tableCell.getAttribute( 'tableCellWidth' ) ).toEqual( '50.5px' );
+			} );
+
+			it( 'should upcast width (%) attribute on table cell', () => {
+				editor.setData( '<table><tr><td width="50.5%">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				expect( tableCell.getAttribute( 'tableCellWidth' ) ).toEqual( '50.5%' );
+			} );
+
+			it( 'should upcast width (em) attribute on table cell', () => {
+				editor.setData( '<table><tr><td width="50.5em">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				// Normalize to px as other units are not supported by browsers.
+				expect( tableCell.getAttribute( 'tableCellWidth' ) ).toEqual( '50.5px' );
 			} );
 
 			// #12426
@@ -67,8 +116,60 @@ describe( 'TableCellWidthEditing', () => {
 				const tableCell00 = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 				const tableCell01 = model.document.getRoot().getNodeByPath( [ 0, 0, 1 ] );
 
-				expect( tableCell00.getAttribute( 'tableCellWidth' ) ).to.equal( '94px' );
-				expect( tableCell01.getAttribute( 'tableCellWidth' ) ).to.equal( '291px' );
+				expect( tableCell00.getAttribute( 'tableCellWidth' ) ).toEqual( '94px' );
+				expect( tableCell01.getAttribute( 'tableCellWidth' ) ).toEqual( '291px' );
+			} );
+
+			it( 'should consume width style even if it is default', async () => {
+				const editor = await VirtualTestEditor.create( {
+					plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+					table: {
+						tableCellProperties: {
+							defaultProperties: {
+								width: '123px'
+							}
+						}
+					}
+				} );
+				const model = editor.model;
+
+				// But it should consume it, so GHS won't store it.
+				editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+					expect( conversionApi.consumable.test( data.viewItem, { styles: 'width' } ) ).toBe( false );
+				}, { priority: 'lowest' } ) );
+
+				editor.setData( '<table><tr><td style="width:123px">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				expect( tableCell.hasAttribute( 'tableCellWidth' ) ).toBe( false );
+
+				await editor.destroy();
+			} );
+
+			it( 'should consume width attribute even if it is default', async () => {
+				const editor = await VirtualTestEditor.create( {
+					plugins: [ TableCellPropertiesEditing, Paragraph, TableEditing ],
+					table: {
+						tableCellProperties: {
+							defaultProperties: {
+								width: '123px'
+							}
+						}
+					}
+				} );
+				const model = editor.model;
+
+				// But it should consume it, so GHS won't store it.
+				editor.conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:td', ( evt, data, conversionApi ) => {
+					expect( conversionApi.consumable.test( data.viewItem, { attributes: 'width' } ) ).toBe( false );
+				}, { priority: 'lowest' } ) );
+
+				editor.setData( '<table><tr><td width="123">foo</td></tr></table>' );
+				const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
+
+				expect( tableCell.hasAttribute( 'tableCellWidth' ) ).toBe( false );
+
+				await editor.destroy();
 			} );
 		} );
 
@@ -76,7 +177,7 @@ describe( 'TableCellWidthEditing', () => {
 			let tableCell;
 
 			beforeEach( () => {
-				setModelData(
+				_setModelData(
 					model,
 					'<table headingRows="0" headingColumns="0">' +
 						'<tableRow>' +
@@ -93,7 +194,7 @@ describe( 'TableCellWidthEditing', () => {
 			it( 'should consume converted item tableCellWidth attribute', () => {
 				editor.conversion.for( 'downcast' )
 					.add( dispatcher => dispatcher.on( 'attribute:tableCellWidth:tableCell', ( evt, data, conversionApi ) => {
-						expect( conversionApi.consumable.consume( data.item, evt.name ) ).to.be.false;
+						expect( conversionApi.consumable.consume( data.item, evt.name ) ).toBe( false );
 					} ) );
 
 				model.change( writer => writer.setAttribute( 'tableCellWidth', '40px', tableCell ) );
@@ -114,7 +215,7 @@ describe( 'TableCellWidthEditing', () => {
 				model.change( writer => writer.setAttribute( 'tableCellWidth', '20px', tableCell ) );
 
 				expect(
-					editor.getData() ).to.equalMarkup(
+					editor.getData() ).toEqualMarkup(
 					'<figure class="table"><table><tbody><tr><td style="width:20px;">foo</td></tr></tbody></table></figure>'
 				);
 			} );
@@ -161,22 +262,22 @@ describe( 'TableCellWidthEditing', () => {
 				} );
 		} );
 
-		afterEach( () => {
-			editor.destroy();
+		afterEach( async () => {
+			await editor.destroy();
 		} );
 
 		it( 'should not upcast the default `width` value from <td>', () => {
 			editor.setData( '<table><tr><td style="width:250px">foo</td></tr></table>' );
 			const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-			expect( tableCell.getAttribute( 'width' ) ).to.be.undefined;
+			expect( tableCell.getAttribute( 'width' ) ).toBeUndefined();
 		} );
 
 		it( 'should not upcast the default `width` value from <th>', () => {
 			editor.setData( '<table><tr><th style="width:250px">foo</th></tr></table>' );
 			const tableCell = model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] );
 
-			expect( tableCell.getAttribute( 'width' ) ).to.be.undefined;
+			expect( tableCell.getAttribute( 'width' ) ).toBeUndefined();
 		} );
 	} );
 } );

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,12 +12,14 @@
 import { View } from '@ckeditor/ckeditor5-ui';
 import { toUnit } from '@ckeditor/ckeditor5-utils';
 
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * The horizontal drop target line view.
+ *
+ * @internal
  */
-export default class LineView extends View {
+export class LineView extends View {
 	/**
 	 * Controls whether the line is visible.
 	 *

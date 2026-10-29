@@ -1,31 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import PasteFromOffice from '../src/pastefromoffice';
-import ClipboardPipeline from '@ckeditor/ckeditor5-clipboard/src/clipboardpipeline';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import HtmlDataProcessor from '@ckeditor/ckeditor5-engine/src/dataprocessor/htmldataprocessor';
-import { createDataTransfer } from './_utils/utils';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
-import ViewDocument from '@ckeditor/ckeditor5-engine/src/view/document';
-import ViewDocumentFragment from '@ckeditor/ckeditor5-engine/src/view/documentfragment';
-import CodeBlockUI from '@ckeditor/ckeditor5-code-block/src/codeblockui';
-import CodeBlockEditing from '@ckeditor/ckeditor5-code-block/src/codeblockediting';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { priorities } from '@ckeditor/ckeditor5-utils';
-import { DomConverter } from '@ckeditor/ckeditor5-engine';
-
-/* global document, DOMParser */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { PasteFromOffice } from '../src/pastefromoffice.js';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import {
+	ViewDocumentFragment,
+	_getModelData,
+	_setModelData
+} from '@ckeditor/ckeditor5-engine';
+import { createDataTransfer } from './_utils/utils.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { CodeBlockUI, CodeBlockEditing } from '@ckeditor/ckeditor5-code-block';
 
 describe( 'PasteFromOffice', () => {
-	const htmlDataProcessor = new HtmlDataProcessor( new ViewDocument( new StylesProcessor() ) );
-	let editor, pasteFromOffice, clipboard, element;
-
-	testUtils.createSinonSandbox();
+	let editor, pasteFromOffice, element, viewDocument;
 
 	beforeEach( async () => {
 		element = document.createElement( 'div' );
@@ -35,7 +27,7 @@ describe( 'PasteFromOffice', () => {
 			plugins: [ PasteFromOffice, Paragraph, CodeBlockEditing, CodeBlockUI ]
 		} );
 		pasteFromOffice = editor.plugins.get( 'PasteFromOffice' );
-		clipboard = editor.plugins.get( 'ClipboardPipeline' );
+		viewDocument = editor.editing.view.document;
 	} );
 
 	afterEach( () => {
@@ -45,49 +37,30 @@ describe( 'PasteFromOffice', () => {
 	} );
 
 	it( 'should be loaded', () => {
-		expect( pasteFromOffice ).to.be.instanceOf( PasteFromOffice, Paragraph );
+		expect( pasteFromOffice ).toBeInstanceOf( PasteFromOffice );
 	} );
 
 	it( 'has proper name', () => {
-		expect( PasteFromOffice.pluginName ).to.equal( 'PasteFromOffice' );
+		expect( PasteFromOffice.pluginName ).toBe( 'PasteFromOffice' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( PasteFromOffice.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `true`', () => {
+		expect( PasteFromOffice.isPremiumPlugin ).toBe( true );
+	} );
+
+	it( 'should have `licenseFeatureCode` static flag set to `PFO`', () => {
+		expect( PasteFromOffice.licenseFeatureCode ).toBe( 'PFO' );
 	} );
 
 	it( 'should load Clipboard plugin', () => {
-		expect( editor.plugins.get( ClipboardPipeline ) ).to.be.instanceOf( ClipboardPipeline );
+		expect( editor.plugins.get( ClipboardPipeline ) ).toBeInstanceOf( ClipboardPipeline );
 	} );
 
-	it( 'should work on already parsed data if another plugin hooked into #inputTransformation with a higher priority', () => {
-		const clipboardPipeline = editor.plugins.get( 'ClipboardPipeline' );
-		const viewDocument = editor.editing.view.document;
-
-		// Simulate a plugin that hooks into the pipeline earlier and parses the data.
-		clipboardPipeline.on( 'inputTransformation', ( evt, data ) => {
-			const domParser = new DOMParser();
-			const htmlDocument = domParser.parseFromString( '<p>Existing data</p>', 'text/html' );
-			const domConverter = new DomConverter( viewDocument, { renderingMode: 'data' } );
-			const fragment = htmlDocument.createDocumentFragment();
-
-			data._parsedData = {
-				body: domConverter.domToView( fragment, { skipComments: true } ),
-				bodyString: '<body>Already parsed data</body>',
-				styles: [],
-				stylesString: ''
-			};
-		}, { priority: priorities.get( 'high' ) + 1 } );
-
-		const eventData = {
-			content: htmlDataProcessor.toView( '<meta name=Generator content="Microsoft Word 15">' ),
-			dataTransfer: createDataTransfer( { 'text/html': '<meta name=Generator content="Microsoft Word 15">' } )
-		};
-
-		// Trigger some event that would normally trigger the paste from office plugin.
-		clipboard.fire( 'inputTransformation', eventData );
-
-		// Verify if the PFO plugin works on an already parsed data.
-		expect( eventData._parsedData.bodyString ).to.equal( '<body>Already parsed data</body>' );
-	} );
-
-	describe( 'isTransformedWithPasteFromOffice - flag', () => {
+	describe( 'parsed with extraContent property set', () => {
 		describe( 'data which should be marked with flag', () => {
 			it( 'should process data with microsoft word header', () => {
 				checkCorrectData( '<meta name=Generator content="Microsoft Word 15">' );
@@ -115,22 +88,69 @@ describe( 'PasteFromOffice', () => {
 				);
 			} );
 
+			it( 'should process data from Excel Online', () => {
+				checkCorrectData(
+					'<div ccp_infra_version=\'3\' data-ccp-timestamp=\'1780896911866\'>' +
+						'<html><head>' +
+							'<meta name=ProgId content=Excel.Sheet>' +
+							'<meta name=Generator content="Microsoft Excel 15">' +
+							'<style>td { color:black; }</style>' +
+						'</head><body>' +
+							'<table><tbody><tr><td>123</td></tr></tbody></table>' +
+						'</body></html>' +
+					'</div>'
+				);
+			} );
+
 			function checkCorrectData( inputString ) {
 				const data = setUpData( inputString );
-				const getDataSpy = sinon.spy( data.dataTransfer, 'getData' );
+				const getDataSpy = vi.spyOn( data.dataTransfer, 'getData' );
 
-				clipboard.fire( 'inputTransformation', data );
+				viewDocument.fire( 'clipboardInput', data );
 
-				expect( data._isTransformedWithPasteFromOffice ).to.be.true;
-				expect( data._parsedData ).to.have.property( 'body' );
-				expect( data._parsedData ).to.have.property( 'bodyString' );
-				expect( data._parsedData ).to.have.property( 'styles' );
-				expect( data._parsedData ).to.have.property( 'stylesString' );
-				expect( data._parsedData.body ).to.be.instanceOf( ViewDocumentFragment );
+				expect( data.extraContent ).toHaveProperty( 'body' );
+				expect( data.extraContent ).toHaveProperty( 'bodyString' );
+				expect( data.extraContent ).toHaveProperty( 'styles' );
+				expect( data.extraContent ).toHaveProperty( 'stylesString' );
+				expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
 
-				sinon.assert.called( getDataSpy );
+				expect( getDataSpy ).toHaveBeenCalled();
 			}
 		} );
+
+		// See https://github.com/ckeditor/ckeditor5/issues/20188.
+		it( 'should not leak the `<style>` block as text when pasting from Excel Online', () => {
+			const data = setUpData(
+				'<div ccp_infra_version=\'3\' data-ccp-timestamp=\'1780896911866\'>' +
+					'<html><head>' +
+						'<meta name=ProgId content=Excel.Sheet>' +
+						'<meta name=Generator content="Microsoft Excel 15">' +
+						'<style>td { color:black; } .xl63 { font-size:48.0pt; }</style>' +
+					'</head><body>' +
+						'<table><tbody><tr><td class="xl63">123</td></tr></tbody></table>' +
+					'</body></html>' +
+				'</div>'
+			);
+
+			viewDocument.fire( 'clipboardInput', data );
+
+			expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
+			expect( hasStyleElement( data.content ) ).toBe( false );
+		} );
+
+		function hasStyleElement( node ) {
+			for ( const child of node.getChildren() ) {
+				if ( child.is( 'element', 'style' ) ) {
+					return true;
+				}
+
+				if ( child.is( 'element' ) && hasStyleElement( child ) ) {
+					return true;
+				}
+			}
+
+			return false;
+		}
 
 		describe( 'data which should not be marked with flag', () => {
 			it( 'should process data with regular html', () => {
@@ -154,70 +174,116 @@ describe( 'PasteFromOffice', () => {
 			} );
 
 			it( 'should process data for codeBlock', () => {
-				setModelData( editor.model, '<codeBlock language="plaintext">[]</codeBlock>' );
+				_setModelData( editor.model, '<codeBlock language="plaintext">[]</codeBlock>' );
 
-				const data = setUpData( '<p id="docs-internal-guid-12345678-1234-1234-1234-1234567890ab"></p>' );
-				const getDataSpy = sinon.spy( data.dataTransfer, 'getData' );
+				const data = setUpData( '<p id="docs-internal-guid-12345678-1234-1234-1234-1234567890ab"></p>', '' );
+				const getDataSpy = vi.spyOn( data.dataTransfer, 'getData' );
 
-				clipboard.fire( 'inputTransformation', data );
+				viewDocument.fire( 'clipboardInput', data );
 
-				expect( data._isTransformedWithPasteFromOffice ).to.be.undefined;
-				expect( data._parsedData ).to.be.undefined;
+				expect( data.extraContent ).toBeUndefined();
 
-				sinon.assert.notCalled( getDataSpy );
+				expect( getDataSpy ).toHaveBeenCalled();
 			} );
 
 			function checkNotProcessedData( inputString ) {
 				const data = setUpData( inputString );
-				const getDataSpy = sinon.spy( data.dataTransfer, 'getData' );
+				const getDataSpy = vi.spyOn( data.dataTransfer, 'getData' );
 
-				clipboard.fire( 'inputTransformation', data );
+				viewDocument.fire( 'clipboardInput', data );
 
-				expect( data._isTransformedWithPasteFromOffice ).to.be.undefined;
-				expect( data._parsedData ).to.be.undefined;
+				expect( data.extraContent ).toBeUndefined();
+				expect( data.content ).toEqual( inputString );
 
-				sinon.assert.called( getDataSpy );
-			}
-		} );
-
-		describe( 'data which already have the flag', () => {
-			it( 'should not process again ms word data containing a flag', () => {
-				checkAlreadyProcessedData( '<meta name=Generator content="Microsoft Word 15">' +
-					'<p class="MsoNormal">Hello world<o:p></o:p></p>' );
-			} );
-
-			it( 'should not process again google docs data containing a flag', () => {
-				checkAlreadyProcessedData( '<meta charset="utf-8"><b id="docs-internal-guid-30db46f5-7fff-15a1-e17c-1234567890ab"' +
-					'style="font-weight:normal;"><p dir="ltr">Hello world</p></b>' );
-			} );
-
-			function checkAlreadyProcessedData( inputString ) {
-				const data = setUpData( inputString, true );
-				const getDataSpy = sinon.spy( data.dataTransfer, 'getData' );
-
-				clipboard.fire( 'inputTransformation', data );
-
-				expect( data._isTransformedWithPasteFromOffice ).to.be.true;
-				expect( data._parsedData ).to.be.undefined;
-
-				sinon.assert.notCalled( getDataSpy );
+				expect( getDataSpy ).toHaveBeenCalled();
 			}
 		} );
 	} );
 
-	// @param {String} inputString html to be processed by paste from office
-	// @param {Boolean} [isTransformedWithPasteFromOffice=false] if set, marks output data with isTransformedWithPasteFromOffice flag
-	// @returns {Object} data object simulating content obtained from the clipboard
-	function setUpData( inputString, isTransformedWithPasteFromOffice = false ) {
-		const data = {
-			content: htmlDataProcessor.toView( inputString ),
-			dataTransfer: createDataTransfer( { 'text/html': inputString } )
+	describe( 'code block integration', () => {
+		it( 'should not intercept input when selection anchored outside any code block', () => {
+			_setModelData( editor.model, '<paragraph>f[]oo</paragraph>' );
+
+			const clipboardPlugin = editor.plugins.get( ClipboardPipeline );
+			const contentInsertionSpy = vi.fn();
+			const getDataStub = vi.fn().mockImplementation( type => {
+				if ( type === 'text/html' ) {
+					return 'abc';
+				}
+				if ( type === 'text/plain' ) {
+					return 'bar\nbaz\n';
+				}
+			} );
+
+			clipboardPlugin.on( 'contentInsertion', contentInsertionSpy );
+
+			const dataTransferMock = {
+				getData: getDataStub
+			};
+
+			viewDocument.fire( 'clipboardInput', {
+				content: 'abc',
+				dataTransfer: dataTransferMock,
+				stop: vi.fn()
+			} );
+
+			expect( _getModelData( editor.model ) ).toBe( '<paragraph>fabc[]oo</paragraph>' );
+
+			// Make sure that ClipboardPipeline was not interrupted.
+			expect( contentInsertionSpy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should intercept input when selection anchored in the code block', () => {
+			_setModelData( editor.model, '<codeBlock language="css">f[o]o</codeBlock>' );
+
+			const clipboardPlugin = editor.plugins.get( ClipboardPipeline );
+			const contentInsertionSpy = vi.fn();
+			const getDataStub = vi.fn().mockImplementation( type => {
+				if ( type === 'text/html' ) {
+					return 'abc';
+				}
+				if ( type === 'text/plain' ) {
+					return 'bar\nbaz\n';
+				}
+			} );
+
+			clipboardPlugin.on( 'contentInsertion', contentInsertionSpy );
+
+			const dataTransferMock = {
+				getData: getDataStub
+			};
+
+			viewDocument.fire( 'clipboardInput', {
+				content: 'abc',
+				dataTransfer: dataTransferMock,
+				stop: vi.fn()
+			} );
+
+			expect( _getModelData( editor.model ) ).toBe(
+				'<codeBlock language="css">' +
+					'fbar' +
+					'<softBreak></softBreak>' +
+					'baz' +
+					'<softBreak></softBreak>' +
+					'[]o' +
+				'</codeBlock>' );
+
+			expect( dataTransferMock.getData ).toHaveBeenCalled();
+
+			// Make sure that ClipboardPipeline was not interrupted.
+			expect( contentInsertionSpy ).toHaveBeenCalledOnce();
+		} );
+	} );
+
+	function setUpData( htmlString, plainTextString ) {
+		return {
+			content: htmlString,
+			dataTransfer: createDataTransfer( {
+				'text/html': htmlString,
+				...typeof plainTextString === 'string' && {
+					'text/plain': plainTextString
+				}
+			} )
 		};
-
-		if ( isTransformedWithPasteFromOffice ) {
-			data._isTransformedWithPasteFromOffice = true;
-		}
-
-		return data;
 	}
 } );

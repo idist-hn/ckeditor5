@@ -1,19 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module heading/headingediting
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import { Paragraph } from 'ckeditor5/src/paragraph';
-import { priorities } from 'ckeditor5/src/utils';
-import type { EnterCommandAfterExecuteEvent } from 'ckeditor5/src/enter';
-import type { HeadingOption } from './headingconfig';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { priorities } from '@ckeditor/ckeditor5-utils';
+import type { EnterCommandAfterExecuteEvent } from '@ckeditor/ckeditor5-enter';
+import type { HeadingOption } from './headingconfig.js';
 
-import HeadingCommand from './headingcommand';
+import { HeadingCommand } from './headingcommand.js';
 
 const defaultModelElement = 'paragraph';
 
@@ -22,12 +22,19 @@ const defaultModelElement = 'paragraph';
  * This class represents the engine part of the heading feature. See also {@link module:heading/heading~Heading}.
  * It introduces `heading1`-`headingN` commands which allow to convert paragraphs into headings.
  */
-export default class HeadingEditing extends Plugin {
+export class HeadingEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'HeadingEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -49,8 +56,8 @@ export default class HeadingEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ Paragraph ] as const;
+	public static get requires(): PluginDependenciesOf<[ Paragraph ]> {
+		return [ Paragraph ];
 	}
 
 	/**

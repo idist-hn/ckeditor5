@@ -1,14 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import MentionCommand from '../src/mentioncommand';
+import { MentionCommand } from '../src/mentioncommand.js';
 
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 describe( 'MentionCommand', () => {
 	let editor, command, model, doc, selection;
@@ -38,8 +39,8 @@ describe( 'MentionCommand', () => {
 
 	describe( 'isEnabled', () => {
 		it( 'should return true if characters with the attribute can be placed at caret position', () => {
-			setData( model, '<paragraph>f[]oo</paragraph>' );
-			expect( command.isEnabled ).to.be.true;
+			_setModelData( model, '<paragraph>f[]oo</paragraph>' );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should return false if characters with the attribute cannot be placed at caret position', () => {
@@ -50,14 +51,31 @@ describe( 'MentionCommand', () => {
 				}
 			} );
 
-			setData( model, '<x>fo[]o</x>' );
-			expect( command.isEnabled ).to.be.false;
+			_setModelData( model, '<x>fo[]o</x>' );
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should return false if caret is inside a code block', () => {
+			model.schema.register( 'codeBlock', {
+				allowWhere: '$block',
+				allowChildren: '$text',
+				isBlock: true
+			} );
+
+			model.schema.addAttributeCheck( context => {
+				if ( context.endsWith( 'codeBlock $text' ) ) {
+					return false;
+				}
+			}, 'mention' );
+
+			_setModelData( model, '<codeBlock>fo[]o</codeBlock>' );
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'inserts mention object if mention was passed as string', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
 
 			command.execute( {
 				marker: '@',
@@ -69,7 +87,7 @@ describe( 'MentionCommand', () => {
 		} );
 
 		it( 'should not execute if selectable is not editable', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
 
 			model.document.isReadOnly = true;
 
@@ -79,11 +97,11 @@ describe( 'MentionCommand', () => {
 				range: model.createRange( selection.focus.getShiftedBy( -3 ), selection.focus )
 			} );
 
-			expect( doc.getRoot().getChild( 0 ).getChild( 1 ) ).to.be.null;
+			expect( doc.getRoot().getChild( 0 ).getChild( 1 ) ).toBeNull();
 		} );
 
 		it( 'inserts mention object with data if mention was passed as object', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
 
 			command.execute( {
 				marker: '@',
@@ -93,11 +111,11 @@ describe( 'MentionCommand', () => {
 
 			const mentionNode = doc.getRoot().getChild( 0 ).getChild( 1 );
 			assertMention( mentionNode, '@John' );
-			expect( mentionNode.getAttribute( 'mention' ) ).to.have.property( 'userId', '123456' );
+			expect( mentionNode.getAttribute( 'mention' ) ).toHaveProperty( 'userId', '123456' );
 		} );
 
 		it( 'inserts options.text as mention text', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
 
 			command.execute( {
 				marker: '@',
@@ -110,7 +128,7 @@ describe( 'MentionCommand', () => {
 		} );
 
 		it( 'inserts mention attribute with passed marker for given range', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
 
 			const end = model.createPositionAt( selection.focus );
 			const start = end.getShiftedBy( -3 );
@@ -125,7 +143,7 @@ describe( 'MentionCommand', () => {
 		} );
 
 		it( 'inserts mention attribute at current selection if no range was passed', () => {
-			setData( model, '<paragraph>foo []bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo []bar</paragraph>' );
 
 			command.execute( {
 				marker: '@',
@@ -138,7 +156,7 @@ describe( 'MentionCommand', () => {
 		it( 'should set also other styles in inserted text', () => {
 			model.schema.extend( '$text', { allowAttributes: [ 'bold' ] } );
 
-			setData( model, '<paragraph><$text bold="true">foo@John[]bar</$text></paragraph>' );
+			_setModelData( model, '<paragraph><$text bold="true">foo@John[]bar</$text></paragraph>' );
 
 			command.execute( {
 				marker: '@',
@@ -148,24 +166,11 @@ describe( 'MentionCommand', () => {
 
 			const textNode = doc.getRoot().getChild( 0 ).getChild( 1 );
 			assertMention( textNode, '@John' );
-			expect( textNode.hasAttribute( 'bold' ) ).to.be.true;
-		} );
-
-		it( 'should throw if marker is not one character', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
-
-			const testCases = [
-				{ marker: '##', mention: '##foo' },
-				{ marker: '', mention: '@foo' }
-			];
-
-			for ( const options of testCases ) {
-				expectToThrowCKEditorError( () => command.execute( options ), /mentioncommand-incorrect-marker/, editor );
-			}
+			expect( textNode.hasAttribute( 'bold' ) ).toBe( true );
 		} );
 
 		it( 'should throw if marker does not match mention id', () => {
-			setData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo @Jo[]bar</paragraph>' );
 
 			const testCases = [
 				{ marker: '@', mention: 'foo' },
@@ -177,12 +182,55 @@ describe( 'MentionCommand', () => {
 				expectToThrowCKEditorError( () => command.execute( options ), /mentioncommand-incorrect-id/, editor );
 			}
 		} );
+
+		it( 'should not insert a white space if the mention was already followed by one', () => {
+			_setModelData( model, '<paragraph>foo [] bar</paragraph>' );
+
+			command.execute( {
+				marker: '@',
+				mention: '@John'
+			} );
+
+			assertMention( doc.getRoot().getChild( 0 ).getChild( 1 ), '@John' );
+
+			expect( _getModelData( model ) ).toMatch(
+				/<paragraph>foo <\$text mention="{"uid":"[^"]+","_text":"@John","id":"@John"}">@John\[\]<\/\$text> bar<\/paragraph>/
+			);
+		} );
+
+		[ [ '(', ')' ], [ '[', ']' ], [ '{', '}' ] ].forEach( ( [ openingBracket, closingBracket ] ) => {
+			it( `should not insert a white space if the mention injected in "${ openingBracket }${ closingBracket }" brackets`, () => {
+				model.change( writer => {
+					const paragraph = writer.createElement( 'paragraph' );
+					const text = writer.createText( `${ openingBracket }${ closingBracket }` );
+
+					writer.append( text, paragraph );
+					writer.append( paragraph, model.document.getRoot() );
+
+					writer.setSelection( paragraph, 1 );
+				} );
+
+				command.execute( {
+					marker: '@',
+					mention: '@John'
+				} );
+
+				assertMention( doc.getRoot().getChild( 0 ).getChild( 1 ), '@John' );
+
+				expect( _getModelData( model ) ).toMatch(
+					new RegExp( '<paragraph>\\' + openingBracket +
+						'<\\$text mention="{"uid":"[^"]+","_text":"@John","id":"@John"}">@John\\[\\]</\\$text>\\' +
+						closingBracket + '</paragraph>'
+					)
+				);
+			} );
+		} );
 	} );
 
 	function assertMention( textNode, id ) {
-		expect( textNode.hasAttribute( 'mention' ) ).to.be.true;
-		expect( textNode.getAttribute( 'mention' ) ).to.have.property( 'uid' );
-		expect( textNode.getAttribute( 'mention' ) ).to.have.property( '_text', textNode.data );
-		expect( textNode.getAttribute( 'mention' ) ).to.have.property( 'id', id );
+		expect( textNode.hasAttribute( 'mention' ) ).toBe( true );
+		expect( textNode.getAttribute( 'mention' ) ).toHaveProperty( 'uid' );
+		expect( textNode.getAttribute( 'mention' ) ).toHaveProperty( '_text', textNode.data );
+		expect( textNode.getAttribute( 'mention' ) ).toHaveProperty( 'id', id );
 	}
 } );

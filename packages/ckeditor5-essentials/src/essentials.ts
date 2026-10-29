@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module essentials/essentials
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import { Clipboard } from 'ckeditor5/src/clipboard';
-import { Enter, ShiftEnter } from 'ckeditor5/src/enter';
-import { SelectAll } from 'ckeditor5/src/select-all';
-import { Typing } from 'ckeditor5/src/typing';
-import { Undo } from 'ckeditor5/src/undo';
+import { Clipboard } from '@ckeditor/ckeditor5-clipboard';
+import { Enter, ShiftEnter } from '@ckeditor/ckeditor5-enter';
+import { SelectAll } from '@ckeditor/ckeditor5-select-all';
+import { Typing } from '@ckeditor/ckeditor5-typing';
+import { Undo } from '@ckeditor/ckeditor5-undo';
+import { AccessibilityHelp } from '@ckeditor/ckeditor5-ui';
 
 /**
  * A plugin including all essential editing features. It represents a set of features that enables similar functionalities
@@ -21,6 +22,7 @@ import { Undo } from 'ckeditor5/src/undo';
  *
  * It includes:
  *
+ * * {@link module:ui/editorui/accessibilityhelp/accessibilityhelp~AccessibilityHelp},
  * * {@link module:clipboard/clipboard~Clipboard},
  * * {@link module:enter/enter~Enter},
  * * {@link module:select-all/selectall~SelectAll},
@@ -31,12 +33,12 @@ import { Undo } from 'ckeditor5/src/undo';
  * This plugin set does not define any block-level containers (such as {@link module:paragraph/paragraph~Paragraph}).
  * If your editor is supposed to handle block content, make sure to include it.
  */
-export default class Essentials extends Plugin {
+export class Essentials extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ Clipboard, Enter, SelectAll, ShiftEnter, Typing, Undo ] as const;
+	public static get requires(): PluginDependenciesOf<[ AccessibilityHelp, Clipboard, Enter, SelectAll, ShiftEnter, Typing, Undo ]> {
+		return [ AccessibilityHelp, Clipboard, Enter, SelectAll, ShiftEnter, Typing, Undo ];
 	}
 
 	/**
@@ -44,5 +46,12 @@ export default class Essentials extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Essentials' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

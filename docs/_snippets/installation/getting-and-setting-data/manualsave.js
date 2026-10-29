@@ -1,11 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals ClassicEditor, console, window, document, setTimeout */
-
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { AutosaveEditor } from './build-autosave-source.js';
 
 let HTTP_SERVER_LAG = 500;
 let isDirty = false;
@@ -14,25 +16,34 @@ document.querySelector( '#snippet-manualsave-lag' ).addEventListener( 'change', 
 	HTTP_SERVER_LAG = evt.target.value;
 } );
 
-ClassicEditor
-	.create( document.querySelector( '#snippet-manualsave' ), {
-		cloudServices: CS_CONFIG,
-		ui: {
-			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+document.addEventListener( 'DOMContentLoaded', () => {
+	AutosaveEditor
+		.create( {
+			attachTo: document.querySelector( '#snippet-manualsave' ),
+			ckbox: {
+				tokenUrl: TOKEN_URL,
+				forceDemoLabel: true,
+				allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ]
+			},
+			ui: {
+				viewportOffset: {
+					top: getViewportTopOffsetConfig()
+				}
 			}
-		}
-	} )
-	.then( editor => {
-		window.editor = editor;
+		} )
+		.then( editor => {
+			window.editor = editor;
 
-		handleStatusChanges( editor );
-		handleSaveButton( editor );
-		handleBeforeunload( editor );
-	} )
-	.catch( err => {
-		console.error( err.stack );
-	} );
+			updateServerDataConsole( editor.getData() );
+
+			handleStatusChanges( editor );
+			handleSaveButton( editor );
+			handleBeforeunload( editor );
+		} )
+		.catch( err => {
+			console.error( err.stack );
+		} );
+} );
 
 // Handle clicking the "Save" button.
 function handleSaveButton( editor ) {
@@ -46,8 +57,8 @@ function handleSaveButton( editor ) {
 		evt.preventDefault();
 
 		// Fake HTTP server's lag.
-		setTimeout( () => {
-			updateServerDataConsole( data );
+		setTimeout( async () => {
+			await updateServerDataConsole( data );
 
 			pendingActions.remove( action );
 
@@ -97,18 +108,8 @@ function updateStatus( editor ) {
 	}
 }
 
-let consoleUpdates = 0;
-
-function updateServerDataConsole( msg ) {
+async function updateServerDataConsole( msg ) {
 	const console = document.querySelector( '#snippet-manualsave-console' );
 
-	consoleUpdates++;
-	console.classList.add( 'updated' );
-	console.textContent = msg;
-
-	setTimeout( () => {
-		if ( --consoleUpdates == 0 ) {
-			console.classList.remove( 'updated' );
-		}
-	}, 500 );
+	await window.umberto.afterReady( () => console.codeBlock.setCode( msg ) );
 }

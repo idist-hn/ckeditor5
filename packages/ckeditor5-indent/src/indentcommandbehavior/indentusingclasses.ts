@@ -1,18 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module indent/indentcommandbehavior/indentusingclasses
  */
 
-import type { IndentBehavior } from './indentbehavior';
+import type { IndentBehavior } from './indentbehavior.js';
 
 /**
  * The block indentation behavior that uses classes to set indentation.
+ *
+ * @internal
  */
-export default class IndentUsingClasses implements IndentBehavior {
+export class IndentUsingClasses implements IndentBehavior {
 	/**
 	 * The direction of indentation.
 	 */
@@ -53,7 +55,9 @@ export default class IndentUsingClasses implements IndentBehavior {
 	public getNextIndent( indentAttributeValue: string ): string | undefined {
 		const currentIndex = this.classes.indexOf( indentAttributeValue );
 		const indexStep = this.isForward ? 1 : -1;
+		const nextIndex = currentIndex + indexStep;
+		const nextIndexClamped = Math.min( nextIndex, this.classes.length - 1 );
 
-		return this.classes[ currentIndex + indexStep ];
+		return this.classes[ nextIndexClamped ];
 	}
 }

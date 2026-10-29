@@ -1,0 +1,16 @@
+/*
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+
+:root,
+:host {
+	--ck-image-custom-resize-form-width: var(--ck-width-balloon-form);
+}
+
+.ck.ck-image-custom-resize-form {
+	&.ck-responsive-form {
+		width: var(--ck-image-custom-resize-form-width);
+	}
+}

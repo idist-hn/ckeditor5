@@ -1,57 +1,49 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/linkediting
  */
 
-import {
-	Plugin,
-	type Editor
-} from 'ckeditor5/src/core';
-import {
-	MouseObserver,
-	type Model,
-	type Schema,
-	type Writer,
-	type ViewElement,
-	type ModelDeleteContentEvent,
-	type ModelInsertContentEvent,
-	type ViewDocumentKeyDownEvent,
-	type ViewDocumentMouseDownEvent,
-	type ViewDocumentClickEvent,
-	type ViewDocumentSelectionChangeEvent
-} from 'ckeditor5/src/engine';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type {
+	ModelSchema,
+	ModelWriter,
+	ViewElement,
+	ViewDocumentKeyDownEvent,
+	ViewDocumentClickEvent,
+	ModelDocumentSelectionChangeAttributeEvent,
+	ViewDowncastWriter,
+	DowncastAttributeEvent,
+	ModelItem
+} from '@ckeditor/ckeditor5-engine';
 import {
 	Input,
 	TwoStepCaretMovement,
-	inlineHighlight,
-	findAttributeRange,
-	type ViewDocumentDeleteEvent
-} from 'ckeditor5/src/typing';
+	inlineHighlight
+} from '@ckeditor/ckeditor5-typing';
 import {
 	ClipboardPipeline,
 	type ClipboardContentInsertionEvent
-} from 'ckeditor5/src/clipboard';
-import { keyCodes, env } from 'ckeditor5/src/utils';
+} from '@ckeditor/ckeditor5-clipboard';
+import { keyCodes, env, type GetCallback, priorities } from '@ckeditor/ckeditor5-utils';
 
-import LinkCommand from './linkcommand';
-import UnlinkCommand from './unlinkcommand';
-import ManualDecorator from './utils/manualdecorator';
+import { LinkCommand } from './linkcommand.js';
+import { UnlinkCommand } from './unlinkcommand.js';
+import { areDecoratorsConflicting } from './utils/conflictingdecorators.js';
+import { LinkManualDecorator } from './utils/manualdecorator.js';
 import {
 	createLinkElement,
 	ensureSafeUrl,
 	getLocalizedDecorators,
 	normalizeDecorators,
-	openLink,
 	addLinkProtocolIfApplicable,
+	openLink,
 	type NormalizedLinkDecoratorAutomaticDefinition,
 	type NormalizedLinkDecoratorManualDefinition
-} from './utils';
-
-import '../theme/link.css';
+} from './utils.js';
 
 const HIGHLIGHT_CLASS = 'ck-link_selected';
 const DECORATOR_AUTOMATIC = 'automatic';
@@ -64,7 +56,12 @@ const EXTERNAL_LINKS_REGEXP = /^(https?:)?\/\//;
  * It introduces the `linkHref="url"` attribute in the model which renders to the view as a `<a href="url">` element
  * as well as `'link'` and `'unlink'` commands.
  */
-export default class LinkEditing extends Plugin {
+export class LinkEditing extends Plugin {
+	/**
+	 * A list of functions that handles opening links. If any of them returns `true`, the link is considered to be opened.
+	 */
+	private readonly _linkOpeners: Array<LinkOpener> = [];
+
 	/**
 	 * @inheritDoc
 	 */
@@ -75,9 +72,24 @@ export default class LinkEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[
+		TwoStepCaretMovement,
+		Input,
+		ClipboardPipeline
+	]> {
 		// Clipboard is required for handling cut and paste events while typing over the link.
-		return [ TwoStepCaretMovement, Input, ClipboardPipeline ] as const;
+		return [
+			TwoStepCaretMovement,
+			Input,
+			ClipboardPipeline
+		];
 	}
 
 	/**
@@ -87,7 +99,9 @@ export default class LinkEditing extends Plugin {
 		super( editor );
 
 		editor.config.define( 'link', {
-			addTargetToExternalLinks: false
+			allowCreatingEmptyLinks: false,
+			addTargetToExternalLinks: false,
+			toolbar: [ 'linkPreview', '|', 'editLink', 'linkProperties', 'unlink' ]
 		} );
 	}
 
@@ -96,6 +110,7 @@ export default class LinkEditing extends Plugin {
 	 */
 	public init(): void {
 		const editor = this.editor;
+		const allowedProtocols = this.editor.config.get( 'link.allowedProtocols' );
 
 		// Allow link attribute on all inline nodes.
 		editor.model.schema.extend( '$text', { allowAttributes: 'linkHref' } );
@@ -105,7 +120,7 @@ export default class LinkEditing extends Plugin {
 
 		editor.conversion.for( 'editingDowncast' )
 			.attributeToElement( { model: 'linkHref', view: ( href, conversionApi ) => {
-				return createLinkElement( ensureSafeUrl( href ), conversionApi );
+				return createLinkElement( ensureSafeUrl( href, allowedProtocols ), conversionApi );
 			} } );
 
 		editor.conversion.for( 'upcast' )
@@ -143,27 +158,31 @@ export default class LinkEditing extends Plugin {
 		// Handle link following by CTRL+click or ALT+ENTER
 		this._enableLinkOpen();
 
-		// Change the attributes of the selection in certain situations after the link was inserted into the document.
-		this._enableInsertContentSelectionAttributesFixer();
-
-		// Handle a click at the beginning/end of a link element.
-		this._enableClickingAfterLink();
-
-		// Handle typing over the link.
-		this._enableTypingOverLink();
-
-		// Handle removing the content after the link element.
-		this._handleDeleteContentAfterLink();
+		// Clears the ModelDocumentSelection decorator attributes if the selection is no longer in a link (for example while using 2-SCM).
+		this._enableSelectionAttributesFixer();
 
 		// Handle adding default protocol to pasted links.
 		this._enableClipboardIntegration();
+
+		// Register postfixer that resolves conflicting decorator attributes.
+		this._enableDecoratorConflictPostfixer();
+	}
+
+	/**
+	 * Registers a function that opens links in a new browser tab.
+	 *
+	 * @param linkOpener The function that opens a link in a new browser tab.
+	 * @internal
+	 */
+	public _registerLinkOpener( linkOpener: LinkOpener ): void {
+		this._linkOpeners.push( linkOpener );
 	}
 
 	/**
 	 * Processes an array of configured {@link module:link/linkconfig~LinkDecoratorAutomaticDefinition automatic decorators}
 	 * and registers a {@link module:engine/conversion/downcastdispatcher~DowncastDispatcher downcast dispatcher}
 	 * for each one of them. Downcast dispatchers are obtained using the
-	 * {@link module:link/utils/automaticdecorators~AutomaticDecorators#getDispatcher} method.
+	 * {@link module:link/utils/automaticdecorators~AutomaticLinkDecorators#getDispatcher} method.
 	 *
 	 * **Note**: This method also activates the automatic external link decorator if enabled with
 	 * {@link module:link/linkconfig~LinkConfig#addTargetToExternalLinks `config.link.addTargetToExternalLinks`}.
@@ -190,6 +209,21 @@ export default class LinkEditing extends Plugin {
 
 		automaticDecorators.add( automaticDecoratorDefinitions );
 
+		automaticDecorators.setConflictChecker( ( automaticDecorator, modelItem ) => {
+			for ( const manualDecorator of command.manualDecorators ) {
+				// If manual decorator is not applied, skip it.
+				if ( !modelItem.hasAttribute( manualDecorator.id ) ) {
+					continue;
+				}
+
+				// If it conflicts with manual decorator that was applied, return true
+				// to prevent the automatic decorator from being applied.
+				if ( areDecoratorsConflicting( automaticDecorator, manualDecorator ) ) {
+					return true;
+				}
+			}
+		} );
+
 		if ( automaticDecorators.length ) {
 			editor.conversion.for( 'downcast' ).add( automaticDecorators.getDispatcher() );
 		}
@@ -197,11 +231,11 @@ export default class LinkEditing extends Plugin {
 
 	/**
 	 * Processes an array of configured {@link module:link/linkconfig~LinkDecoratorManualDefinition manual decorators},
-	 * transforms them into {@link module:link/utils/manualdecorator~ManualDecorator} instances and stores them in the
+	 * transforms them into {@link module:link/utils/manualdecorator~LinkManualDecorator} instances and stores them in the
 	 * {@link module:link/linkcommand~LinkCommand#manualDecorators} collection (a model for manual decorators state).
 	 *
 	 * Also registers an {@link module:engine/conversion/downcasthelpers~DowncastHelpers#attributeToElement attribute-to-element}
-	 * converter for each manual decorator and extends the {@link module:engine/model/schema~Schema model's schema}
+	 * converter for each manual decorator and extends the {@link module:engine/model/schema~ModelSchema model's schema}
 	 * with adequate model attributes.
 	 */
 	private _enableManualDecorators( manualDecoratorDefinitions: Array<NormalizedLinkDecoratorManualDefinition> ): void {
@@ -217,34 +251,75 @@ export default class LinkEditing extends Plugin {
 			editor.model.schema.extend( '$text', { allowAttributes: decoratorDefinition.id } );
 
 			// Keeps reference to manual decorator to decode its name to attributes during downcast.
-			const decorator = new ManualDecorator( decoratorDefinition );
+			const decorator = new LinkManualDecorator( decoratorDefinition );
 
 			manualDecorators.add( decorator );
 
-			editor.conversion.for( 'downcast' ).attributeToElement( {
-				model: decorator.id,
-				view: ( manualDecoratorValue, { writer, schema }, { item } ) => {
-					// Manual decorators for block links are handled e.g. in LinkImageEditing.
-					if ( !( item.is( 'selection' ) || schema.isInline( item ) ) ) {
-						return;
+			editor.conversion.for( 'downcast' ).add( dispatcher => {
+				const elementCreator = ( writer: ViewDowncastWriter ) => {
+					const element = writer.createAttributeElement( 'a', decorator.attributes, { priority: 5 } );
+
+					if ( decorator.classes ) {
+						writer.addClass( decorator.classes, element );
 					}
 
-					if ( manualDecoratorValue ) {
-						const element = writer.createAttributeElement( 'a', decorator.attributes, { priority: 5 } );
-
-						if ( decorator.classes ) {
-							writer.addClass( decorator.classes, element );
-						}
-
-						for ( const key in decorator.styles ) {
-							writer.setStyle( key, decorator.styles[ key ], element );
-						}
-
-						writer.setCustomProperty( 'link', true, element );
-
-						return element;
+					for ( const key in decorator.styles ) {
+						writer.setStyle( key, decorator.styles[ key ], element );
 					}
-				}
+
+					writer.setCustomProperty( 'link', true, element );
+
+					return element;
+				};
+
+				const createConverter = ( isApplyingConverter: boolean ): GetCallback<DowncastAttributeEvent> => {
+					return ( evt, data, conversionApi ) => {
+						// Manual decorators for block links are handled e.g. in LinkImageEditing.
+						if ( !data.item.is( 'selection' ) && !conversionApi.schema.isInline( data.item ) ) {
+							return;
+						}
+
+						if ( !isApplyingConverter && data.attributeOldValue ) {
+							// Only test while removing the decorator as this is triggered before the applying converter.
+							if ( !conversionApi.consumable.test( data.item, evt.name ) ) {
+								return;
+							}
+
+							conversionApi.writer.unwrap(
+								conversionApi.mapper.toViewRange( data.range ),
+								elementCreator( conversionApi.writer )
+							);
+						}
+
+						if ( isApplyingConverter && data.attributeNewValue ) {
+							// Consume while applying the decorator.
+							if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+								return;
+							}
+
+							if ( data.item.is( 'selection' ) ) {
+								conversionApi.writer.wrap(
+									conversionApi.writer.document.selection.getFirstRange()!,
+									elementCreator( conversionApi.writer )
+								);
+							} else {
+								conversionApi.writer.wrap(
+									conversionApi.mapper.toViewRange( data.range ),
+									elementCreator( conversionApi.writer )
+								);
+							}
+						}
+					};
+				};
+
+				dispatcher.on<DowncastAttributeEvent>( `attribute:${ decorator.id }`, createConverter( false ), {
+					priority: priorities.high - 1
+				} );
+				// Apply decorators after all automatic and manual decorators are removed so removing one decorator
+				// won't strip part of the other decorator's attributes, classes or styles.
+				dispatcher.on<DowncastAttributeEvent>( `attribute:${ decorator.id }`, createConverter( true ), {
+					priority: priorities.high - 2
+				} );
 			} );
 
 			editor.conversion.for( 'upcast' ).elementToAttribute( {
@@ -260,13 +335,19 @@ export default class LinkEditing extends Plugin {
 	}
 
 	/**
-	 * Attaches handlers for {@link module:engine/view/document~Document#event:enter} and
-	 * {@link module:engine/view/document~Document#event:click} to enable link following.
+	 * Attaches handlers for {@link module:engine/view/document~ViewDocument#event:enter} and
+	 * {@link module:engine/view/document~ViewDocument#event:click} to enable link following.
 	 */
 	private _enableLinkOpen(): void {
 		const editor = this.editor;
 		const view = editor.editing.view;
 		const viewDocument = view.document;
+
+		const handleLinkOpening = ( url: string ): void => {
+			if ( !this._linkOpeners.some( opener => opener( url ) ) ) {
+				openLink( url );
+			}
+		};
 
 		this.listenTo<ViewDocumentClickEvent>( viewDocument, 'click', ( evt, data ) => {
 			const shouldOpen = env.isMac ? data.domEvent.metaKey : data.domEvent.ctrlKey;
@@ -294,7 +375,7 @@ export default class LinkEditing extends Plugin {
 			evt.stop();
 			data.preventDefault();
 
-			openLink( url );
+			handleLinkOpening( url );
 		}, { context: '$capture' } );
 
 		// Open link on Alt+Enter.
@@ -309,295 +390,29 @@ export default class LinkEditing extends Plugin {
 
 			evt.stop();
 
-			openLink( url );
+			handleLinkOpening( url );
 		} );
 	}
 
 	/**
-	 * Starts listening to {@link module:engine/model/model~Model#event:insertContent} and corrects the model
-	 * selection attributes if the selection is at the end of a link after inserting the content.
+	 * Watches the ModelDocumentSelection attribute changes and removes link decorator attributes when the linkHref attribute is removed.
 	 *
-	 * The purpose of this action is to improve the overall UX because the user is no longer "trapped" by the
-	 * `linkHref` attribute of the selection and they can type a "clean" (`linkHref`–less) text right away.
-	 *
-	 * See https://github.com/ckeditor/ckeditor5/issues/6053.
+	 * This is to ensure that there is no left-over link decorator attributes on the document selection that is no longer in a link.
 	 */
-	private _enableInsertContentSelectionAttributesFixer(): void {
+	private _enableSelectionAttributesFixer(): void {
 		const editor = this.editor;
 		const model = editor.model;
 		const selection = model.document.selection;
 
-		this.listenTo<ModelInsertContentEvent>( model, 'insertContent', () => {
-			const nodeBefore = selection.anchor!.nodeBefore;
-			const nodeAfter = selection.anchor!.nodeAfter;
-
-			// NOTE: ↰ and ↱ represent the gravity of the selection.
-
-			// The only truly valid case is:
-			//
-			//		                                 ↰
-			//		...<$text linkHref="foo">INSERTED[]</$text>
-			//
-			// If the selection is not "trapped" by the `linkHref` attribute after inserting, there's nothing
-			// to fix there.
-			if ( !selection.hasAttribute( 'linkHref' ) ) {
-				return;
-			}
-
-			// Filter out the following case where a link with the same href (e.g. <a href="foo">INSERTED</a>) is inserted
-			// in the middle of an existing link:
-			//
-			// Before insertion:
-			//		                       ↰
-			//		<$text linkHref="foo">l[]ink</$text>
-			//
-			// Expected after insertion:
-			//		                               ↰
-			//		<$text linkHref="foo">lINSERTED[]ink</$text>
-			//
-			if ( !nodeBefore ) {
-				return;
-			}
-
-			// Filter out the following case where the selection has the "linkHref" attribute because the
-			// gravity is overridden and some text with another attribute (e.g. <b>INSERTED</b>) is inserted:
-			//
-			// Before insertion:
-			//
-			//		                       ↱
-			//		<$text linkHref="foo">[]link</$text>
-			//
-			// Expected after insertion:
-			//
-			//		                                                          ↱
-			//		<$text bold="true">INSERTED</$text><$text linkHref="foo">[]link</$text>
-			//
-			if ( !nodeBefore.hasAttribute( 'linkHref' ) ) {
-				return;
-			}
-
-			// Filter out the following case where a link is a inserted in the middle (or before) another link
-			// (different URLs, so they will not merge). In this (let's say weird) case, we can leave the selection
-			// attributes as they are because the user will end up writing in one link or another anyway.
-			//
-			// Before insertion:
-			//
-			//		                       ↰
-			//		<$text linkHref="foo">l[]ink</$text>
-			//
-			// Expected after insertion:
-			//
-			//		                                                             ↰
-			//		<$text linkHref="foo">l</$text><$text linkHref="bar">INSERTED[]</$text><$text linkHref="foo">ink</$text>
-			//
-			if ( nodeAfter && nodeAfter.hasAttribute( 'linkHref' ) ) {
+		this.listenTo<ModelDocumentSelectionChangeAttributeEvent>( selection, 'change:attribute', ( evt, { attributeKeys } ) => {
+			if ( !attributeKeys.includes( 'linkHref' ) || selection.hasAttribute( 'linkHref' ) ) {
 				return;
 			}
 
 			model.change( writer => {
 				removeLinkAttributesFromSelection( writer, getLinkAttributesAllowedOnText( model.schema ) );
 			} );
-		}, { priority: 'low' } );
-	}
-
-	/**
-	 * Starts listening to {@link module:engine/view/document~Document#event:mousedown} and
-	 * {@link module:engine/view/document~Document#event:selectionChange} and puts the selection before/after a link node
-	 * if clicked at the beginning/ending of the link.
-	 *
-	 * The purpose of this action is to allow typing around the link node directly after a click.
-	 *
-	 * See https://github.com/ckeditor/ckeditor5/issues/1016.
-	 */
-	private _enableClickingAfterLink(): void {
-		const editor = this.editor;
-		const model = editor.model;
-
-		editor.editing.view.addObserver( MouseObserver );
-
-		let clicked = false;
-
-		// Detect the click.
-		this.listenTo<ViewDocumentMouseDownEvent>( editor.editing.view.document, 'mousedown', () => {
-			clicked = true;
 		} );
-
-		// When the selection has changed...
-		this.listenTo<ViewDocumentSelectionChangeEvent>( editor.editing.view.document, 'selectionChange', () => {
-			if ( !clicked ) {
-				return;
-			}
-
-			// ...and it was caused by the click...
-			clicked = false;
-
-			const selection = model.document.selection;
-
-			// ...and no text is selected...
-			if ( !selection.isCollapsed ) {
-				return;
-			}
-
-			// ...and clicked text is the link...
-			if ( !selection.hasAttribute( 'linkHref' ) ) {
-				return;
-			}
-
-			const position = selection.getFirstPosition()!;
-			const linkRange = findAttributeRange( position, 'linkHref', selection.getAttribute( 'linkHref' ), model );
-
-			// ...check whether clicked start/end boundary of the link.
-			// If so, remove the `linkHref` attribute.
-			if ( position.isTouching( linkRange.start ) || position.isTouching( linkRange.end ) ) {
-				model.change( writer => {
-					removeLinkAttributesFromSelection( writer, getLinkAttributesAllowedOnText( model.schema ) );
-				} );
-			}
-		} );
-	}
-
-	/**
-	 * Starts listening to {@link module:engine/model/model~Model#deleteContent} and {@link module:engine/model/model~Model#insertContent}
-	 * and checks whether typing over the link. If so, attributes of removed text are preserved and applied to the inserted text.
-	 *
-	 * The purpose of this action is to allow modifying a text without loosing the `linkHref` attribute (and other).
-	 *
-	 * See https://github.com/ckeditor/ckeditor5/issues/4762.
-	 */
-	private _enableTypingOverLink(): void {
-		const editor = this.editor;
-		const view = editor.editing.view;
-
-		// Selection attributes when started typing over the link.
-		let selectionAttributes: IterableIterator<[ string, unknown ]> | null = null;
-
-		// Whether pressed `Backspace` or `Delete`. If so, attributes should not be preserved.
-		let deletedContent = false;
-
-		// Detect pressing `Backspace` / `Delete`.
-		this.listenTo<ViewDocumentDeleteEvent>( view.document, 'delete', () => {
-			deletedContent = true;
-		}, { priority: 'high' } );
-
-		// Listening to `model#deleteContent` allows detecting whether selected content was a link.
-		// If so, before removing the element, we will copy its attributes.
-		this.listenTo<ModelDeleteContentEvent>( editor.model, 'deleteContent', () => {
-			const selection = editor.model.document.selection;
-
-			// Copy attributes only if anything is selected.
-			if ( selection.isCollapsed ) {
-				return;
-			}
-
-			// When the content was deleted, do not preserve attributes.
-			if ( deletedContent ) {
-				deletedContent = false;
-
-				return;
-			}
-
-			// Enabled only when typing.
-			if ( !isTyping( editor ) ) {
-				return;
-			}
-
-			if ( shouldCopyAttributes( editor.model ) ) {
-				selectionAttributes = selection.getAttributes();
-			}
-		}, { priority: 'high' } );
-
-		// Listening to `model#insertContent` allows detecting the content insertion.
-		// We want to apply attributes that were removed while typing over the link.
-		this.listenTo( editor.model, 'insertContent', ( evt, [ element ] ) => {
-			deletedContent = false;
-
-			// Enabled only when typing.
-			if ( !isTyping( editor ) ) {
-				return;
-			}
-
-			if ( !selectionAttributes ) {
-				return;
-			}
-
-			editor.model.change( writer => {
-				for ( const [ attribute, value ] of selectionAttributes! ) {
-					writer.setAttribute( attribute, value, element );
-				}
-			} );
-
-			selectionAttributes = null;
-		}, { priority: 'high' } );
-	}
-
-	/**
-	 * Starts listening to {@link module:engine/model/model~Model#deleteContent} and checks whether
-	 * removing a content right after the "linkHref" attribute.
-	 *
-	 * If so, the selection should not preserve the `linkHref` attribute. However, if
-	 * the {@link module:typing/twostepcaretmovement~TwoStepCaretMovement} plugin is active and
-	 * the selection has the "linkHref" attribute due to overriden gravity (at the end), the `linkHref` attribute should stay untouched.
-	 *
-	 * The purpose of this action is to allow removing the link text and keep the selection outside the link.
-	 *
-	 * See https://github.com/ckeditor/ckeditor5/issues/7521.
-	 */
-	private _handleDeleteContentAfterLink(): void {
-		const editor = this.editor;
-		const model = editor.model;
-		const selection = model.document.selection;
-		const view = editor.editing.view;
-
-		// A flag whether attributes `linkHref` attribute should be preserved.
-		let shouldPreserveAttributes = false;
-
-		// A flag whether the `Backspace` key was pressed.
-		let hasBackspacePressed = false;
-
-		// Detect pressing `Backspace`.
-		this.listenTo<ViewDocumentDeleteEvent>( view.document, 'delete', ( evt, data ) => {
-			hasBackspacePressed = data.direction === 'backward';
-		}, { priority: 'high' } );
-
-		// Before removing the content, check whether the selection is inside a link or at the end of link but with 2-SCM enabled.
-		// If so, we want to preserve link attributes.
-		this.listenTo<ModelDeleteContentEvent>( model, 'deleteContent', () => {
-			// Reset the state.
-			shouldPreserveAttributes = false;
-
-			const position = selection.getFirstPosition()!;
-			const linkHref = selection.getAttribute( 'linkHref' );
-
-			if ( !linkHref ) {
-				return;
-			}
-
-			const linkRange = findAttributeRange( position, 'linkHref', linkHref, model );
-
-			// Preserve `linkHref` attribute if the selection is in the middle of the link or
-			// the selection is at the end of the link and 2-SCM is activated.
-			shouldPreserveAttributes = linkRange.containsPosition( position ) || linkRange.end.isEqual( position );
-		}, { priority: 'high' } );
-
-		// After removing the content, check whether the current selection should preserve the `linkHref` attribute.
-		this.listenTo<ModelDeleteContentEvent>( model, 'deleteContent', () => {
-			// If didn't press `Backspace`.
-			if ( !hasBackspacePressed ) {
-				return;
-			}
-
-			hasBackspacePressed = false;
-
-			// Disable the mechanism if inside a link (`<$text url="foo">F[]oo</$text>` or <$text url="foo">Foo[]</$text>`).
-			if ( shouldPreserveAttributes ) {
-				return;
-			}
-
-			// Use `model.enqueueChange()` in order to execute the callback at the end of the changes process.
-			editor.model.enqueueChange( writer => {
-				removeLinkAttributesFromSelection( writer, getLinkAttributesAllowedOnText( model.schema ) );
-			} );
-		}, { priority: 'low' } );
 	}
 
 	/**
@@ -626,14 +441,88 @@ export default class LinkEditing extends Plugin {
 			} );
 		} );
 	}
+
+	/**
+	 * Registers a postfixer that resolves conflicting decorator attributes on elements.
+	 */
+	private _enableDecoratorConflictPostfixer(): void {
+		const editor = this.editor;
+		const model = editor.model;
+		const linkCommand: LinkCommand = editor.commands.get( 'link' )!;
+
+		model.document.registerPostFixer( writer => {
+			let hasChanged = false;
+
+			const changes = model.document.differ.getChanges();
+			const elementsToCheck = new Set<ModelItem>();
+			const manualDecoratorAttributeKeys = new Set<string>(
+				linkCommand.manualDecorators.map( decorator => decorator.id )
+			);
+
+			for ( const change of changes ) {
+				if ( change.type === 'attribute' ) {
+					// Only react to link-related attribute changes to reduce work.
+					if ( change.attributeKey !== 'linkHref' && !manualDecoratorAttributeKeys.has( change.attributeKey ) ) {
+						continue;
+					}
+
+					// Use range items instead of nodeAfter to avoid issues with text node merging.
+					for ( const item of change.range.getItems() ) {
+						if ( item.hasAttribute( 'linkHref' ) ) {
+							elementsToCheck.add( item );
+						}
+					}
+				}
+
+				// Check if newly inserted nodes have link attributes. This is to cover the case of pasting content
+				// with link attributes or typing over a link.
+				if ( change.type === 'insert' && change.attributes.has( 'linkHref' ) && change.position.nodeAfter ) {
+					elementsToCheck.add( change.position.nodeAfter );
+				}
+			}
+
+			// Check each element for conflicting decorators.
+			for ( const item of elementsToCheck ) {
+				const appliedDecorators: Array<LinkManualDecorator> = [];
+
+				for ( const manualDecorator of linkCommand.manualDecorators ) {
+					if ( !item.hasAttribute( manualDecorator.id ) ) {
+						continue;
+					}
+
+					// Resolve conflicts on the fly, remove the earlier decorator (later wins).
+					for ( let i = appliedDecorators.length - 1; i >= 0; i-- ) {
+						const appliedDecorator = appliedDecorators[ i ];
+
+						if ( areDecoratorsConflicting( appliedDecorator, manualDecorator ) ) {
+							writer.removeAttribute( appliedDecorator.id, item );
+							appliedDecorators.splice( i, 1 );
+							hasChanged = true;
+						}
+					}
+
+					appliedDecorators.push( manualDecorator );
+				}
+			}
+
+			return hasChanged;
+		} );
+	}
 }
+
+/**
+ * A function that handles opening links. It may be used to define custom link handlers.
+ *
+ * @returns `true` if the link was opened successfully.
+ */
+type LinkOpener = ( url: string ) => boolean;
 
 /**
  * Make the selection free of link-related model attributes.
  * All link-related model attributes start with "link". That includes not only "linkHref"
  * but also all decorator attributes (they have dynamic names), or even custom plugins.
  */
-function removeLinkAttributesFromSelection( writer: Writer, linkAttributes: Array<string> ): void {
+function removeLinkAttributesFromSelection( writer: ModelWriter, linkAttributes: Array<string> ): void {
 	writer.removeSelectionAttribute( 'linkHref' );
 
 	for ( const attribute of linkAttributes ) {
@@ -642,59 +531,9 @@ function removeLinkAttributesFromSelection( writer: Writer, linkAttributes: Arra
 }
 
 /**
- * Checks whether selection's attributes should be copied to the new inserted text.
- */
-function shouldCopyAttributes( model: Model ): boolean {
-	const selection = model.document.selection;
-	const firstPosition = selection.getFirstPosition()!;
-	const lastPosition = selection.getLastPosition()!;
-	const nodeAtFirstPosition = firstPosition.nodeAfter;
-
-	// The text link node does not exist...
-	if ( !nodeAtFirstPosition ) {
-		return false;
-	}
-
-	// ...or it isn't the text node...
-	if ( !nodeAtFirstPosition.is( '$text' ) ) {
-		return false;
-	}
-
-	// ...or isn't the link.
-	if ( !nodeAtFirstPosition.hasAttribute( 'linkHref' ) ) {
-		return false;
-	}
-
-	// `textNode` = the position is inside the link element.
-	// `nodeBefore` = the position is at the end of the link element.
-	const nodeAtLastPosition = lastPosition.textNode || lastPosition.nodeBefore;
-
-	// If both references the same node selection contains a single text node.
-	if ( nodeAtFirstPosition === nodeAtLastPosition ) {
-		return true;
-	}
-
-	// If nodes are not equal, maybe the link nodes has defined additional attributes inside.
-	// First, we need to find the entire link range.
-	const linkRange = findAttributeRange( firstPosition, 'linkHref', nodeAtFirstPosition.getAttribute( 'linkHref' ), model );
-
-	// Then we can check whether selected range is inside the found link range. If so, attributes should be preserved.
-	return linkRange.containsRange( model.createRange( firstPosition, lastPosition ), true );
-}
-
-/**
- * Checks whether provided changes were caused by typing.
- */
-function isTyping( editor: Editor ): boolean {
-	const currentBatch = editor.model.change( writer => writer.batch );
-
-	return currentBatch.isTyping;
-}
-
-/**
  * Returns an array containing names of the attributes allowed on `$text` that describes the link item.
  */
-function getLinkAttributesAllowedOnText( schema: Schema ): Array<string> {
+function getLinkAttributesAllowedOnText( schema: ModelSchema ): Array<string> {
 	const textAttributes = schema.getDefinition( '$text' )!.allowAttributes;
 
 	return textAttributes.filter( attribute => attribute.startsWith( 'link' ) );

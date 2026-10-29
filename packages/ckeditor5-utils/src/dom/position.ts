@@ -1,23 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/dom/position
  */
 
-import global from './global';
-import Rect, { type RectSource } from './rect';
-import getPositionedAncestor from './getpositionedancestor';
-import { isFunction } from 'lodash-es';
+import { global } from './global.js';
+import { Rect, type RectSource } from './rect.js';
+import { getPositionedAncestor } from './getpositionedancestor.js';
+import { isFunction } from 'es-toolkit/compat';
 
-// @if CK_DEBUG_POSITION // const {
-// @if CK_DEBUG_POSITION // 	default: RectDrawer,
+// @if CK_DEBUG_POSITION // import {
+// @if CK_DEBUG_POSITION // 	RectDrawer,
 // @if CK_DEBUG_POSITION // 	diagonalStylesBlack,
 // @if CK_DEBUG_POSITION // 	diagonalStylesGreen,
 // @if CK_DEBUG_POSITION // 	diagonalStylesRed
-// @if CK_DEBUG_POSITION // } = require( '@ckeditor/ckeditor5-utils/tests/_utils/rectdrawer' );
+// @if CK_DEBUG_POSITION // } from '@ckeditor/ckeditor5-utils/tests/_utils/rectdrawer.js';
 // @if CK_DEBUG_POSITION // const TARGET_RECT_STYLE = {
 // @if CK_DEBUG_POSITION // 	outlineWidth: '2px', outlineStyle: 'dashed', outlineColor: 'blue', outlineOffset: '2px'
 // @if CK_DEBUG_POSITION // };
@@ -115,7 +115,7 @@ import { isFunction } from 'lodash-es';
  */
 export function getOptimalPosition( {
 	element, target, positions, limiter, fitInViewport, viewportOffsetConfig
-}: Options ): Position | null {
+}: DomOptimalPositionOptions ): DomPoint | null {
 	// If the {@link module:utils/dom/position~Options#target} is a function, use what it returns.
 	// https://github.com/ckeditor/ckeditor5-utils/issues/157
 	if ( isFunction( target ) ) {
@@ -133,7 +133,7 @@ export function getOptimalPosition( {
 	const elementRect = new Rect( element );
 	const visibleTargetRect = getVisibleViewportIntersectionRect( target, constrainedViewportRect );
 
-	let bestPosition: Position | null;
+	let bestPosition: DomPoint | null;
 
 	// @if CK_DEBUG_POSITION // const targetRect = new Rect( target );
 	// @if CK_DEBUG_POSITION // RectDrawer.clear();
@@ -194,7 +194,7 @@ function getVisibleViewportIntersectionRect( source: RectSource, viewportRect: R
 /**
  * Returns a viewport `Rect` shrunk by the viewport offset config from all sides.
  */
-function getConstrainedViewportRect( viewportOffsetConfig: Options[ 'viewportOffsetConfig' ] ): Rect {
+export function getConstrainedViewportRect( viewportOffsetConfig: DomOptimalPositionOptions[ 'viewportOffsetConfig' ] ): Rect {
 	viewportOffsetConfig = Object.assign( { top: 0, bottom: 0, left: 0, right: 0 }, viewportOffsetConfig );
 
 	const viewportRect = new Rect( global.window );
@@ -203,6 +203,9 @@ function getConstrainedViewportRect( viewportOffsetConfig: Options[ 'viewportOff
 	viewportRect.height -= viewportOffsetConfig.top!;
 	viewportRect.bottom -= viewportOffsetConfig.bottom!;
 	viewportRect.height -= viewportOffsetConfig.bottom!;
+	viewportRect.left += viewportOffsetConfig.left!;
+	viewportRect.right -= viewportOffsetConfig.right!;
+	viewportRect.width -= viewportOffsetConfig.left! + viewportOffsetConfig.right!;
 
 	return viewportRect;
 }
@@ -214,7 +217,7 @@ function getConstrainedViewportRect( viewportOffsetConfig: Options[ 'viewportOff
 function getBestPosition(
 	positions: ReadonlyArray<PositioningFunction>,
 	options: ConstructorParameters<typeof PositionObject>[ 1 ]
-): Position | null {
+): DomPoint | null {
 	const { elementRect } = options;
 
 	// This is when element is fully visible.
@@ -268,11 +271,11 @@ function getBestPosition(
 /**
  * A position object which instances are created and used by the {@link module:utils/dom/position~getOptimalPosition} helper.
  *
- * {@link module:utils/dom/position~Position#top} and {@link module:utils/dom/position~Position#left} properties of the position instance
+ * {@link module:utils/dom/position~DomPoint#top} and {@link module:utils/dom/position~DomPoint#left} properties of the position instance
  * translate directly to the `top` and `left` properties in CSS "`position: absolute` coordinate system". If set on the positioned element
  * in DOM, they will make it display it in the right place in the viewport.
  */
-export interface Position {
+export interface DomPoint {
 
 	/**
 	 * Position name.
@@ -319,7 +322,7 @@ type PositionObjectOptions = {
  * translate directly to the `top` and `left` properties in CSS "`position: absolute` coordinate system". If set on the positioned element
  * in DOM, they will make it display it in the right place in the viewport.
  */
-class PositionObject implements Position {
+class PositionObject implements DomPoint {
 	public name?: string;
 	public config?: object;
 
@@ -437,7 +440,7 @@ class PositionObject implements Position {
 /**
  * The `getOptimalPosition()` helper options.
  */
-export interface Options {
+export interface DomOptimalPositionOptions {
 
 	/**
 	 * Element that is to be positioned.
@@ -526,12 +529,12 @@ export type PositioningFunction = (
 	targetRect: Rect,
 	viewportRect: Rect,
 	limiterRect?: Rect
-) => PositioningFunctionResult | null;
+) => DomPositioningFunctionResult | null;
 
 /**
  * The result of {@link module:utils/dom/position~PositioningFunction}.
  */
-export interface PositioningFunctionResult {
+export interface DomPositioningFunctionResult {
 
 	/**
 	 * The `top` value of the element rect that would represent the position.
@@ -545,14 +548,14 @@ export interface PositioningFunctionResult {
 
 	/**
 	 * The name of the position. It helps the user of the {@link module:utils/dom/position~getOptimalPosition}
-	 * helper to recognize different positioning function results. It will pass through to the {@link module:utils/dom/position~Position}
+	 * helper to recognize different positioning function results. It will pass through to the {@link module:utils/dom/position~DomPoint}
 	 * returned by the helper.
 	 */
 	name?: string;
 
 	/**
 	 * An optional configuration that will pass-through the {@link module:utils/dom/position~getOptimalPosition} helper
-	 * to the {@link module:utils/dom/position~Position} returned by this helper.
+	 * to the {@link module:utils/dom/position~DomPoint} returned by this helper.
 	 * This configuration may, for instance, let the user of {@link module:utils/dom/position~getOptimalPosition} know that this particular
 	 * position comes with a certain presentation.
 	 */

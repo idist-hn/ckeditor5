@@ -1,24 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module editor-balloon/ballooneditoruiview
  */
 
-import { EditorUIView, InlineEditableUIView } from 'ckeditor5/src/ui';
-import type { Locale } from 'ckeditor5/src/utils';
-import type { View } from 'ckeditor5/src/engine';
+import { EditorUIView, InlineEditableUIView, MenuBarView } from '@ckeditor/ckeditor5-ui';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
+import type { EditingView } from '@ckeditor/ckeditor5-engine';
+import type { ViewRootElementDefinition } from '@ckeditor/ckeditor5-core';
 
 /**
  * Contextual editor UI view. Uses the {@link module:ui/editableui/inline/inlineeditableuiview~InlineEditableUIView}.
  */
-export default class BalloonEditorUIView extends EditorUIView {
+export class BalloonEditorUIView extends EditorUIView {
 	/**
 	 * Editable UI view.
 	 */
 	public readonly editable: InlineEditableUIView;
+
+	/**
+	 * Menu bar view instance.
+	 */
+	public override menuBarView: MenuBarView;
 
 	/**
 	 * Creates an instance of the balloon editor UI view.
@@ -27,19 +33,30 @@ export default class BalloonEditorUIView extends EditorUIView {
 	 * @param editingView The editing view instance this view is related to.
 	 * @param editableElement The editable element. If not specified, it will be automatically created by
 	 * {@link module:ui/editableui/editableuiview~EditableUIView}. Otherwise, the given element will be used.
+	 * @param label When set, this value will be used as an accessible `aria-label` of the
+	 * {@link module:ui/editableui/editableuiview~EditableUIView editable view}.
 	 */
 	constructor(
 		locale: Locale,
-		editingView: View,
-		editableElement?: HTMLElement
+		editingView: EditingView,
+		editableElement?: HTMLElement | ViewRootElementDefinition,
+		label?: string | Record<string, string>
 	) {
 		super( locale );
 
-		const t = locale.t;
-
 		this.editable = new InlineEditableUIView( locale, editingView, editableElement, {
-			label: editableView => {
-				return t( 'Rich Text Editor. Editing area: %0', editableView.name! );
+			label
+		} );
+
+		this.menuBarView = new MenuBarView( locale );
+
+		this.menuBarView.extendTemplate( {
+			attributes: {
+				class: [
+					'ck-reset_all',
+					'ck-rounded-corners'
+				],
+				dir: locale.uiLanguageDirection
 			}
 		} );
 	}
@@ -51,5 +68,6 @@ export default class BalloonEditorUIView extends EditorUIView {
 		super.render();
 
 		this.registerChild( this.editable );
+		this.registerChild( this.menuBarView );
 	}
 }

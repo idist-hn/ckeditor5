@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagetextalternative
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageTextAlternativeEditing from './imagetextalternative/imagetextalternativeediting';
-import ImageTextAlternativeUI from './imagetextalternative/imagetextalternativeui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageTextAlternativeEditing } from './imagetextalternative/imagetextalternativeediting.js';
+import { ImageTextAlternativeUI } from './imagetextalternative/imagetextalternativeui.js';
 
 /**
  * The image text alternative plugin.
@@ -20,12 +20,12 @@ import ImageTextAlternativeUI from './imagetextalternative/imagetextalternativeu
  *  {@link module:image/imagetextalternative/imagetextalternativeediting~ImageTextAlternativeEditing}
  * and {@link module:image/imagetextalternative/imagetextalternativeui~ImageTextAlternativeUI} plugins.
  */
-export default class ImageTextAlternative extends Plugin {
+export class ImageTextAlternative extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageTextAlternativeEditing, ImageTextAlternativeUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageTextAlternativeEditing, ImageTextAlternativeUI ]> {
+		return [ ImageTextAlternativeEditing, ImageTextAlternativeUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class ImageTextAlternative extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageTextAlternative' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

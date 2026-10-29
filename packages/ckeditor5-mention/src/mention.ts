@@ -1,26 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module mention/mention
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { Element } from 'ckeditor5/src/engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
 
-import MentionEditing, { _toMentionAttribute } from './mentionediting';
-import MentionUI from './mentionui';
-
-import '../theme/mention.css';
+import { MentionEditing, _toMentionAttribute } from './mentionediting.js';
+import { MentionUI } from './mentionui.js';
 
 /**
  * The mention plugin.
  *
  * For a detailed overview, check the {@glink features/mentions Mention feature} guide.
  */
-export default class Mention extends Plugin {
+export class Mention extends Plugin {
 	/**
 	 * Creates a mention attribute value from the provided view element and additional data.
 	 *
@@ -35,7 +33,7 @@ export default class Mention extends Plugin {
 	 * @param data Additional data to be stored in the mention attribute.
 	 */
 	public toMentionAttribute<MentionData extends Record<string, unknown>>(
-		viewElement: Element,
+		viewElement: ModelElement,
 		data: MentionData
 	): ( MentionAttribute & MentionData ) | undefined;
 
@@ -50,9 +48,9 @@ export default class Mention extends Plugin {
 	 * // { id: '@joe', uid: '7a7bc7...', _text: '@John Doe' }
 	 * ```
 	 */
-	public toMentionAttribute( viewElement: Element ): MentionAttribute | undefined;
+	public toMentionAttribute( viewElement: ModelElement ): MentionAttribute | undefined;
 
-	public toMentionAttribute( viewElement: Element, data?: Record<string, unknown> ): MentionAttribute | undefined {
+	public toMentionAttribute( viewElement: ModelElement, data?: Record<string, unknown> ): MentionAttribute | undefined {
 		return _toMentionAttribute( viewElement, data );
 	}
 
@@ -66,8 +64,15 @@ export default class Mention extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ MentionEditing, MentionUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ MentionEditing, MentionUI ]> {
+		return [ MentionEditing, MentionUI ];
 	}
 }
 
@@ -86,7 +91,7 @@ export type MentionAttribute = {
 
 	/**
 	 * A unique ID of this mention instance. Should be passed as an `option.id` when using
-	 * {@link module:engine/view/downcastwriter~DowncastWriter#createAttributeElement writer.createAttributeElement()}.
+	 * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createAttributeElement writer.createAttributeElement()}.
 	 */
 	uid: string;
 

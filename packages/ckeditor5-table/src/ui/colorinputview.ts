@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -19,16 +19,21 @@ import {
 	type ColorPickerConfig,
 	type ColorSelectorExecuteEvent,
 	type ColorSelectorColorPickerCancelEvent,
-	type FocusableView
-} from 'ckeditor5/src/ui';
+	type ColorSelectorColorPickerShowEvent,
+	type FocusableView,
+	_DEFAULT_COLOR_GRID_COLUMNS as defaultColorGridColumns
+} from '@ckeditor/ckeditor5-ui';
 
-import { FocusTracker, KeystrokeHandler, type Locale } from 'ckeditor5/src/utils';
+import { FocusTracker, KeystrokeHandler, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import '../../theme/colorinput.css';
-
+/**
+ * The options for the color input view.
+ *
+ * @internal
+ */
 export type ColorInputViewOptions = {
 	colorDefinitions: Array<ColorDefinition>;
-	columns: number;
+	columns?: number;
 	defaultColorValue?: string;
 	colorPickerConfig: false | ColorPickerConfig;
 };
@@ -39,7 +44,7 @@ export type ColorInputViewOptions = {
  *
  * @internal
  */
-export default class ColorInputView extends View implements FocusableView {
+export class ColorInputView extends View implements FocusableView {
 	/**
 	 * The value of the input.
 	 *
@@ -96,7 +101,7 @@ export default class ColorInputView extends View implements FocusableView {
 	/**
 	 * A collection of views that can be focused in the view.
 	 */
-	protected readonly _focusables: ViewCollection;
+	protected readonly _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * An instance of the dropdown allowing to select a color from a grid.
@@ -255,11 +260,25 @@ export default class ColorInputView extends View implements FocusableView {
 		dropdown.buttonView.label = t( 'Color picker' );
 		dropdown.buttonView.tooltip = true;
 
+		dropdown.panelView.extendTemplate( {
+			attributes: {
+				class: 'ck-dropdown__panel_fit-content'
+			}
+		} );
+
 		dropdown.panelPosition = locale.uiLanguageDirection === 'rtl' ? 'se' : 'sw';
 		dropdown.panelView.children.add( colorSelector );
 		dropdown.bind( 'isEnabled' ).to( this, 'isReadOnly', value => !value );
 
+		let colorSelectorRendered = false;
+
 		dropdown.on( 'change:isOpen', ( evt, name, isVisible ) => {
+			if ( !colorSelectorRendered ) {
+				colorSelectorRendered = true;
+
+				colorSelector.appendUI();
+			}
+
 			if ( isVisible ) {
 				colorSelector.updateSelectedColors();
 				colorSelector.showColorGridsFragment();
@@ -317,7 +336,7 @@ export default class ColorInputView extends View implements FocusableView {
 
 		const colorSelector = new ColorSelectorView( locale, {
 			colors: this.options.colorDefinitions,
-			columns: this.options.columns,
+			columns: this.options.columns ?? defaultColorGridColumns,
 			removeButtonLabel: removeColorButtonLabel,
 			colorPickerLabel: t( 'Color picker' ),
 			colorPickerViewConfig: this.options.colorPickerConfig === false ? false : {
@@ -325,8 +344,6 @@ export default class ColorInputView extends View implements FocusableView {
 				hideInput: true
 			}
 		} );
-
-		colorSelector.appendUI();
 
 		colorSelector.on<ColorSelectorExecuteEvent>( 'execute', ( evt, data ) => {
 			if ( data.source === 'colorPickerSaveButton' ) {
@@ -361,7 +378,7 @@ export default class ColorInputView extends View implements FocusableView {
 			this.dropdownView.isOpen = false;
 		} );
 
-		colorSelector.colorGridsFragmentView.colorPickerButtonView!.on( 'execute', () => {
+		colorSelector.on<ColorSelectorColorPickerShowEvent>( 'colorPicker:show', () => {
 			/**
 			 * Save color value before changes in color picker.
 			 */

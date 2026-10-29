@@ -1,25 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module enter/utils
  */
 
-import type { Schema } from '@ckeditor/ckeditor5-engine';
+import type { ModelSchema } from '@ckeditor/ckeditor5-engine';
 
 /**
  * Returns attributes that should be preserved on the enter keystroke.
  *
  * Filtering is realized based on `copyOnEnter` attribute property. Read more about attribute properties
- * {@link module:engine/model/schema~Schema#setAttributeProperties here}.
+ * {@link module:engine/model/schema~ModelSchema#setAttributeProperties here}.
  *
  * @param schema Model's schema.
  * @param allAttributes Attributes to filter.
+ * @internal
  */
 export function* getCopyOnEnterAttributes(
-	schema: Schema,
+	schema: ModelSchema,
 	allAttributes: Iterable<[ string, unknown ]>
 ): IterableIterator<[ string, unknown ]> {
 	for ( const attribute of allAttributes ) {

@@ -1,77 +1,78 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Text from '../../src/model/text';
-import Node from '../../src/model/node';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { ModelText } from '../../src/model/text.js';
+import { ModelNode } from '../../src/model/node.js';
 
 describe( 'Text', () => {
 	describe( 'constructor()', () => {
 		it( 'should create text node without attributes', () => {
-			const text = new Text( 'bar', { bold: true } );
+			const text = new ModelText( 'bar', { bold: true } );
 
-			expect( text ).to.be.instanceof( Node );
-			expect( text ).to.have.property( 'data' ).that.equals( 'bar' );
-			expect( Array.from( text.getAttributes() ) ).to.deep.equal( [ [ 'bold', true ] ] );
+			expect( text ).toBeInstanceOf( ModelNode );
+			expect( text ).toHaveProperty( 'data', 'bar' );
+			expect( Array.from( text.getAttributes() ) ).toEqual( [ [ 'bold', true ] ] );
 		} );
 
 		it( 'should create empty text object', () => {
-			const empty1 = new Text();
-			const empty2 = new Text( '' );
+			const empty1 = new ModelText();
+			const empty2 = new ModelText( '' );
 
-			expect( empty1.data ).to.equal( '' );
-			expect( empty2.data ).to.equal( '' );
+			expect( empty1.data ).toBe( '' );
+			expect( empty2.data ).toBe( '' );
 		} );
 	} );
 
 	describe( 'offsetSize', () => {
 		it( 'should be equal to the number of characters in text node', () => {
-			expect( new Text( '' ).offsetSize ).to.equal( 0 );
-			expect( new Text( 'abc' ).offsetSize ).to.equal( 3 );
+			expect( new ModelText( '' ).offsetSize ).toBe( 0 );
+			expect( new ModelText( 'abc' ).offsetSize ).toBe( 3 );
 		} );
 	} );
 
 	describe( 'is()', () => {
 		let text;
 
-		before( () => {
-			text = new Text( 'bar' );
+		beforeAll( () => {
+			text = new ModelText( 'bar' );
 		} );
 
 		it( 'should return true for node, text', () => {
-			expect( text.is( 'node' ) ).to.be.true;
-			expect( text.is( 'model:node' ) ).to.be.true;
-			expect( text.is( '$text' ) ).to.be.true;
-			expect( text.is( 'model:$text' ) ).to.be.true;
-			expect( text.is( 'text' ) ).to.be.true;
-			expect( text.is( 'model:text' ) ).to.be.true;
+			expect( text.is( 'node' ) ).toBe( true );
+			expect( text.is( 'model:node' ) ).toBe( true );
+			expect( text.is( '$text' ) ).toBe( true );
+			expect( text.is( 'model:$text' ) ).toBe( true );
+			expect( text.is( 'text' ) ).toBe( true );
+			expect( text.is( 'model:text' ) ).toBe( true );
 		} );
 
 		it( 'should return false for other accept values', () => {
-			expect( text.is( '$textProxy' ) ).to.be.false;
-			expect( text.is( 'element' ) ).to.be.false;
-			expect( text.is( 'model:element' ) ).to.be.false;
-			expect( text.is( 'rootElement' ) ).to.be.false;
-			expect( text.is( 'documentFragment' ) ).to.be.false;
+			expect( text.is( '$textProxy' ) ).toBe( false );
+			expect( text.is( 'element' ) ).toBe( false );
+			expect( text.is( 'model:element' ) ).toBe( false );
+			expect( text.is( 'rootElement' ) ).toBe( false );
+			expect( text.is( 'documentFragment' ) ).toBe( false );
 		} );
 	} );
 
 	describe( '_clone()', () => {
 		it( 'should return a new Text instance, with data and attributes equal to cloned text node', () => {
-			const text = new Text( 'foo', { bold: true } );
+			const text = new ModelText( 'foo', { bold: true } );
 			const copy = text._clone();
 
-			expect( copy.data ).to.equal( 'foo' );
-			expect( Array.from( copy.getAttributes() ) ).to.deep.equal( [ [ 'bold', true ] ] );
+			expect( copy.data ).toBe( 'foo' );
+			expect( Array.from( copy.getAttributes() ) ).toEqual( [ [ 'bold', true ] ] );
 		} );
 	} );
 
 	describe( 'toJSON', () => {
 		it( 'should serialize text node', () => {
-			const text = new Text( 'foo', { bold: true } );
+			const text = new ModelText( 'foo', { bold: true } );
 
-			expect( text.toJSON() ).to.deep.equal( {
+			expect( text.toJSON() ).toEqual( {
 				attributes: { bold: true },
 				data: 'foo'
 			} );
@@ -80,26 +81,26 @@ describe( 'Text', () => {
 
 	describe( 'fromJSON', () => {
 		it( 'should create text node', () => {
-			const text = new Text( 'foo', { bold: true } );
+			const text = new ModelText( 'foo', { bold: true } );
 
 			const serialized = text.toJSON();
-			const deserialized = Text.fromJSON( serialized );
+			const deserialized = ModelText.fromJSON( serialized );
 
-			expect( deserialized.data ).to.equal( 'foo' );
-			expect( Array.from( deserialized.getAttributes() ) ).to.deep.equal( [ [ 'bold', true ] ] );
+			expect( deserialized.data ).toBe( 'foo' );
+			expect( Array.from( deserialized.getAttributes() ) ).toEqual( [ [ 'bold', true ] ] );
 		} );
 
 		it( 'should support unicode', () => {
-			const textQ = new Text( 'நி' );
+			const textQ = new ModelText( 'நி' );
 			const json = textQ.toJSON();
 
-			expect( json ).to.deep.equal( {
+			expect( json ).toEqual( {
 				data: 'நி'
 			} );
 
-			const deserialized = Text.fromJSON( json );
+			const deserialized = ModelText.fromJSON( json );
 
-			expect( deserialized.data ).to.equal( 'நி' );
+			expect( deserialized.data ).toBe( 'நி' );
 		} );
 	} );
 } );

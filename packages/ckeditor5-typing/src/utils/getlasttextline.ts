@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module typing/utils/getlasttextline
  */
 
-import type { Model, Range } from '@ckeditor/ckeditor5-engine';
+import type { Model, ModelRange } from '@ckeditor/ckeditor5-engine';
 
 /**
  * Returns the last text line from the given range.
@@ -36,7 +36,7 @@ import type { Model, Range } from '@ckeditor/ckeditor5-engine';
  * <paragraph>Foo<softBreak></softBreak>bar<softBreak></softBreak>baz<paragraph>
  * ```
  */
-export default function getLastTextLine( range: Range, model: Model ): LastTextLineData {
+export function getLastTextLine( range: ModelRange, model: Model ): LastTextLineData {
 	let start = range.start;
 
 	const text = Array.from( range.getWalker( { ignoreElementEnd: false } ) ).reduce( ( rangeText, { item } ) => {
@@ -66,5 +66,5 @@ export type LastTextLineData = {
 	/**
 	 * The range set on the text nodes in the last text line.
 	 */
-	range: Range;
+	range: ModelRange;
 };

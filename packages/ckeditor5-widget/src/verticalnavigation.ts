@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -14,13 +14,13 @@ import {
 } from '@ckeditor/ckeditor5-utils';
 
 import type {
-	DocumentSelection,
+	ModelDocumentSelection,
 	EditingController,
 	Model,
-	Position,
-	Range,
-	Schema,
-	Selection,
+	ModelPosition,
+	ModelRange,
+	ModelSchema,
+	ModelSelection,
 	ViewDocumentArrowKeyEvent
 } from '@ckeditor/ckeditor5-engine';
 
@@ -29,7 +29,7 @@ import type {
  *
  * @param editing The editing controller.
  */
-export default function verticalNavigationHandler(
+export function verticalWidgetNavigationHandler(
 	editing: EditingController
 ): GetCallback<ViewDocumentArrowKeyEvent> {
 	const model = editing.model;
@@ -45,12 +45,6 @@ export default function verticalNavigationHandler(
 		}
 
 		const isForward = arrowDownPressed;
-
-		// Navigation is in the opposite direction than the selection direction so this is shrinking of the selection.
-		// Selection for sure will not approach any object.
-		if ( expandSelection && selectionWillShrink( selection, isForward ) ) {
-			return;
-		}
 
 		// Find a range between selection and closest limit element.
 		const range = findTextRangeFromSelection( editing, selection, isForward );
@@ -108,43 +102,41 @@ export default function verticalNavigationHandler(
  * @param selection The current selection.
  * @param isForward The expected navigation direction.
  */
-function findTextRangeFromSelection( editing: EditingController, selection: Selection | DocumentSelection, isForward: boolean ) {
+function findTextRangeFromSelection( editing: EditingController, selection: ModelSelection | ModelDocumentSelection, isForward: boolean ) {
 	const model = editing.model;
 
 	if ( isForward ) {
-		const startPosition = selection.isCollapsed ? selection.focus! : selection.getLastPosition()!;
+		const startPosition = selection.focus!;
 		const endPosition = getNearestNonInlineLimit( model, startPosition, 'forward' );
 
 		// There is no limit element, browser should handle this.
 		if ( !endPosition ) {
-			return null;
+			return;
 		}
 
 		const range = model.createRange( startPosition, endPosition );
 		const lastRangePosition = getNearestTextPosition( model.schema, range, 'backward' );
 
+		/* v8 ignore else -- @preserve */
 		if ( lastRangePosition ) {
 			return model.createRange( startPosition, lastRangePosition );
 		}
-
-		return null;
 	} else {
-		const endPosition = selection.isCollapsed ? selection.focus! : selection.getFirstPosition()!;
+		const endPosition = selection.focus!;
 		const startPosition = getNearestNonInlineLimit( model, endPosition, 'backward' );
 
 		// There is no limit element, browser should handle this.
 		if ( !startPosition ) {
-			return null;
+			return;
 		}
 
 		const range = model.createRange( startPosition, endPosition );
 		const firstRangePosition = getNearestTextPosition( model.schema, range, 'forward' );
 
+		/* v8 ignore else -- @preserve */
 		if ( firstRangePosition ) {
 			return model.createRange( firstRangePosition, endPosition );
 		}
-
-		return null;
 	}
 }
 
@@ -153,7 +145,7 @@ function findTextRangeFromSelection( editing: EditingController, selection: Sele
  *
  * @param direction Search direction.
  */
-function getNearestNonInlineLimit( model: Model, startPosition: Position, direction: 'forward' | 'backward' ) {
+function getNearestNonInlineLimit( model: Model, startPosition: ModelPosition, direction: 'forward' | 'backward' ) {
 	const schema = model.schema;
 	const range = model.createRangeIn( startPosition.root );
 
@@ -183,7 +175,7 @@ function getNearestNonInlineLimit( model: Model, startPosition: Position, direct
  * @returns The nearest selection position.
  *
  */
-function getNearestTextPosition( schema: Schema, range: Range, direction: 'forward' | 'backward' ) {
+function getNearestTextPosition( schema: ModelSchema, range: ModelRange, direction: 'forward' | 'backward' ) {
 	const position = direction == 'backward' ? range.end : range.start;
 
 	if ( schema.checkChild( position, '$text' ) ) {
@@ -195,8 +187,6 @@ function getNearestTextPosition( schema: Schema, range: Range, direction: 'forwa
 			return nextPosition;
 		}
 	}
-
-	return null;
 }
 
 /**
@@ -207,7 +197,7 @@ function getNearestTextPosition( schema: Schema, range: Range, direction: 'forwa
  * @param modelRange The current table cell content range.
  * @param isForward The expected navigation direction.
  */
-function isSingleLineRange( editing: EditingController, modelRange: Range, isForward: boolean ) {
+function isSingleLineRange( editing: EditingController, modelRange: ModelRange, isForward: boolean ) {
 	const model = editing.model;
 	const domConverter = editing.view.domConverter;
 
@@ -249,8 +239,4 @@ function isSingleLineRange( editing: EditingController, modelRange: Range, isFor
 	}
 
 	return true;
-}
-
-function selectionWillShrink( selection: DocumentSelection, isForward: boolean ) {
-	return !selection.isCollapsed && selection.isBackward == isForward;
 }

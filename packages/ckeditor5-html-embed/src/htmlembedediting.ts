@@ -1,26 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-embed/htmlembedediting
  */
 
-import { Plugin, icons, type Editor } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-import { toWidget } from 'ckeditor5/src/widget';
-import { logWarning, createElement } from 'ckeditor5/src/utils';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import { ButtonView } from '@ckeditor/ckeditor5-ui';
+import { toWidget } from '@ckeditor/ckeditor5-widget';
+import { logWarning, createElement, trustedHtml } from '@ckeditor/ckeditor5-utils';
+import { IconCancel, IconCheck, IconPencil } from '@ckeditor/ckeditor5-icons';
 
-import type { HtmlEmbedConfig } from './htmlembedconfig';
-import HtmlEmbedCommand from './htmlembedcommand';
-
-import '../theme/htmlembed.css';
+import type { HtmlEmbedConfig } from './htmlembedconfig.js';
+import { HtmlEmbedCommand } from './htmlembedcommand.js';
 
 /**
  * The HTML embed editing feature.
  */
-export default class HtmlEmbedEditing extends Plugin {
+export class HtmlEmbedEditing extends Plugin {
 	/**
 	 * Keeps references to {@link module:ui/button/buttonview~ButtonView edit, save, and cancel} button instances created for
 	 * each widget so they can be destroyed if they are no longer in DOM after the editing view was re-rendered.
@@ -36,6 +35,28 @@ export default class HtmlEmbedEditing extends Plugin {
 
 	/**
 	 * @inheritDoc
+	 * @internal
+	 */
+	public static get licenseFeatureCode(): string {
+		return 'HE';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isPremiumPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
 	 */
 	constructor( editor: Editor ) {
 		super( editor );
@@ -44,7 +65,7 @@ export default class HtmlEmbedEditing extends Plugin {
 			showPreviews: false,
 			sanitizeHtml: rawHtml => {
 				/**
-				 * When using the HTML embed feature with the `htmlEmbed.showPreviews=true` option, it is strongly recommended to
+				 * When using the HTML embed feature with the `config.htmlEmbed.showPreviews` set to `true`, it is strongly recommended to
 				 * define a sanitize function that will clean up the input HTML in order to avoid XSS vulnerability.
 				 *
 				 * For a detailed overview, check the {@glink features/html/html-embed HTML embed feature} documentation.
@@ -126,7 +147,7 @@ export default class HtmlEmbedEditing extends Plugin {
 			model: 'rawHtml',
 			view: ( modelElement, { writer } ) => {
 				return writer.createRawElement( 'div', { class: 'raw-html-embed' }, function( domElement ) {
-					domElement.innerHTML = modelElement.getAttribute( 'value' ) as string || '';
+					domElement.innerHTML = trustedHtml( modelElement.getAttribute( 'value' ) as string || '' );
 				} );
 			}
 		} );
@@ -328,13 +349,13 @@ export default class HtmlEmbedEditing extends Plugin {
 			state,
 			props
 		}: {
-				domDocument: Document;
-				state: State;
-				props: {
-					isDisabled: boolean;
-					placeholder: string;
-				};
-			} ): HTMLTextAreaElement {
+			domDocument: Document;
+			state: State;
+			props: {
+				isDisabled: boolean;
+				placeholder: string;
+			};
+		} ): HTMLTextAreaElement {
 			const domTextarea = createElement( domDocument, 'textarea', {
 				placeholder: props.placeholder,
 				class: 'ck ck-reset ck-input ck-input-text raw-html-embed__source'
@@ -374,9 +395,13 @@ export default class HtmlEmbedEditing extends Plugin {
 			} );
 
 			// Creating a contextual document fragment allows executing scripts when inserting into the preview element.
-			// See: #8326.
+			// See: https://github.com/ckeditor/ckeditor5/issues/8326.
+			//
+			// The `htmlEmbed.sanitizeHtml` callback of the integrator is what makes this content safe. The policy of the
+			// editor only lets the assignment through, so that switching Trusted Types on does not change who is
+			// responsible for it.
 			const domRange = domDocument.createRange();
-			const domDocumentFragment = domRange.createContextualFragment( sanitizedOutput.html );
+			const domDocumentFragment = domRange.createContextualFragment( trustedHtml( sanitizedOutput.html ) );
 
 			domPreviewContent.appendChild( domDocumentFragment );
 
@@ -401,7 +426,7 @@ function createUIButton( editor: Editor, type: 'edit' | 'save' | 'cancel', onCli
 
 	buttonView.set( {
 		class: `raw-html-embed__${ type }-button`,
-		icon: icons.pencil,
+		icon: IconPencil,
 		tooltip: true,
 		tooltipPosition: editor.locale.uiLanguageDirection === 'rtl' ? 'e' : 'w'
 	} );
@@ -410,21 +435,21 @@ function createUIButton( editor: Editor, type: 'edit' | 'save' | 'cancel', onCli
 
 	if ( type === 'edit' ) {
 		buttonView.set( {
-			icon: icons.pencil,
+			icon: IconPencil,
 			label: t( 'Edit source' )
 		} );
 
 		buttonView.bind( 'isEnabled' ).to( command );
 	} else if ( type === 'save' ) {
 		buttonView.set( {
-			icon: icons.check,
+			icon: IconCheck,
 			label: t( 'Save changes' )
 		} );
 
 		buttonView.bind( 'isEnabled' ).to( command );
 	} else {
 		buttonView.set( {
-			icon: icons.cancel,
+			icon: IconCancel,
 			label: t( 'Cancel' )
 		} );
 	}
@@ -448,6 +473,11 @@ interface Props {
 	onCancelClick(): void;
 }
 
+/**
+ * The API exposed on each raw HTML embed widget so other features can control a particular widget.
+ *
+ * @internal
+ */
 export interface RawHtmlApi {
 	makeEditable(): void;
 	save( newValue: string ): void;

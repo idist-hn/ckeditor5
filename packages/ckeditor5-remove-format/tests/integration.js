@@ -1,25 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { RemoveFormat } from '../src/removeformat.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { Image, ImageResize, ImageCaption } from '@ckeditor/ckeditor5-image';
+import { Link } from '@ckeditor/ckeditor5-link';
+import { Bold, Underline } from '@ckeditor/ckeditor5-basic-styles';
 
-import RemoveFormat from '../src/removeformat';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import ImageResize from '@ckeditor/ckeditor5-image/src/imageresize';
-import ImageCaption from '@ckeditor/ckeditor5-image/src/imagecaption';
-import Link from '@ckeditor/ckeditor5-link/src/link';
-import Bold from '@ckeditor/ckeditor5-basic-styles/src/bold';
-import Underline from '@ckeditor/ckeditor5-basic-styles/src/underline';
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 import {
-	getData as getModelData,
-	setData as setModelData
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+	_getModelData,
+	_setModelData
+} from '@ckeditor/ckeditor5-engine';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'RemoveFormat', () => {
 	let editor, model, element;
@@ -45,47 +42,47 @@ describe( 'RemoveFormat', () => {
 	} );
 
 	it( 'does not remove image width attribute', () => {
-		// (#9684)
-		setModelData( model, '[<imageBlock src="assets/sample.png" width="50%"><caption>caption</caption></imageBlock>]' );
+		// (https://github.com/ckeditor/ckeditor5/issues/9684)
+		_setModelData( model, '[<imageBlock src="assets/sample.png" width="50%"><caption>caption</caption></imageBlock>]' );
 
 		editor.execute( 'removeFormat' );
 
-		expect( getModelData( model ) )
-			.to.equal( '[<imageBlock src="assets/sample.png" width="50%"><caption>caption</caption></imageBlock>]' );
+		expect( _getModelData( model ) )
+			.toEqual( '[<imageBlock src="assets/sample.png" width="50%"><caption>caption</caption></imageBlock>]' );
 	} );
 
 	describe( 'works correctly with multiline ranges', () => {
 		it( 'does remove pure formatting markup', () => {
-			setModelData( model, '<paragraph>foo[<$text bold="true">foo</$text></paragraph>' +
+			_setModelData( model, '<paragraph>foo[<$text bold="true">foo</$text></paragraph>' +
 				'<paragraph><$text bold="true">bar</$text>]bar</paragraph>' );
 
 			editor.execute( 'removeFormat' );
 
-			expect( getModelData( model ) )
-				.to.equal( '<paragraph>foo[foo</paragraph><paragraph>bar]bar</paragraph>' );
+			expect( _getModelData( model ) )
+				.toEqual( '<paragraph>foo[foo</paragraph><paragraph>bar]bar</paragraph>' );
 		} );
 
 		it( 'does not touch non-formatting markup', () => {
-			setModelData( model, '<paragraph>[<$text linkHref="url">foo</$text></paragraph><imageBlock src="assets/sample.png">' +
+			_setModelData( model, '<paragraph>[<$text linkHref="url">foo</$text></paragraph><imageBlock src="assets/sample.png">' +
 				'<caption>caption</caption></imageBlock><paragraph>bar]</paragraph>' );
 
 			editor.execute( 'removeFormat' );
 
-			expect( getModelData( model ) )
-				.to.equal( '<paragraph>[<$text linkHref="url">foo</$text></paragraph>' +
+			expect( _getModelData( model ) )
+				.toEqual( '<paragraph>[<$text linkHref="url">foo</$text></paragraph>' +
 					'<imageBlock src="assets/sample.png"><caption>caption</caption></imageBlock><paragraph>bar]</paragraph>' );
 		} );
 
 		it( 'removes the content from within widget editable', () => {
-			setModelData( model, '<paragraph>[</paragraph>' +
+			_setModelData( model, '<paragraph>[</paragraph>' +
 				'<imageBlock src="assets/sample.png"><caption><$text bold="true">foo</$text></caption></imageBlock>' +
 				'<paragraph>bar]</paragraph>'
 			);
 
 			editor.execute( 'removeFormat' );
 
-			expect( getModelData( model ) )
-				.to.equal( '<paragraph>' +
+			expect( _getModelData( model ) )
+				.toEqual( '<paragraph>' +
 					'[</paragraph><imageBlock src="assets/sample.png"><caption>foo</caption></imageBlock><paragraph>bar]</paragraph>' );
 		} );
 	} );
@@ -93,7 +90,7 @@ describe( 'RemoveFormat', () => {
 	describe( 'Handles correctly known issues', () => {
 		it( 'doesn\'t break after removing format from attribute wrapped around another attribute', () => {
 			// Edge case reported in https://github.com/ckeditor/ckeditor5-remove-format/pull/1#pullrequestreview-220515609
-			setModelData( model, '<paragraph>' +
+			_setModelData( model, '<paragraph>' +
 					'f[<$text underline="true">o</$text>' +
 					'<$text underline="true" bold="true">ob</$text>' +
 					'<$text underline="true">a</$text>]r' +
@@ -101,7 +98,7 @@ describe( 'RemoveFormat', () => {
 
 			editor.execute( 'removeFormat' );
 
-			expect( getModelData( model ) ).to.equal( '<paragraph>f[ooba]r</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>f[ooba]r</paragraph>' );
 		} );
 	} );
 } );

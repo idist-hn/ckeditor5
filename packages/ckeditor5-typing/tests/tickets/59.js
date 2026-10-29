@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import Typing from '../../src/typing';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Bold from '@ckeditor/ckeditor5-basic-styles/src/bold';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { Typing } from '../../src/typing.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Bold } from '@ckeditor/ckeditor5-basic-styles';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Bug ckeditor5-typing#59', () => {
 	let editor;
@@ -37,14 +36,14 @@ describe( 'Bug ckeditor5-typing#59', () => {
 	it( 'editor does not blow up when deleting last styled character', () => {
 		editor.model.change( () => {
 			editor.editing.view.getDomRoot().focus();
-			setData( editor.model, '<paragraph><$text bold="true">foo</$text> x <$text bold="true">bar</$text>.[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph><$text bold="true">foo</$text> x <$text bold="true">bar</$text>.[]</paragraph>' );
 		} );
 
 		while ( editor.model.document.selection.anchor.offset > 0 ) {
 			editor.execute( 'delete' );
 		}
 
-		expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
+		expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
 	} );
 
 	// This is something that came to my mind after I worked on ckeditor/ckeditor5-engine#659.
@@ -52,7 +51,7 @@ describe( 'Bug ckeditor5-typing#59', () => {
 	it( 'editor does not blow up when deleting last styled character, forcing bold switch', () => {
 		editor.model.change( () => {
 			editor.editing.view.getDomRoot().focus();
-			setData( editor.model, '<paragraph><$text bold="true">foo</$text> x <$text bold="true">bar</$text>.[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph><$text bold="true">foo</$text> x <$text bold="true">bar</$text>.[]</paragraph>' );
 		} );
 
 		while ( editor.model.document.selection.anchor.offset > 0 ) {
@@ -60,6 +59,6 @@ describe( 'Bug ckeditor5-typing#59', () => {
 			editor.execute( 'bold' );
 		}
 
-		expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
+		expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
 	} );
 } );

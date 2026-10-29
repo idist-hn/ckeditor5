@@ -1,21 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-/* global CSSMediaRule */
 
 /**
  * @module minimap/utils
  */
 
-import { Rect, global } from 'ckeditor5/src/utils';
-import { DomConverter, Renderer } from 'ckeditor5/src/engine';
-import type { Editor } from 'ckeditor5/src/core';
+import { Rect, global } from '@ckeditor/ckeditor5-utils';
+import { ViewDomConverter, ViewRenderer } from '@ckeditor/ckeditor5-engine';
+import type { Editor } from '@ckeditor/ckeditor5-core';
 
 /**
- * Clones the editing view DOM root by using a dedicated pair of {@link module:engine/view/renderer~Renderer} and
- * {@link module:engine/view/domconverter~DomConverter}. The DOM root clone updates incrementally to stay in sync with the
+ * Clones the editing view DOM root by using a dedicated pair of {@link module:engine/view/renderer~ViewRenderer} and
+ * {@link module:engine/view/domconverter~ViewDomConverter}. The DOM root clone updates incrementally to stay in sync with the
  * source root.
  *
  * @internal
@@ -26,8 +24,8 @@ import type { Editor } from 'ckeditor5/src/core';
 export function cloneEditingViewDomRoot( editor: Editor, rootName?: string ): HTMLElement {
 	const viewDocument = editor.editing.view.document;
 	const viewRoot = viewDocument.getRoot( rootName )!;
-	const domConverter = new DomConverter( viewDocument );
-	const renderer = new Renderer( domConverter, viewDocument.selection );
+	const domConverter = new ViewDomConverter( viewDocument );
+	const renderer = new ViewRenderer( domConverter, viewDocument.selection );
 	const domRootClone = editor.editing.view.getDomRoot()!.cloneNode() as HTMLElement;
 
 	domConverter.bindElements( domRootClone, viewRoot );

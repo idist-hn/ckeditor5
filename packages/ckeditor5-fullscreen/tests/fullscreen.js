@@ -1,0 +1,48 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Essentials } from '@ckeditor/ckeditor5-essentials';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { global } from '@ckeditor/ckeditor5-utils';
+
+import { Fullscreen } from '../src/fullscreen.js';
+import { FullscreenUI } from '../src/fullscreenui.js';
+import { FullscreenEditing } from '../src/fullscreenediting.js';
+
+describe( 'Fullscreen', () => {
+	let domElement, editor;
+
+	beforeEach( async () => {
+		domElement = global.document.createElement( 'div' );
+		global.document.body.appendChild( domElement );
+
+		editor = await ClassicEditor.create( domElement, {
+			plugins: [
+				Paragraph,
+				Essentials,
+				Fullscreen
+			]
+		} );
+	} );
+
+	afterEach( () => {
+		domElement.remove();
+		return editor.destroy();
+	} );
+
+	it( 'should have proper "requires" value', () => {
+		expect( Fullscreen.requires ).toEqual( [ FullscreenEditing, FullscreenUI ] );
+	} );
+
+	it( 'should have a proper name', () => {
+		expect( Fullscreen.pluginName ).toBe( 'Fullscreen' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( Fullscreen.isOfficialPlugin ).toBe( true );
+	} );
+} );

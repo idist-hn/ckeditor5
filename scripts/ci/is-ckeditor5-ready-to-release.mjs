@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { execSync } from 'node:child_process';
+import * as releaseTools from '@ckeditor/ckeditor5-dev-release-tools';
+import { npm } from '@ckeditor/ckeditor5-dev-utils';
+import semver from 'semver';
+
+// `@staging` and `@latest` share usually the same versions.
+//
+// However, while publishing a new release, the `@staging` tag will contain the new release,
+// while `@latest` still points to the previous one, because we need to verify the release before making it public.
+//
+// To avoid triggering a new job (from a release commit), we must use the `@staging` tag.
+const latestPublishedVersion = execSync( 'npm view ckeditor5@staging version', { encoding: 'utf-8' } ).trim();
+const changelogVersion = releaseTools.getLastFromChangelog();
+
+if ( getVersionTag( changelogVersion ) !== 'latest' ) {
+	console.log( `Aborting due non-latest changelog version (${ changelogVersion }).` );
+	process.exit( 1 );
+}
+
+if ( changelogVersion === latestPublishedVersion ) {
+	console.log( 'Nothing to release.' );
+	process.exit( 1 );
+}
+
+if ( !( await isVersionAvailable( changelogVersion ) ) ) {
+	console.log( `The proposed changelog (${ changelogVersion }) version is already published.` );
+	process.exit( 1 );
+}
+
+console.log( 'CKEditor 5 is ready to release.' );
+
+function getVersionTag( version ) {
+	const [ versionTag ] = semver.prerelease( version ) || [ 'latest' ];
+
+	return versionTag;
+}
+
+async function isVersionAvailable( version ) {
+	return npm.checkVersionAvailability( version, 'ckeditor5' );
+}

@@ -1,14 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageinsertviaurl
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageInsertUI from './imageinsert/imageinsertui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageInsertUI } from './imageinsert/imageinsertui.js';
+import { ImageInsertViaUrlUI } from './imageinsert/imageinsertviaurlui.js';
 
 /**
  * The image insert via URL plugin.
@@ -21,7 +22,7 @@ import ImageInsertUI from './imageinsert/imageinsertui';
  *
  * * {@link module:image/imageinsert/imageinsertui~ImageInsertUI},
  */
-export default class ImageInsertViaUrl extends Plugin {
+export class ImageInsertViaUrl extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -32,7 +33,14 @@ export default class ImageInsertViaUrl extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageInsertUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ImageInsertViaUrlUI, ImageInsertUI ]> {
+		return [ ImageInsertViaUrlUI, ImageInsertUI ];
 	}
 }

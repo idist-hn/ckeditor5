@@ -1,33 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import View from '@ckeditor/ckeditor5-engine/src/view/view';
-import EnterObserver from '../src/enterobserver';
-import createViewRoot from '@ckeditor/ckeditor5-engine/tests/view/_utils/createroot';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { fireBeforeInputDomEvent } from '@ckeditor/ckeditor5-typing/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { EditingView } from '@ckeditor/ckeditor5-engine';
+import { EnterObserver } from '../src/enterobserver.js';
+import { createViewRoot } from '@ckeditor/ckeditor5-engine/tests/view/_utils/createroot.js';
+import { fireBeforeInputDomEvent } from '@ckeditor/ckeditor5-typing/tests/_utils/utils.js';
 import { getCode, env } from '@ckeditor/ckeditor5-utils';
 
 describe( 'EnterObserver', () => {
 	let view, viewDocument, enterSpy;
 	let domRoot;
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( () => {
 		domRoot = document.createElement( 'div' );
 
-		view = new View();
+		view = new EditingView();
 		viewDocument = view.document;
 		createViewRoot( viewDocument );
 		view.attachDomRoot( domRoot );
 		view.addObserver( EnterObserver );
 
-		enterSpy = testUtils.sinon.spy();
+		enterSpy = vi.fn();
 		viewDocument.on( 'enter', enterSpy );
 	} );
 
@@ -35,10 +31,10 @@ describe( 'EnterObserver', () => {
 		view.destroy();
 	} );
 
-	// See #10.
+	// See https://github.com/ckeditor/ckeditor5-enter/issues/10.
 	it( 'can be initialized', () => {
 		expect( () => {
-			view = new View();
+			view = new EditingView();
 			viewDocument = view.document;
 			createViewRoot( viewDocument );
 			view.attachDomRoot( document.createElement( 'div' ) );
@@ -46,7 +42,7 @@ describe( 'EnterObserver', () => {
 			view.addObserver( EnterObserver );
 
 			view.destroy();
-		} ).to.not.throw();
+		} ).not.toThrow();
 	} );
 
 	it( 'should not work if the observer is disabled', () => {
@@ -56,7 +52,7 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		sinon.assert.notCalled( enterSpy );
+		expect( enterSpy ).not.toHaveBeenCalled();
 	} );
 
 	it( 'should handle the insertParagraph input type and fire the enter event', () => {
@@ -64,8 +60,8 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		sinon.assert.calledOnce( enterSpy );
-		sinon.assert.calledWithMatch( enterSpy, {}, { isSoft: false } );
+		expect( enterSpy ).toHaveBeenCalledOnce();
+		expect( enterSpy ).toHaveBeenCalledWith( expect.anything(), expect.objectContaining( { isSoft: false } ) );
 	} );
 
 	it( 'should handle the insertLineBreak input type and fire the enter event', () => {
@@ -73,8 +69,8 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertLineBreak'
 		} );
 
-		sinon.assert.calledOnce( enterSpy );
-		sinon.assert.calledWithMatch( enterSpy, {}, { isSoft: true } );
+		expect( enterSpy ).toHaveBeenCalledOnce();
+		expect( enterSpy ).toHaveBeenCalledWith( expect.anything(), expect.objectContaining( { isSoft: true } ) );
 	} );
 
 	it( 'should ignore other input types', () => {
@@ -82,12 +78,12 @@ describe( 'EnterObserver', () => {
 			inputType: 'anyInputType'
 		} );
 
-		sinon.assert.notCalled( enterSpy );
+		expect( enterSpy ).not.toHaveBeenCalled();
 	} );
 
 	// See https://github.com/ckeditor/ckeditor5/issues/13321.
 	it( 'should handle the insertParagraph input type and fire the soft enter event if shift key is pressed in Safari', () => {
-		sinon.stub( env, 'isSafari' ).value( true );
+		vi.spyOn( env, 'isSafari', 'get' ).mockReturnValue( true );
 
 		fireKeyEvent( 'enter', { shiftKey: true } );
 
@@ -95,9 +91,9 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		sinon.assert.calledOnce( enterSpy );
-		sinon.assert.calledWithMatch( enterSpy, {}, { isSoft: true } );
-		expect( enterSpy.firstCall.args[ 1 ] ).to.have.property( 'isSoft', true );
+		expect( enterSpy ).toHaveBeenCalledOnce();
+		expect( enterSpy ).toHaveBeenCalledWith( expect.anything(), expect.objectContaining( { isSoft: true } ) );
+		expect( enterSpy.mock.calls[ 0 ][ 1 ] ).toHaveProperty( 'isSoft', true );
 
 		// Verify if the effect is not persistent.
 		fireKeyEvent( 'enter', { shiftKey: false } );
@@ -106,14 +102,14 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		sinon.assert.calledTwice( enterSpy );
-		expect( enterSpy.firstCall.args[ 1 ] ).to.have.property( 'isSoft', true );
-		expect( enterSpy.secondCall.args[ 1 ] ).to.have.property( 'isSoft', false );
+		expect( enterSpy ).toHaveBeenCalledTimes( 2 );
+		expect( enterSpy.mock.calls[ 0 ][ 1 ] ).toHaveProperty( 'isSoft', true );
+		expect( enterSpy.mock.calls[ 1 ][ 1 ] ).toHaveProperty( 'isSoft', false );
 	} );
 
 	// See https://github.com/ckeditor/ckeditor5/issues/13321.
 	it( 'should handle the insertParagraph input type and fire the enter event if shift key was pressed before in Safari', () => {
-		sinon.stub( env, 'isSafari' ).value( true );
+		vi.spyOn( env, 'isSafari', 'get' ).mockReturnValue( true );
 
 		fireKeyEvent( 'shift', { shiftKey: true }, 'keydown' );
 		fireKeyEvent( 'shift', { shiftKey: false }, 'keyup' );
@@ -123,9 +119,9 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		sinon.assert.calledOnce( enterSpy );
-		sinon.assert.calledWithMatch( enterSpy, {}, { isSoft: false } );
-		expect( enterSpy.firstCall.args[ 1 ] ).to.have.property( 'isSoft', false );
+		expect( enterSpy ).toHaveBeenCalledOnce();
+		expect( enterSpy ).toHaveBeenCalledWith( expect.anything(), expect.objectContaining( { isSoft: false } ) );
+		expect( enterSpy.mock.calls[ 0 ][ 1 ] ).toHaveProperty( 'isSoft', false );
 	} );
 
 	it( 'should never preventDefault() the beforeinput event', () => {
@@ -133,14 +129,14 @@ describe( 'EnterObserver', () => {
 
 		viewDocument.on( 'beforeinput', ( evt, data ) => {
 			interceptedEventData = data;
-			sinon.spy( interceptedEventData, 'preventDefault' );
+			vi.spyOn( interceptedEventData, 'preventDefault' );
 		}, { priority: Number.POSITIVE_INFINITY } );
 
 		fireBeforeInputDomEvent( domRoot, {
 			inputType: 'insertParagraph'
 		} );
 
-		sinon.assert.notCalled( interceptedEventData.preventDefault );
+		expect( interceptedEventData.preventDefault ).not.toHaveBeenCalled();
 	} );
 
 	it( 'should stop() the beforeinput event if enter event was also stopped', () => {
@@ -158,7 +154,7 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		expect( interceptedEventInfo.stop.called ).to.be.true;
+		expect( interceptedEventInfo.stop.called ).toBe( true );
 	} );
 
 	it( 'should not stop() the beforeinput event if enter event was not stopped', () => {
@@ -172,13 +168,13 @@ describe( 'EnterObserver', () => {
 			inputType: 'insertParagraph'
 		} );
 
-		expect( interceptedEventInfo.stop.called ).to.be.undefined;
+		expect( interceptedEventInfo.stop.called ).toBeUndefined();
 	} );
 
 	it( 'should implement empty #stopObserving() method', () => {
 		expect( () => {
 			view.getObserver( EnterObserver ).stopObserving();
-		} ).to.not.throw();
+		} ).not.toThrow();
 	} );
 
 	function fireKeyEvent( key, options, type = 'keydown' ) {

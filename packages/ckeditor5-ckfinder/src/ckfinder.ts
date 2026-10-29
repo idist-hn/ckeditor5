@@ -1,16 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ckfinder/ckfinder
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { CKFinderUploadAdapter } from '@ckeditor/ckeditor5-adapter-ckfinder';
+import { Link } from '@ckeditor/ckeditor5-link';
 
-import CKFinderUI from './ckfinderui';
-import CKFinderEditing from './ckfinderediting';
+import { CKFinderUI } from './ckfinderui.js';
+import { CKFinderEditing } from './ckfinderediting.js';
 
 /**
  * The CKFinder feature, a bridge between the CKEditor 5 WYSIWYG editor and the
@@ -28,7 +30,7 @@ import CKFinderEditing from './ckfinderediting';
  * Check out the {@glink features/images/image-upload/image-upload comprehensive "Image upload" guide} to learn about
  * other ways to upload images into CKEditor 5.
  */
-export default class CKFinder extends Plugin {
+export class CKFinder extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -39,7 +41,14 @@ export default class CKFinder extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ 'Link', 'CKFinderUploadAdapter', CKFinderEditing, CKFinderUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ Link, CKFinderUploadAdapter, CKFinderEditing, CKFinderUI ]> {
+		return [ Link, CKFinderUploadAdapter, CKFinderEditing, CKFinderUI ];
 	}
 }

@@ -1,30 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module mention/mentionediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin } from '@ckeditor/ckeditor5-core';
 import type {
-	Element,
-	Text,
-	Writer,
-	Document,
-	AttributeElement,
+	ModelElement,
+	ModelText,
+	ModelWriter,
+	ModelDocument,
+	ViewAttributeElement,
 	DowncastConversionApi,
 	DowncastDispatcher,
-	Position,
-	Schema,
+	ModelPosition,
+	ModelSchema,
 	DowncastAttributeEvent,
-	Item
-} from 'ckeditor5/src/engine';
-import { uid } from 'ckeditor5/src/utils';
+	ModelItem
+} from '@ckeditor/ckeditor5-engine';
+import { uid } from '@ckeditor/ckeditor5-utils';
 
-import MentionCommand from './mentioncommand';
-import type { MentionAttribute } from './mention';
+import { MentionCommand } from './mentioncommand.js';
+import type { MentionAttribute } from './mention.js';
 
 /**
  * The mention editing feature.
@@ -33,12 +33,19 @@ import type { MentionAttribute } from './mention';
  * attribute in the {@link module:engine/model/model~Model model} which renders in the {@link module:engine/view/view view}
  * as a `<span class="mention" data-mention="@mention">`.
  */
-export default class MentionEditing extends Plugin {
+export class MentionEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'MentionEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -52,16 +59,25 @@ export default class MentionEditing extends Plugin {
 		// Allow the mention attribute on all text nodes.
 		model.schema.extend( '$text', { allowAttributes: 'mention' } );
 
+		// Disallow the mention attribute on text nodes inside code blocks.
+		// This prevents mention-based features (slash commands, emoji autocomplete)
+		// from triggering inside code blocks.
+		model.schema.addAttributeCheck( context => {
+			if ( context.endsWith( 'codeBlock $text' ) ) {
+				return false;
+			}
+		}, 'mention' );
+
 		// Upcast conversion.
 		editor.conversion.for( 'upcast' ).elementToAttribute( {
 			view: {
 				name: 'span',
-				key: 'data-mention',
+				attributes: 'data-mention',
 				classes: 'mention'
 			},
 			model: {
 				key: 'mention',
-				value: ( viewElement: Element ) => _toMentionAttribute( viewElement )
+				value: ( viewElement: ModelElement ) => _toMentionAttribute( viewElement )
 			}
 		} );
 
@@ -87,7 +103,7 @@ export function _addMentionAttributes(
 	baseMentionData: { id: string; _text: string },
 	data?: Record<string, unknown>
 ): MentionAttribute {
-	return Object.assign( { uid: uid() }, baseMentionData, data || {} );
+	return Object.assign( { uid: uid().slice( 0, 8 ) }, baseMentionData, data || {} );
 }
 
 /**
@@ -99,24 +115,26 @@ export function _addMentionAttributes(
  * @internal
  */
 export function _toMentionAttribute(
-	viewElementOrMention: Element,
+	viewElementOrMention: ModelElement,
 	data?: Record<string, unknown>
 ): MentionAttribute | undefined {
 	const dataMention = viewElementOrMention.getAttribute( 'data-mention' ) as string;
 
-	const textNode = viewElementOrMention.getChild( 0 ) as Text;
+	const textNode = viewElementOrMention.getChild( 0 ) as ModelText;
 
 	// Do not convert empty mentions.
 	if ( !textNode ) {
 		return;
 	}
 
+	const dataUid = viewElementOrMention.getAttribute( 'data-mention-uid' ) as string;
+
 	const baseMentionData = {
 		id: dataMention,
 		_text: textNode.data
 	};
 
-	return _addMentionAttributes( baseMentionData, data );
+	return _addMentionAttributes( baseMentionData, dataUid ? { uid: dataUid, ...data } : data );
 }
 
 /**
@@ -135,7 +153,7 @@ function preventPartialMentionDowncast( dispatcher: DowncastDispatcher ) {
 		}
 
 		const start = data.range.start;
-		const textNode = start.textNode || start.nodeAfter as Text;
+		const textNode = start.textNode || start.nodeAfter as ModelText;
 
 		if ( textNode!.data != mention._text ) {
 			// Consume item to prevent partial mention conversion.
@@ -147,29 +165,30 @@ function preventPartialMentionDowncast( dispatcher: DowncastDispatcher ) {
 /**
  * Creates a mention element from the mention data.
  */
-function createViewMentionElement( mention: MentionAttribute, { writer }: DowncastConversionApi ): AttributeElement | undefined {
+function createViewMentionElement(
+	mention: MentionAttribute,
+	{ writer, options }: DowncastConversionApi
+): ViewAttributeElement | undefined {
 	if ( !mention ) {
 		return;
 	}
 
-	const attributes = {
+	return writer.createAttributeElement( 'span', {
 		class: 'mention',
-		'data-mention': mention.id
-	};
-
-	const options = {
+		'data-mention': mention.id,
+		// Omit `data-mention-uid` in clipboard (copy/cut) to prevent UIDs duplication.
+		...( !options.isClipboardPipeline && { 'data-mention-uid': mention.uid } )
+	}, {
 		id: mention.uid,
 		priority: 20
-	};
-
-	return writer.createAttributeElement( 'span', attributes, options );
+	} );
 }
 
 /**
  * Model post-fixer that disallows typing with selection when the selection is placed after the text node with the mention attribute or
  * before a text node with mention attribute.
  */
-function selectionMentionAttributePostFixer( writer: Writer, doc: Document ): boolean {
+function selectionMentionAttributePostFixer( writer: ModelWriter, doc: ModelDocument ): boolean {
 	const selection = doc.selection;
 	const focus = selection.focus;
 
@@ -190,7 +209,7 @@ function selectionMentionAttributePostFixer( writer: Writer, doc: Document ): bo
  * a) after a text node
  * b) the position is at parents start - the selection will set attributes from node after.
  */
-function shouldNotTypeWithMentionAt( position: Position ): boolean {
+function shouldNotTypeWithMentionAt( position: ModelPosition ): boolean {
 	const isAtStart = position.isAtStart;
 	const isAfterAMention = position.nodeBefore && position.nodeBefore.is( '$text' );
 
@@ -200,7 +219,7 @@ function shouldNotTypeWithMentionAt( position: Position ): boolean {
 /**
  * Model post-fixer that removes the mention attribute from the modified text node.
  */
-function removePartialMentionPostFixer( writer: Writer, doc: Document, schema: Schema ): boolean {
+function removePartialMentionPostFixer( writer: ModelWriter, doc: ModelDocument, schema: ModelSchema ): boolean {
 	const changes = doc.differ.getChanges();
 
 	let wasChanged = false;
@@ -227,7 +246,7 @@ function removePartialMentionPostFixer( writer: Writer, doc: Document, schema: S
 
 		// Checks text nodes in inserted elements (might occur when splitting a paragraph or pasting content inside text with mention).
 		if ( change.name != '$text' && change.type == 'insert' ) {
-			const insertedNode = position.nodeAfter as Element;
+			const insertedNode = position.nodeAfter as ModelElement;
 
 			for ( const item of writer.createRangeIn( insertedNode! ).getItems() ) {
 				wasChanged = checkAndFix( item, writer ) || wasChanged;
@@ -250,7 +269,7 @@ function removePartialMentionPostFixer( writer: Writer, doc: Document, schema: S
  * This post-fixer will extend the attribute applied on the part of the mention so the whole text node of the mention will have
  * the added attribute.
  */
-function extendAttributeOnMentionPostFixer( writer: Writer, doc: Document ): boolean {
+function extendAttributeOnMentionPostFixer( writer: ModelWriter, doc: ModelDocument ): boolean {
 	const changes = doc.differ.getChanges();
 
 	let wasChanged = false;
@@ -279,7 +298,7 @@ function extendAttributeOnMentionPostFixer( writer: Writer, doc: Document ): boo
  * Checks if a node has a correct mention attribute if present.
  * Returns `true` if the node is text and has a mention attribute whose text does not match the expected mention text.
  */
-function isBrokenMentionNode( node: Item | null ): boolean {
+function isBrokenMentionNode( node: ModelItem | null ): boolean {
 	if ( !node || !( node.is( '$text' ) || node.is( '$textProxy' ) ) || !node.hasAttribute( 'mention' ) ) {
 		return false;
 	}
@@ -295,7 +314,7 @@ function isBrokenMentionNode( node: Item | null ): boolean {
 /**
  * Fixes a mention on a text node if it needs a fix.
  */
-function checkAndFix( textNode: Item | null, writer: Writer ): boolean {
+function checkAndFix( textNode: ModelItem | null, writer: ModelWriter ): boolean {
 	if ( isBrokenMentionNode( textNode ) ) {
 		writer.removeAttribute( 'mention', textNode! );
 

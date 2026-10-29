@@ -1,30 +1,39 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageresize
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageResizeButtons from './imageresize/imageresizebuttons';
-import ImageResizeEditing from './imageresize/imageresizeediting';
-import ImageResizeHandles from './imageresize/imageresizehandles';
-
-import '../theme/imageresize.css';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageResizeButtons } from './imageresize/imageresizebuttons.js';
+import { ImageResizeEditing } from './imageresize/imageresizeediting.js';
+import { ImageResizeHandles } from './imageresize/imageresizehandles.js';
+import { ImageCustomResizeUI } from './imageresize/imagecustomresizeui.js';
 
 /**
  * The image resize plugin.
  *
  * It adds a possibility to resize each image using handles.
  */
-export default class ImageResize extends Plugin {
+export class ImageResize extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageResizeEditing, ImageResizeHandles, ImageResizeButtons ] as const;
+	public static get requires(): PluginDependenciesOf<[
+		ImageResizeEditing,
+		ImageResizeHandles,
+		ImageCustomResizeUI,
+		ImageResizeButtons
+	]> {
+		return [
+			ImageResizeEditing,
+			ImageResizeHandles,
+			ImageCustomResizeUI,
+			ImageResizeButtons
+		];
 	}
 
 	/**
@@ -32,5 +41,12 @@ export default class ImageResize extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageResize' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

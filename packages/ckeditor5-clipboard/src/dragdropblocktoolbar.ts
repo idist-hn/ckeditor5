@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -9,9 +9,13 @@
 
 import { Plugin } from '@ckeditor/ckeditor5-core';
 
+import type { EditingView } from '@ckeditor/ckeditor5-engine';
+
 import {
 	env,
 	global,
+	isShadowRoot,
+	getElementFromPoint,
 	DomEmitterMixin,
 	type ObservableChangeEvent,
 	type DomEmitter
@@ -19,14 +23,14 @@ import {
 
 import type { BlockToolbar } from '@ckeditor/ckeditor5-ui';
 
-import ClipboardObserver from './clipboardobserver';
+import { ClipboardObserver } from './clipboardobserver.js';
 
 /**
  * Integration of a block Drag and Drop support with the block toolbar.
  *
  * @internal
  */
-export default class DragDropBlockToolbar extends Plugin {
+export class DragDropBlockToolbar extends Plugin {
 	/**
 	 * Whether current dragging is started by block toolbar button dragging.
 	 */
@@ -42,6 +46,13 @@ export default class DragDropBlockToolbar extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'DragDropBlockToolbar' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -127,10 +138,10 @@ export default class DragDropBlockToolbar extends Plugin {
 
 		const clientX = domEvent.clientX + ( this.editor.locale.contentLanguageDirection == 'ltr' ? 100 : -100 );
 		const clientY = domEvent.clientY;
-		const target = document.elementFromPoint( clientX, clientY );
 		const view = this.editor.editing.view;
+		const target = getTargetAcrossRoots( view, clientX, clientY );
 
-		if ( !target || !target.closest( '.ck-editor__editable' ) ) {
+		if ( !target ) {
 			return;
 		}
 
@@ -152,4 +163,24 @@ export default class DragDropBlockToolbar extends Plugin {
 	private _handleBlockDragEnd(): void {
 		this._isBlockDragging = false;
 	}
+}
+
+/**
+ * Returns the topmost `.ck-editor__editable`-contained element at the given point, resolved across
+ * every DOM root the editing view knows about (including open and closed shadow roots).
+ */
+function getTargetAcrossRoots( view: EditingView, x: number, y: number ): Element | null {
+	const shadowRoots = new Set<ShadowRoot>();
+
+	for ( const domRoot of view.domRoots.values() ) {
+		const root = domRoot.getRootNode();
+
+		if ( isShadowRoot( root ) ) {
+			shadowRoots.add( root );
+		}
+	}
+
+	const target = getElementFromPoint( x, y, Array.from( shadowRoots ) );
+
+	return target && target.closest( '.ck-editor__editable' ) ? target : null;
 }

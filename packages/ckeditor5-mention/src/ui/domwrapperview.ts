@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module mention/ui/domwrapperview
  */
 
-import { View } from 'ckeditor5/src/ui';
-import type { Locale } from 'ckeditor5/src/utils';
+import { View } from '@ckeditor/ckeditor5-ui';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
 
 /**
  * This class wraps DOM element as a CKEditor5 UI View.
  *
  * It allows to render any DOM element and use it in mentions list.
  */
-export default class DomWrapperView extends View {
+export class MentionDomWrapperView extends View {
 	/**
 	 * The DOM element for which wrapper was created.
 	 */
@@ -30,7 +30,7 @@ export default class DomWrapperView extends View {
 	declare public isOn: boolean;
 
 	/**
-	 * Creates an instance of {@link module:mention/ui/domwrapperview~DomWrapperView} class.
+	 * Creates an instance of {@link module:mention/ui/domwrapperview~MentionDomWrapperView} class.
 	 *
 	 * Also see {@link #render}.
 	 */
@@ -42,8 +42,8 @@ export default class DomWrapperView extends View {
 
 		this.domElement = domElement;
 
-		// Render dom wrapper as a button.
-		this.domElement.classList.add( 'ck-button' );
+		// Render dom wrapper as a list item button, so it matches the toolbar dropdown lists (e.g. headings).
+		this.domElement.classList.add( 'ck-button', 'ck-list-item-button' );
 
 		this.set( 'isOn', false );
 

@@ -1,17 +1,52 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 .ck .ck-balloon-rotator__navigation {
+	background: var(--ck-color-toolbar-background, var(--ck-toolbar-background-color));
+	border-bottom: var(--ck-border-divider);
+	padding: 0 var(--ck-spacing-padding);
+	border-radius: var(--ck-balloon-panel-border-radius) var(--ck-balloon-panel-border-radius) 0 0;
 	display: flex;
 	align-items: center;
-	justify-content: center;
+
+	/* Let's keep similar appearance to `ck-toolbar`. */
+	& > * {
+		margin-right: var(--ck-spacing-gap-compact);
+		margin-top: var(--ck-spacing-gap-compact);
+		margin-bottom: var(--ck-spacing-gap-compact);
+	}
+
+	/* Gives counter more breath than buttons. */
+	& .ck-balloon-rotator__counter {
+		margin-right: var(--ck-spacing-control-padding-inline);
+
+		/* We need to use smaller margin because of previous button's right margin. */
+		margin-left: var(--ck-spacing-gap-compact);
+	}
+	justify-content: center
+}
+
+.ck .ck-balloon-rotator__content {
+
+	/* Disable default annotation shadow inside rotator with fake panels. */
+	& .ck.ck-annotation-wrapper {
+		box-shadow: none;
+	}
+
+	/* Disable default panel border radius inside rotator and top left/right corners radiuses. */
+	& > .ck {
+		/* border-start-start-radius: 0;
+		border-start-end-radius: 0; */
+		border: none;
+	}
 }
 
 /* Buttons inside a toolbar should be centered when rotator bar is wider.
  * See: https://github.com/ckeditor/ckeditor5-ui/issues/495
  */
+
 .ck .ck-balloon-rotator__content .ck-toolbar {
 	justify-content: center;
 }

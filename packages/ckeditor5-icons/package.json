@@ -1,0 +1,52 @@
+{
+  "name": "@ckeditor/ckeditor5-icons",
+  "version": "49.0.1",
+  "description": "Icon pack for CKEditor 5.",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "author": "CKSource (http://cksource.com/)",
+  "homepage": "https://ckeditor.com/ckeditor-5",
+  "bugs": "https://github.com/ckeditor/ckeditor5/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ckeditor/ckeditor5.git",
+    "directory": "packages/ckeditor5-icons"
+  },
+  "keywords": [
+    "ckeditor",
+    "ckeditor5",
+    "ckeditor 5",
+    "ckeditor5-lib"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./dist/*": "./src/*",
+    "./*": "./*"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": "./dist/index.js",
+      "./dist/*": "./dist/*",
+      "./package.json": "./package.json"
+    }
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
+  },
+  "scripts": {
+    "build": "node ../../scripts/nim/build-package.mjs && node ../../scripts/update-icons-typings.mjs",
+    "test": "vitest run",
+    "test:browser": "vitest run --browser.headless=false",
+    "test:debug": "vitest --browser.headless=false",
+    "coverage": "pnpm run test --coverage"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ]
+}

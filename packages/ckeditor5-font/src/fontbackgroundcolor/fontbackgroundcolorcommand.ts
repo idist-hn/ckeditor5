@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontbackgroundcolor/fontbackgroundcolorcommand
  */
 
-import type { Editor } from 'ckeditor5/src/core';
-import FontCommand from '../fontcommand';
-import { FONT_BACKGROUND_COLOR } from '../utils';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import { FontCommand } from '../fontcommand.js';
+import { FONT_BACKGROUND_COLOR } from '../utils.js';
 
 /**
  * The font background color command. It is used by
@@ -22,7 +22,7 @@ import { FONT_BACKGROUND_COLOR } from '../utils';
  *
  * **Note**: Executing the command with the `null` value removes the attribute from the model.
  */
-export default class FontBackgroundColorCommand extends FontCommand {
+export class FontBackgroundColorCommand extends FontCommand {
 	/**
 	 * @inheritDoc
 	 */

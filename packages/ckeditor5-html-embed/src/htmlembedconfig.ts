@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,7 +12,7 @@
  *
  * ```ts
  * ClassicEditor
- *   .create( editorElement, {
+ *   .create( {
  *     htmlEmbed: ... // HTML embed feature options.
  *   } )
  * 	 .then( ... )
@@ -38,7 +38,7 @@ export interface HtmlEmbedConfig {
 	showPreviews?: boolean;
 
 	/**
-	 * Callback used to sanitize the HTML provided by the user when generating previews of it in the editor.
+	 * Callback used to sanitize the HTML provided by the user in HTML embed widget when it is previewed inside the editor.
 	 *
 	 * We strongly recommend overwriting the default function to avoid XSS vulnerabilities.
 	 *
@@ -50,7 +50,7 @@ export interface HtmlEmbedConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 *   .create( editorElement, {
+	 *   .create( {
 	 *     htmlEmbed: {
 	 *       showPreviews: true,
 	 *       sanitizeHtml( inputHtml ) {

@@ -1,16 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/template
  */
 
-/* global document */
-
-import View from './view';
-import ViewCollection from './viewcollection';
+import { View } from './view.js';
+import { ViewCollection } from './viewcollection.js';
 
 import {
 	CKEditorError,
@@ -20,12 +18,15 @@ import {
 	type ArrayOrItem,
 	type Emitter,
 	type Observable,
-	type ObservableChangeEvent
+	type ObservableChangeEvent,
+	type EmitterMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
-import { isObject, cloneDeepWith } from 'lodash-es';
+import { isObject, cloneDeepWith } from 'es-toolkit/compat';
 
 const xhtmlNs = 'http://www.w3.org/1999/xhtml';
+
+const TemplateBase: EmitterMixinConstructor = /* #__PURE__ */ EmitterMixin();
 
 /**
  * A basic Template class. It renders a DOM HTML element or text from a
@@ -65,7 +66,7 @@ const xhtmlNs = 'http://www.w3.org/1999/xhtml';
  * See {@link module:ui/template~TemplateDefinition} to know more about templates and complex
  * template definitions.
  */
-export default class Template extends EmitterMixin() {
+export class Template extends TemplateBase {
 	public ns?: string;
 
 	/**
@@ -628,6 +629,10 @@ export default class Template extends EmitterMixin() {
 					.reduce( arrayValueReducer, '' );
 
 				if ( !isFalsy( value ) ) {
+					// The attribute names come from the template definition, not from the content. One that requires a
+					// Trusted Type, such as an event handler, is left to the Trusted Types enforcement of the application.
+					// DOM events are handled with the `on` property of the definition instead.
+					// eslint-disable-next-line ckeditor5-rules/require-trusted-types-for-sinks
 					node.setAttributeNS( attrNs, attrName, value );
 				}
 			}
@@ -643,17 +648,19 @@ export default class Template extends EmitterMixin() {
 	 * ```ts
 	 * attributes: {
 	 * 	style: {
-	 * 		color: 'red'
+	 * 		color: 'red',
+	 * 		'--color': 'red'
 	 * 	}
 	 * }
 	 * ```
 	 *
-	 * or values bound to {@link module:ui/model~Model} properties:
+	 * or values bound to {@link module:ui/model~UIModel} properties:
 	 *
 	 * ```ts
 	 * attributes: {
 	 * 	style: {
-	 * 		color: bind.to( ... )
+	 * 		color: bind.to( ... ),
+	 * 		'--color': bind.to( ... )
 	 * 	}
 	 * }
 	 * ```
@@ -683,7 +690,15 @@ export default class Template extends EmitterMixin() {
 					data
 				} );
 			}
-
+			// Cases:
+			//
+			//		style: {
+			//			--color: 'red'
+			//		}
+			//
+			else if ( isCssVariable( styleName ) ) {
+				( node as any ).style.setProperty( styleName, styleValue as string );
+			}
 			// Cases:
 			//
 			//		style: {
@@ -851,6 +866,8 @@ export default class Template extends EmitterMixin() {
 			if ( attrValue === null ) {
 				element.removeAttribute( attrName );
 			} else {
+				// The attribute names come from the template definition, as in `_renderAttributes()`.
+				// eslint-disable-next-line ckeditor5-rules/require-trusted-types-for-sinks
 				element.setAttribute( attrName, attrValue );
 			}
 		}
@@ -861,7 +878,7 @@ export default class Template extends EmitterMixin() {
 	}
 }
 
-type AttributeValues = Array<TemplateSimpleValue | TemplateBinding> |
+export type AttributeValues = Array<TemplateSimpleValue | TemplateBinding> |
 	[ NamespacedValue<Array<TemplateSimpleValue | TemplateBinding>> ];
 
 /**
@@ -1069,6 +1086,22 @@ function hasTemplateBinding( schema: any ) {
 }
 
 /**
+ * Checks whether the given name is a valid CSS variable name.
+ *
+ * A valid CSS variable name starts with two dashes (`--`), followed by a letter, underscore (`_`),
+ * or dash (`-`), and can be followed by any combination of letters, digits, underscores, dashes,
+ * or additional dashes.
+ *
+ * @param name The name to validate as a CSS variable.
+ * @returns True if the name is a valid CSS variable, false otherwise.
+ */
+function isCssVariable( name: string ): boolean {
+	const regex = /^--[a-zA-Z_-][\w-]*$/;
+
+	return regex.test( name );
+}
+
+/**
  * Assembles the value using {@link module:ui/template~TemplateValueSchema} and stores it in a form of
  * an Array. Each entry of the Array corresponds to one of {@link module:ui/template~TemplateValueSchema}
  * items.
@@ -1155,6 +1188,8 @@ function getTextUpdater( node: Node ): Updater {
 function getAttributeUpdater( el: Element, attrName: string, ns: string | null ): Updater {
 	return {
 		set( value ) {
+			// The attribute name comes from the template definition, as in `_renderAttributes()`.
+			// eslint-disable-next-line ckeditor5-rules/require-trusted-types-for-sinks
 			el.setAttributeNS( ns, attrName, value );
 		},
 
@@ -1175,11 +1210,19 @@ function getAttributeUpdater( el: Element, attrName: string, ns: string | null )
 function getStyleUpdater( el: any, styleName: string ): Updater {
 	return {
 		set( value ) {
-			el.style[ styleName ] = value;
+			if ( isCssVariable( styleName ) ) {
+				el.style.setProperty( styleName, value );
+			} else {
+				el.style[ styleName ] = value;
+			}
 		},
 
 		remove() {
-			el.style[ styleName ] = null;
+			if ( isCssVariable( styleName ) ) {
+				el.style.removeProperty( styleName );
+			} else {
+				el.style[ styleName ] = null;
+			}
 		}
 	};
 }
@@ -1726,6 +1769,7 @@ export type TemplateSimpleValueSchema = TemplateSimpleValue | AttributeBinding;
  * 		// An object schema, specific for styles.
  * 		style: {
  * 			color: 'red',
+ * 			'--color': 'red',
  * 			backgroundColor: bind.to( 'qux', () => { ... } )
  * 		}
  * 	}
@@ -1815,8 +1859,8 @@ export type TemplateListenerSchema = ArrayOrItem<ListenerBinding>;
 // So let's invent some opaque types for outside use and only keep using `TemplateBinding` internally. They can be different for
 // `attribute` and `on` contexts.
 // To make them opaque, a non-exported symbol is used, so it's not possible to accidentally create an instance outside.
-declare const AttributeBindingSymbol: unique symbol;
-declare const ListenerBindingSymbol: unique symbol;
+declare const AttributeBindingSymbol: unique symbol; // eslint-disable-line @typescript-eslint/no-unused-vars
+declare const ListenerBindingSymbol: unique symbol; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface AttributeBinding { _opaqueAttributeBinding: typeof AttributeBindingSymbol }
 export interface ListenerBinding { _opaqueListenerBinding: typeof ListenerBindingSymbol }
@@ -2014,6 +2058,7 @@ export interface BindChain<TObservable> {
 
 /**
  * The {@link module:ui/template~Template#_renderNode} configuration.
+ * @internal
  */
 export interface RenderData {
 

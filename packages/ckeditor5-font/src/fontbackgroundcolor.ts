@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontbackgroundcolor
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import FontBackgroundColorEditing from './fontbackgroundcolor/fontbackgroundcolorediting';
-import FontBackgroundColorUI from './fontbackgroundcolor/fontbackgroundcolorui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { FontBackgroundColorEditing } from './fontbackgroundcolor/fontbackgroundcolorediting.js';
+import { FontBackgroundColorUI } from './fontbackgroundcolor/fontbackgroundcolorui.js';
 
 /**
  * The font background color plugin.
@@ -21,12 +21,12 @@ import FontBackgroundColorUI from './fontbackgroundcolor/fontbackgroundcolorui';
  * the {@link module:font/fontbackgroundcolor/fontbackgroundcolorediting~FontBackgroundColorEditing} and
  * {@link module:font/fontbackgroundcolor/fontbackgroundcolorui~FontBackgroundColorUI} features in the editor.
  */
-export default class FontBackgroundColor extends Plugin {
+export class FontBackgroundColor extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ FontBackgroundColorEditing, FontBackgroundColorUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ FontBackgroundColorEditing, FontBackgroundColorUI ]> {
+		return [ FontBackgroundColorEditing, FontBackgroundColorUI ];
 	}
 
 	/**
@@ -34,5 +34,12 @@ export default class FontBackgroundColor extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'FontBackgroundColor' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

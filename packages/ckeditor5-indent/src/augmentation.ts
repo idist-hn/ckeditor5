@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 import type {
@@ -8,8 +8,11 @@ import type {
 	Indent,
 	IndentBlock,
 	IndentUI,
-	IndentBlockCommand
-} from './index';
+	IndentBlockCommand,
+	IndentBlockListIntegration,
+	IndentBlockListCommand,
+	IndentBlockListItemCommand
+} from './index.js';
 
 declare module '@ckeditor/ckeditor5-core' {
 	interface EditorConfig {
@@ -26,10 +29,15 @@ declare module '@ckeditor/ckeditor5-core' {
 		[ Indent.pluginName ]: Indent;
 		[ IndentBlock.pluginName ]: IndentBlock;
 		[ IndentUI.pluginName ]: IndentUI;
+		[ IndentBlockListIntegration.pluginName ]: IndentBlockListIntegration;
 	}
 
 	interface CommandsMap {
 		indentBlock: IndentBlockCommand;
 		outdentBlock: IndentBlockCommand;
+		indentBlockList: IndentBlockListCommand;
+		outdentBlockList: IndentBlockListCommand;
+		indentBlockListItem: IndentBlockListItemCommand;
+		outdentBlockListItem: IndentBlockListItemCommand;
 	}
 }

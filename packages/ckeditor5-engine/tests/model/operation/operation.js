@@ -1,29 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Batch from '../../../src/model/batch';
-import Operation from '../../../src/model/operation/operation';
+import { describe, it, expect } from 'vitest';
+import { Batch } from '../../../src/model/batch.js';
+import { Operation } from '../../../src/model/operation/operation.js';
 
 describe( 'Operation', () => {
 	it( 'should save its base version', () => {
 		const op = new Operation( 4 );
 
-		expect( op.baseVersion ).to.equal( 4 );
+		expect( op.baseVersion ).toBe( 4 );
 	} );
 
 	describe( 'isDocumentOperation', () => {
 		it( 'operation is a document operation if it has base version set', () => {
 			const op = new Operation( 0 );
 
-			expect( op.isDocumentOperation ).to.be.true;
+			expect( op.isDocumentOperation ).toBe( true );
 		} );
 
 		it( 'operation is not a document operation if base version is null', () => {
 			const op = new Operation( null );
 
-			expect( op.isDocumentOperation ).to.be.false;
+			expect( op.isDocumentOperation ).toBe( false );
 		} );
 	} );
 
@@ -33,7 +34,7 @@ describe( 'Operation', () => {
 
 			const serialized = op.toJSON();
 
-			expect( serialized ).to.deep.equal( {
+			expect( serialized ).toEqual( {
 				__className: 'Operation',
 				baseVersion: 4
 			} );
@@ -46,7 +47,7 @@ describe( 'Operation', () => {
 
 			const serialized = op.toJSON();
 
-			expect( serialized ).to.deep.equal( {
+			expect( serialized ).toEqual( {
 				__className: 'Operation',
 				baseVersion: 4
 			} );
@@ -60,7 +61,7 @@ describe( 'Operation', () => {
 			const serialized = op.toJSON();
 			const deserialized = Operation.fromJSON( serialized );
 
-			expect( deserialized ).to.deep.equal( op );
+			expect( deserialized ).toEqual( op );
 		} );
 	} );
 } );

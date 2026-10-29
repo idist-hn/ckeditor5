@@ -1,15 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import HeadingEditing from '@ckeditor/ckeditor5-heading/src/headingediting';
-import GeneralHtmlSupport from '../../src/generalhtmlsupport';
-import { getModelDataWithAttributes } from '../_utils/utils';
-
-/* global document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { _getModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { GeneralHtmlSupport } from '../../src/generalhtmlsupport.js';
+import { getModelDataWithAttributes } from '../_utils/utils.js';
+import { HeadingElementSupport } from '../../src/integrations/heading.js';
 
 describe( 'HeadingElementSupport', () => {
 	let editor, editorElement, model, doc, dataSchema, dataFilter, htmlSupport;
@@ -53,24 +56,32 @@ describe( 'HeadingElementSupport', () => {
 			} ] );
 		} );
 
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( HeadingElementSupport.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( HeadingElementSupport.isPremiumPlugin ).toBe( false );
+		} );
+
 		it( 'should be named', () => {
-			expect( editor.plugins.has( 'HeadingElementSupport' ) ).to.be.true;
+			expect( editor.plugins.has( 'HeadingElementSupport' ) ).toBe( true );
 		} );
 
 		it( 'should register heading schemas', () => {
-			expect( Array.from( dataSchema.getDefinitionsForView( 'h1' ) ) ).to.deep.include( {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'h1' ) ) ).toContainEqual( {
 				model: 'heading1',
 				view: 'h1',
 				isBlock: true
 			} );
 
-			expect( Array.from( dataSchema.getDefinitionsForView( 'h2' ) ) ).to.deep.include( {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'h2' ) ) ).toContainEqual( {
 				model: 'heading2',
 				view: 'h2',
 				isBlock: true
 			} );
 
-			expect( Array.from( dataSchema.getDefinitionsForView( 'h5' ) ) ).to.deep.include( {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'h5' ) ) ).toContainEqual( {
 				model: 'otherHeading',
 				view: 'h5',
 				isBlock: true
@@ -78,11 +89,14 @@ describe( 'HeadingElementSupport', () => {
 		} );
 
 		it( 'should add heading models as allowed children of htmlHgroup', () => {
-			expect( Array.from( dataSchema.getDefinitionsForView( 'hgroup' ) ) ).to.deep.equal( [ {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'hgroup' ) ) ).toEqual( [ {
 				model: 'htmlHgroup',
 				view: 'hgroup',
 				modelSchema: {
+					allowWhere: '$container',
 					allowChildren: [
+						'paragraph',
+						'htmlP',
 						'htmlH1',
 						'htmlH2',
 						'htmlH3',
@@ -93,6 +107,30 @@ describe( 'HeadingElementSupport', () => {
 						'heading2',
 						'otherHeading'
 					],
+					isBlock: false
+				},
+				isBlock: true
+			} ] );
+		} );
+
+		it( 'should add heading models as allowed children of htmlSummary', () => {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'summary' ) ) ).toEqual( [ {
+				model: 'htmlSummary',
+				view: 'summary',
+				modelSchema: {
+					allowChildren: [
+						'htmlH1',
+						'htmlH2',
+						'htmlH3',
+						'htmlH4',
+						'htmlH5',
+						'htmlH6',
+						'$text',
+						'heading1',
+						'heading2',
+						'otherHeading'
+					],
+					allowIn: 'htmlDetails',
 					isBlock: false
 				},
 				isBlock: true
@@ -110,7 +148,7 @@ describe( 'HeadingElementSupport', () => {
 
 			editor.setData( expectedHtml );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 				data:
 					'<heading1 htmlH1Attributes="(1)">one</heading1>' +
 					'<heading2 htmlH2Attributes="(2)">two</heading2>' +
@@ -146,7 +184,7 @@ describe( 'HeadingElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( expectedHtml );
+			expect( editor.getData() ).toBe( expectedHtml );
 		} );
 
 		it( 'should create a `paragraph` without html classes when pressing "enter" at the end of a heading block', () => {
@@ -158,7 +196,7 @@ describe( 'HeadingElementSupport', () => {
 
 			editor.execute( 'enter' );
 
-			expect( getModelDataWithAttributes( model ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model ) ).toEqual( {
 				data: '<heading2 htmlH2Attributes="(1)">foobar</heading2><paragraph>[]</paragraph>',
 				attributes: {
 					1: {
@@ -179,7 +217,7 @@ describe( 'HeadingElementSupport', () => {
 
 			editor.execute( 'enter' );
 
-			expect( getModelDataWithAttributes( model ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model ) ).toEqual( {
 				data: '<heading2 htmlH2Attributes="(1)">foo</heading2><heading2 htmlH2Attributes="(2)">[]bar</heading2>',
 				attributes: {
 					1: {
@@ -211,7 +249,7 @@ describe( 'HeadingElementSupport', () => {
 					color: 'red'
 				}, root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<heading1 htmlH1Attributes="(1)">foobar</heading1>',
 					attributes: {
 						1: {
@@ -223,11 +261,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1 style="background-color:blue;color:red">foobar</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1 style="background-color:blue;color:red;">foobar</h1>'
 				);
 			} );
@@ -237,7 +275,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.addModelHtmlClass( 'h2', 'foo', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<heading2 htmlH2Attributes="(1)">foobar</heading2>',
 					attributes: {
 						1: {
@@ -246,11 +284,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 			} );
@@ -262,7 +300,7 @@ describe( 'HeadingElementSupport', () => {
 					'data-foo': 'bar'
 				}, root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<otherHeading htmlH5Attributes="(1)">foobar</otherHeading>',
 					attributes: {
 						1: {
@@ -273,11 +311,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h5 data-foo="bar">foobar</h5>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h5 data-foo="bar">foobar</h5>'
 				);
 			} );
@@ -287,7 +325,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.removeModelHtmlStyles( 'h1', 'color', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<heading1 htmlH1Attributes="(1)">foobar</heading1>',
 					attributes: {
 						1: {
@@ -298,11 +336,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1 style="background-color:blue">foobar</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1 style="background-color:blue;">foobar</h1>'
 				);
 			} );
@@ -312,7 +350,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.removeModelHtmlClass( 'h2', 'bar', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<heading2 htmlH2Attributes="(1)">foobar</heading2>',
 					attributes: {
 						1: {
@@ -321,11 +359,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 			} );
@@ -335,7 +373,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.removeModelHtmlAttributes( 'h5', 'data-bar', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<otherHeading htmlH5Attributes="(1)">foobar</otherHeading>',
 					attributes: {
 						1: {
@@ -346,11 +384,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h5 data-foo="bar">foobar</h5>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h5 data-foo="bar">foobar</h5>'
 				);
 			} );
@@ -366,7 +404,7 @@ describe( 'HeadingElementSupport', () => {
 				htmlSupport.removeModelHtmlStyles( 'h1', 'color', root.getChild( 0 ) );
 				htmlSupport.removeModelHtmlAttributes( 'h1', 'data-bar', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<heading1 htmlH1Attributes="(1)">foobar</heading1>',
 					attributes: {
 						1: {
@@ -381,13 +419,13 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1 class="foo" data-foo="bar" style="background-color:blue">' +
 						'foobar' +
 					'</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1 class="foo" style="background-color:blue;" data-foo="bar">foobar</h1>'
 				);
 			} );
@@ -412,16 +450,16 @@ describe( 'HeadingElementSupport', () => {
 					'data-bar'
 				], root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<heading1>foobar</heading1>',
 					attributes: {}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1>foobar</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1>foobar</h1>'
 				);
 			} );
@@ -463,19 +501,19 @@ describe( 'HeadingElementSupport', () => {
 		} );
 
 		it( 'should not register heading schemas', () => {
-			expect( Array.from( dataSchema.getDefinitionsForView( 'h1' ) ) ).to.not.deep.include( {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'h1' ) ) ).not.toContainEqual( {
 				model: 'heading1',
 				view: 'h1',
 				isBlock: true
 			} );
 
-			expect( Array.from( dataSchema.getDefinitionsForView( 'h2' ) ) ).to.not.deep.include( {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'h2' ) ) ).not.toContainEqual( {
 				model: 'heading2',
 				view: 'h2',
 				isBlock: true
 			} );
 
-			expect( Array.from( dataSchema.getDefinitionsForView( 'h5' ) ) ).to.not.deep.include( {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'h5' ) ) ).not.toContainEqual( {
 				model: 'otherHeading',
 				view: 'h5',
 				isBlock: true
@@ -483,11 +521,14 @@ describe( 'HeadingElementSupport', () => {
 		} );
 
 		it( 'should not add heading models as allowed children of htmlHgroup', () => {
-			expect( Array.from( dataSchema.getDefinitionsForView( 'hgroup' ) ) ).to.deep.equal( [ {
+			expect( Array.from( dataSchema.getDefinitionsForView( 'hgroup' ) ) ).toEqual( [ {
 				model: 'htmlHgroup',
 				view: 'hgroup',
 				modelSchema: {
+					allowWhere: '$container',
 					allowChildren: [
+						'paragraph',
+						'htmlP',
 						'htmlH1',
 						'htmlH2',
 						'htmlH3',
@@ -512,7 +553,7 @@ describe( 'HeadingElementSupport', () => {
 
 			editor.setData( expectedHtml );
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 				data:
 					'<htmlH1 htmlH1Attributes="(1)">one</htmlH1>' +
 					'<htmlH2 htmlH2Attributes="(2)">two</htmlH2>' +
@@ -548,7 +589,7 @@ describe( 'HeadingElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal( expectedHtml );
+			expect( editor.getData() ).toBe( expectedHtml );
 		} );
 
 		it( 'should create identical block when pressing "enter" at the end of a heading block', () => {
@@ -560,7 +601,7 @@ describe( 'HeadingElementSupport', () => {
 
 			editor.execute( 'enter' );
 
-			expect( getModelDataWithAttributes( model ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model ) ).toEqual( {
 				data: '<htmlH2 htmlH2Attributes="(1)">foo</htmlH2><htmlH2 htmlH2Attributes="(2)">[]bar</htmlH2>',
 				attributes: {
 					1: {
@@ -586,7 +627,7 @@ describe( 'HeadingElementSupport', () => {
 
 			editor.execute( 'enter' );
 
-			expect( getModelDataWithAttributes( model ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model ) ).toEqual( {
 				data: '<htmlH2 htmlH2Attributes="(1)">foo</htmlH2><htmlH2 htmlH2Attributes="(2)">[]bar</htmlH2>',
 				attributes: {
 					1: {
@@ -618,7 +659,7 @@ describe( 'HeadingElementSupport', () => {
 					color: 'red'
 				}, root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH1 htmlH1Attributes="(1)">foobar</htmlH1>',
 					attributes: {
 						1: {
@@ -630,11 +671,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1 style="background-color:blue;color:red">foobar</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1 style="background-color:blue;color:red;">foobar</h1>'
 				);
 			} );
@@ -644,7 +685,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.addModelHtmlClass( 'h2', 'foo', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH2 htmlH2Attributes="(1)">foobar</htmlH2>',
 					attributes: {
 						1: {
@@ -653,11 +694,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 			} );
@@ -669,7 +710,7 @@ describe( 'HeadingElementSupport', () => {
 					'data-foo': 'bar'
 				}, root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH3 htmlH3Attributes="(1)">foobar</htmlH3>',
 					attributes: {
 						1: {
@@ -680,11 +721,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h3 data-foo="bar">foobar</h3>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h3 data-foo="bar">foobar</h3>'
 				);
 			} );
@@ -694,7 +735,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.removeModelHtmlStyles( 'h1', 'color', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH1 htmlH1Attributes="(1)">foobar</htmlH1>',
 					attributes: {
 						1: {
@@ -705,11 +746,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1 style="background-color:blue">foobar</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1 style="background-color:blue;">foobar</h1>'
 				);
 			} );
@@ -719,7 +760,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.removeModelHtmlClass( 'h2', 'bar', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH2 htmlH2Attributes="(1)">foobar</htmlH2>',
 					attributes: {
 						1: {
@@ -728,11 +769,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h2 class="foo">foobar</h2>'
 				);
 			} );
@@ -742,7 +783,7 @@ describe( 'HeadingElementSupport', () => {
 
 				htmlSupport.removeModelHtmlAttributes( 'h3', 'data-bar', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH3 htmlH3Attributes="(1)">foobar</htmlH3>',
 					attributes: {
 						1: {
@@ -753,11 +794,11 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h3 data-foo="bar">foobar</h3>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h3 data-foo="bar">foobar</h3>'
 				);
 			} );
@@ -773,7 +814,7 @@ describe( 'HeadingElementSupport', () => {
 				htmlSupport.removeModelHtmlStyles( 'h1', 'color', root.getChild( 0 ) );
 				htmlSupport.removeModelHtmlAttributes( 'h1', 'data-bar', root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH1 htmlH1Attributes="(1)">foobar</htmlH1>',
 					attributes: {
 						1: {
@@ -788,13 +829,13 @@ describe( 'HeadingElementSupport', () => {
 					}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1 class="foo" data-foo="bar" style="background-color:blue">' +
 						'foobar' +
 					'</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1 class="foo" style="background-color:blue;" data-foo="bar">foobar</h1>'
 				);
 			} );
@@ -819,16 +860,16 @@ describe( 'HeadingElementSupport', () => {
 					'data-bar'
 				], root.getChild( 0 ) );
 
-				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+				expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 					data: '<htmlH1>foobar</htmlH1>',
 					attributes: {}
 				} );
 
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe(
 					'<h1>foobar</h1>'
 				);
 
-				expect( editor.getData() ).to.equal(
+				expect( editor.getData() ).toBe(
 					'<h1>foobar</h1>'
 				);
 			} );
@@ -868,7 +909,7 @@ describe( 'HeadingElementSupport', () => {
 				'<h4 data-foo="bar-4">four</h4>'
 			);
 
-			expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+			expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 				data:
 					'<htmlH1 htmlH1Attributes="(1)">one</htmlH1>' +
 					'<heading1 htmlH2Attributes="(2)">two</heading1>' +
@@ -898,12 +939,139 @@ describe( 'HeadingElementSupport', () => {
 				}
 			} );
 
-			expect( editor.getData() ).to.equal(
+			expect( editor.getData() ).toBe(
 				'<h1 data-foo="bar-1">one</h1>' +
 				'<h2 data-foo="bar-2">two</h2>' +
 				'<h3 data-foo="bar-3">three</h3>' +
 				'<h4 data-foo="bar-4">four</h4>'
 			);
+		} );
+	} );
+
+	describe( 'htmlHgroup placement (allowWhere: $container)', () => {
+		async function createEditorWithPlugins( plugins, config = {} ) {
+			editorElement = document.createElement( 'div' );
+			document.body.appendChild( editorElement );
+
+			editor = await ClassicTestEditor.create( editorElement, {
+				plugins: [ Paragraph, HeadingEditing, GeneralHtmlSupport, ...plugins ],
+				...config
+			} );
+
+			editor.plugins.get( 'DataFilter' ).loadAllowedConfig( [ {
+				name: /^(hgroup|h1|h2|h3|h4|h5|h6)$/,
+				attributes: true
+			} ] );
+
+			model = editor.model;
+		}
+
+		it( 'should upcast hgroup placed directly in $root to htmlHgroup', async () => {
+			await createEditorWithPlugins( [] );
+
+			editor.setData( '<hgroup><p>Sub</p><p>Title</p></hgroup>' );
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<htmlHgroup>' +
+					'<paragraph>Sub</paragraph>' +
+					'<paragraph>Title</paragraph>' +
+				'</htmlHgroup>'
+			);
+		} );
+
+		it( 'should downcast htmlHgroup back to hgroup when placed in $root', async () => {
+			await createEditorWithPlugins( [] );
+
+			const html = '<hgroup><p>Sub</p><p>Title</p></hgroup>';
+
+			editor.setData( html );
+
+			expect( editor.getData() ).toBe( html );
+		} );
+
+		it( 'should allow hgroup nested inside a $container-based element (blockQuote)', async () => {
+			await createEditorWithPlugins( [ BlockQuote ] );
+
+			editor.setData(
+				'<blockquote>' +
+					'<hgroup><p>Sub</p><p>Title</p></hgroup>' +
+					'<p>Foo</p>' +
+				'</blockquote>'
+			);
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<blockQuote>' +
+					'<htmlHgroup>' +
+						'<paragraph>Sub</paragraph>' +
+						'<paragraph>Title</paragraph>' +
+					'</htmlHgroup>' +
+					'<paragraph>Foo</paragraph>' +
+				'</blockQuote>'
+			);
+		} );
+
+		it( 'should round-trip hgroup nested inside a blockQuote through setData/getData', async () => {
+			await createEditorWithPlugins( [ BlockQuote ] );
+
+			const html =
+				'<blockquote>' +
+					'<hgroup><p>Sub</p><p>Title</p></hgroup>' +
+					'<p>Foo</p>' +
+				'</blockquote>';
+
+			editor.setData( html );
+
+			expect( editor.getData() ).toBe( html );
+		} );
+
+		it( 'should allow hgroup in a custom root that opts into the $container chain', async () => {
+			class CustomRootSchema extends Plugin {
+				init() {
+					this.editor.model.schema.register( 'myRoot', {
+						inheritAllFrom: '$root'
+					} );
+
+					// Opt the custom root into the generic container chain so anything declaring
+					// `allowWhere: '$container'` (htmlHgroup, block-level GHS wrappers, etc.) can
+					// land inside it.
+					this.editor.model.schema.extend( '$container', { allowIn: 'myRoot' } );
+					this.editor.model.schema.extend( '$block', { allowIn: 'myRoot' } );
+				}
+			}
+
+			await createEditorWithPlugins( [ CustomRootSchema ], {
+				root: { modelElement: 'myRoot' }
+			} );
+
+			editor.setData( '<hgroup><p>Sub</p><p>Title</p></hgroup>' );
+
+			// `setData` triggers DataFilter's deferred element registration, so the schema check is valid afterwards.
+			expect( model.schema.checkChild( [ 'myRoot' ], 'htmlHgroup' ) ).toBe( true );
+
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+				'<htmlHgroup>' +
+					'<paragraph>Sub</paragraph>' +
+					'<paragraph>Title</paragraph>' +
+				'</htmlHgroup>'
+			);
+
+			expect( editor.getData() ).toBe( '<hgroup><p>Sub</p><p>Title</p></hgroup>' );
+		} );
+
+		it( 'should not allow hgroup in a custom root that does not opt into the $container chain', async () => {
+			class IsolatedRootSchema extends Plugin {
+				init() {
+					this.editor.model.schema.register( 'isolatedRoot', {
+						isLimit: true
+					} );
+				}
+			}
+
+			await createEditorWithPlugins( [ IsolatedRootSchema ], {
+				root: { modelElement: 'isolatedRoot' }
+			} );
+
+			expect( model.schema.checkChild( [ 'isolatedRoot' ], 'htmlHgroup' ) ).toBe( false );
 		} );
 	} );
 } );

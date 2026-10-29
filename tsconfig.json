@@ -15,22 +15,28 @@
      */
     "types": [],
     "lib": [
-      "ES2019", // Must match the "target"
-      "ES2020.String",
+      "ES2023", // Must match the "target"
       "DOM",
       "DOM.Iterable"
     ],
     "noImplicitAny": true,
     "noImplicitOverride": true,
     "strict": true,
-    "module": "es6",
-    "target": "es2019",
+    "module": "esnext",
+    "target": "es2023",
     "sourceMap": true,
-    "allowJs": true,
-    "moduleResolution": "node",
-    "skipLibCheck": true
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "isolatedModules": true,
+    "isolatedDeclarations": true
   },
   "include": [
+    "./packages/*/src/**/*.ts",
+    "./packages/*/lang/translations/*.ts",
+    "../../packages/*/src/**/*.ts",
+    "../../packages/*/lang/translations/*.ts",
     "./typings/"
   ]
 }

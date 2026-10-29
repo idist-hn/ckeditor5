@@ -1,0 +1,1538 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { ListEditing } from '../../../src/list/listediting.js';
+
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
+import { TableEditing } from '@ckeditor/ckeditor5-table';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { EventInfo } from '@ckeditor/ckeditor5-utils';
+import { ShiftEnter } from '@ckeditor/ckeditor5-enter';
+
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import {
+	_getModelData,
+	_setModelData,
+	ViewDocumentDomEventData } from '@ckeditor/ckeditor5-engine';
+
+import { stubUid } from '../_utils/uid.js';
+import { modelList } from '../_utils/utils.js';
+
+describe( 'ListEditing integrations: enter key', () => {
+	const changedBlocks = [];
+
+	let editor, model, modelDoc, modelRoot, view;
+	let eventInfo, domEventData;
+	let splitBeforeCommand, splitAfterCommand, indentCommand,
+		splitBeforeCommandExecuteSpy, splitAfterCommandExecuteSpy, outdentCommandExecuteSpy;
+
+	beforeEach( async () => {
+		editor = await VirtualTestEditor.create( {
+			plugins: [
+				Paragraph, ClipboardPipeline, BoldEditing, ListEditing, UndoEditing,
+				BlockQuoteEditing, TableEditing, HeadingEditing, ShiftEnter
+			]
+		} );
+
+		model = editor.model;
+		modelDoc = model.document;
+		modelRoot = modelDoc.getRoot();
+
+		view = editor.editing.view;
+
+		model.schema.extend( 'paragraph', {
+			allowAttributes: 'foo'
+		} );
+
+		// Stub `view.scrollToTheSelection` as it will fail on VirtualTestEditor without DOM.
+		vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => { } );
+		stubUid();
+
+		eventInfo = new EventInfo( view.document, 'enter' );
+		domEventData = new ViewDocumentDomEventData( view.document, {
+			preventDefault: vi.fn()
+		} );
+
+		splitBeforeCommand = editor.commands.get( 'splitListItemBefore' );
+		splitAfterCommand = editor.commands.get( 'splitListItemAfter' );
+		indentCommand = editor.commands.get( 'outdentList' );
+
+		splitBeforeCommandExecuteSpy = vi.spyOn( splitBeforeCommand, 'execute' );
+		splitAfterCommandExecuteSpy = vi.spyOn( splitAfterCommand, 'execute' );
+		outdentCommandExecuteSpy = vi.spyOn( indentCommand, 'execute' );
+
+		changedBlocks.length = 0;
+
+		splitBeforeCommand.on( 'afterExecute', ( evt, data ) => {
+			changedBlocks.push( ...data );
+		} );
+
+		splitAfterCommand.on( 'afterExecute', ( evt, data ) => {
+			changedBlocks.push( ...data );
+		} );
+
+		indentCommand.on( 'afterExecute', ( evt, data ) => {
+			changedBlocks.push( ...data );
+		} );
+	} );
+
+	afterEach( async () => {
+		await editor.destroy();
+	} );
+
+	describe( 'collapsed selection', () => {
+		describe( 'with just one block per list item', () => {
+			it( 'should outdent if the slection in the only empty list item (convert into paragraph and turn off the list)', () => {
+				_setModelData( model, modelList( [
+					'* []'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'[]'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 0 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should outdent if the slection in the last empty list item (convert the item into paragraph)', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'* []'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'[]'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another list item when the selection in a non-empty only list item', () => {
+				_setModelData( model, modelList( [
+					'* a[]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'* [] {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should outdent if the selection in an empty, last sub-list item', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  # b',
+					'    * c',
+					'    * []'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  # b',
+					'    * c',
+					'  # []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 3 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			describe( 'with shift', () => {
+				beforeEach( () => {
+					domEventData.isSoft = true;
+				} );
+
+				it( 'should not capture event', () => {
+					_setModelData( model, modelList( [
+						'* []'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* <softBreak></softBreak>[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should create a soft break in an empty item at the end of a list', () => {
+					_setModelData( model, modelList( [
+						'* Foo',
+						'* []'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* Foo',
+						'* <softBreak></softBreak>[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should create a soft break in an indented empty item at the end of a list', () => {
+					_setModelData( model, modelList( [
+						'* Foo',
+						'  * []'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* Foo',
+						'  * <softBreak></softBreak>[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+			} );
+		} );
+
+		describe( 'with multiple blocks in a list item', () => {
+			it( 'should outdent if the selection is anchored in an empty, last item block', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  # b',
+					'  # []'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  # b',
+					'* []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 2 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should outdent if the selection is anchored in an empty, only sub-item block', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  # b',
+					'    * []',
+					'  #'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  # b',
+					'  # []',
+					'  #'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 2 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another block when the selection at the start of a non-empty first block', () => {
+				_setModelData( model, modelList( [
+					'* a[]',
+					'  b',
+					'  c'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  []',
+					'  b',
+					'  c'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should create another block when the selection at the end of a non-empty first block', () => {
+				_setModelData( model, modelList( [
+					'* []a',
+					'  b',
+					'  c'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ',
+					'  []a',
+					'  b',
+					'  c'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should create another block when the selection at the start of a non-empty last block', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  b',
+					'  []c'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  b',
+					'  ',
+					'  []c'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should create another block when the selection at the end of a non-empty last block', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  b',
+					'  c[]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  b',
+					'  c',
+					'  []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should create another block when the selection in an empty middle block', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  []',
+					'  c'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  ',
+					'  []',
+					'  c'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should create another list item when the selection in an empty last block (two blocks in total)', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  []'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'* [] {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another list item when the selection in an empty last block (three blocks in total)', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  b',
+					'  []'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  b',
+					'* [] {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 2 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another list item when the selection in an empty last block (followed by a list item)', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  b',
+					'  []',
+					'* '
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  b',
+					'* [] {id:a00}',
+					'* '
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 2 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another list item when the selection in an empty first block (followed by another block)', () => {
+				_setModelData( model, modelList( [
+					'* []',
+					'  b'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* []',
+					'* b {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).toHaveBeenCalledOnce();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another list item when the selection in an empty first block (followed by multiple blocks)', () => {
+				_setModelData( model, modelList( [
+					'* []',
+					'  a',
+					'  b'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* []',
+					'* a {id:a00}',
+					'  b'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 ),
+					modelRoot.getChild( 2 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).toHaveBeenCalledOnce();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+				expect( eventInfo.stop.called ).toBe( true );
+			} );
+
+			it( 'should create another list item when the selection in an empty first block (followed by multiple blocks and an item)',
+				() => {
+					_setModelData( model, modelList( [
+						'* []',
+						'  a',
+						'  b',
+						'* c'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* []',
+						'* a {id:a00}',
+						'  b',
+						'* c'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [
+						modelRoot.getChild( 1 ),
+						modelRoot.getChild( 2 )
+					] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).toHaveBeenCalledOnce();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledOnce();
+					expect( eventInfo.stop.called ).toBe( true );
+				} );
+
+			describe( 'with shift', () => {
+				beforeEach( () => {
+					domEventData.isSoft = true;
+				} );
+
+				it( 'should not capture event', () => {
+					_setModelData( model, modelList( [
+						'* ',
+						'  []'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ',
+						'  <softBreak></softBreak>[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should create a soft break in a block of a list item at the end of a list', () => {
+					_setModelData( model, modelList( [
+						'* Foo',
+						'* ',
+						'  []'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* Foo',
+						'* ',
+						'  <softBreak></softBreak>[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+			} );
+		} );
+	} );
+
+	describe( 'non-collapsed selection', () => {
+		describe( 'with just one block per list item', () => {
+			it( 'should create another list item if the selection contains some content at the end of the list item', () => {
+				_setModelData( model, modelList( [
+					'* a[b]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'* [] {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should create another list item if the selection contains some content at the start of the list item', () => {
+				_setModelData( model, modelList( [
+					'* [a]b'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ',
+					'* []b {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the content and turn off the list if slection contains all content at the zero indent level', () => {
+				_setModelData( model, modelList( [
+					'* [a',
+					'* b]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'[]'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the content and move the selection when it contains some content at the zero indent level', () => {
+				_setModelData( model, modelList( [
+					'* a[b',
+					'* b]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'* []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the content when the selection contains all content at a deeper indent level', () => {
+				_setModelData( model, modelList( [
+					'* a',
+					'  # b',
+					'    * [c',
+					'    * d]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'  # b',
+					'    * []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			describe( 'with shift', () => {
+				beforeEach( () => {
+					domEventData.isSoft = true;
+				} );
+
+				it( 'should replace text with soft break', () => {
+					_setModelData( model, modelList( [
+						'* [ab]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* <softBreak></softBreak>[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should delete selected text and set selection in new paragraph', () => {
+					_setModelData( model, modelList( [
+						'* F[oo',
+						'* Bar]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* F',
+						'* []'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+			} );
+
+			describe( 'cross-indent level selection', () => {
+				it( 'should clean the content and remove list across different indentation levels (list the only content)', () => {
+					_setModelData( model, modelList( [
+						'* [ab',
+						'  # cd]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (one level, entire blocks)', () => {
+					_setModelData( model, modelList( [
+						'foo',
+						'* [ab',
+						'  # cd]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'foo',
+						'* []'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (one level, subset of blocks)', () => {
+					_setModelData( model, modelList( [
+						'foo',
+						'* a[b',
+						'  # c]d'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'foo',
+						'* a',
+						'  # []d'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (two levels, entire blocks)', () => {
+					_setModelData( model, modelList( [
+						'* [ab',
+						'  # cd',
+						'    * ef]',
+						'    * gh'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* []',
+						'  * gh {id:003}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (two levels, subset of blocks)', () => {
+					_setModelData( model, modelList( [
+						'* a[b',
+						'  # cd',
+						'    * e]f',
+						'    * gh'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* a',
+						'  * []f {id:002}',
+						'  * gh {id:003}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (three levels, entire blocks)', () => {
+					_setModelData( model, modelList( [
+						'foo',
+						'* [ab',
+						'  # cd',
+						'    * ef',
+						'    * gh]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'foo',
+						'* []'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content and remove list across different indentation levels ' +
+					'(three levels, list the only content)', () => {
+					_setModelData( model, modelList( [
+						'* [ab',
+						'  # cd',
+						'    * ef',
+						'    * gh]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'[]'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (three levels, subset of blocks)', () => {
+					_setModelData( model, modelList( [
+						'* a[b',
+						'  # cd',
+						'    * ef',
+						'      # g]h',
+						'    * ij'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* a',
+						'  # []h {id:003}',
+						'* ij {id:004}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (one level, start at first, entire blocks)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  # [cd',
+						'    * ef',
+						'    * gh]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  # []'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (one level, start at first, part of blocks)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  # c[d',
+						'    * ef',
+						'    * g]h'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  # c',
+						'    * []h {id:003}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (level up then down, subset of blocks)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  # c[d',
+						'    * ef',
+						'  # g]h'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  # c',
+						'  # []h {id:003}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (level up then down, entire of blocks)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  # [cd',
+						'    * ef',
+						'  # gh]',
+						'* ij'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  # []',
+						'* ij {id:004}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the content across different indentation levels (level up then down, preceded by an item)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  # cd',
+						'  # [ef',
+						'    * gh',
+						'  # ij]',
+						'* kl'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  # cd',
+						'  # []',
+						'* kl {id:005}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+			} );
+		} );
+
+		describe( 'with multiple blocks in a list item', () => {
+			it( 'should clean the selected content (partial blocks)', () => {
+				_setModelData( model, modelList( [
+					'* a[b',
+					'  c]d'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* a',
+					'* []d {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (entire blocks)', () => {
+				_setModelData( model, modelList( [
+					'foo',
+					'* [ab',
+					'  cd]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'foo',
+					'* []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (entire block, middle one)', () => {
+				_setModelData( model, modelList( [
+					'* ab',
+					'  [cd]',
+					'  ef'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ab',
+					'  []',
+					'  ef'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (entire blocks, starting from the second)', () => {
+				_setModelData( model, modelList( [
+					'* ab',
+					'  [cd',
+					'  ef]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				// Generally speaking, we'd rather expect something like this:
+				//	* ab
+				//	  []
+				// But there is no easy way to tell what the original selection looked like when it came to EnterCommand#afterExecute.
+				// Enter deletes all the content first [cd, ef] and in #afterExecute it looks like the original selection was:
+				//	* ab
+				//	  []
+				// and the algorithm falls back to splitting in this case. There's even a test for this kind of selection.
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ab',
+					'* [] {id:a00}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [
+					modelRoot.getChild( 1 )
+				] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).toHaveBeenCalledOnce();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (partial blocks, starting from the second)', () => {
+				_setModelData( model, modelList( [
+					'* ab',
+					'  c[d',
+					'  e]f'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ab',
+					'  c',
+					'  []f'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (entire blocks, three blocks in total)', () => {
+				_setModelData( model, modelList( [
+					'* [ab',
+					'  cd',
+					'  ef]',
+					'* gh'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* []',
+					'* gh {id:003}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (entire blocks, across list items)', () => {
+				_setModelData( model, modelList( [
+					'foo',
+					'* [ab',
+					'  cd',
+					'  ef',
+					'* gh]'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'foo',
+					'* []'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (entire blocks + a partial block, across list items)', () => {
+				_setModelData( model, modelList( [
+					'* [ab',
+					'  cd',
+					'  ef',
+					'* g]h'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ',
+					'* []h {id:003}'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			it( 'should clean the selected content (partial blocks, across list items)', () => {
+				_setModelData( model, modelList( [
+					'* ab',
+					'  cd',
+					'  e[f',
+					'* g]h'
+				] ) );
+
+				view.document.fire( eventInfo, domEventData );
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* ab',
+					'  cd',
+					'  e',
+					'* []h'
+				] ) );
+
+				expect( changedBlocks ).toEqual( [] );
+
+				expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+				expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+				expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+				expect( eventInfo.stop.called ).toBeUndefined();
+			} );
+
+			describe( 'with shift', () => {
+				beforeEach( () => {
+					domEventData.isSoft = true;
+				} );
+
+				it( 'should replace text and create a new paragraph after', () => {
+					_setModelData( model, modelList( [
+						'* A[a',
+						'  b',
+						'* cc',
+						'* dd]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* A',
+						'* [] {id:003}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [ ] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+			} );
+
+			describe( 'cross-indent level selection', () => {
+				it( 'should clean the selected content (partial blocks)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  * cd',
+						'    e[f',
+						'    gh',
+						'    * i]j'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  * cd',
+						'    e',
+						'    * []j {id:004}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the selected content (partial blocks + entire block)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  * cd',
+						'    e[f',
+						'    gh',
+						'    * ij]'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  * cd',
+						'    e',
+						'    * [] {id:004}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+
+				it( 'should clean the selected content (across two middle levels)', () => {
+					_setModelData( model, modelList( [
+						'* ab',
+						'  c[d',
+						'  * ef',
+						'    g]h',
+						'    * ij'
+					] ) );
+
+					view.document.fire( eventInfo, domEventData );
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* ab',
+						'  c',
+						'  * []h',
+						'    * ij {id:004}'
+					] ) );
+
+					expect( changedBlocks ).toEqual( [] );
+
+					expect( outdentCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitBeforeCommandExecuteSpy ).not.toHaveBeenCalled();
+					expect( splitAfterCommandExecuteSpy ).not.toHaveBeenCalled();
+
+					expect( domEventData.domEvent.preventDefault ).toHaveBeenCalledTimes( 2 );
+					expect( eventInfo.stop.called ).toBeUndefined();
+				} );
+			} );
+		} );
+	} );
+} );

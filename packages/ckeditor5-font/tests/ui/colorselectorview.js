@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 import { ColorSelectorView } from '@ckeditor/ckeditor5-ui';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import TestColorPlugin from '../_utils/testcolorplugin';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { TestColorPlugin } from '../_utils/testcolorplugin.js';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'ColorSelectorView', () => {
 	let locale, colorSelectorView;
@@ -75,7 +73,7 @@ describe( 'ColorSelectorView', () => {
 				format: 'hsl'
 			}
 		} );
-		// Grids rendering is deferred (#6192) therefore render happens before appending grids.
+		// Grids rendering is deferred (https://github.com/ckeditor/ckeditor5/issues/6192) therefore render happens before appending grids.
 		colorSelectorView.render();
 		colorSelectorView._appendColorGridsFragment();
 
@@ -86,8 +84,6 @@ describe( 'ColorSelectorView', () => {
 		colorSelectorView.destroy();
 		colorSelectorView.element.remove();
 	} );
-
-	testUtils.createSinonSandbox();
 
 	describe( 'disabled document colors section', () => {
 		let editor, element, dropdown, model;
@@ -124,7 +120,7 @@ describe( 'ColorSelectorView', () => {
 		it( 'should not create document colors section', () => {
 			const colorSelectorView = dropdown.colorSelectorView.colorGridsFragmentView;
 
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph><$text testColor="gold">Bar</$text></paragraph>' +
 				'<paragraph><$text testColor="rgb(10,20,30)">Foo</$text></paragraph>' +
 				'<paragraph><$text testColor="gold">New Foo</$text></paragraph>' +
@@ -133,8 +129,8 @@ describe( 'ColorSelectorView', () => {
 
 			dropdown.isOpen = true;
 
-			expect( colorSelectorView.documentColorsCount ).to.equal( 0 );
-			expect( colorSelectorView.documentColorsLabel ).to.be.undefined;
+			expect( colorSelectorView.documentColorsCount ).toBe( 0 );
+			expect( colorSelectorView.documentColorsLabel ).toBeUndefined();
 		} );
 	} );
 } );

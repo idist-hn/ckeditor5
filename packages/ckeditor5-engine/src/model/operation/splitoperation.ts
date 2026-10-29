@@ -1,33 +1,33 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/operation/splitoperation
  */
 
-import Operation from './operation';
-import MergeOperation from './mergeoperation';
-import Position from '../position';
-import Range from '../range';
-import { _insert, _move } from './utils';
+import { Operation } from './operation.js';
+import { MergeOperation } from './mergeoperation.js';
+import { ModelPosition } from '../position.js';
+import { ModelRange } from '../range.js';
+import { _insert, _move } from './utils.js';
 
-import type Document from '../document';
+import { type ModelDocument } from '../document.js';
 
 import { CKEditorError } from '@ckeditor/ckeditor5-utils';
-import type { Selectable } from '../selection';
+import type { ModelSelectable } from '../selection.js';
 
 /**
- * Operation to split {@link module:engine/model/element~Element an element} at given
+ * Operation to split {@link module:engine/model/element~ModelElement an element} at given
  * {@link module:engine/model/operation/splitoperation~SplitOperation#splitPosition split position} into two elements,
  * both containing a part of the element's original content.
  */
-export default class SplitOperation extends Operation {
+export class SplitOperation extends Operation {
 	/**
 	 * Position at which an element should be split.
 	 */
-	public splitPosition: Position;
+	public splitPosition: ModelPosition;
 
 	/**
 	 * Total offset size of elements that are in the split element after `position`.
@@ -37,7 +37,7 @@ export default class SplitOperation extends Operation {
 	/**
 	 * Position at which the clone of split element (or element from graveyard) will be inserted.
 	 */
-	public insertionPosition: Position;
+	public insertionPosition: ModelPosition;
 
 	/**
 	 * Position in the graveyard root before the element which should be used as a parent of the nodes after `position`.
@@ -45,7 +45,7 @@ export default class SplitOperation extends Operation {
 	 *
 	 * The default behavior is to clone the split element. Element from graveyard is used during undo.
 	 */
-	public graveyardPosition: Position | null;
+	public graveyardPosition: ModelPosition | null;
 
 	/**
 	 * Creates a split operation.
@@ -55,14 +55,14 @@ export default class SplitOperation extends Operation {
 	 * @param insertionPosition Position at which the clone of split element (or element from graveyard) will be inserted.
 	 * @param graveyardPosition Position in the graveyard root before the element which
 	 * should be used as a parent of the nodes after `position`. If it is not set, a copy of the the `position` parent will be used.
-	 * @param baseVersion Document {@link module:engine/model/document~Document#version} on which operation
+	 * @param baseVersion Document {@link module:engine/model/document~ModelDocument#version} on which operation
 	 * can be applied or `null` if the operation operates on detached (non-document) tree.
 	 */
 	constructor(
-		splitPosition: Position,
+		splitPosition: ModelPosition,
 		howMany: number,
-		insertionPosition: Position,
-		graveyardPosition: Position | null,
+		insertionPosition: ModelPosition,
+		graveyardPosition: ModelPosition | null,
 		baseVersion: number | null
 	) {
 		super( baseVersion );
@@ -93,35 +93,35 @@ export default class SplitOperation extends Operation {
 	 *
 	 * This is a position where nodes that are after the split position will be moved to.
 	 */
-	public get moveTargetPosition(): Position {
+	public get moveTargetPosition(): ModelPosition {
 		const path = this.insertionPosition.path.slice();
 		path.push( 0 );
 
-		return new Position( this.insertionPosition.root, path );
+		return new ModelPosition( this.insertionPosition.root, path );
 	}
 
 	/**
 	 * Artificial range that contains all the nodes from the split element that will be moved to the new element.
 	 * The range starts at {@link #splitPosition} and ends in the same parent, at `POSITIVE_INFINITY` offset.
 	 */
-	public get movedRange(): Range {
+	public get movedRange(): ModelRange {
 		const end = this.splitPosition.getShiftedBy( Number.POSITIVE_INFINITY );
 
-		return new Range( this.splitPosition, end );
+		return new ModelRange( this.splitPosition, end );
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public get affectedSelectable(): Selectable {
+	public get affectedSelectable(): ModelSelectable {
 		// These could be positions but `Selectable` type only supports `Iterable<Range>`.
 		const ranges = [
-			Range._createFromPositionAndShift( this.splitPosition, 0 ),
-			Range._createFromPositionAndShift( this.insertionPosition, 0 )
+			ModelRange._createFromPositionAndShift( this.splitPosition, 0 ),
+			ModelRange._createFromPositionAndShift( this.insertionPosition, 0 )
 		];
 
 		if ( this.graveyardPosition ) {
-			ranges.push( Range._createFromPositionAndShift( this.graveyardPosition, 0 ) );
+			ranges.push( ModelRange._createFromPositionAndShift( this.graveyardPosition, 0 ) );
 		}
 
 		return ranges;
@@ -141,7 +141,7 @@ export default class SplitOperation extends Operation {
 	 */
 	public getReversed(): Operation {
 		const graveyard = this.splitPosition.root.document!.graveyard;
-		const graveyardPosition = new Position( graveyard, [ 0 ] );
+		const graveyardPosition = new ModelPosition( graveyard, [ 0 ] );
 
 		return new MergeOperation( this.moveTargetPosition, this.howMany, this.splitPosition, graveyardPosition, this.baseVersion! + 1 );
 	}
@@ -169,7 +169,7 @@ export default class SplitOperation extends Operation {
 			 * @error split-operation-split-in-root
 			 */
 			throw new CKEditorError( 'split-operation-split-in-root', this );
-		} else if ( this.howMany != element.maxOffset - this.splitPosition.offset ) {
+		} else if ( this.howMany !== Number.NEGATIVE_INFINITY && this.howMany != element.maxOffset - this.splitPosition.offset ) {
 			/**
 			 * Split operation specifies wrong number of nodes to move.
 			 *
@@ -184,6 +184,8 @@ export default class SplitOperation extends Operation {
 			 */
 			throw new CKEditorError( 'split-operation-graveyard-position-invalid', this );
 		}
+
+		this.howMany = this.splitPosition.parent.maxOffset - this.splitPosition.offset;
 	}
 
 	/**
@@ -194,16 +196,16 @@ export default class SplitOperation extends Operation {
 		const splitElement = this.splitPosition.parent;
 
 		if ( this.graveyardPosition ) {
-			_move( Range._createFromPositionAndShift( this.graveyardPosition, 1 ), this.insertionPosition );
+			_move( ModelRange._createFromPositionAndShift( this.graveyardPosition, 1 ), this.insertionPosition );
 		} else {
 			const newElement = ( splitElement as any )._clone();
 
 			_insert( this.insertionPosition, newElement );
 		}
 
-		const sourceRange = new Range(
-			Position._createAt( splitElement, this.splitPosition.offset ),
-			Position._createAt( splitElement, splitElement.maxOffset )
+		const sourceRange = new ModelRange(
+			ModelPosition._createAt( splitElement, this.splitPosition.offset ),
+			ModelPosition._createAt( splitElement, splitElement.maxOffset )
 		);
 
 		_move( sourceRange, this.moveTargetPosition );
@@ -236,11 +238,11 @@ export default class SplitOperation extends Operation {
 	 * Helper function that returns a default insertion position basing on given `splitPosition`. The default insertion
 	 * position is after the split element.
 	 */
-	public static getInsertionPosition( splitPosition: Position ): Position {
+	public static getInsertionPosition( splitPosition: ModelPosition ): ModelPosition {
 		const path = splitPosition.path.slice( 0, -1 );
 		path[ path.length - 1 ]++;
 
-		return new Position( splitPosition.root, path, 'toPrevious' );
+		return new ModelPosition( splitPosition.root, path, 'toPrevious' );
 	}
 
 	/**
@@ -249,10 +251,10 @@ export default class SplitOperation extends Operation {
 	 * @param json Deserialized JSON object.
 	 * @param document Document on which this operation will be applied.
 	 */
-	public static override fromJSON( json: any, document: Document ): SplitOperation {
-		const splitPosition = Position.fromJSON( json.splitPosition, document );
-		const insertionPosition = Position.fromJSON( json.insertionPosition, document );
-		const graveyardPosition = json.graveyardPosition ? Position.fromJSON( json.graveyardPosition, document ) : null;
+	public static override fromJSON( json: any, document: ModelDocument ): SplitOperation {
+		const splitPosition = ModelPosition.fromJSON( json.splitPosition, document );
+		const insertionPosition = ModelPosition.fromJSON( json.insertionPosition, document );
+		const graveyardPosition = json.graveyardPosition ? ModelPosition.fromJSON( json.graveyardPosition, document ) : null;
 
 		return new this( splitPosition, json.howMany, insertionPosition, graveyardPosition, json.baseVersion );
 	}

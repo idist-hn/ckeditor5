@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module horizontal-line/horizontalline
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { Widget } from 'ckeditor5/src/widget';
-import HorizontalLineEditing from './horizontallineediting';
-import HorizontalLineUI from './horizontallineui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Widget } from '@ckeditor/ckeditor5-widget';
+import { HorizontalLineEditing } from './horizontallineediting.js';
+import { HorizontalLineUI } from './horizontallineui.js';
 
 /**
  * The horizontal line feature.
@@ -19,12 +19,12 @@ import HorizontalLineUI from './horizontallineui';
  *
  * For a detailed overview, check the {@glink features/horizontal-line Horizontal line feature} documentation.
  */
-export default class HorizontalLine extends Plugin {
+export class HorizontalLine extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ HorizontalLineEditing, HorizontalLineUI, Widget ] as const;
+	public static get requires(): PluginDependenciesOf<[ HorizontalLineEditing, HorizontalLineUI, Widget ]> {
+		return [ HorizontalLineEditing, HorizontalLineUI, Widget ];
 	}
 
 	/**
@@ -32,5 +32,12 @@ export default class HorizontalLine extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'HorizontalLine' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

@@ -1,53 +1,67 @@
 ---
+category: features
 title: Find and replace
 meta-title: Find and replace | CKEditor 5 Documentation
-category: features
-modified_at: 2021-06-29
+meta-description: Quickly find and replace text in CKEditor 5 with a powerful, user-friendly interface to streamline content editing and corrections.
+modified_at: 2024-01-03
+badges: [ premium ]
 ---
-
-{@snippet features/build-find-and-replace-source}
 
 The find and replace feature lets you find and replace any text in your document. This speeds up your work and helps with the consistency of your content.
 
+{@snippet getting-started/unlock-feature}
+
 ## Demo
 
-Use the find and replace toolbar button {@icon @ckeditor/ckeditor5-find-and-replace/theme/icons/find-replace.svg Find and replace} to open the search panel. Use the panel to find and replace words or phrases. You can also use the <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>F</kbd> keyboard shortcut. Try replacing "steam" with "diesel" to make the content more up-to-date. Be careful to match the case!
+Use the find and replace toolbar button {@icon @ckeditor/ckeditor5-icons/theme/icons/find-replace.svg Find and replace} to open the search dialog. Use it to find and replace words or phrases. You can also use the <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>F</kbd> keyboard shortcut. Try replacing "AI" with "artificial intelligence" to make the content appeal to less tech-savvy users. Be careful to match the case!
 
 {@snippet features/find-and-replace}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Installation
 
-<info-box info>
-	The find and replace feature is enabled by default in the {@link installation/getting-started/predefined-builds#superbuild superbuild} only.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your editor, install the [`@ckeditor/ckeditor5-find-and-replace`](https://www.npmjs.com/package/@ckeditor/ckeditor5-find-and-replace) package:
-
-```
-npm install --save @ckeditor/ckeditor5-find-and-replace
-```
-
-Then add the `FindAndReplace` plugin to your plugin list:
-
+<code-switcher>
 ```js
-import { FindAndReplace } from '@ckeditor/ckeditor5-find-and-replace';
+import { ClassicEditor, FindAndReplace } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ FindAndReplace, /* ... */ ],
 		toolbar: [ 'findAndReplace', /* ... */ ],
+		findAndReplace: {
+			// Configuration.
+		}
+	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
+```
+</code-switcher>
+
+## Configuration
+
+### Configuring the UI type
+
+By default, the find and replace form displays inside a dialog. That allows for keeping it open while editing the document at the same time. Alternatively, you can display the feature in a dropdown. To do this, use the {@link module:find-and-replace/findandreplaceconfig~FindAndReplaceConfig `config.findAndReplace.uiType`} configuration option:
+
+```js
+ClassicEditor
+	.create( {
+		// ... Other configuration options ...
+		findAndReplace: {
+			uiType: 'dropdown'
+		}
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
 
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+{@snippet features/find-and-replace-dropdown}
 
 ## Related features
 
@@ -58,7 +72,7 @@ ClassicEditor
 
 The {@link module:find-and-replace/findandreplace~FindAndReplace} plugin registers the `'findAndReplace'` UI button component and the {@link module:find-and-replace/findcommand~FindCommand `'find'`}, {@link module:find-and-replace/findnextcommand~FindNextCommand `'findNext'`}, {@link module:find-and-replace/findpreviouscommand~FindPreviousCommand `'findPrevious'`}, {@link module:find-and-replace/replacecommand~ReplaceCommand `'replace'`} and {@link module:find-and-replace/replaceallcommand~ReplaceAllCommand `'replaceAll'`} commands.
 
-The commands can be executed using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
+You can execute the commands using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
 
 ```js
 // Find all occurrences of a given text.

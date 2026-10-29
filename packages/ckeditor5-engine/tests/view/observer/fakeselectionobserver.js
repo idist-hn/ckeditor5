@@ -1,37 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import createElement from '@ckeditor/ckeditor5-utils/src/dom/createelement';
-import FakeSelectionObserver from '../../../src/view/observer/fakeselectionobserver';
-import View from '../../../src/view/view';
-import DomEventData from '../../../src/view/observer/domeventdata';
-import createViewRoot from '../_utils/createroot';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import { setData, stringify } from '../../../src/dev-utils/view';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { createElement, keyCodes } from '@ckeditor/ckeditor5-utils';
+import { FakeSelectionObserver } from '../../../src/view/observer/fakeselectionobserver.js';
+import { EditingView } from '../../../src/view/view.js';
+import { ViewDocumentDomEventData } from '../../../src/view/observer/domeventdata.js';
+import { createViewRoot } from '../_utils/createroot.js';
+import { _setViewData, _stringifyView } from '../../../src/dev-utils/view.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'FakeSelectionObserver', () => {
 	let observer, view, viewDocument, root, domRoot;
-	testUtils.createSinonSandbox();
-
-	before( () => {
-		domRoot = createElement( document, 'div', {
-			contenteditable: 'true'
-		} );
-		document.body.appendChild( domRoot );
-	} );
-
-	after( () => {
-		domRoot.parentElement.removeChild( domRoot );
-	} );
 
 	beforeEach( () => {
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 		root = createViewRoot( viewDocument );
 		view.attachDomRoot( domRoot );
@@ -40,7 +25,19 @@ describe( 'FakeSelectionObserver', () => {
 	} );
 
 	afterEach( () => {
+		vi.useRealTimers();
 		view.destroy();
+	} );
+
+	beforeAll( () => {
+		domRoot = createElement( document, 'div', {
+			contenteditable: 'true'
+		} );
+		document.body.appendChild( domRoot );
+	} );
+
+	afterAll( () => {
+		domRoot.parentElement.removeChild( domRoot );
 	} );
 
 	it( 'should do nothing if selection is not fake', () => {
@@ -104,8 +101,8 @@ describe( 'FakeSelectionObserver', () => {
 	} );
 
 	it( 'should fire `selectionChangeDone` event after selection stop changing', () => {
-		const clock = testUtils.sinon.useFakeTimers();
-		const spy = sinon.spy();
+		vi.useFakeTimers();
+		const spy = vi.fn();
 
 		viewDocument.on( 'selectionChangeDone', spy );
 
@@ -113,22 +110,22 @@ describe( 'FakeSelectionObserver', () => {
 		changeFakeSelectionPressing( keyCodes.arrowdown );
 
 		// Wait 100ms.
-		clock.tick( 100 );
+		vi.advanceTimersByTime( 100 );
 
 		// Check if spy was called.
-		sinon.assert.notCalled( spy );
+		expect( spy ).not.toHaveBeenCalled();
 
 		// Change selection one more time.
 		changeFakeSelectionPressing( keyCodes.arrowdown );
 
 		// Wait 210ms (debounced function should be called).
-		clock.tick( 210 );
-		sinon.assert.calledOnce( spy );
+		vi.advanceTimersByTime( 210 );
+		expect( spy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'should not fire `selectionChangeDone` event when observer will be destroyed', () => {
-		const clock = testUtils.sinon.useFakeTimers();
-		const spy = sinon.spy();
+		vi.useFakeTimers();
+		const spy = vi.fn();
 
 		viewDocument.on( 'selectionChangeDone', spy );
 
@@ -136,22 +133,22 @@ describe( 'FakeSelectionObserver', () => {
 		changeFakeSelectionPressing( keyCodes.arrowdown );
 
 		// Wait 100ms.
-		clock.tick( 100 );
+		vi.advanceTimersByTime( 100 );
 
 		// And destroy observer.
 		observer.destroy();
 
 		// Wait another 110ms.
-		clock.tick( 110 );
+		vi.advanceTimersByTime( 110 );
 
 		// Check that event won't be called.
-		sinon.assert.notCalled( spy );
+		expect( spy ).not.toHaveBeenCalled();
 	} );
 
 	it( 'should implement empty #stopObserving() method', () => {
 		expect( () => {
 			observer.stopObserving();
-		} ).to.not.throw();
+		} ).not.toThrow();
 	} );
 
 	// Checks if preventDefault method was called by FakeSelectionObserver for specified key code.
@@ -163,20 +160,20 @@ describe( 'FakeSelectionObserver', () => {
 		return new Promise( resolve => {
 			const data = {
 				keyCode,
-				preventDefault: sinon.spy()
+				preventDefault: vi.fn()
 			};
 
 			viewDocument.once( 'keydown', () => {
 				if ( shouldPrevent ) {
-					sinon.assert.calledOnce( data.preventDefault );
+					expect( data.preventDefault ).toHaveBeenCalledOnce();
 				} else {
-					sinon.assert.notCalled( data.preventDefault );
+					expect( data.preventDefault ).not.toHaveBeenCalled();
 				}
 
 				resolve();
 			}, { priority: 'lowest' } );
 
-			viewDocument.fire( 'keydown', new DomEventData( viewDocument, { target: document.body }, data ) );
+			viewDocument.fire( 'keydown', new ViewDocumentDomEventData( viewDocument, { target: document.body }, data ) );
 		} );
 	}
 
@@ -189,11 +186,11 @@ describe( 'FakeSelectionObserver', () => {
 	function checkSelectionChange( initialData, keyCode, output ) {
 		return new Promise( resolve => {
 			viewDocument.once( 'selectionChange', ( eventInfo, data ) => {
-				expect( stringify( root.getChild( 0 ), data.newSelection, { showType: true } ) ).to.equal( output );
+				expect( _stringifyView( root.getChild( 0 ), data.newSelection, { showType: true } ) ).toBe( output );
 				resolve();
 			} );
 
-			setData( view, initialData );
+			_setViewData( view, initialData );
 			changeFakeSelectionPressing( keyCode );
 		} );
 	}
@@ -209,9 +206,9 @@ describe( 'FakeSelectionObserver', () => {
 
 		const data = {
 			keyCode,
-			preventDefault: sinon.spy()
+			preventDefault: vi.fn()
 		};
 
-		viewDocument.fire( 'keydown', new DomEventData( viewDocument, { target: document.body }, data ) );
+		viewDocument.fire( 'keydown', new ViewDocumentDomEventData( viewDocument, { target: document.body }, data ) );
 	}
 } );

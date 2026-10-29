@@ -1,22 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window */
+import {
+	CKBox,
+	CKBoxImageEdit,
+	PictureEditing,
+	ImageInsert,
+	ImageResize,
+	AutoImage,
+	LinkImage
+} from 'ckeditor5';
+import { ClassicEditor } from '@snippets/index.js';
 
-import { ListProperties, DocumentList, DocumentListProperties } from '@ckeditor/ckeditor5-list';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { PictureEditing, ImageResize, AutoImage } from '@ckeditor/ckeditor5-image';
-import { LinkImage } from '@ckeditor/ckeditor5-link';
+export class ListEditor extends ClassicEditor {
+	static builtinPlugins = [
+		...ClassicEditor.builtinPlugins,
+		PictureEditing,
+		ImageResize,
+		ImageInsert,
+		AutoImage,
+		LinkImage,
+		CKBox,
+		CKBoxImageEdit
+	];
 
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
-
-ClassicEditor.builtinPlugins.push( PictureEditing, ImageResize, AutoImage, LinkImage, CKBox );
-
-window.ClassicEditor = ClassicEditor;
-window.ListProperties = ListProperties;
-window.DocumentList = DocumentList;
-window.DocumentListProperties = DocumentListProperties;
-window.ImageResize = ImageResize;
+	// Keep the dedicated lists demos off so the "Skip-level lists" guide can highlight the opt-in behavior on its own.
+	static defaultConfig = {
+		...ClassicEditor.defaultConfig,
+		list: {
+			enableSkipLevelLists: false
+		}
+	};
+}

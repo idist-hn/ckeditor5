@@ -1,23 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { add as addTranslations, _clear as clearTranslations } from '@ckeditor/ckeditor5-utils/src/translation-service';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import Heading from '../src/heading';
-import { getLocalizedOptions } from '../src/utils';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { add as addTranslations, _clearTranslations } from '@ckeditor/ckeditor5-utils';
+import { Heading } from '../src/heading.js';
+import { getLocalizedOptions } from '../src/utils.js';
 
 describe( 'utils', () => {
-	testUtils.createSinonSandbox();
-
 	describe( 'getLocalizedOptions()', () => {
 		let editor, editorElement;
 
-		before( () => {
+		beforeAll( () => {
 			addTranslations( 'pl', {
 				'Choose heading': 'Wybierz nagłówek',
 				'Paragraph': 'Akapit',
@@ -28,8 +24,8 @@ describe( 'utils', () => {
 			} );
 		} );
 
-		after( () => {
-			clearTranslations();
+		afterAll( () => {
+			_clearTranslations();
 		} );
 
 		beforeEach( () => {
@@ -56,13 +52,13 @@ describe( 'utils', () => {
 		it( 'should return localized options', () => {
 			const localized = getLocalizedOptions( editor );
 
-			expect( Array.isArray( localized ) ).to.be.true;
-			expect( localized.length ).to.equal( editor.config.get( 'heading.options' ).length );
+			expect( Array.isArray( localized ) ).toBe( true );
+			expect( localized.length ).toEqual( editor.config.get( 'heading.options' ).length );
 
-			expect( localized.find( item => item.model == 'paragraph' ).title ).to.equal( 'Akapit' );
-			expect( localized.find( item => item.model == 'heading1' ).title ).to.equal( 'Nagłówek 1' );
-			expect( localized.find( item => item.model == 'heading2' ).title ).to.equal( 'Nagłówek 2' );
-			expect( localized.find( item => item.model == 'heading3' ).title ).to.equal( 'Nagłówek 3' );
+			expect( localized.find( item => item.model == 'paragraph' ).title ).toEqual( 'Akapit' );
+			expect( localized.find( item => item.model == 'heading1' ).title ).toEqual( 'Nagłówek 1' );
+			expect( localized.find( item => item.model == 'heading2' ).title ).toEqual( 'Nagłówek 2' );
+			expect( localized.find( item => item.model == 'heading3' ).title ).toEqual( 'Nagłówek 3' );
 		} );
 	} );
 } );

@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import EditingController from '../../src/controller/editingcontroller';
+import { EditingController } from '../../src/controller/editingcontroller.js';
 
-import Model from '../../src/model/model';
-import ModelText from '../../src/model/text';
+import { Model } from '../../src/model/model.js';
+import { ModelText } from '../../src/model/text.js';
 
-import MarkerOperation from '../../src/model/operation/markeroperation';
-import { StylesProcessor } from '../../src/view/stylesmap';
+import { MarkerOperation } from '../../src/model/operation/markeroperation.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe( 'Bug ckeditor5-engine@1323', () => {
 	describe( 'constructor()', () => {
@@ -28,7 +29,7 @@ describe( 'Bug ckeditor5-engine@1323', () => {
 		} );
 
 		it( 'should not fire view#render event before initial model#change block is finished', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			editing.view.on( 'render', spy );
 
@@ -39,7 +40,7 @@ describe( 'Bug ckeditor5-engine@1323', () => {
 				// Remove marker.
 				model.applyOperation( new MarkerOperation( 'name', range, null, model.markers, false, 1 ) );
 
-				sinon.assert.notCalled( spy );
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 		} );
 	} );

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -13,8 +13,9 @@
  *
  * @param data The HTML data to normalize.
  * @returns Normalized HTML.
+ * @internal
  */
-export default function normalizeClipboardData( data: string ): string {
+export function normalizeClipboardData( data: string ): string {
 	return data
 		.replace( /<span(?: class="Apple-converted-space"|)>(\s+)<\/span>/g, ( fullMatch, spaces ) => {
 			// Handle the most popular and problematic case when even a single space becomes an nbsp;.

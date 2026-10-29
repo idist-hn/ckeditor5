@@ -4,39 +4,26 @@
 # To modify commands to execute on CI review this file, and the script that generates it.
 version: 2.1
 
+orbs:
+  browser-tools: circleci/browser-tools@2.4.0
+  codecov: codecov/codecov@6.0.0
+
+# List of parameters are automatically inherited from `config.yml`.
 parameters:
-  isNightly:
-    type: boolean
-    default: false
 
 commands:
-  halt_if_short_flow:
-    steps:
-      - run:
-          name: ⭐ Short flow breakpoint - Check if the build should continue
-          command: |
-            #!/bin/bash
-
-            COMMIT_MESSAGE=$(git log -n 1 --pretty=format:%s ${CIRCLE_SHA1})
-            IS_NIGHTLY=<< pipeline.parameters.isNightly >>
-
-            if [[ "$IS_NIGHTLY" == "true" ]]; then
-              echo "Running full flow due to nightly build, despite detecting '[short flow]'."
-              exit 0
-            fi
-            
-            if [[ "$COMMIT_MESSAGE" == *"[short flow]" ]]; then
-              echo "Skipping, because the commit message contains '[short flow]'."
-              circleci step halt
-            fi
-
   prepare_environment_command:
-    description: "Prepare environment (RAM, browsers, hosts, etc.)"
+    description: "Prepare environment (browsers, fonts, etc.)"
     steps:
-      # CircleCI does not use the latest Chrome. Hence, we must install it manually.
+      - browser-tools/install_chrome:
+          chrome_version: << pipeline.parameters.chromeVersion >>
+          use_cache: true
+          timeout: 5m
       - run:
-          name: Install the latest Chrome
-          command: yarn ckeditor5-dev-ci-install-latest-chrome
+          name: Install newest emoji to enable emoji picker testing
+          command: |
+            sudo apt-get update
+            sudo apt install fonts-noto-color-emoji
 
   install_ssh_keys_command:
     description: "Install SSH keys"
@@ -50,244 +37,152 @@ commands:
     steps:
       - install_ssh_keys_command
       - run:
+          name: Install pnpm
+          command: sudo npm i -g pnpm@12.8.2
+      - restore_cache:
+          name: Restore pnpm store cache
+          keys:
+            - pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+      - run:
           name: Install dependencies
-          command: yarn install
+          environment:
+            PUPPETEER_SKIP_DOWNLOAD: true
+          command: pnpm install --frozen-lockfile --prefer-offline --store-dir ~/.pnpm-store
+      - save_cache:
+          name: Save pnpm store cache
+          key: pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.pnpm-store
+            - ~/.cache/pnpm/lockfile-verified.jsonl
 
   checkout_command:
     description: "Clone the CKEditor 5 repository with limited depth and branches"
     steps:
       - run:
+          name: Add GitHub to known_hosts
+          command: |
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - run:
           name: Checkout code (single branch)
           command: git clone --single-branch --depth 10 --branch "$CIRCLE_BRANCH" "$CIRCLE_REPOSITORY_URL" .
 
-  # In the PRs that come from forked repositories, we do not share secret variables.
-  # Hence, some of the scripts will not be executed. See: https://github.com/ckeditor/ckeditor5/issues/7745.
-  # This command breaks the given job if environment variables are not available.
-  community_verification_command:
-    description: "Check if a build was trigger by a community member"
-    steps:
-      - run:
-          name: 👤 Verify if the build was triggered by community - Check if the build should continue
-          command: |
-            #!/bin/bash
-
-            if [[ -z ${COVERALLS_REPO_TOKEN} ]];
-            then
-              circleci-agent step halt
-            fi
-
 jobs:
   cke5_manual:
-    machine: true
+    docker:
+      - image: cimg/node:26.10.0-browsers
+    resource_class: large
     steps:
       - checkout_command
-      - halt_if_short_flow
       - bootstrap_repository_command
       - prepare_environment_command
-      - run:
-          name: Prepare DLL builds in CKEditor 5
-          command: yarn run dll:build
       - run:
           name: Verify CKEditor 5 manual tests
-          command: bash scripts/check-manual-tests.sh -r ckeditor5 -f ckeditor5
+          command: |
+            export PUPPETEER_EXECUTABLE_PATH="$(command -v google-chrome)"
+            pnpm run manual:verify
 
   cke5_validators:
-    machine: true
+    docker:
+      - image: cimg/node:26.10.0
+    resource_class: medium
     steps:
       - checkout_command
       - bootstrap_repository_command
-      - prepare_environment_command
+      - run:
+          when: always
+          name: Execute tests for internal scripts
+          command: pnpm run test:scripts
       - run:
           when: always
           name: Validate versions of CKEditor 5 dependencies
-          command: yarn run check-dependencies:versions-match
+          command: pnpm run check-dependencies:versions-match
       - run:
           when: always
-          name: Validate icons specified in "ckeditor5-metadata.json" files
-          command: node scripts/ci/validate-metadata-icons.js
+          name: Validate "ckeditor5-metadata.json" files
+          command: node scripts/ci/validate-metadata-files.mjs
       - run:
           when: always
-          name: Validate manual test directories
-          command: node scripts/ci/check-manual-tests-directory-structure.js
+          name: Check if all SVG files are optimized
+          command: pnpm run clean-up-svg-icons --verify-only
       - run:
           when: always
-          name: Check dependencies
-          command: yarn run check-dependencies
+          name: Validate manual test conventions
+          command: node scripts/ci/check-manual-tests-conventions.mjs
+      - run:
+          when: always
+          name: Validate file names
+          command: pnpm run validate-file-names
+      - run:
+          when: always
+          name: Type checks the manual tests
+          command: pnpm run typecheck:manual
+      - run:
+          when: always
+          name: Validate license files
+          command: pnpm run validate-license-files --verbose
       - run:
           when: always
           name: Execute ESLint
-          command: yarn run lint
+          command: pnpm run lint
       - run:
           when: always
-          name: Execute Stylelint
-          command: yarn run stylelint
+          name: Check if all packages are exported in the "ckeditor5" package
+          command: pnpm run check-exports
+      - run:
+          when: always
+          name: Check if all package stylesheets are imported in the CSS entry points
+          command: pnpm run check-css-imports
+      - run:
+          when: always
+          name: Check if the editor and content stylesheets consume only declared CSS custom properties
+          command: pnpm run check-css-variables
+      - run:
+          when: always
+          name: Check if all package members are exported correctly from the index.ts file
+          command: pnpm run validate-module-re-exports
+
+  release_prepare:
+    docker:
+      - image: cimg/node:26.10.0
+    resource_class: large.gen2
+    steps:
+      - checkout_command
+      - bootstrap_repository_command
+      - run:
+          name: Check if packages are ready to be released
+          command: pnpm run release:prepare-packages --compile-only --verbose
+      - run:
+          name: Lint generated packages
+          command: pnpm run release:lint-packages
+      - run:
+          name: Check dependencies
+          command: pnpm run check-dependencies
 
   cke5_coverage:
-    machine: true
+    docker:
+      - image: cimg/node:26.10.0
+    resource_class: small
     steps:
-      - community_verification_command
       - checkout_command
-      - halt_if_short_flow
-      - bootstrap_repository_command
-      - prepare_environment_command
       - attach_workspace:
           at: .out
       - run:
-          name: Merge the code coverage of the framework and features
-          command: cat .out/combined_framework.info .out/combined_features.info > .out/combined_lcov.info
-      - run:
-          name: Preparing the environment variables
-          command: |
-            export COVERALLS_SERVICE_NAME="CKEditor 5 code coverage"
-            export COVERALLS_SERVICE_JOB_ID=$( CIRCLE_WORKFLOW_ID )
-            export COVERALLS_GIT_BRANCH=$( CIRCLE_BRANCH )
-      - run:
-          name: Upload the coverage to Coveralls
-          command: npx coveralls -v < .out/combined_lcov.info
-
-  cke5_trigger_release_process:
-    machine: true
-    steps:
-      - community_verification_command
-      - checkout_command
-      - bootstrap_repository_command
-      - run:
-          name: Verify if CKEditor 5 is ready to release
-          command: |
-            #!/bin/bash
-
-            # Do not fail if the Node script ends with non-zero exit code.
-            set +e
-
-            node scripts/ci/is-ckeditor5-ready-to-release.js
-            EXIT_CODE=$( echo $? )
-
-            if [ ${EXIT_CODE} -eq 1 ];
-            then
-              circleci-agent step halt
-            fi
-      - run:
-          name: Trigger the Uber CI
-          command: node scripts/ci/trigger-ckeditor5-continuous-integration.js -r ckeditor/ckeditor5 -c $CIRCLE_SHA1 -b $CIRCLE_BRANCH
-
-  cke5_trigger_uber_ci:
-    machine: true
-    steps:
-      - community_verification_command
-      - checkout_command
-      - bootstrap_repository_command
-      - run:
-          name: Trigger the Uber CI
-          command: node scripts/ci/trigger-ckeditor5-continuous-integration.js -r ckeditor/ckeditor5 -c $CIRCLE_SHA1
-
-  release_prepare:
-    machine: true
-    steps:
-      - checkout_command
-      - halt_if_short_flow
-      - bootstrap_repository_command
-      - prepare_environment_command
-      - run:
-          name: Check if packages are ready to be released
-          command:
-            yarn run release:prepare-packages --compile-only --verbose
-
-  notify_ci_failure:
-    machine: true
-    parameters:
-      hideAuthor:
-        type: string
-        default: "false"
-    steps:
-      - community_verification_command
-      - checkout_command
-      - bootstrap_repository_command
-      - run:
-          environment:
-            CKE5_SLACK_NOTIFY_HIDE_AUTHOR: << parameters.hideAuthor >>
-            CKE5_PIPELINE_NUMBER: << pipeline.number >>
-          name: Waiting for other jobs to finish and sending notification on failure
-          command: yarn ckeditor5-dev-ci-circle-workflow-notifier
-          no_output_timeout: 2h
+          name: Merge the code coverage of the test batches
+          command: cat .out/combined_tests_batch_n.info > .out/combined_lcov.info
+      - codecov/upload:
+          files: .out/combined_lcov.info
 
 workflows:
   version: 2
-  # `cke5_tests_framework` and `cke5_tests_features` jobs are generated by the `scripts/ci/generate-config-tests.js` script.
   main:
-    unless: << pipeline.parameters.isNightly >>
     jobs:
-      - cke5_tests_framework:
-          filters:
-            branches:
-              ignore:
-                - stable
-      - cke5_tests_features:
-          filters:
-            branches:
-              ignore:
-                - stable
+      # The `tests_batch_n` placeholder is expanded into the batch jobs generated
+      # by `scripts/ci/generate-circleci-configuration.mjs`.
+      - tests_batch_n
       - cke5_coverage:
           requires:
-            - cke5_tests_framework
-            - cke5_tests_features
-          filters:
-            branches:
-              only:
-                - master
-              ignore:
-                - stable
-      - cke5_validators
-      - cke5_manual:
-          filters:
-            branches:
-              ignore:
-                - stable
-      - release_prepare:
-          filters:
-            branches:
-              ignore:
-                - stable
-      - cke5_trigger_uber_ci:
-          requires:
-            - cke5_tests_framework
-            - cke5_tests_features
-            - cke5_coverage
-            - cke5_validators
-            - cke5_manual
-            - release_prepare
-          filters:
-            branches:
-              only:
-                - master
-      - cke5_trigger_release_process:
-          requires:
-            - cke5_tests_framework
-            - cke5_tests_features
-            - cke5_validators
-            - cke5_manual
-            - release_prepare
-          filters:
-            branches:
-              only:
-                - release
-      - notify_ci_failure:
-          filters:
-            branches:
-              only:
-                - master
-                - stable
-
-  nightly:
-    when: << pipeline.parameters.isNightly >>
-    jobs:
-      - cke5_tests_framework
-      - cke5_tests_features
+            - tests_batch_n
       - cke5_validators
       - cke5_manual
       - release_prepare
-      - notify_ci_failure:
-          hideAuthor: "true"
-          filters:
-            branches:
-              only:
-                - master

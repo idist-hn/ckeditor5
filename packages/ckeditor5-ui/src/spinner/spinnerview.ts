@@ -1,20 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/spinner/spinnerview
  */
 
-import View from '../view';
-
-import '../../theme/components/spinner/spinner.css';
+import { View } from '../view.js';
 
 /**
  * The spinner view class.
  */
-export default class SpinnerView extends View {
+export class SpinnerView extends View {
 	/**
 	 * Controls whether the spinner is visible.
 	 *

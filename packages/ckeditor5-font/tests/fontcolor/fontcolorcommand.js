@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import FontColorCommand from '../../src/fontcolor/fontcolorcommand';
-import FontCommand from '../../src/fontcommand';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { FontColorCommand } from '../../src/fontcolor/fontcolorcommand.js';
+import { FontCommand } from '../../src/fontcommand.js';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
 
 describe( 'FontColorCommand', () => {
 	let editor, command;
@@ -19,16 +20,16 @@ describe( 'FontColorCommand', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	it( 'is a FontCommand', () => {
-		expect( FontColorCommand.prototype ).to.be.instanceOf( FontCommand );
-		expect( command ).to.be.instanceOf( FontCommand );
+		expect( FontColorCommand.prototype ).toBeInstanceOf( FontCommand );
+		expect( command ).toBeInstanceOf( FontCommand );
 	} );
 
 	it( 'operates on fontColor attribute', () => {
-		expect( command ).to.have.property( 'attributeKey', 'fontColor' );
+		expect( command ).toHaveProperty( 'attributeKey', 'fontColor' );
 	} );
 } );

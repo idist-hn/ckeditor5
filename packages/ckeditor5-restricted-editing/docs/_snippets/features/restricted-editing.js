@@ -1,32 +1,44 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, document */
-
-import { StandardEditingMode, RestrictedEditingMode } from '@ckeditor/ckeditor5-restricted-editing';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { PictureEditing, ImageResize, AutoImage } from '@ckeditor/ckeditor5-image';
-import { LinkImage } from '@ckeditor/ckeditor5-link';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
+import {
+	StandardEditingMode,
+	RestrictedEditingMode,
+	CKBox,
+	CKBoxImageEdit,
+	PictureEditing,
+	ImageInsert,
+	ImageResize,
+	AutoImage,
+	LinkImage,
+	TodoList
+} from 'ckeditor5';
+import {
+	TOKEN_URL,
+	ArticlePluginSet,
+	ClassicEditor,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
 ClassicEditor.builtinPlugins.push(
 	RestrictedEditingMode,
 	StandardEditingMode,
 	ArticlePluginSet,
 	PictureEditing,
+	ImageInsert,
 	ImageResize,
 	AutoImage,
 	LinkImage,
-	CKBox );
+	TodoList,
+	CKBox,
+	CKBoxImageEdit );
 
-const restrictedModeButton = document.getElementById( 'mode-restricted' );
-const standardModeButton = document.getElementById( 'mode-standard' );
+const restrictedModeButton = document.getElementById( 'mode-restricted' ).querySelector( 'input' );
+const standardModeButton = document.getElementById( 'mode-standard' ).querySelector( 'input' );
 
 restrictedModeButton.addEventListener( 'change', handleModeChange );
 standardModeButton.addEventListener( 'change', handleModeChange );
@@ -48,13 +60,14 @@ async function startMode( selectedMode ) {
 async function startStandardEditingMode() {
 	await reloadEditor( {
 		removePlugins: [ 'RestrictedEditingMode' ],
-		cloudServices: CS_CONFIG,
 		toolbar: {
 			items: [
-				'undo', 'redo', '|', 'heading',
+				'restrictedEditingException:auto',
+				'|', 'undo', 'redo',
+				'|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'restrictedEditingException', 'mediaEmbed',
-				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
+				'|', 'bulletedList', 'numberedList', 'todoList', 'outdent', 'indent'
 			]
 		},
 		table: {
@@ -64,10 +77,21 @@ async function startStandardEditingMode() {
 				'mergeTableCells'
 			]
 		},
+		image: {
+			toolbar: [
+				'imageStyle:inline', 'imageStyle:block', 'imageStyle:wrapText', '|',
+				'toggleImageCaption', 'imageTextAlternative', 'ckboxImageEdit'
+			]
+		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		},
 		updateSourceElementOnDestroy: true
 	} );
@@ -76,12 +100,30 @@ async function startStandardEditingMode() {
 async function startRestrictedEditingMode() {
 	await reloadEditor( {
 		removePlugins: [ 'StandardEditingMode' ],
-		cloudServices: CS_CONFIG,
-		toolbar: [ 'restrictedEditing', '|', 'bold', 'italic', 'link', '|', 'undo', 'redo' ],
+		toolbar: {
+			items: [
+				'restrictedEditing',
+				'|', 'undo', 'redo',
+				'|', 'heading',
+				'|', 'bold', 'italic',
+				'|', 'link', 'insertImage', 'insertTable',
+				'|', 'bulletedList', 'numberedList', 'todoList', 'outdent', 'indent'
+			]
+		},
+		image: {
+			toolbar: [
+				'imageStyle:inline', 'imageStyle:block', 'imageStyle:wrapText', '|',
+				'toggleImageCaption', 'imageTextAlternative', 'ckboxImageEdit'
+			]
+		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ]
 		},
 		updateSourceElementOnDestroy: true
 	} );
@@ -92,10 +134,13 @@ async function reloadEditor( config ) {
 		await window.editor.destroy();
 	}
 
-	window.editor = await ClassicEditor.create( document.querySelector( '#restricted-editing-editor' ), config );
+	window.editor = await ClassicEditor.create( {
+		...config,
+		attachTo: document.querySelector( '#restricted-editing-editor' )
+	} );
 
-	window.attachTourBalloon( {
-		target: window.findToolbarItem(
+	attachTourBalloon( {
+		target: findToolbarItem(
 			window.editor.ui.view.toolbar,
 			item => item.label && [ 'Enable editing', 'Disable editing' ].includes( item.label )
 		),

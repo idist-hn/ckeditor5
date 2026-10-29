@@ -1,23 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/list/listitemview
  */
 
-import View from '../view';
+import { View } from '../view.js';
 
-import type { FocusableView } from '../focuscycler';
-import type ViewCollection from '../viewcollection';
+import type { FocusableView } from '../focuscycler.js';
+import { type ViewCollection } from '../viewcollection.js';
 
 import type { Locale } from '@ckeditor/ckeditor5-utils';
 
 /**
  * The list item view class.
  */
-export default class ListItemView extends View {
+export class ListItemView extends View {
 	/**
 	 * Collection of the child views inside of the list item {@link #element}.
 	 */

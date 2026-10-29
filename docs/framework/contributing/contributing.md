@@ -1,6 +1,7 @@
 ---
 category: framework-contributing
 meta-title: Contributing | CKEditor 5 Framework Documentation
+meta-description: Discover how to contribute to CKEditor 5, including guidelines for reporting issues, submitting code, and joining the community.
 order: 10
 ---
 
@@ -26,11 +27,11 @@ To learn how to set up the project and run tests see the {@link framework/contri
 
 Read more in the {@link framework/contributing/code-style code style} guide, where you can also check the {@link framework/contributing/code-style#naming naming} and {@link framework/contributing/code-style#file-names file name} guidelines.
 
-Every package repository installs Git hooks that automatically lint and check the code for code style on commit. However, not every code style issue can be discovered this way, so please do not rely on tools too much :).
+Every package repository installs Git hooks that automatically lint and check the code for code style on commit. However, not every code style issue can be discovered this way, so please do not rely on tools too much.
 
 ### Tests
 
-We maintain a **100% code coverage** (including code branches) and pull requests with missing tests will not be accepted. However, keep in mind that 100% is not everything &mdash; every *change* must be tested. This means that if you are fixing a bug and your patch did not change the code coverage, the change itself needs a test anyway.
+We maintain a **100% code coverage** (including code branches) and pull requests with missing tests will not be accepted. However, keep in mind that 100% is not everything &ndash; every *change* must be tested. This means that if you are fixing a bug and your patch did not change the code coverage, the change itself needs a test anyway.
 
 Besides automated tests, you may be asked to create a manual test for the issue. Such manual tests let us quickly validate that the issue was really fixed and are later used during the testing phase (before a release) to make sure no regressions were created.
 
@@ -82,29 +83,37 @@ Assuming that you would like to propose some changes, these are the steps you sh
 	$ git push my-fork i/GITHUB-ISSUE-NUMBER
 	```
 
-1. Go to your forked repository on GitHub. Use the [pull request button](https://help.github.com/articles/about-pull-requests/) and follow the instructions. Make sure to include a merge commit message text matches the {@link framework/contributing/git-commit-message-convention convention}
+1. Go to your forked repository on GitHub. Use the [pull request button](https://help.github.com/articles/about-pull-requests/) and follow the instructions.
 1. **Let us know about your pull request!** The best way is to comment under the original issue.
 
 Some additional things you should keep in mind:
 
-* Your pull request should be minimal &mdash; i.e. change only things described in the ticket. Do not squeeze unrelated changes into your pull request.
+* Your pull request should be minimal. It should change only things described in the ticket. Do not squeeze unrelated changes into your pull request.
 * When making a pull request on GitHub, make sure to specify which ticket(s) your pull request resolves. It is also recommended to provide more information, like how to test the patch, issues that you encountered, decisions you had to make, known problems, etc.
 * Make sure you signed the [Contributor License Agreement (CLA)](#contributor-license-agreement-cla) and that tests pass. Test your changes!
 
 ## Translating
 
-CKEditor&nbsp;5 is a project with global impact, so contributing translations is both an easy and powerful way to help.
+CKEditor&nbsp;5 is a project with global impact, so contributing translations is a valuable way to help.
 
-We use the Transifex service for translations at the following address: [https://www.transifex.com/ckeditor/ckeditor5/dashboard/](https://www.transifex.com/ckeditor/ckeditor5/dashboard/).
+Each CKEditor&nbsp;5 package keeps generated TypeScript translation files in the `lang/translations` directory. To provide a missing translation, edit only the dictionary value in the appropriate `.ts` file and prepare a [pull request](#creating-a-pull-request). Do not edit the generated comments, keys, order, module structure, or plural-form function.
 
 Here as well, having a CLA in place is a requirement to become an official translator (see below).
 
 ## Reporting issues and requesting features
 
-Read the {@link support/reporting-issues reporting issues} guide to learn more.
+Read the {@link support/index#reporting-issues reporting issues} guide to learn more.
 
 ## Contributor License Agreement (CLA)
 
-To accept contributions sent to us in the form of code, documentation, or translations, a Contributor License Agreement (CLA) must be in place in order to clarify the intellectual property license granted with them. This license is for your protection as a contributor as well as the protection of us and our users; it does not change your rights to use your own contributions for any other purpose.
+To accept contributions sent to us in the form of code, documentation, or translations, a Contributor License Agreement (CLA) must be in place to clarify the intellectual property license granted with them. This license is for your protection as a contributor as well as the protection of us and our users; it does not change your rights to use your own contributions for any other purpose.
 
-To sign the CLA and to get more information, please follow this link: [https://cla.ckeditor.com/](https://cla.ckeditor.com/).
+To sign the CLA and to get more information, follow this link: [https://cla.ckeditor.com/](https://cla.ckeditor.com/).
+
+## Signing commits
+
+Starting January 1, 2025, all commits targeting the main branches must be signed for security reasons. We therefore require you to sign all commits added to CKEditor&nbsp;5's codebase.
+
+We use Git signing to ensure the commits added to the codebase are verified. By signing your commits, you can prove that you are the author and ensure that the code has not been tampered with. This aids the compliance with our SOC2 Type 2 certification.
+
+Git commit signing attaches a unique cryptographic signature to a commit, which adds a layer of security, making it easier to trust the source of the code changes. To set up your digital signature, please refer to the GitHub [Signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) guide. Please note that the GPG key must use the same values as a committer, so the name, surname, and email must be identical.

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,7 +12,7 @@
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
  * 		typing: ... // Typing feature options.
  * 	} )
  * 	.then( ... )
@@ -44,7 +44,7 @@ export interface TypingConfig {
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
  * 		typing: {
  * 			transformations: ... // Text transformation feature options.
  * 		}
@@ -123,7 +123,7 @@ export interface TextTransformationConfig {
 	 * ({@link module:typing/typingconfig~TextTransformationConfig#extra `transformations.extra`},
 	 * {@link module:typing/typingconfig~TextTransformationConfig#remove `transformations.remove`}) to fine-tune the default list.
 	 */
-	include: Array<TextTransformationDescription | string>;
+	include: Array<TextTypingTransformationDescription | string>;
 
 	/**
 	 * Additional text transformations that are added to the transformations defined in
@@ -137,7 +137,7 @@ export interface TextTransformationConfig {
 	 * };
 	 * ```
 	 */
-	extra?: Array<TextTransformationDescription | string>;
+	extra?: Array<TextTypingTransformationDescription | string>;
 
 	/**
 	 * The text transformation names that are removed from transformations defined in
@@ -153,7 +153,7 @@ export interface TextTransformationConfig {
 	 * }
 	 * ```
 	 */
-	remove?: Array<TextTransformationDescription | string>;
+	remove?: Array<TextTypingTransformationDescription | string>;
 }
 
 /**
@@ -173,7 +173,7 @@ export interface TextTransformationConfig {
  * * If an array is passed, it has to have the same number of elements as there are capturing groups in the input value regular expression.
  * Each capture group will be replaced with a corresponding string from the passed array. If a given capturing group should not be replaced,
  * use `null` instead of passing a string.
- * * If a function is used, it should return an array as described above. The function is passed one parameter &mdash; an array with matches
+ * * If a function is used, it should return an array as described above. The function is passed one parameter &ndash; an array with matches
  * by the regular expression. See the examples below.
  *
  * A simple string-to-string replacement:
@@ -201,7 +201,7 @@ export interface TextTransformationConfig {
  * }
  * ```
  */
-export interface TextTransformationDescription {
+export interface TextTypingTransformationDescription {
 
 	/**
 	 * The string or regular expression to transform.

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,7 +8,7 @@
  */
 
 import { logWarning } from '@ckeditor/ckeditor5-utils';
-import type Operation from './operation/operation';
+import { type Operation } from './operation/operation.js';
 
 /**
  * A batch instance groups model changes ({@link module:engine/model/operation/operation~Operation operations}). All operations
@@ -24,7 +24,7 @@ import type Operation from './operation/operation';
  * @see module:engine/model/model~Model#enqueueChange
  * @see module:engine/model/model~Model#change
  */
-export default class Batch {
+export class Batch implements BatchType {
 	/**
 	 * An array of operations that compose this batch.
 	 */
@@ -82,30 +82,6 @@ export default class Batch {
 	}
 
 	/**
-	 * The type of the batch.
-	 *
-	 * **This property has been deprecated and is always set to the `'default'` value.**
-	 *
-	 * It can be one of the following values:
-	 * * `'default'` &ndash; All "normal" batches. This is the most commonly used type.
-	 * * `'transparent'` &ndash; A batch that should be ignored by other features, i.e. an initial batch or collaborative editing
-	 * changes.
-	 *
-	 * @deprecated
-	 */
-	public get type(): 'default' {
-		/**
-		 * The {@link module:engine/model/batch~Batch#type `Batch#type` } property has been deprecated and will be removed in the near
-		 * future. Use `Batch#isLocal`, `Batch#isUndoable`, `Batch#isUndo` and `Batch#isTyping` instead.
-		 *
-		 * @error batch-type-deprecated
-		 */
-		logWarning( 'batch-type-deprecated' );
-
-		return 'default';
-	}
-
-	/**
 	 * Returns the base version of this batch, which is equal to the base version of the first operation in the batch.
 	 * If there are no operations in the batch or neither operation has the base version set, it returns `null`.
 	 */
@@ -126,8 +102,12 @@ export default class Batch {
 	 * @returns The added operation.
 	 */
 	public addOperation( operation: Operation ): Operation {
-		operation.batch = this;
-		this.operations.push( operation );
+		if ( operation.isDocumentOperation ) {
+			// Store only document operations in the batch.
+			// Non-document operations are temporary and should be discarded after they are applied.
+			operation.batch = this;
+			this.operations.push( operation );
+		}
 
 		return operation;
 	}

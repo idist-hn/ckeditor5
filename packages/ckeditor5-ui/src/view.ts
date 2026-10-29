@@ -1,16 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-/* eslint-disable @typescript-eslint/no-invalid-void-type */
 
 /**
  * @module ui/view
  */
 
-import ViewCollection from './viewcollection';
-import Template, { type BindChain, type TemplateDefinition } from './template';
+import { ViewCollection } from './viewcollection.js';
+import { Template, type BindChain, type TemplateDefinition } from './template.js';
 
 import {
 	CKEditorError,
@@ -21,10 +19,13 @@ import {
 	type CollectionAddEvent,
 	type DecoratedMethodEvent,
 	type Locale,
-	type LocaleTranslate
+	type LocaleTranslate,
+	type ObservableMixinConstructor,
+	type DomEmitterMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
-import '../theme/globals/globals.css';
+const ViewBase: DomEmitterMixinConstructor<ObservableMixinConstructor> =
+	/* #__PURE__ */ DomEmitterMixin( /* #__PURE__ */ ObservableMixin() );
 
 /**
  * The basic view class, which represents an HTML element created out of a
@@ -90,9 +91,15 @@ import '../theme/globals/globals.css';
  * 	console.log( 'The view has been clicked!' );
  * } );
  * ```
+ *
+ * @property {TElement | null} element An HTML element of the view. `null` until {@link module:ui/view~View#render rendered}
+ * from the {@link module:ui/view~View#template template}. The class-level example above illustrates typical usage. The
+ * full description, fenced examples, and assignment note are in the block comment immediately above the `element` field
+ * in the source.
  */
-export default class View<TElement extends HTMLElement = HTMLElement> extends DomEmitterMixin( ObservableMixin() ) {
-	/**
+export class View<TElement extends HTMLElement = HTMLElement>
+	extends ViewBase {
+	/*
 	 * An HTML element of the view. `null` until {@link #render rendered}
 	 * from the {@link #template}.
 	 *
@@ -159,7 +166,7 @@ export default class View<TElement extends HTMLElement = HTMLElement> extends Do
 	 */
 	public template?: Template;
 
-	public viewUid?: string;
+	public declare viewUid?: string;
 
 	/**
 	 * Collections registered with {@link #createCollection}.

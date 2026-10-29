@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageBlock from './imageblock';
-import ImageInline from './imageinline';
-
-import '../theme/image.css';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageBlock } from './imageblock.js';
+import { ImageInline } from './imageinline.js';
 
 /**
  * The image plugin.
@@ -26,12 +24,12 @@ import '../theme/image.css';
  * Usually, it is used in conjunction with other plugins from this package. See the {@glink api/image package page}
  * for more information.
  */
-export default class Image extends Plugin {
+export class Image extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageBlock, ImageInline ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageBlock, ImageInline ]> {
+		return [ ImageBlock, ImageInline ];
 	}
 
 	/**
@@ -39,5 +37,12 @@ export default class Image extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Image' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

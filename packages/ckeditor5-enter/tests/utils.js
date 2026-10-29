@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { getCopyOnEnterAttributes } from '../src/utils';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
+import { describe, it, expect } from 'vitest';
+import { getCopyOnEnterAttributes } from '../src/utils.js';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
 
 describe( 'utils', () => {
 	describe( 'getCopyOnEnterAttributes()', () => {
@@ -26,7 +27,7 @@ describe( 'utils', () => {
 						[ 'baz', true ]
 					] ) )[ Symbol.iterator ]();
 
-					expect( Array.from( getCopyOnEnterAttributes( schema, allAttributes ) ) ).to.deep.equal(
+					expect( Array.from( getCopyOnEnterAttributes( schema, allAttributes ) ) ).toEqual(
 						[
 							[ 'foo', true ],
 							[ 'baz', true ]

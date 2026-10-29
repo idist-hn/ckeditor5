@@ -1,23 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { AlignmentEditing } from '@ckeditor/ckeditor5-alignment';
+import { TableCellPropertiesEditing, TableEditing, TablePropertiesEditing } from '@ckeditor/ckeditor5-table';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _getModelData, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
+import { modelTable } from '@ckeditor/ckeditor5-table/tests/_utils/utils.js';
 
-import ImageStyleEditing from '../../src/imagestyle/imagestyleediting';
-import ImageBlockEditing from '../../src/image/imageblockediting';
-import ImageInlineEditing from '../../src/image/imageinlineediting';
-import ImageStyleCommand from '../../src/imagestyle/imagestylecommand';
-import imageStyleUtils from '../../src/imagestyle/utils';
-import ImageEditing from '../../src/image/imageediting';
-import ImageResizeEditing from '../../src/imageresize/imageresizeediting';
-import ImageUtils from '../../src/imageutils';
+import { ImageStyleEditing } from '../../src/imagestyle/imagestyleediting.js';
+import { ImageBlockEditing } from '../../src/image/imageblockediting.js';
+import { ImageInlineEditing } from '../../src/image/imageinlineediting.js';
+import { ImageStyleCommand } from '../../src/imagestyle/imagestylecommand.js';
+import { utils } from '../../src/imagestyle/utils.js';
+import { ImageEditing } from '../../src/image/imageediting.js';
+import { ImageResizeEditing } from '../../src/imageresize/imageresizeediting.js';
+import { ImageUtils } from '../../src/imageutils.js';
 
 describe( 'ImageStyleEditing', () => {
 	describe( 'plugin', () => {
@@ -30,25 +32,31 @@ describe( 'ImageStyleEditing', () => {
 		} );
 
 		it( 'should be loaded', () => {
-			expect( editor.plugins.get( ImageStyleEditing ) ).to.be.instanceOf( ImageStyleEditing );
+			expect( editor.plugins.get( ImageStyleEditing ) ).toBeInstanceOf( ImageStyleEditing );
 		} );
 
 		it( 'should have pluginName', () => {
-			expect( ImageStyleEditing.pluginName ).to.equal( 'ImageStyleEditing' );
+			expect( ImageStyleEditing.pluginName ).toBe( 'ImageStyleEditing' );
 		} );
 
-		it( 'requires ImageUtils ', () => {
-			expect( ImageStyleEditing.requires ).to.deep.equal( [ ImageUtils ] );
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( ImageStyleEditing.isOfficialPlugin ).toBe( true );
 		} );
 
-		afterEach( () => {
-			editor.destroy();
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( ImageStyleEditing.isPremiumPlugin ).toBe( false );
+		} );
+
+		it( 'requires ImageUtils', () => {
+			expect( ImageStyleEditing.requires ).toEqual( [ ImageUtils ] );
+		} );
+
+		afterEach( async () => {
+			await editor.destroy();
 		} );
 	} );
 
 	describe( 'init()', () => {
-		testUtils.createSinonSandbox();
-
 		describe( 'default styles configuration', () => {
 			it( 'should not alter the image.styles configuration', async () => {
 				const editor = await ModelTestEditor.create( {
@@ -56,7 +64,7 @@ describe( 'ImageStyleEditing', () => {
 					image: { styles: { options: [ 'block' ] } }
 				} );
 
-				expect( editor.config.get( 'image.styles' ) ).to.deep.equal( { options: [ 'block' ] } );
+				expect( editor.config.get( 'image.styles' ) ).toEqual( { options: [ 'block' ] } );
 
 				await editor.destroy();
 			} );
@@ -68,7 +76,7 @@ describe( 'ImageStyleEditing', () => {
 				} );
 
 				expect( editor.config.get( 'image.styles' ) )
-					.to.deep.equal( { options: [ { name: 'block', modelElements: [ 'imageBlock' ] } ] } );
+					.toEqual( { options: [ { name: 'block', modelElements: [ 'imageBlock' ] } ] } );
 
 				await editor.destroy();
 			} );
@@ -79,7 +87,7 @@ describe( 'ImageStyleEditing', () => {
 						plugins: [ ImageBlockEditing, ImageInlineEditing, ImageStyleEditing ]
 					} );
 
-					expect( editor.config.get( 'image.styles' ) ).to.deep.equal( {
+					expect( editor.config.get( 'image.styles' ) ).toEqual( {
 						options: [
 							'inline', 'alignLeft', 'alignRight',
 							'alignCenter', 'alignBlockLeft', 'alignBlockRight',
@@ -87,7 +95,7 @@ describe( 'ImageStyleEditing', () => {
 						]
 					} );
 
-					editor.destroy();
+					await editor.destroy();
 				} );
 
 				it( 'should not set a default config if neither image editing plugins are loaded', async () => {
@@ -95,7 +103,7 @@ describe( 'ImageStyleEditing', () => {
 						plugins: [ ImageStyleEditing ]
 					} );
 
-					expect( editor.config.get( 'image.styles' ) ).to.deep.equal( {} );
+					expect( editor.config.get( 'image.styles' ) ).toEqual( {} );
 
 					await editor.destroy();
 				} );
@@ -105,7 +113,7 @@ describe( 'ImageStyleEditing', () => {
 						plugins: [ ImageInlineEditing, ImageStyleEditing ]
 					} );
 
-					expect( editor.config.get( 'image.styles' ) ).to.deep.equal( {
+					expect( editor.config.get( 'image.styles' ) ).toEqual( {
 						options: [ 'inline', 'alignLeft', 'alignRight' ]
 					} );
 
@@ -117,7 +125,7 @@ describe( 'ImageStyleEditing', () => {
 						plugins: [ ImageBlockEditing, ImageStyleEditing ]
 					} );
 
-					expect( editor.config.get( 'image.styles' ) ).to.deep.equal( {
+					expect( editor.config.get( 'image.styles' ) ).toEqual( {
 						options: [ 'block', 'side' ]
 					} );
 
@@ -132,8 +140,9 @@ describe( 'ImageStyleEditing', () => {
 					plugins: [ ImageBlockEditing, ImageStyleEditing ]
 				} );
 
-				expect( editor.model.schema.checkAttribute( 'imageBlock', 'imageStyle' ) ).to.be.true;
-				expect( editor.model.schema.checkAttribute( 'imageInline', 'imageStyle' ) ).to.be.false;
+				expect( editor.model.schema.checkAttribute( 'imageBlock', 'imageStyle' ) ).toBe( true );
+				expect( editor.model.schema.checkAttribute( 'imageInline', 'imageStyle' ) ).toBe( false );
+				expect( editor.model.schema.getAttributeProperties( 'imageStyle' ).isFormatting ).toBe( true );
 
 				await editor.destroy();
 			} );
@@ -143,8 +152,9 @@ describe( 'ImageStyleEditing', () => {
 					plugins: [ ImageInlineEditing, ImageStyleEditing ]
 				} );
 
-				expect( editor.model.schema.checkAttribute( 'imageInline', 'imageStyle' ) ).to.be.true;
-				expect( editor.model.schema.checkAttribute( 'imageBlock', 'imageStyle' ) ).to.be.false;
+				expect( editor.model.schema.checkAttribute( 'imageInline', 'imageStyle' ) ).toBe( true );
+				expect( editor.model.schema.checkAttribute( 'imageBlock', 'imageStyle' ) ).toBe( false );
+				expect( editor.model.schema.getAttributeProperties( 'imageStyle' ).isFormatting ).toBe( true );
 
 				await editor.destroy();
 			} );
@@ -154,21 +164,73 @@ describe( 'ImageStyleEditing', () => {
 					plugins: [ ImageBlockEditing, ImageInlineEditing, ImageStyleEditing ]
 				} );
 
-				expect( editor.model.schema.checkAttribute( 'imageInline', 'imageStyle' ) ).to.be.true;
-				expect( editor.model.schema.checkAttribute( 'imageBlock', 'imageStyle' ) ).to.be.true;
+				expect( editor.model.schema.checkAttribute( 'imageInline', 'imageStyle' ) ).toBe( true );
+				expect( editor.model.schema.checkAttribute( 'imageBlock', 'imageStyle' ) ).toBe( true );
+				expect( editor.model.schema.getAttributeProperties( 'imageStyle' ).isFormatting ).toBe( true );
+
+				await editor.destroy();
+			} );
+
+			it( 'should register `blockAlignment` schema property on ' +
+					'`imageStyle` attribute (ImageInlineEditing + ImageBlockEditing)', async () => {
+				const editor = await ModelTestEditor.create( {
+					plugins: [ ImageInlineEditing, ImageBlockEditing, ImageStyleEditing ]
+				} );
+
+				expect( editor.model.schema.getAttributeProperties( 'imageStyle' ).blockAlignment ).toEqual( {
+					center: {
+						isDefault: true,
+						value: 'block'
+					},
+					left: {
+						isDefault: false,
+						value: 'alignBlockLeft'
+					},
+					right: {
+						isDefault: false,
+						value: 'alignBlockRight'
+					}
+				} );
+
+				await editor.destroy();
+			} );
+
+			it( 'should register proper `blockAlignment` schema property on ' +
+					'`imageStyle` attribute (ImageBlockEditing)', async () => {
+				const editor = await ModelTestEditor.create( {
+					plugins: [ ImageBlockEditing, ImageStyleEditing ]
+				} );
+
+				expect( editor.model.schema.getAttributeProperties( 'imageStyle' ).blockAlignment ).toEqual( {
+					center: {
+						isDefault: true,
+						value: 'block'
+					}
+				} );
+
+				await editor.destroy();
+			} );
+
+			it( 'should not register `blockAlignment` schema property on ' +
+				'`imageStyle` attribute (ImageInlineEditing)', async () => {
+				const editor = await ModelTestEditor.create( {
+					plugins: [ ImageInlineEditing, ImageStyleEditing ]
+				} );
+
+				expect( editor.model.schema.getAttributeProperties( 'imageStyle' ).blockAlignment ).toBeUndefined();
 
 				await editor.destroy();
 			} );
 		} );
 
 		it( 'should call the normalizedStyles with the proper arguments', async () => {
-			const normalizationSpy = testUtils.sinon.spy( imageStyleUtils, 'normalizeStyles' );
+			const normalizationSpy = vi.spyOn( utils, 'normalizeStyles' );
 
 			const editor = await ModelTestEditor.create( {
 				plugins: [ ImageBlockEditing, ImageStyleEditing ]
 			} );
 
-			sinon.assert.calledOnceWithMatch( normalizationSpy, {
+			expect( normalizationSpy.mock.calls[ 0 ][ 0 ] ).toEqual( {
 				configuredStyles: editor.config.get( 'image.styles' ),
 				isBlockPluginLoaded: editor.plugins.has( 'ImageBlockEditing' ),
 				isInlinePluginLoaded: editor.plugins.has( 'ImageInlineEditing' )
@@ -183,13 +245,13 @@ describe( 'ImageStyleEditing', () => {
 				modelElements: [ 'imageBlock' ]
 			} ];
 
-			testUtils.sinon.stub( imageStyleUtils, 'normalizeStyles' ).callsFake( () => customStyles );
+			vi.spyOn( utils, 'normalizeStyles' ).mockImplementation( () => customStyles );
 
 			const editor = await ModelTestEditor.create( {
 				plugins: [ ImageBlockEditing, ImageStyleEditing ]
 			} );
 
-			expect( editor.plugins.get( ImageStyleEditing ).normalizedStyles ).to.equal( customStyles );
+			expect( editor.plugins.get( ImageStyleEditing ).normalizedStyles ).toBe( customStyles );
 
 			await editor.destroy();
 		} );
@@ -199,9 +261,9 @@ describe( 'ImageStyleEditing', () => {
 				plugins: [ ImageBlockEditing, ImageInlineEditing, ImageStyleEditing ]
 			} );
 
-			expect( editor.commands.get( 'imageStyle' ) ).to.be.instanceOf( ImageStyleCommand );
+			expect( editor.commands.get( 'imageStyle' ) ).toBeInstanceOf( ImageStyleCommand );
 
-			editor.destroy();
+			await editor.destroy();
 		} );
 	} );
 
@@ -225,20 +287,20 @@ describe( 'ImageStyleEditing', () => {
 			document = model.document;
 		} );
 
-		afterEach( () => {
-			editor.destroy();
+		afterEach( async () => {
+			await editor.destroy();
 		} );
 
 		it( 'should remove imageStyle attribute with invalid value', () => {
-			setModelData( model, '<imageBlock src="/assets/sample.png" imageStyle="foo"></imageBlock>' );
+			_setModelData( model, '<imageBlock src="/sample.png" imageStyle="foo"></imageBlock>' );
 
 			const image = document.getRoot().getChild( 0 );
 
-			expect( image.hasAttribute( 'imageStyle' ) ).to.be.false;
+			expect( image.hasAttribute( 'imageStyle' ) ).toBe( false );
 		} );
 
 		it( 'should remove imageStyle attribute with invalid value (after changing attribute value)', () => {
-			setModelData( model, '<imageBlock src="/assets/sample.png"></imageBlock>' );
+			_setModelData( model, '<imageBlock src="/sample.png"></imageBlock>' );
 
 			const image = document.getRoot().getChild( 0 );
 
@@ -246,49 +308,49 @@ describe( 'ImageStyleEditing', () => {
 				writer.setAttribute( 'imageStyle', 'foo', image );
 			} );
 
-			expect( image.hasAttribute( 'imageStyle' ) ).to.be.false;
+			expect( image.hasAttribute( 'imageStyle' ) ).toBe( false );
 		} );
 
 		it( 'should remove imageStyle attribute with invalid value (after changing image type)', () => {
-			setModelData( model, '[<imageBlock src="/assets/sample.png" imageStyle="block"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="/sample.png" imageStyle="block"></imageBlock>]' );
 
 			editor.execute( 'imageTypeInline' );
 
 			const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
-			expect( image.hasAttribute( 'imageStyle' ) ).to.be.false;
+			expect( image.hasAttribute( 'imageStyle' ) ).toBe( false );
 		} );
 
 		it( 'should remove imageStyle attribute with value not allowed for a block image', () => {
-			setModelData( model, '[<imageBlock src="/assets/sample.png" imageStyle="forInline"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="/sample.png" imageStyle="forInline"></imageBlock>]' );
 
 			const image = document.getRoot().getChild( 0 );
 
-			expect( image.hasAttribute( 'imageStyle' ) ).to.be.false;
+			expect( image.hasAttribute( 'imageStyle' ) ).toBe( false );
 		} );
 
 		it( 'should remove imageStyle attribute with value not allowed for an inline image', () => {
-			setModelData( model, '<paragraph>[<imageInline src="/assets/sample.png" imageStyle="forBlock"></imageInline>]</paragraph>' );
+			_setModelData( model, '<paragraph>[<imageInline src="/sample.png" imageStyle="forBlock"></imageInline>]</paragraph>' );
 
 			const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
-			expect( image.hasAttribute( 'imageStyle' ) ).to.be.false;
+			expect( image.hasAttribute( 'imageStyle' ) ).toBe( false );
 		} );
 
 		it( 'should not remove imageStyle attribute with value allowed for a block image', () => {
-			setModelData( model, '[<imageBlock src="/assets/sample.png" imageStyle="forBlock"></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src="/sample.png" imageStyle="forBlock"></imageBlock>]' );
 
 			const image = document.getRoot().getChild( 0 );
 
-			expect( image.getAttribute( 'imageStyle' ) ).to.equal( 'forBlock' );
+			expect( image.getAttribute( 'imageStyle' ) ).toBe( 'forBlock' );
 		} );
 
 		it( 'should not remove imageStyle attribute with value allowed for an inline image', () => {
-			setModelData( model, '<paragraph>[<imageInline src="/assets/sample.png" imageStyle="forInline"></imageInline>]</paragraph>' );
+			_setModelData( model, '<paragraph>[<imageInline src="/sample.png" imageStyle="forInline"></imageInline>]</paragraph>' );
 
 			const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
-			expect( image.getAttribute( 'imageStyle' ) ).to.equal( 'forInline' );
+			expect( image.getAttribute( 'imageStyle' ) ).toBe( 'forInline' );
 		} );
 	} );
 
@@ -312,26 +374,26 @@ describe( 'ImageStyleEditing', () => {
 		describe( 'view to model', () => {
 			describe( 'of the inline image', () => {
 				it( 'should convert from view to model', () => {
-					editor.setData( '<p><span><img class="image-style-align-left" src="/assets/sample.png" /></span></p>' );
+					editor.setData( '<p><span><img class="image-style-align-left" src="/sample.png" /></span></p>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) )
-						.to.equal( '<paragraph><imageInline imageStyle="alignLeft" src="/assets/sample.png"></imageInline></paragraph>' );
+					expect( _getModelData( model, { withoutSelection: true } ) )
+						.toBe( '<paragraph><imageInline imageStyle="alignLeft" src="/sample.png"></imageInline></paragraph>' );
 
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<p><span class="ck-widget image-inline image-style-align-left" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</span></p>' );
 					// ASK: Why class is once on the span element and once on the image?
 				} );
 
 				it( 'should not convert from view to model if class refers to not defined style', () => {
-					editor.setData( '<p><span><img class="foo-bar" src="/assets/sample.png" /></span></p>' );
+					editor.setData( '<p><span><img class="foo-bar" src="/sample.png" /></span></p>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
-						'<paragraph><imageInline src="/assets/sample.png"></imageInline></paragraph>'
+					expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+						'<paragraph><imageInline src="/sample.png"></imageInline></paragraph>'
 					);
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
@@ -342,24 +404,24 @@ describe( 'ImageStyleEditing', () => {
 						}
 					} );
 
-					editor.setData( '<p><span><img class="image-style-align-left" src="/assets/sample.png" /></span></p>' );
+					editor.setData( '<p><span><img class="image-style-align-left" src="/sample.png" /></span></p>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
-						'<paragraph><imageInline src="/assets/sample.png"></imageInline></paragraph>'
+					expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+						'<paragraph><imageInline src="/sample.png"></imageInline></paragraph>'
 					);
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
 				it( 'should not convert from view to model if class is not supported by the inline image', () => {
-					editor.setData( '<p><span><img class="image-style-block-align-left" src="/assets/sample.png" /></span></p>' );
+					editor.setData( '<p><span><img class="image-style-block-align-left" src="/sample.png" /></span></p>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
-						'<paragraph><imageInline src="/assets/sample.png"></imageInline></paragraph>'
+					expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+						'<paragraph><imageInline src="/sample.png"></imageInline></paragraph>'
 					);
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
@@ -369,41 +431,134 @@ describe( 'ImageStyleEditing', () => {
 							'<p><span><img class="image-style-align-left" /></span></p>'
 						);
 
-						expect( getModelData( model, { withoutSelection: true } ) )
-							.to.equal( '<paragraph><imageInline imageStyle="alignLeft"></imageInline></paragraph>' );
+						expect( _getModelData( model, { withoutSelection: true } ) )
+							.toBe( '<paragraph><imageInline imageStyle="alignLeft"></imageInline></paragraph>' );
+					} );
+				} );
+
+				describe( 'float style normalization', () => {
+					it( 'should convert float: left to alignLeft for inline image', () => {
+						editor.setData( '<p><img style="float: left" src="/sample.png" /></p>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<paragraph><imageInline imageStyle="alignLeft" src="/sample.png"></imageInline></paragraph>'
+						);
+					} );
+
+					it( 'should convert float: right to alignRight for inline image', () => {
+						editor.setData( '<p><span><img style="float: right" src="/sample.png" /></span></p>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<paragraph><imageInline imageStyle="alignRight" src="/sample.png"></imageInline></paragraph>'
+						);
+					} );
+
+					it( 'should not convert float: left if not a default style', async () => {
+						const customEditor = await VirtualTestEditor.create( {
+							plugins: [ ImageBlockEditing, ImageInlineEditing, ImageStyleEditing, Paragraph ],
+							image: {
+								styles: {
+									options: [ {
+										name: 'alignLeft',
+										modelElements: [ 'imageInline' ],
+										className: 'custom-align-left'
+									} ]
+								}
+							}
+						} );
+
+						customEditor.setData( '<p><img style="float: left" src="/sample.png" /></p>' );
+
+						expect( _getModelData( customEditor.model, { withoutSelection: true } ) ).toBe(
+							'<paragraph><imageInline src="/sample.png"></imageInline></paragraph>'
+						);
+
+						await customEditor.destroy();
+					} );
+
+					it( 'should not convert float: center', () => {
+						editor.setData( '<p><img style="float: center" src="/sample.png" /></p>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<paragraph><imageInline src="/sample.png"></imageInline></paragraph>'
+						);
+					} );
+
+					it( 'should not convert if float style is not consumable', () => {
+						editor.conversion.for( 'upcast' ).add( dispatcher => {
+							dispatcher.on( 'element:img', ( evt, data, conversionApi ) => {
+								conversionApi.consumable.consume( data.viewItem, { styles: [ 'float' ] } );
+							}, { priority: 'high' } );
+						} );
+
+						editor.setData( '<p><img style="float: left" src="/sample.png" /></p>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<paragraph><imageInline src="/sample.png"></imageInline></paragraph>'
+						);
+					} );
+
+					it( 'should consume the float style if converted', () => {
+						const consumeSpy = vi.fn( ( evt, data, conversionApi ) => {
+							expect( conversionApi.consumable.test( data.viewItem, { styles: [ 'float' ] } ) ).toBe( false );
+						} );
+
+						editor.data.upcastDispatcher.on( 'element:img', consumeSpy, { priority: 'lowest' } );
+						editor.setData( '<p><img style="float: left" src="/sample.png" /></p>' );
+
+						expect( consumeSpy ).toHaveBeenCalledOnce();
+					} );
+
+					it( 'should not set imageStyle for float when alignment styles are not configured', async () => {
+						const testEditor = await VirtualTestEditor.create( {
+							plugins: [ ImageBlockEditing, ImageInlineEditing, ImageStyleEditing, Paragraph ],
+							image: {
+								styles: {
+									options: [ 'inline', 'block' ]
+								}
+							}
+						} );
+
+						testEditor.setData( '<p><img src="/sample.png" style="float:left;" alt="foo"></p>' );
+
+						expect( _getModelData( testEditor.model, { withoutSelection: true } ) ).toBe(
+							'<paragraph><imageInline alt="foo" src="/sample.png"></imageInline></paragraph>'
+						);
+
+						await testEditor.destroy();
 					} );
 				} );
 			} );
 
 			describe( 'of the block image', () => {
 				it( 'should convert from view to model', () => {
-					editor.setData( '<figure class="image image-style-align-center"><img src="/assets/sample.png" /></figure>' );
+					editor.setData( '<figure class="image image-style-align-center"><img src="/sample.png" /></figure>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) )
-						.to.equal( '<imageBlock imageStyle="alignCenter" src="/assets/sample.png"></imageBlock>' );
+					expect( _getModelData( model, { withoutSelection: true } ) )
+						.toBe( '<imageBlock imageStyle="alignCenter" src="/sample.png"></imageBlock>' );
 
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<figure class="ck-widget image image-style-align-center" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</figure>' );
 				} );
 
 				it( 'should not convert from view to model if class refers to not defined style', () => {
-					editor.setData( '<figure class="image foo-bar"><img src="/assets/sample.png" /></figure>' );
+					editor.setData( '<figure class="image foo-bar"><img src="/sample.png" /></figure>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
-						'<imageBlock src="/assets/sample.png"></imageBlock>'
+					expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+						'<imageBlock src="/sample.png"></imageBlock>'
 					);
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
 				it( 'should not convert from view to model when no image in the figure', () => {
 					editor.setData( '<figure class="image-style-align-center"></figure>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph></paragraph>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal( '<p></p>' );
+					expect( _getModelData( model, { withoutSelection: true } ) ).toBe( '<paragraph></paragraph>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe( '<p></p>' );
 				} );
 
 				it( 'should not convert from view to model if schema prevents it', () => {
@@ -413,13 +568,13 @@ describe( 'ImageStyleEditing', () => {
 						}
 					} );
 
-					editor.setData( '<figure class="image image-style-align-center"><img src="/assets/sample.png" /></figure>' );
+					editor.setData( '<figure class="image image-style-align-center"><img src="/sample.png" /></figure>' );
 
-					expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
-						'<imageBlock src="/assets/sample.png"></imageBlock>'
+					expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+						'<imageBlock src="/sample.png"></imageBlock>'
 					);
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
@@ -437,13 +592,13 @@ describe( 'ImageStyleEditing', () => {
 						}
 					} );
 
-					customEditor.setData( '<figure class="image image-style-inline"><img src="/assets/sample.png" /></figure>' );
+					customEditor.setData( '<figure class="image image-style-inline"><img src="/sample.png" /></figure>' );
 
-					expect( getModelData( customEditor.model, { withoutSelection: true } ) ).to.equal(
-						'<imageBlock src="/assets/sample.png"></imageBlock>'
+					expect( _getModelData( customEditor.model, { withoutSelection: true } ) ).toBe(
+						'<imageBlock src="/sample.png"></imageBlock>'
 					);
-					expect( getViewData( customEditor.editing.view, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( _getViewData( customEditor.editing.view, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 
 					await customEditor.destroy();
@@ -457,8 +612,8 @@ describe( 'ImageStyleEditing', () => {
 							'</figure>'
 						);
 
-						expect( getModelData( model, { withoutSelection: true } ) )
-							.to.equal( '<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>' );
+						expect( _getModelData( model, { withoutSelection: true } ) )
+							.toBe( '<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>' );
 					} );
 
 					it( 'inserts an image with the "figcaption" content when the "src" attribute is missing (img + figcaption)', () => {
@@ -469,8 +624,8 @@ describe( 'ImageStyleEditing', () => {
 							'</figure>'
 						);
 
-						expect( getModelData( model, { withoutSelection: true } ) )
-							.to.equal( '<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>' );
+						expect( _getModelData( model, { withoutSelection: true } ) )
+							.toBe( '<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>' );
 					} );
 
 					it( 'inserts an image with the "figcaption" content when the "src" attribute is missing (figcaption + img)', () => {
@@ -481,8 +636,108 @@ describe( 'ImageStyleEditing', () => {
 							'</figure>'
 						);
 
-						expect( getModelData( model, { withoutSelection: true } ) )
-							.to.equal( '<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>' );
+						expect( _getModelData( model, { withoutSelection: true } ) )
+							.toBe( '<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>' );
+					} );
+				} );
+
+				describe( 'float style normalization', () => {
+					it( 'should convert float: left to alignLeft for block image', () => {
+						editor.setData( '<figure class="image" style="float: left"><img src="/sample.png" /></figure>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<imageBlock imageStyle="alignLeft" src="/sample.png"></imageBlock>'
+						);
+					} );
+
+					it( 'should convert float: right to alignRight for block image', () => {
+						editor.setData( '<figure class="image" style="float: right"><img src="/sample.png" /></figure>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<imageBlock imageStyle="alignRight" src="/sample.png"></imageBlock>'
+						);
+					} );
+
+					it( 'should not convert float: left if not a default style', async () => {
+						const customEditor = await VirtualTestEditor.create( {
+							plugins: [ ImageBlockEditing, ImageInlineEditing, ImageStyleEditing, Paragraph ],
+							image: {
+								styles: {
+									options: [ {
+										name: 'alignBlockLeft',
+										modelElements: [ 'imageBlock' ],
+										className: 'custom-align-block-left'
+									} ]
+								}
+							}
+						} );
+
+						customEditor.setData( '<figure class="image" style="float: left"><img src="/sample.png" /></figure>' );
+
+						expect( _getModelData( customEditor.model, { withoutSelection: true } ) ).toBe(
+							'<imageBlock src="/sample.png"></imageBlock>'
+						);
+
+						await customEditor.destroy();
+					} );
+
+					it( 'should not convert float: center', () => {
+						editor.setData( '<figure class="image" style="float: center"><img src="/sample.png" /></figure>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<imageBlock src="/sample.png"></imageBlock>'
+						);
+					} );
+
+					it( 'should not convert if float style is not consumable', () => {
+						editor.conversion.for( 'upcast' ).add( dispatcher => {
+							dispatcher.on( 'element:figure', ( evt, data, conversionApi ) => {
+								conversionApi.consumable.consume( data.viewItem, { styles: [ 'float' ] } );
+							}, { priority: 'high' } );
+						} );
+
+						editor.setData( '<figure class="image" style="float: left"><img src="/sample.png" /></figure>' );
+
+						expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+							'<imageBlock src="/sample.png"></imageBlock>'
+						);
+					} );
+
+					it( 'should consume the float style if converted', () => {
+						const consumeSpy = vi.fn( ( evt, data, conversionApi ) => {
+							expect( conversionApi.consumable.test( data.viewItem, { styles: [ 'float' ] } ) ).toBe( false );
+						} );
+
+						editor.data.upcastDispatcher.on( 'element:figure', consumeSpy, { priority: 'lowest' } );
+						editor.setData( '<figure class="image" style="float: left"><img src="/sample.png" /></figure>' );
+
+						expect( consumeSpy ).toHaveBeenCalled();
+					} );
+
+					it( 'should not set imageStyle for float when alignment styles are not configured', async () => {
+						const testEditor = await VirtualTestEditor.create( {
+							plugins: [ ImageInlineEditing, ImageBlockEditing, ImageStyleEditing, Paragraph ],
+							image: {
+								styles: {
+									options: [
+										{
+											name: 'foo-left',
+											title: 'Image on left margin',
+											className: 'image-margin-left',
+											modelElements: [ 'imageInline' ]
+										}
+									]
+								}
+							}
+						} );
+
+						testEditor.setData( '<figure class="image" style="float: left"><img src="/sample.png" /></figure>' );
+
+						expect( _getModelData( testEditor.model, { withoutSelection: true } ) ).toBe(
+							'<imageBlock src="/sample.png"></imageBlock>'
+						);
+
+						await testEditor.destroy();
 					} );
 				} );
 			} );
@@ -505,10 +760,10 @@ describe( 'ImageStyleEditing', () => {
 
 				editor.setData( '<figure class="media"><o-embed url="https://ckeditor.com"></o-embed></figure>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 					'<paragraph></paragraph>'
 				);
-				expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+				expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 					'<p></p>'
 				);
 			} );
@@ -517,53 +772,53 @@ describe( 'ImageStyleEditing', () => {
 		describe( 'model to view', () => {
 			describe( 'of the block image', () => {
 				it( 'should add the class when imageStyle attribute is being added', () => {
-					setModelData( model, '<imageBlock src="/assets/sample.png"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'alignLeft', image );
 					} );
 
-					expect( editor.getData() ).to.equal(
-						'<figure class="image image-style-align-left"><img src="/assets/sample.png"></figure>'
+					expect( editor.getData() ).toBe(
+						'<figure class="image image-style-align-left"><img src="/sample.png"></figure>'
 					);
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<figure class="ck-widget image image-style-align-left" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</figure>'
 					);
 				} );
 
 				it( 'should remove the class when imageStyle attribute is being removed', () => {
-					setModelData( model, '<imageBlock src="/assets/sample.png" imageStyle="alignLeft"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png" imageStyle="alignLeft"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', null, image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<figure class="image"><img src="/assets/sample.png"></figure>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( editor.getData() ).toBe( '<figure class="image"><img src="/sample.png"></figure>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
 				it( 'should change the class when imageStyle attribute is being changed', () => {
-					setModelData( model, '<imageBlock src="/assets/sample.png" imageStyle="alignLeft"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png" imageStyle="alignLeft"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'alignRight', image );
 					} );
 
-					expect( editor.getData() ).to.equal(
-						'<figure class="image image-style-align-right"><img src="/assets/sample.png"></figure>'
+					expect( editor.getData() ).toBe(
+						'<figure class="image image-style-align-right"><img src="/sample.png"></figure>'
 					);
 
 					// https://github.com/ckeditor/ckeditor5-image/issues/132
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<figure class="ck-widget image image-style-align-right" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</figure>'
 					);
 
@@ -572,12 +827,12 @@ describe( 'ImageStyleEditing', () => {
 					} );
 
 					expect( editor.getData() )
-						.to.equal( '<figure class="image image-style-align-left"><img src="/assets/sample.png"></figure>' );
+						.toBe( '<figure class="image image-style-align-left"><img src="/sample.png"></figure>' );
 
 					// https://github.com/ckeditor/ckeditor5-image/issues/132
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<figure class="ck-widget image image-style-align-left" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</figure>'
 					);
 				} );
@@ -587,15 +842,15 @@ describe( 'ImageStyleEditing', () => {
 						conversionApi.consumable.consume( data.item, 'attribute:imageStyle' );
 					}, { priority: 'high' } );
 
-					setModelData( model, '<imageBlock src="/assets/sample.png"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'alignLeft', image );
 					} );
 
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
@@ -604,52 +859,52 @@ describe( 'ImageStyleEditing', () => {
 						conversionApi.consumable.consume( data.item, 'attribute:imageStyle' );
 					}, { priority: 'high' } );
 
-					setModelData( model, '<imageBlock src="/assets/sample.png" imageStyle="alignLeft"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png" imageStyle="alignLeft"></imageBlock>' );
 
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
 				it( 'should not convert if current imageStyle is not present and the new imageStyle attribute is not defined', () => {
-					setModelData( model, '<imageBlock src="/assets/sample.png"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'foo', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<figure class="image"><img src="/assets/sample.png"></figure>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( editor.getData() ).toBe( '<figure class="image"><img src="/sample.png"></figure>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
 				it( 'should not convert if current imageStyle is present and the new imageStyle attribute is not defined', () => {
-					setModelData( model, '<imageBlock src="/assets/sample.png" imageStyle="alignLeft"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png" imageStyle="alignLeft"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'foo', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<figure class="image"><img src="/assets/sample.png"></figure>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( editor.getData() ).toBe( '<figure class="image"><img src="/sample.png"></figure>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
 				it( 'should not convert if current imageStyle is not defined and the new imageStyle attribute is null', () => {
-					setModelData( model, '<imageBlock src="/assets/sample.png" imageStyle="foo"></imageBlock>' );
+					_setModelData( model, '<imageBlock src="/sample.png" imageStyle="foo"></imageBlock>' );
 					const image = document.getRoot().getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', null, image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<figure class="image"><img src="/assets/sample.png"></figure>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<figure class="ck-widget image" contenteditable="false"><img src="/assets/sample.png"></img></figure>'
+					expect( editor.getData() ).toBe( '<figure class="image"><img src="/sample.png"></figure>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<figure class="ck-widget image" contenteditable="false"><img src="/sample.png"></img></figure>'
 					);
 				} );
 
@@ -662,10 +917,10 @@ describe( 'ImageStyleEditing', () => {
 
 					expect(
 						() => customEditor.setData( '<figure class="image image_resized" style="width:331px;"></figure>' )
-					).not.to.throw();
+					).not.toThrow();
 
 					// No conversion has been done.
-					expect( customEditor.getData() ).to.equal( '' );
+					expect( customEditor.getData() ).toBe( '' );
 
 					await customEditor.destroy();
 				} );
@@ -673,24 +928,24 @@ describe( 'ImageStyleEditing', () => {
 
 			describe( 'of the inline image', () => {
 				it( 'should add the class when imageStyle attribute is being added', () => {
-					setModelData( model, '<paragraph><imageInline src="/assets/sample.png"></imageInline></paragraph>' );
+					_setModelData( model, '<paragraph><imageInline src="/sample.png"></imageInline></paragraph>' );
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'alignLeft', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img class="image-style-align-left" src="/assets/sample.png"></p>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( editor.getData() ).toBe( '<p><img class="image-style-align-left" src="/sample.png"></p>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<p><span class="ck-widget image-inline image-style-align-left" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</span></p>'
 					);
 				} );
 
 				it( 'should remove the class when imageStyle attribute is being removed', () => {
-					setModelData( model,
-						'<paragraph><imageInline src="/assets/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
+					_setModelData( model,
+						'<paragraph><imageInline src="/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
 					);
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
@@ -698,15 +953,15 @@ describe( 'ImageStyleEditing', () => {
 						writer.setAttribute( 'imageStyle', null, image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img src="/assets/sample.png"></p>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( editor.getData() ).toBe( '<p><img src="/sample.png"></p>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
 				it( 'should change the class when imageStyle attribute is being changed', () => {
-					setModelData( model,
-						'<paragraph><imageInline src="/assets/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
+					_setModelData( model,
+						'<paragraph><imageInline src="/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
 					);
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
@@ -714,12 +969,12 @@ describe( 'ImageStyleEditing', () => {
 						writer.setAttribute( 'imageStyle', 'alignRight', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img class="image-style-align-right" src="/assets/sample.png"></p>' );
+					expect( editor.getData() ).toBe( '<p><img class="image-style-align-right" src="/sample.png"></p>' );
 
 					// https://github.com/ckeditor/ckeditor5-image/issues/132
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<p><span class="ck-widget image-inline image-style-align-right" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</span></p>'
 					);
 
@@ -727,12 +982,12 @@ describe( 'ImageStyleEditing', () => {
 						writer.setAttribute( 'imageStyle', 'alignLeft', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img class="image-style-align-left" src="/assets/sample.png"></p>' );
+					expect( editor.getData() ).toBe( '<p><img class="image-style-align-left" src="/sample.png"></p>' );
 
 					// https://github.com/ckeditor/ckeditor5-image/issues/132
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
 						'<p><span class="ck-widget image-inline image-style-align-left" contenteditable="false">' +
-							'<img src="/assets/sample.png"></img>' +
+							'<img src="/sample.png"></img>' +
 						'</span></p>'
 					);
 				} );
@@ -742,15 +997,15 @@ describe( 'ImageStyleEditing', () => {
 						conversionApi.consumable.consume( data.item, 'attribute:imageStyle' );
 					}, { priority: 'high' } );
 
-					setModelData( model, '<paragraph><imageInline src="/assets/sample.png"></imageInline></paragraph>' );
+					_setModelData( model, '<paragraph><imageInline src="/sample.png"></imageInline></paragraph>' );
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'alignLeft', image );
 					} );
 
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
@@ -759,32 +1014,32 @@ describe( 'ImageStyleEditing', () => {
 						conversionApi.consumable.consume( data.item, 'attribute:imageStyle' );
 					}, { priority: 'high' } );
 
-					setModelData( model,
-						'<paragraph><imageInline src="/assets/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
+					_setModelData( model,
+						'<paragraph><imageInline src="/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
 					);
 
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
 				it( 'should not convert if current imageStyle is not present and the new imageStyle attribute is not defined', () => {
-					setModelData( model, '<paragraph><imageInline src="/assets/sample.png"></imageInline></paragraph>' );
+					_setModelData( model, '<paragraph><imageInline src="/sample.png"></imageInline></paragraph>' );
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', 'foo', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img src="/assets/sample.png"></p>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( editor.getData() ).toBe( '<p><img src="/sample.png"></p>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
 				it( 'should not convert if current imageStyle is present and the new imageStyle attribute is not defined', () => {
-					setModelData( model,
-						'<paragraph><imageInline src="/assets/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
+					_setModelData( model,
+						'<paragraph><imageInline src="/sample.png" imageStyle="alignLeft"></imageInline></paragraph>'
 					);
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
@@ -792,23 +1047,23 @@ describe( 'ImageStyleEditing', () => {
 						writer.setAttribute( 'imageStyle', 'foo', image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img src="/assets/sample.png"></p>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( editor.getData() ).toBe( '<p><img src="/sample.png"></p>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
 				it( 'should not convert if current imageStyle is not defined and the new imageStyle attribute is null', () => {
-					setModelData( model, '<paragraph><imageInline src="/assets/sample.png" imageStyle="foo"></imageInline></paragraph>' );
+					_setModelData( model, '<paragraph><imageInline src="/sample.png" imageStyle="foo"></imageInline></paragraph>' );
 					const image = document.getRoot().getChild( 0 ).getChild( 0 );
 
 					model.change( writer => {
 						writer.setAttribute( 'imageStyle', null, image );
 					} );
 
-					expect( editor.getData() ).to.equal( '<p><img src="/assets/sample.png"></p>' );
-					expect( getViewData( viewDocument, { withoutSelection: true } ) ).to.equal(
-						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/assets/sample.png"></img></span></p>'
+					expect( editor.getData() ).toBe( '<p><img src="/sample.png"></p>' );
+					expect( _getViewData( viewDocument, { withoutSelection: true } ) ).toBe(
+						'<p><span class="ck-widget image-inline" contenteditable="false"><img src="/sample.png"></img></span></p>'
 					);
 				} );
 
@@ -821,13 +1076,97 @@ describe( 'ImageStyleEditing', () => {
 
 					expect(
 						() => customEditor.setData( '<figure class="image image_resized" style="width:331px;"></figure>' )
-					).not.to.throw();
+					).not.toThrow();
 
 					// No conversion has been done.
-					expect( customEditor.getData() ).to.equal( '' );
+					expect( customEditor.getData() ).toBe( '' );
 
 					await customEditor.destroy();
 				} );
+			} );
+		} );
+	} );
+
+	describe( 'table cell alignment integration', () => {
+		let editor, model;
+
+		beforeEach( async () => {
+			editor = await ModelTestEditor.create( {
+				plugins: [
+					Paragraph, AlignmentEditing,
+					ImageBlockEditing, ImageInlineEditing, ImageStyleEditing,
+					TableEditing, TablePropertiesEditing, TableCellPropertiesEditing
+				]
+			} );
+
+			model = editor.model;
+		} );
+
+		afterEach( async () => {
+			await editor.destroy();
+		} );
+
+		describe( 'of the inline image', () => {
+			it( 'should wrap inline image with paragraph and align such paragraph if placed within `td[align]` column', () => {
+				editor.setData(
+					'<table>' +
+						'<tr>' +
+							'<td align="right">' +
+								'<img src="/sample.png" />' +
+							'</td>' +
+						'</tr>' +
+					'</table>'
+				);
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+					modelTable( [ [
+						'<paragraph alignment="right">' +
+							'<imageInline src="/sample.png"></imageInline>' +
+						'</paragraph>'
+					] ] )
+				);
+			} );
+		} );
+
+		describe( 'of the block image', () => {
+			it( 'should properly align image if placed in `td[align]` column', () => {
+				editor.setData(
+					'<table>' +
+						'<tr>' +
+							'<td align="right">' +
+								'<figure class="image">' +
+									'<img alt="Foo." />' +
+								'</figure>' +
+							'</td>' +
+						'</tr>' +
+					'</table>'
+				);
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+					modelTable( [ [
+						'<imageBlock alt="Foo." imageStyle="alignBlockRight"></imageBlock>'
+					] ] )
+				);
+			} );
+
+			it( 'should not override already set alignment if placed within `td[align]` column', () => {
+				editor.setData(
+					'<table>' +
+						'<tr>' +
+							'<td align="right">' +
+								'<figure class="image image-style-align-center">' +
+									'<img alt="Foo." />' +
+								'</figure>' +
+							'</td>' +
+						'</tr>' +
+					'</table>'
+				);
+
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+					modelTable( [ [
+						'<imageBlock alt="Foo." imageStyle="alignCenter"></imageBlock>'
+					] ] )
+				);
 			} );
 		} );
 	} );

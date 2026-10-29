@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ClickObserver from '../../../src/view/observer/clickobserver';
-import View from '../../../src/view/view';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClickObserver } from '../../../src/view/observer/clickobserver.js';
+import { EditingView } from '../../../src/view/view.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'ClickObserver', () => {
 	let view, viewDocument, observer;
 
 	beforeEach( () => {
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 		observer = view.addObserver( ClickObserver );
 	} );
@@ -23,21 +22,21 @@ describe( 'ClickObserver', () => {
 	} );
 
 	it( 'should define domEventType', () => {
-		expect( observer.domEventType ).to.equal( 'click' );
+		expect( observer.domEventType ).toBe( 'click' );
 	} );
 
 	describe( 'onDomEvent', () => {
 		it( 'should fire click with the right event data', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'click', spy );
 
 			observer.onDomEvent( { type: 'click', target: document.body } );
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 
-			const data = spy.args[ 0 ][ 1 ];
-			expect( data.domTarget ).to.equal( document.body );
+			const data = spy.mock.calls[ 0 ][ 1 ];
+			expect( data.domTarget ).toBe( document.body );
 		} );
 	} );
 } );

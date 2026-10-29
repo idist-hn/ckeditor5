@@ -1,21 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module typing/delete
  */
 
+import {
+	_tryFixingModelRange,
+	BubblingEventInfo,
+	ViewDocumentDomEventData,
+	type ViewDocumentKeyDownEvent
+} from '@ckeditor/ckeditor5-engine';
 import { Plugin } from '@ckeditor/ckeditor5-core';
-import DeleteCommand from './deletecommand';
-import DeleteObserver, { type ViewDocumentDeleteEvent } from './deleteobserver';
+import { keyCodes } from '@ckeditor/ckeditor5-utils';
+import { DeleteCommand } from './deletecommand.js';
+import { DeleteObserver, type DeleteEventData, type ViewDocumentDeleteEvent } from './deleteobserver.js';
 
 /**
  * The delete and backspace feature. Handles keys such as <kbd>Delete</kbd> and <kbd>Backspace</kbd>, other
  * keystrokes and user actions that result in deleting content in the editor.
  */
-export default class Delete extends Plugin {
+export class Delete extends Plugin {
 	/**
 	 * Whether pressing backspace should trigger undo action
 	 */
@@ -26,6 +33,13 @@ export default class Delete extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Delete' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -61,9 +75,9 @@ export default class Delete extends Plugin {
 			const commandData: Parameters<DeleteCommand[ 'execute' ]>[ 0 ] = { sequence };
 
 			if ( unit == 'selection' ) {
-				const modelRanges = Array.from( selectionToRemove!.getRanges() ).map( viewRange => {
-					return editor.editing.mapper.toModelRange( viewRange );
-				} );
+				const modelRanges = Array.from( selectionToRemove!.getRanges() )
+					.map( viewRange => editor.editing.mapper.toModelRange( viewRange ) )
+					.map( modelRange => _tryFixingModelRange( modelRange, editor.model.schema ) || modelRange );
 
 				commandData.selection = editor.model.createSelection( modelRanges );
 			} else {
@@ -74,6 +88,44 @@ export default class Delete extends Plugin {
 
 			view.scrollToTheSelection();
 		}, { priority: 'low' } );
+
+		// Handle the Backspace key while at the beginning of a nested editable. See https://github.com/ckeditor/ckeditor5/issues/17383.
+		this.listenTo<ViewDocumentKeyDownEvent>( viewDocument, 'keydown', ( evt, data ) => {
+			if (
+				viewDocument.isComposing ||
+				data.keyCode != keyCodes.backspace ||
+				!modelDocument.selection.isCollapsed
+			) {
+				return;
+			}
+
+			const ancestorLimit = editor.model.schema.getLimitElement( modelDocument.selection );
+			const limitStartPosition = editor.model.createPositionAt( ancestorLimit, 0 );
+
+			if ( limitStartPosition.isTouching( modelDocument.selection.getFirstPosition()! ) ) {
+				// Stop the beforeinput event as it could be invalid.
+				data.preventDefault();
+
+				// Create a fake delete event so all features can act on it and the target range is proper.
+				const modelRange = editor.model.schema.getNearestSelectionRange( limitStartPosition, 'forward' );
+
+				if ( !modelRange ) {
+					return;
+				}
+
+				const viewSelection = view.createSelection( editor.editing.mapper.toViewRange( modelRange ) );
+				const targetRange = viewSelection.getFirstRange()!;
+
+				const eventInfo = new BubblingEventInfo( viewDocument, 'delete', targetRange );
+				const deleteData: Partial<DeleteEventData> = {
+					unit: 'selection',
+					direction: 'backward',
+					selectionToRemove: viewSelection
+				};
+
+				viewDocument.fire( eventInfo, new ViewDocumentDomEventData( view, data.domEvent, deleteData ) );
+			}
+		} );
 
 		if ( this.editor.plugins.has( 'UndoEditing' ) ) {
 			this.listenTo<ViewDocumentDeleteEvent>( viewDocument, 'delete', ( evt, data ) => {

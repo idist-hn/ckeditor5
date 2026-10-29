@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module list/todolist/todolistui
  */
 
-import { createUIComponent } from '../list/utils';
-import todoListIcon from '../../theme/icons/todolist.svg';
-import { Plugin } from 'ckeditor5/src/core';
+import { createUIComponents } from '../list/utils.js';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { IconTodoList } from '@ckeditor/ckeditor5-icons';
 
 /**
  * The to-do list UI feature. It introduces the `'todoList'` button that
  * allows to convert elements to and from to-do list items and to indent or outdent them.
  */
-export default class TodoListUI extends Plugin {
+export class TodoListUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -26,9 +26,16 @@ export default class TodoListUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const t = this.editor.t;
 
-		createUIComponent( this.editor, 'todoList', t( 'To-do List' ), todoListIcon );
+		createUIComponents( this.editor, 'todoList', t( 'To-do List' ), IconTodoList );
 	}
 }

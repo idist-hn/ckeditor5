@@ -1,28 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/colorselector/colorgridsfragmentview
  */
 
-import View from '../view';
-import ButtonView from '../button/buttonview';
-import ColorGridView, { type ColorDefinition } from '../colorgrid/colorgridview';
-import ColorTileView from '../colorgrid/colortileview';
-import LabelView from '../label/labelview';
-import Template from '../template';
+import { View } from '../view.js';
+import { ButtonView } from '../button/buttonview.js';
+import { ColorGridView, type ColorDefinition } from '../colorgrid/colorgridview.js';
+import { ColorTileView } from '../colorgrid/colortileview.js';
+import { Template } from '../template.js';
 
-import DocumentColorCollection from './documentcolorcollection';
+import { DocumentColorCollection } from './documentcolorcollection.js';
 
 import type { Model } from '@ckeditor/ckeditor5-engine';
 import type { FocusTracker, Locale } from '@ckeditor/ckeditor5-utils';
-import type ViewCollection from '../viewcollection';
-import type { ColorSelectorExecuteEvent, ColorSelectorColorPickerShowEvent } from './colorselectorview';
+import { type ViewCollection } from '../viewcollection.js';
+import type { FocusableView } from '../focuscycler.js';
+import type { ColorSelectorExecuteEvent, ColorSelectorColorPickerShowEvent } from './colorselectorview.js';
 
-import removeButtonIcon from '@ckeditor/ckeditor5-core/theme/icons/eraser.svg';
-import colorPaletteIcon from '../../theme/icons/color-palette.svg';
+import { IconEraser, IconColorPalette } from '@ckeditor/ckeditor5-icons';
 
 /**
  * One of the fragments of {@link module:ui/colorselector/colorselectorview~ColorSelectorView}.
@@ -36,7 +35,7 @@ import colorPaletteIcon from '../../theme/icons/color-palette.svg';
  * * A dynamic {@link module:ui/colorgrid/colorgridview~ColorGridView} of colors used in the document.
  * * If color picker is configured, the "Color Picker" button is visible too.
  */
-export default class ColorGridsFragmentView extends View {
+export class ColorGridsFragmentView extends View {
 	/**
 	 * A collection of the children of the table.
 	 */
@@ -118,7 +117,7 @@ export default class ColorGridsFragmentView extends View {
 	 *
 	 * @readonly
 	 */
-	protected _focusables: ViewCollection;
+	protected _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * Document color section's label.
@@ -141,14 +140,15 @@ export default class ColorGridsFragmentView extends View {
 	 * Creates an instance of the view.
 	 *
 	 * @param locale The localization services instance.
-	 * @param colors An array with definitions of colors to be displayed in the table.
-	 * @param columns The number of columns in the color grid.
-	 * @param removeButtonLabel The label of the button responsible for removing the color.
-	 * @param colorPickerLabel The label of the button responsible for color picker appearing.
-	 * @param documentColorsLabel The label for the section with the document colors.
-	 * @param documentColorsCount The number of colors in the document colors section inside the color dropdown.
-	 * @param focusTracker Tracks information about the DOM focus in the list.
-	 * @param focusables A collection of views that can be focused in the view.
+	 * @param options Constructor options.
+	 * @param options.colors An array with definitions of colors to be displayed in the table.
+	 * @param options.columns The number of columns in the color grid.
+	 * @param options.removeButtonLabel The label of the button responsible for removing the color.
+	 * @param options.colorPickerLabel The label of the button responsible for color picker appearing.
+	 * @param options.documentColorsLabel The label for the section with the document colors.
+	 * @param options.documentColorsCount The number of colors in the document colors section inside the color dropdown.
+	 * @param options.focusTracker Tracks information about the DOM focus in the list.
+	 * @param options.focusables A collection of views that can be focused in the view.
 	 */
 	constructor(
 		locale: Locale,
@@ -163,7 +163,7 @@ export default class ColorGridsFragmentView extends View {
 			documentColorsLabel?: string;
 			documentColorsCount?: number;
 			focusTracker: FocusTracker;
-			focusables: ViewCollection;
+			focusables: ViewCollection<FocusableView>;
 		}
 	) {
 		super( locale );
@@ -260,16 +260,21 @@ export default class ColorGridsFragmentView extends View {
 		if ( this.documentColorsCount ) {
 			// Create a label for document colors.
 			const bind = Template.bind( this.documentColors, this.documentColors );
-			const label = new LabelView( this.locale );
-			label.text = this._documentColorsLabel;
-			label.extendTemplate( {
+			const label = new View( this.locale );
+			label.setTemplate( {
+				tag: 'span',
 				attributes: {
 					class: [
 						'ck',
 						'ck-color-grid__label',
 						bind.if( 'isEmpty', 'ck-hidden' )
 					]
-				}
+				},
+				children: [
+					{
+						text: this._documentColorsLabel
+					}
+				]
 			} );
 			this.items.add( label );
 			this.documentColorsGrid = this._createDocumentColorsGrid();
@@ -279,7 +284,6 @@ export default class ColorGridsFragmentView extends View {
 		this._createColorPickerButton();
 
 		this._addColorSelectorElementsToFocusTracker();
-		this.focus();
 	}
 
 	/**
@@ -314,6 +318,7 @@ export default class ColorGridsFragmentView extends View {
 		this.focusTracker.add( this.removeColorButtonView.element! );
 		this._focusables.add( this.removeColorButtonView );
 
+		/* v8 ignore else -- @preserve */
 		if ( this.staticColorsGrid ) {
 			this.focusTracker.add( this.staticColorsGrid.element! );
 			this._focusables.add( this.staticColorsGrid );
@@ -334,7 +339,7 @@ export default class ColorGridsFragmentView extends View {
 		this.colorPickerButtonView.set( {
 			label: this._colorPickerLabel,
 			withText: true,
-			icon: colorPaletteIcon,
+			icon: IconColorPalette,
 			class: 'ck-color-selector__color-picker'
 		} );
 
@@ -351,7 +356,7 @@ export default class ColorGridsFragmentView extends View {
 
 		buttonView.set( {
 			withText: true,
-			icon: removeButtonIcon,
+			icon: IconEraser,
 			label: this._removeButtonLabel
 		} );
 
@@ -408,7 +413,7 @@ export default class ColorGridsFragmentView extends View {
 
 				colorTile.set( {
 					color: colorObj.color,
-					hasBorder: colorObj.options && colorObj.options.hasBorder
+					hasBorder: colorObj.options?.hasBorder
 				} );
 
 				if ( colorObj.label ) {

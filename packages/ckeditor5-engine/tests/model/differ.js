@@ -1,21 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../src/model/model';
-import Element from '../../src/model/element';
-import Text from '../../src/model/text';
-import Position from '../../src/model/position';
-import Range from '../../src/model/range';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model } from '../../src/model/model.js';
+import { ModelElement } from '../../src/model/element.js';
+import { ModelText } from '../../src/model/text.js';
+import { ModelPosition } from '../../src/model/position.js';
+import { ModelRange } from '../../src/model/range.js';
 
-import InsertOperation from '../../src/model/operation/insertoperation';
-import MoveOperation from '../../src/model/operation/moveoperation';
-import RenameOperation from '../../src/model/operation/renameoperation';
-import AttributeOperation from '../../src/model/operation/attributeoperation';
-import SplitOperation from '../../src/model/operation/splitoperation';
-import MergeOperation from '../../src/model/operation/mergeoperation';
-import RootOperation from '../../src/model/operation/rootoperation';
+import { InsertOperation } from '../../src/model/operation/insertoperation.js';
+import { MoveOperation } from '../../src/model/operation/moveoperation.js';
+import { RenameOperation } from '../../src/model/operation/renameoperation.js';
+import { AttributeOperation } from '../../src/model/operation/attributeoperation.js';
+import { SplitOperation } from '../../src/model/operation/splitoperation.js';
+import { MergeOperation } from '../../src/model/operation/mergeoperation.js';
+import { RootOperation } from '../../src/model/operation/rootoperation.js';
 
 describe( 'Differ', () => {
 	let doc, differ, root, model;
@@ -28,187 +29,210 @@ describe( 'Differ', () => {
 		root = doc.createRoot();
 
 		root._appendChild( [
-			new Element( 'paragraph', null, [
-				new Text( 'foo' )
+			new ModelElement( 'paragraph', null, [
+				new ModelText( 'foo' )
 			] ),
-			new Element( 'paragraph', null, [
-				new Text( 'bar' )
+			new ModelElement( 'paragraph', null, [
+				new ModelText( 'bar' )
 			] )
 		] );
 	} );
 
 	describe( 'insert', () => {
 		it( 'an element', () => {
-			const position = new Position( root, [ 1 ] );
+			const position = new ModelPosition( root, [ 1 ] );
+			const element = new ModelElement( 'imageBlock' );
 
 			model.change( () => {
-				insert( new Element( 'imageBlock' ), position );
+				insert( element, position );
 
 				expectChanges( [
-					{ type: 'insert', name: 'imageBlock', length: 1, position }
+					{ type: 'insert', name: 'imageBlock', length: 1, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'a non-empty element with attributes', () => {
-			const position = new Position( root, [ 1 ] );
+			const position = new ModelPosition( root, [ 1 ] );
+			const element = new ModelElement(
+				'imageBlock', { src: 'foo.jpg' }, new ModelElement( 'caption', null, new ModelText( 'bar' ) )
+			);
 
 			model.change( () => {
-				insert(
-					new Element( 'imageBlock', { src: 'foo.jpg' }, new Element( 'caption', null, new Text( 'bar' ) ) ),
-					position
-				);
+				insert( element, position );
+
+				const attributes = new Map( [ [ 'src', 'foo.jpg' ] ] );
 
 				expectChanges( [
-					{ type: 'insert', name: 'imageBlock', length: 1, position, attributes: new Map( [ [ 'src', 'foo.jpg' ] ] ) }
+					{ type: 'insert', name: 'imageBlock', length: 1, position, attributes, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'multiple elements', () => {
-			const position = new Position( root, [ 1 ] );
+			const position = new ModelPosition( root, [ 1 ] );
+			const image = new ModelElement( 'imageBlock' );
+			const paragraph = new ModelElement( 'paragraph' );
 
 			model.change( () => {
-				insert( [ new Element( 'imageBlock' ), new Element( 'paragraph' ) ], position );
+				insert( [ image, paragraph ], position );
 
 				expectChanges( [
-					{ type: 'insert', name: 'imageBlock', length: 1, position },
-					{ type: 'insert', name: 'paragraph', length: 1, position: position.getShiftedBy( 1 ) }
+					{ type: 'insert', name: 'imageBlock', length: 1, position, action: 'insert' },
+					{ type: 'insert', name: 'paragraph', length: 1, position: position.getShiftedBy( 1 ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'a character', () => {
-			const position = new Position( root, [ 0, 2 ] );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			model.change( () => {
-				insert( new Text( 'x' ), position );
+				insert( new ModelText( 'x' ), position );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 1, position }
+					{ type: 'insert', name: '$text', length: 1, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'multiple characters', () => {
-			const position = new Position( root, [ 0, 2 ] );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			model.change( () => {
-				insert( new Text( 'xyz' ), position );
+				insert( new ModelText( 'xyz' ), position );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 3, position }
+					{ type: 'insert', name: '$text', length: 3, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'multiple consecutive characters in multiple operations', () => {
-			const position = new Position( root, [ 0, 2 ] );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			model.change( () => {
-				insert( new Text( 'xy' ), position );
-				insert( new Text( 'z' ), position.getShiftedBy( 2 ) );
-				insert( new Text( 'ab' ), position );
+				insert( new ModelText( 'xy' ), position );
+				insert( new ModelText( 'z' ), position.getShiftedBy( 2 ) );
+				insert( new ModelText( 'ab' ), position );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 5, position }
+					{ type: 'insert', name: '$text', length: 5, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'multiple non-consecutive characters in multiple operations', () => {
-			const position = new Position( root, [ 0, 0 ] );
+			const position = new ModelPosition( root, [ 0, 0 ] );
 
 			model.change( () => {
-				insert( new Text( 'xy' ), position );
-				insert( new Text( 'z' ), position.getShiftedBy( 3 ) );
+				insert( new ModelText( 'xy' ), position );
+				insert( new ModelText( 'z' ), position.getShiftedBy( 3 ) );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 2, position },
-					{ type: 'insert', name: '$text', length: 1, position: position.getShiftedBy( 3 ) }
+					{ type: 'insert', name: '$text', length: 2, position, action: 'insert' },
+					{ type: 'insert', name: '$text', length: 1, position: position.getShiftedBy( 3 ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		// Combined.
 		it( 'node in a new element', () => {
-			const image = new Element( 'imageBlock' );
-			const position = new Position( root, [ 1 ] );
+			const image = new ModelElement( 'imageBlock' );
+			const position = new ModelPosition( root, [ 1 ] );
 
 			model.change( () => {
 				insert( image, position );
 
-				const caption = new Element( 'caption' );
-				insert( caption, Position._createAt( image, 0 ) );
+				const caption = new ModelElement( 'caption' );
+				insert( caption, ModelPosition._createAt( image, 0 ) );
 
-				insert( new Text( 'foo' ), Position._createAt( caption, 0 ) );
+				insert( new ModelText( 'foo' ), ModelPosition._createAt( caption, 0 ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'imageBlock', length: 1, position }
+					{ type: 'insert', name: 'imageBlock', length: 1, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'node in a renamed element', () => {
-			const text = new Text( 'xyz', { bold: true } );
-			const position = new Position( root, [ 0, 3 ] );
+			const text = new ModelText( 'xyz', { bold: true } );
+			const position = new ModelPosition( root, [ 0, 3 ] );
+			const element = root.getChild( 0 );
 
 			model.change( () => {
 				insert( text, position );
-				rename( root.getChild( 0 ), 'listItem' );
+				rename( element, 'listItem' );
 
 				// Note that since renamed element is removed and then re-inserted, there is no diff for text inserted inside it.
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'insert', name: 'listItem', length: 1, position: new Position( root, [ 0 ] ) }
+					{
+						type: 'remove',
+						action: 'rename',
+						name: 'paragraph',
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						attributes: new Map()
+					},
+					{
+						type: 'insert',
+						action: 'rename',
+						name: 'listItem',
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						before: {
+							name: 'paragraph',
+							attributes: new Map()
+						}
+					}
 				] );
 			} );
 		} );
 
 		it( 'node in a element with changed attribute', () => {
-			const text = new Text( 'xyz', { bold: true } );
-			const position = new Position( root, [ 0, 3 ] );
-			const range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) );
+			const text = new ModelText( 'xyz', { bold: true } );
+			const position = new ModelPosition( root, [ 0, 3 ] );
+			const range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) );
 
 			model.change( () => {
 				insert( text, position );
 				attribute( range, 'align', null, 'center' );
 
-				const diffRange = new Range( Position._createAt( root, 0 ), Position._createAt( root.getChild( 0 ), 0 ) );
+				const diffRange = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root.getChild( 0 ), 0 ) );
 
 				// Compare to scenario above, this time there is only an attribute change on parent element,
 				// so there is also a diff for text.
 				expectChanges( [
 					{ type: 'attribute', range: diffRange, attributeKey: 'align', attributeOldValue: null, attributeNewValue: 'center' },
-					{ type: 'insert', name: '$text', length: 3, position, attributes: new Map( [ [ 'bold', true ] ] ) }
+					{ type: 'insert', name: '$text', length: 3, position, attributes: new Map( [ [ 'bold', true ] ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'nodes between other inserted nodes', () => {
 			model.change( () => {
-				insert( new Text( 'xx' ), new Position( root, [ 0, 1 ] ) );
-				insert( new Text( 'yy' ), new Position( root, [ 0, 2 ] ) );
+				insert( new ModelText( 'xx' ), new ModelPosition( root, [ 0, 1 ] ) );
+				insert( new ModelText( 'yy' ), new ModelPosition( root, [ 0, 2 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', position: new Position( root, [ 0, 1 ] ), length: 4, name: '$text' }
+					{ type: 'insert', position: new ModelPosition( root, [ 0, 1 ] ), length: 4, name: '$text', action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'nodes before nodes with changed attributes', () => {
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 3 ) );
-			const position = new Position( root, [ 0, 0 ] );
+			const range = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 3 ) );
+			const position = new ModelPosition( root, [ 0, 0 ] );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 
-				const rangeAfter = new Range( Position._createAt( p1, 3 ), Position._createAt( p1, 5 ) );
+				const rangeAfter = new ModelRange( ModelPosition._createAt( p1, 3 ), ModelPosition._createAt( p1, 5 ) );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 2, position },
+					{ type: 'insert', name: '$text', length: 2, position, action: 'insert' },
 					{ type: 'attribute', range: rangeAfter, attributeKey: 'bold', attributeOldValue: null, attributeNewValue: true }
 				] );
 			} );
@@ -216,15 +240,15 @@ describe( 'Differ', () => {
 
 		it( 'nodes between nodes with changed attributes', () => {
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 3 ) );
-			const position = new Position( root, [ 0, 2 ] );
+			const range = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 3 ) );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 
-				const rangeBefore = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 2 ) );
-				const rangeAfter = new Range( Position._createAt( p1, 4 ), Position._createAt( p1, 5 ) );
+				const rangeBefore = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 2 ) );
+				const rangeAfter = new ModelRange( ModelPosition._createAt( p1, 4 ), ModelPosition._createAt( p1, 5 ) );
 
 				expectChanges( [
 					{
@@ -248,12 +272,12 @@ describe( 'Differ', () => {
 
 		it( 'nodes after nodes with changed attributes', () => {
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 3 ) );
-			const position = new Position( root, [ 0, 3 ] );
+			const range = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 3 ) );
+			const position = new ModelPosition( root, [ 0, 3 ] );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 
 				expectChanges( [
 					{
@@ -271,10 +295,10 @@ describe( 'Differ', () => {
 		it( 'inside non-loaded root - not buffered', () => {
 			root._isLoaded = false;
 
-			const position = new Position( root, [ 0 ] );
+			const position = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
-				insert( new Element( 'imageBlock' ), position );
+				insert( new ModelElement( 'imageBlock' ), position );
 
 				expectChanges( [] );
 			} );
@@ -283,33 +307,33 @@ describe( 'Differ', () => {
 
 	describe( 'remove', () => {
 		it( 'an element', () => {
-			const position = new Position( root, [ 0 ] );
+			const position = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
 				remove( position, 1 );
 
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position }
+					{ type: 'remove', name: 'paragraph', length: 1, position, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'multiple elements', () => {
-			const position = new Position( root, [ 0 ] );
+			const position = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
 				remove( position, 2 );
 
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position },
-					{ type: 'remove', name: 'paragraph', length: 1, position }
+					{ type: 'remove', name: 'paragraph', length: 1, position, action: 'remove' },
+					{ type: 'remove', name: 'paragraph', length: 1, position, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'element with attributes', () => {
-			const position = new Position( root, [ 0 ] );
-			const range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) );
+			const position = new ModelPosition( root, [ 0 ] );
+			const range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) );
 
 			model.change( () => {
 				attribute( range, 'align', null, 'center' );
@@ -318,39 +342,44 @@ describe( 'Differ', () => {
 			model.change( () => {
 				remove( position, 1 );
 
+				const attributes = new Map( [ [ 'align', 'center' ] ] );
+
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position, attributes: new Map( [ [ 'align', 'center' ] ] ) }
+					{ type: 'remove', name: 'paragraph', length: 1, position, attributes, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'a character', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			model.change( () => {
 				remove( position, 1 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position }
+					{ type: 'remove', name: '$text', length: 1, position, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'multiple characters', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			model.change( () => {
 				remove( position, 2 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 2, position }
+					{ type: 'remove', name: '$text', length: 2, position, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'characters with attributes', () => {
-			const position = new Position( root, [ 0, 0 ] );
-			const range = new Range( Position._createAt( root.getChild( 0 ), 0 ), Position._createAt( root.getChild( 0 ), 2 ) );
+			const position = new ModelPosition( root, [ 0, 0 ] );
+			const range = new ModelRange(
+				ModelPosition._createAt( root.getChild( 0 ), 0 ),
+				ModelPosition._createAt( root.getChild( 0 ), 2 )
+			);
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
@@ -360,13 +389,13 @@ describe( 'Differ', () => {
 				remove( position, 2 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 2, position, attributes: new Map( [ [ 'bold', true ] ] ) }
+					{ type: 'remove', name: '$text', length: 2, position, attributes: new Map( [ [ 'bold', true ] ] ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'multiple consecutive characters in multiple operations', () => {
-			const position = new Position( root, [ 0, 0 ] );
+			const position = new ModelPosition( root, [ 0, 0 ] );
 
 			model.change( () => {
 				remove( position, 1 );
@@ -374,128 +403,128 @@ describe( 'Differ', () => {
 				remove( position, 1 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 3, position }
+					{ type: 'remove', name: '$text', length: 3, position, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'multiple non-consecutive characters in multiple operations', () => {
-			const position = new Position( root, [ 0, 0 ] );
+			const position = new ModelPosition( root, [ 0, 0 ] );
 
 			model.change( () => {
 				remove( position, 1 );
 				remove( position.getShiftedBy( 1 ), 1 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position },
-					{ type: 'remove', name: '$text', length: 1, position: position.getShiftedBy( 1 ) }
+					{ type: 'remove', name: '$text', length: 1, position, action: 'remove' },
+					{ type: 'remove', name: '$text', length: 1, position: position.getShiftedBy( 1 ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'item just before inserted item', () => {
 			// This tests proper changes sorting.
-			const insertPosition = new Position( root, [ 0, 2 ] );
-			const removePosition = new Position( root, [ 0, 1 ] );
+			const insertPosition = new ModelPosition( root, [ 0, 2 ] );
+			const removePosition = new ModelPosition( root, [ 0, 1 ] );
 
 			model.change( () => {
-				insert( new Text( 'x' ), insertPosition );
+				insert( new ModelText( 'x' ), insertPosition );
 				remove( removePosition, 1 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position: removePosition },
-					{ type: 'insert', name: '$text', length: 1, position: removePosition }
+					{ type: 'remove', name: '$text', length: 1, position: removePosition, action: 'remove' },
+					{ type: 'insert', name: '$text', length: 1, position: removePosition, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'nodes before inserted nodes (together with some inserted nodes)', () => {
-			const insertPosition = new Position( root, [ 0, 2 ] );
-			const removePosition = new Position( root, [ 0, 1 ] );
+			const insertPosition = new ModelPosition( root, [ 0, 2 ] );
+			const removePosition = new ModelPosition( root, [ 0, 1 ] );
 
 			model.change( () => {
-				insert( new Text( 'xyz' ), insertPosition );
+				insert( new ModelText( 'xyz' ), insertPosition );
 				remove( removePosition, 2 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position: removePosition },
-					{ type: 'insert', name: '$text', length: 2, position: removePosition }
+					{ type: 'remove', name: '$text', length: 1, position: removePosition, action: 'remove' },
+					{ type: 'insert', name: '$text', length: 2, position: removePosition, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'inserted nodes and some nodes after inserted nodes', () => {
-			const insertPosition = new Position( root, [ 0, 2 ] );
-			const removePosition = new Position( root, [ 0, 3 ] );
+			const insertPosition = new ModelPosition( root, [ 0, 2 ] );
+			const removePosition = new ModelPosition( root, [ 0, 3 ] );
 
 			model.change( () => {
-				insert( new Text( 'xyz' ), insertPosition );
+				insert( new ModelText( 'xyz' ), insertPosition );
 				remove( removePosition, 3 );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 1, position: insertPosition },
-					{ type: 'remove', name: '$text', length: 1, position: removePosition }
+					{ type: 'insert', name: '$text', length: 1, position: insertPosition, action: 'insert' },
+					{ type: 'remove', name: '$text', length: 1, position: removePosition, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'all inserted nodes', () => {
-			const insertPosition = new Position( root, [ 0, 2 ] );
-			const removePosition = new Position( root, [ 0, 1 ] );
+			const insertPosition = new ModelPosition( root, [ 0, 2 ] );
+			const removePosition = new ModelPosition( root, [ 0, 1 ] );
 
 			model.change( () => {
-				insert( new Text( 'xy' ), insertPosition );
+				insert( new ModelText( 'xy' ), insertPosition );
 				remove( removePosition, 4 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 2, position: removePosition }
+					{ type: 'remove', name: '$text', length: 2, position: removePosition, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'before removed nodes', () => {
-			const removePositionA = new Position( root, [ 0, 2 ] );
-			const removePositionB = new Position( root, [ 0, 0 ] );
+			const removePositionA = new ModelPosition( root, [ 0, 2 ] );
+			const removePositionB = new ModelPosition( root, [ 0, 0 ] );
 
 			model.change( () => {
 				remove( removePositionA, 1 );
 				remove( removePositionB, 1 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position: removePositionB },
-					{ type: 'remove', name: '$text', length: 1, position: new Position( root, [ 0, 1 ] ) }
+					{ type: 'remove', name: '$text', length: 1, position: removePositionB, action: 'remove' },
+					{ type: 'remove', name: '$text', length: 1, position: new ModelPosition( root, [ 0, 1 ] ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'before and after removed nodes in one operation', () => {
-			const removePositionA = new Position( root, [ 0, 1 ] );
-			const removePositionB = new Position( root, [ 0, 0 ] );
+			const removePositionA = new ModelPosition( root, [ 0, 1 ] );
+			const removePositionB = new ModelPosition( root, [ 0, 0 ] );
 
 			model.change( () => {
 				remove( removePositionA, 1 );
 				remove( removePositionB, 2 );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 3, position: removePositionB }
+					{ type: 'remove', name: '$text', length: 3, position: removePositionB, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'before nodes that changed attributes', () => {
-			const position = new Position( root, [ 0, 0 ] );
+			const position = new ModelPosition( root, [ 0, 0 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 2 ), Position._createAt( p1, 3 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 2 ), ModelPosition._createAt( p1, 3 ) );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
 				remove( position, 1 );
 
-				const newRange = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 2 ) );
+				const newRange = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 2 ) );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position },
+					{ type: 'remove', name: '$text', length: 1, position, action: 'remove' },
 					{
 						type: 'attribute',
 						range: newRange,
@@ -508,19 +537,19 @@ describe( 'Differ', () => {
 		} );
 
 		it( 'before nodes that changed attributes together with some changed nodes', () => {
-			const position = new Position( root, [ 0, 0 ] );
+			const position = new ModelPosition( root, [ 0, 0 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 3 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 3 ) );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
 				remove( position, 2 );
 
-				const newRange = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 1 ) );
+				const newRange = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 1 ) );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 2, position },
+					{ type: 'remove', name: '$text', length: 2, position, action: 'remove' },
 					{
 						type: 'attribute',
 						range: newRange,
@@ -533,17 +562,17 @@ describe( 'Differ', () => {
 		} );
 
 		it( 'some changed nodes', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 3 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 3 ) );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
 				remove( position, 1 );
 
-				const rangeBefore = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 1 ) );
-				const rangeAfter = new Range( Position._createAt( p1, 1 ), Position._createAt( p1, 2 ) );
+				const rangeBefore = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 1 ) );
+				const rangeAfter = new ModelRange( ModelPosition._createAt( p1, 1 ), ModelPosition._createAt( p1, 2 ) );
 
 				expectChanges( [
 					{
@@ -553,7 +582,7 @@ describe( 'Differ', () => {
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
-					{ type: 'remove', name: '$text', length: 1, position },
+					{ type: 'remove', name: '$text', length: 1, position, action: 'remove' },
 					{
 						type: 'attribute',
 						range: rangeAfter,
@@ -566,16 +595,16 @@ describe( 'Differ', () => {
 		} );
 
 		it( 'some changed nodes and some nodes after', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 2 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 2 ) );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
 				remove( position, 2 );
 
-				const newRange = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 1 ) );
+				const newRange = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 1 ) );
 
 				expectChanges( [
 					{
@@ -585,16 +614,16 @@ describe( 'Differ', () => {
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
-					{ type: 'remove', name: '$text', length: 2, position }
+					{ type: 'remove', name: '$text', length: 2, position, action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'after changed nodes', () => {
-			const position = new Position( root, [ 0, 2 ] );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 1 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 1 ) );
 
 			model.change( () => {
 				attribute( range, 'bold', null, true );
@@ -608,7 +637,7 @@ describe( 'Differ', () => {
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
-					{ type: 'remove', name: '$text', length: 1, position }
+					{ type: 'remove', name: '$text', length: 1, position, action: 'remove' }
 				] );
 			} );
 		} );
@@ -616,13 +645,32 @@ describe( 'Differ', () => {
 		it( 'from non-loaded root - not buffered', () => {
 			root._isLoaded = false;
 
-			const position = new Position( root, [ 0 ] );
+			const position = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
 				remove( position, 1 );
 
 				expectChanges( [] );
 			} );
+		} );
+
+		it( 'action is remove if the renamed element was removed', () => {
+			const position = new ModelPosition( root, [ 0 ] );
+			const element = root.getChild( 0 );
+
+			rename( element, 'listItem' );
+			remove( position, 1 );
+
+			expectChanges( [
+				{
+					type: 'remove',
+					action: 'remove',
+					name: 'paragraph',
+					position: new ModelPosition( root, [ 0 ] ),
+					attributes: new Map( [] ),
+					length: 1
+				}
+			] );
 		} );
 	} );
 
@@ -631,66 +679,66 @@ describe( 'Differ', () => {
 	// This suite will have only a few cases, focused on things specific to move operation.
 	describe( 'move', () => {
 		it( 'an element to the same parent - target position is after source position', () => {
-			const sourcePosition = new Position( root, [ 0 ] );
-			const targetPosition = new Position( root, [ 2 ] );
+			const sourcePosition = new ModelPosition( root, [ 0 ] );
+			const targetPosition = new ModelPosition( root, [ 2 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
 
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' },
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'an element to the same parent - target position is before source position', () => {
-			const sourcePosition = new Position( root, [ 1 ] );
-			const targetPosition = new Position( root, [ 0 ] );
+			const sourcePosition = new ModelPosition( root, [ 1 ] );
+			const targetPosition = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
 
 				expectChanges( [
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 2 ] ) }
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 2 ] ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'multiple consecutive characters between different roots in multiple operations', () => {
-			const sourcePosition = new Position( root, [ 0, 1 ] );
-			const targetPosition = new Position( root, [ 1, 0 ] );
+			const sourcePosition = new ModelPosition( root, [ 0, 1 ] );
+			const targetPosition = new ModelPosition( root, [ 1, 0 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
 				move( sourcePosition, 1, targetPosition.getShiftedBy( 1 ) );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 2, position: sourcePosition },
-					{ type: 'insert', name: '$text', length: 2, position: targetPosition }
+					{ type: 'remove', name: '$text', length: 2, position: sourcePosition, action: 'remove' },
+					{ type: 'insert', name: '$text', length: 2, position: targetPosition, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'reinsert removed element', () => {
-			doc.graveyard._appendChild( new Element( 'listItem' ) );
+			doc.graveyard._appendChild( new ModelElement( 'listItem' ) );
 
-			const sourcePosition = new Position( doc.graveyard, [ 0 ] );
-			const targetPosition = new Position( root, [ 2 ] );
+			const sourcePosition = new ModelPosition( doc.graveyard, [ 0 ] );
+			const targetPosition = new ModelPosition( root, [ 2 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
 
 				expectChanges( [
-					{ type: 'insert', name: 'listItem', length: 1, position: targetPosition }
+					{ type: 'insert', name: 'listItem', length: 1, position: targetPosition, action: 'insert' }
 				] );
 			} );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-engine/issues/1664
 		it( 'move to the same position #1', () => {
-			const position = new Position( root, [ 0 ] );
+			const position = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
 				move( position, 1, position );
@@ -701,13 +749,13 @@ describe( 'Differ', () => {
 
 		// https://github.com/ckeditor/ckeditor5-engine/issues/1664
 		it( 'move to the same position #2', () => {
-			const sourcePosition = new Position( root, [ 0 ] );
-			const targetPosition = new Position( root, [ 2 ] );
+			const sourcePosition = new ModelPosition( root, [ 0 ] );
+			const targetPosition = new ModelPosition( root, [ 2 ] );
 
 			// Add two more elements to the root, now there are 4 paragraphs.
 			root._appendChild( [
-				new Element( 'paragraph' ),
-				new Element( 'paragraph' )
+				new ModelElement( 'paragraph' ),
+				new ModelElement( 'paragraph' )
 			] );
 
 			model.change( () => {
@@ -720,8 +768,8 @@ describe( 'Differ', () => {
 		it( 'inside non-loaded root - not buffered', () => {
 			root._isLoaded = false;
 
-			const sourcePosition = new Position( root, [ 0 ] );
-			const targetPosition = new Position( root, [ 2 ] );
+			const sourcePosition = new ModelPosition( root, [ 0 ] );
+			const targetPosition = new ModelPosition( root, [ 2 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
@@ -734,15 +782,15 @@ describe( 'Differ', () => {
 			const newRoot = model.document.createRoot( '$root', 'new' );
 			newRoot._isLoaded = false;
 
-			const sourcePosition = new Position( root, [ 0 ] );
-			const targetPosition = new Position( newRoot, [ 0 ] );
+			const sourcePosition = new ModelPosition( root, [ 0 ] );
+			const targetPosition = new ModelPosition( newRoot, [ 0 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
 
 				expectChanges( [
 					// Only buffer "remove" from the loaded root.
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) }
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' }
 				] );
 			} );
 		} );
@@ -752,15 +800,15 @@ describe( 'Differ', () => {
 
 			root._isLoaded = false;
 
-			const sourcePosition = new Position( root, [ 0 ] );
-			const targetPosition = new Position( newRoot, [ 0 ] );
+			const sourcePosition = new ModelPosition( root, [ 0 ] );
+			const targetPosition = new ModelPosition( newRoot, [ 0 ] );
 
 			model.change( () => {
 				move( sourcePosition, 1, targetPosition );
 
 				expectChanges( [
 					// Only buffer "insert" to the loaded root.
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( newRoot, [ 0 ] ) }
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( newRoot, [ 0 ] ), action: 'insert' }
 				] );
 			} );
 		} );
@@ -769,11 +817,35 @@ describe( 'Differ', () => {
 	describe( 'rename', () => {
 		it( 'an element', () => {
 			model.change( () => {
-				rename( root.getChild( 1 ), 'listItem' );
+				const element = root.getChild( 1 );
+				const before = {
+					name: 'paragraph',
+					attributes: new Map()
+				};
+
+				rename( element, 'listItem' );
 
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) },
-					{ type: 'insert', name: 'listItem', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'rename' },
+					{ type: 'insert', name: 'listItem', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'rename', before }
+				] );
+			} );
+		} );
+
+		it( 'element double rename', () => {
+			model.change( () => {
+				const element = root.getChild( 1 );
+				const before = {
+					name: 'paragraph',
+					attributes: new Map()
+				};
+
+				rename( element, 'listItem' );
+				rename( element, 'heading' );
+
+				expectChanges( [
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'rename' },
+					{ type: 'insert', name: 'heading', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'rename', before }
 				] );
 			} );
 		} );
@@ -781,11 +853,11 @@ describe( 'Differ', () => {
 		it( 'inside a new element', () => {
 			// Since the rename is inside a new element, it should not be listed on changes list.
 			model.change( () => {
-				insert( new Element( 'blockQuote', null, new Element( 'paragraph' ) ), new Position( root, [ 2 ] ) );
+				insert( new ModelElement( 'blockQuote', null, new ModelElement( 'paragraph' ) ), new ModelPosition( root, [ 2 ] ) );
 				rename( root.getChild( 2 ).getChild( 0 ), 'listItem' );
 
 				expectChanges( [
-					{ type: 'insert', name: 'blockQuote', length: 1, position: new Position( root, [ 2 ] ) }
+					{ type: 'insert', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 2 ] ), action: 'insert' }
 				] );
 			} );
 		} );
@@ -796,16 +868,16 @@ describe( 'Differ', () => {
 
 			model.change( () => {
 				// Renamed element contains marker.
-				model.markers._set( 'markerA', new Range( new Position( root, [ 1, 1 ] ), new Position( root, [ 1, 2 ] ) ) );
+				model.markers._set( 'markerA', new ModelRange( new ModelPosition( root, [ 1, 1 ] ), new ModelPosition( root, [ 1, 2 ] ) ) );
 
 				// Marker contains renamed element.
-				model.markers._set( 'markerB', new Range( new Position( root, [ 0 ] ), new Position( root, [ 2 ] ) ) );
+				model.markers._set( 'markerB', new ModelRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 2 ] ) ) );
 
 				// Intersecting.
-				model.markers._set( 'markerC', new Range( new Position( root, [ 0, 2 ] ), new Position( root, [ 1, 2 ] ) ) );
+				model.markers._set( 'markerC', new ModelRange( new ModelPosition( root, [ 0, 2 ] ), new ModelPosition( root, [ 1, 2 ] ) ) );
 
 				// Not intersecting.
-				model.markers._set( 'markerD', new Range( new Position( root, [ 0, 0 ] ), new Position( root, [ 1 ] ) ) );
+				model.markers._set( 'markerD', new ModelRange( new ModelPosition( root, [ 0, 0 ] ), new ModelPosition( root, [ 1 ] ) ) );
 			} );
 
 			const markersToRefresh = [ 'markerA', 'markerB', 'markerC' ];
@@ -813,16 +885,18 @@ describe( 'Differ', () => {
 			model.change( () => {
 				rename( root.getChild( 1 ), 'listItem' );
 
+				const before = { name: 'paragraph', attributes: new Map() };
+
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) },
-					{ type: 'insert', name: 'listItem', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'remove', action: 'rename', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ) },
+					{ type: 'insert', action: 'rename', name: 'listItem', length: 1, position: new ModelPosition( root, [ 1 ] ), before }
 				] );
 
 				const markersToRemove = differ.getMarkersToRemove().map( entry => entry.name );
 				const markersToAdd = differ.getMarkersToAdd().map( entry => entry.name );
 
-				expect( markersToRefresh ).to.deep.equal( markersToRemove );
-				expect( markersToRefresh ).to.deep.equal( markersToAdd );
+				expect( markersToRefresh ).toEqual( markersToRemove );
+				expect( markersToRefresh ).toEqual( markersToAdd );
 			} );
 		} );
 
@@ -835,6 +909,145 @@ describe( 'Differ', () => {
 				expectChanges( [] );
 			} );
 		} );
+
+		it( 'data of the renamed node is available for insert diff item', () => {
+			const element = root.getChild( 0 );
+
+			model.change( writer => {
+				writer.setAttribute( 'test', 123, element );
+			} );
+
+			model.change( writer => {
+				rename( element, 'listItem' );
+				writer.setAttribute( 'test', 777, element );
+
+				expectChanges( [
+					{
+						type: 'remove',
+						action: 'rename',
+						name: 'paragraph',
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						attributes: new Map( [ [ 'test', 123 ] ] )
+					},
+					{
+						type: 'insert',
+						action: 'rename',
+						name: 'listItem',
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						attributes: new Map( [ [ 'test', 777 ] ] ),
+						before: {
+							name: 'paragraph',
+							attributes: new Map( [ [ 'test', 123 ] ] )
+						}
+					}
+				] );
+			} );
+		} );
+
+		it( 'inserted element is renamed', () => {
+			const element = new ModelElement( 'paragraph' );
+			const position = new ModelPosition( root, [ 0 ] );
+
+			model.change( () => {
+				insert( element, position );
+				rename( element, 'listItem' );
+
+				expectChanges( [
+					{
+						type: 'insert',
+						action: 'insert', // Stays as `insert`, as the end result is an insert, even though the element was renamed too.
+						before: undefined, // Not available since this is not marked as `rename` but as `insert`.
+						name: 'listItem', // This is the value after changes, so it is `'listItem'` after being renamed from `'paragraph'`.
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						attributes: new Map( [] )
+					}
+				] );
+			} );
+		} );
+
+		it( 'refreshed element is renamed', () => {
+			model.change( () => {
+				const element = root.getChild( 1 );
+				differ._refreshItem( element );
+
+				rename( element, 'listItem' );
+
+				expectChanges( [
+					{
+						type: 'remove',
+						action: 'rename',
+						name: 'paragraph', // Data before any change happened.
+						length: 1,
+						position: new ModelPosition( root, [ 1 ] ),
+						attributes: new Map( [] )
+					},
+					{
+						type: 'insert',
+						action: 'rename', // Becomes `rename` as the end result is a rename, not a refresh (rename overwrites refresh).
+						before: { name: 'paragraph', attributes: new Map() }, // Data before any change happened.
+						name: 'listItem', // This is the value after changes, so it is `'listItem'` after being renamed from `'paragraph'`.
+						length: 1,
+						position: new ModelPosition( root, [ 1 ] ),
+						attributes: new Map( [] )
+					}
+				] );
+			} );
+		} );
+
+		it( 'renamed element is refreshed', () => {
+			// This is the same case as above but the changes are done in a reverse order.
+			// The expected changes are the same as above.
+			model.change( () => {
+				const element = root.getChild( 1 );
+
+				rename( element, 'listItem' );
+
+				differ._refreshItem( element );
+
+				expectChanges( [
+					{
+						type: 'remove',
+						action: 'rename',
+						name: 'paragraph', // Data before any change happened.
+						length: 1,
+						position: new ModelPosition( root, [ 1 ] ),
+						attributes: new Map( [] )
+					},
+					{
+						type: 'insert',
+						action: 'rename', // Becomes `rename` as the end result is a rename, not a refresh (rename overwrites refresh).
+						before: { name: 'paragraph', attributes: new Map() }, // Data before any change happened.
+						name: 'listItem', // This is the value after changes, so it is `'listItem'` after being renamed from `'paragraph'`.
+						length: 1,
+						position: new ModelPosition( root, [ 1 ] ),
+						attributes: new Map( [] )
+					}
+				] );
+			} );
+		} );
+
+		it( 'renamed element is removed', () => {
+			model.change( () => {
+				const element = root.getChild( 1 );
+
+				rename( element, 'listItem' );
+				remove( new ModelPosition( root, [ 1 ] ), 1 );
+
+				expectChanges( [
+					{
+						type: 'remove',
+						action: 'remove', // Becomes `remove` as the end result is a remove, not a rename (remove overwrites rename).
+						name: 'paragraph', // Data before any change happened (the element was a paragraph before renamed and removed).
+						length: 1,
+						position: new ModelPosition( root, [ 1 ] ),
+						attributes: new Map( [] )
+					}
+				] );
+			} );
+		} );
 	} );
 
 	describe( 'attribute', () => {
@@ -843,12 +1056,12 @@ describe( 'Differ', () => {
 		const attributeNewValue = 'foo';
 
 		it( 'on an element', () => {
-			const range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) );
+			const range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) );
 
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
-				const diffRange = new Range( Position._createAt( root, 0 ), Position._createAt( root.getChild( 0 ), 0 ) );
+				const diffRange = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root.getChild( 0 ), 0 ) );
 
 				expectChanges( [
 					{ type: 'attribute', range: diffRange, attributeKey, attributeOldValue, attributeNewValue }
@@ -857,7 +1070,7 @@ describe( 'Differ', () => {
 		} );
 
 		it( 'on an element - only one of many attributes changes', () => {
-			const range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) );
+			const range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) );
 
 			model.change( () => {
 				// Set an attribute on an element. It won't change afterwards.
@@ -867,7 +1080,7 @@ describe( 'Differ', () => {
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
-				const diffRange = new Range( Position._createAt( root, 0 ), Position._createAt( root.getChild( 0 ), 0 ) );
+				const diffRange = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root.getChild( 0 ), 0 ) );
 
 				expectChanges( [
 					{ type: 'attribute', range: diffRange, attributeKey, attributeOldValue, attributeNewValue }
@@ -877,7 +1090,7 @@ describe( 'Differ', () => {
 
 		it( 'on a character', () => {
 			const parent = root.getChild( 1 );
-			const range = new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 2 ) );
+			const range = new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 2 ) );
 
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
@@ -890,7 +1103,7 @@ describe( 'Differ', () => {
 
 		it( 'on a character - case with same characters next to each other', () => {
 			const parent = root.getChild( 0 );
-			const range = new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 2 ) );
+			const range = new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 2 ) );
 
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
@@ -903,7 +1116,7 @@ describe( 'Differ', () => {
 
 		it( 'on multiple characters', () => {
 			const parent = root.getChild( 0 );
-			const range = new Range( Position._createAt( parent, 0 ), Position._createAt( parent, 3 ) );
+			const range = new ModelRange( ModelPosition._createAt( parent, 0 ), ModelPosition._createAt( parent, 3 ) );
 
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
@@ -917,14 +1130,14 @@ describe( 'Differ', () => {
 		it( 'on multiple consecutive characters in multiple operations', () => {
 			const parent = root.getChild( 0 );
 
-			const range1 = new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 2 ) );
-			const range2 = new Range( Position._createAt( parent, 2 ), Position._createAt( parent, 3 ) );
+			const range1 = new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 2 ) );
+			const range2 = new ModelRange( ModelPosition._createAt( parent, 2 ), ModelPosition._createAt( parent, 3 ) );
 
 			model.change( () => {
 				attribute( range1, attributeKey, attributeOldValue, attributeNewValue );
 				attribute( range2, attributeKey, attributeOldValue, attributeNewValue );
 
-				const range = new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 3 ) );
+				const range = new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 3 ) );
 
 				expectChanges( [
 					{ type: 'attribute', range, attributeKey, attributeOldValue, attributeNewValue }
@@ -944,7 +1157,10 @@ describe( 'Differ', () => {
 
 			model.change( () => {
 				for ( const item of ranges ) {
-					const range = new Range( Position._createAt( parent, item[ 0 ] ), Position._createAt( parent, item[ 1 ] ) );
+					const range = new ModelRange(
+						ModelPosition._createAt( parent, item[ 0 ] ),
+						ModelPosition._createAt( parent, item[ 1 ] )
+					);
 
 					attribute( range, item[ 4 ], item[ 2 ], item[ 3 ] );
 				}
@@ -952,14 +1168,14 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( parent, 0 ), Position._createAt( parent, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( parent, 0 ), ModelPosition._createAt( parent, 2 ) ),
 						attributeKey: 'foo',
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 3 ) ),
+						range: new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 3 ) ),
 						attributeKey: 'bar',
 						attributeOldValue: null,
 						attributeNewValue: true
@@ -980,7 +1196,10 @@ describe( 'Differ', () => {
 
 			model.change( () => {
 				for ( const item of ranges ) {
-					const range = new Range( Position._createAt( parent, item[ 0 ] ), Position._createAt( parent, item[ 1 ] ) );
+					const range = new ModelRange(
+						ModelPosition._createAt( parent, item[ 0 ] ),
+						ModelPosition._createAt( parent, item[ 1 ] )
+					);
 
 					attribute( range, item[ 4 ], item[ 2 ], item[ 3 ] );
 				}
@@ -988,28 +1207,28 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( parent, 0 ), Position._createAt( parent, 1 ) ),
+						range: new ModelRange( ModelPosition._createAt( parent, 0 ), ModelPosition._createAt( parent, 1 ) ),
 						attributeKey: 'bar',
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 2 ) ),
 						attributeKey: 'foo',
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( parent, 1 ), Position._createAt( parent, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( parent, 1 ), ModelPosition._createAt( parent, 2 ) ),
 						attributeKey: 'bar',
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( parent, 2 ), Position._createAt( parent, 3 ) ),
+						range: new ModelRange( ModelPosition._createAt( parent, 2 ), ModelPosition._createAt( parent, 3 ) ),
 						attributeKey: 'foo',
 						attributeOldValue: null,
 						attributeNewValue: true
@@ -1029,7 +1248,10 @@ describe( 'Differ', () => {
 
 			model.change( () => {
 				for ( const item of ranges ) {
-					const range = new Range( Position._createAt( parent, item[ 0 ] ), Position._createAt( parent, item[ 1 ] ) );
+					const range = new ModelRange(
+						ModelPosition._createAt( parent, item[ 0 ] ),
+						ModelPosition._createAt( parent, item[ 1 ] )
+					);
 
 					attribute( range, attributeKey, item[ 2 ], item[ 3 ] );
 				}
@@ -1051,14 +1273,17 @@ describe( 'Differ', () => {
 
 			model.change( () => {
 				for ( const item of ranges ) {
-					const range = new Range( Position._createAt( parent, item[ 0 ] ), Position._createAt( parent, item[ 1 ] ) );
+					const range = new ModelRange(
+						ModelPosition._createAt( parent, item[ 0 ] ),
+						ModelPosition._createAt( parent, item[ 1 ] )
+					);
 
 					attribute( range, attributeKey, item[ 2 ], item[ 3 ] );
 				}
 
 				expectChanges( [ {
 					type: 'attribute',
-					range: new Range( Position._createAt( parent, 0 ), Position._createAt( parent, 2 ) ),
+					range: new ModelRange( ModelPosition._createAt( parent, 0 ), ModelPosition._createAt( parent, 2 ) ),
 					attributeKey,
 					attributeOldValue: null,
 					attributeNewValue: true
@@ -1069,8 +1294,8 @@ describe( 'Differ', () => {
 		it( 'on multiple non-consecutive characters in multiple operations', () => {
 			const parent = root.getChild( 0 );
 
-			const range1 = new Range( Position._createAt( parent, 0 ), Position._createAt( parent, 1 ) );
-			const range2 = new Range( Position._createAt( parent, 2 ), Position._createAt( parent, 3 ) );
+			const range1 = new ModelRange( ModelPosition._createAt( parent, 0 ), ModelPosition._createAt( parent, 1 ) );
+			const range2 = new ModelRange( ModelPosition._createAt( parent, 2 ), ModelPosition._createAt( parent, 3 ) );
 
 			model.change( () => {
 				// Note "reversed" order of ranges. Further range is changed first.
@@ -1086,7 +1311,7 @@ describe( 'Differ', () => {
 		} );
 
 		it( 'on range containing various nodes', () => {
-			const range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 2 ) );
+			const range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 2 ) );
 
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
@@ -1098,14 +1323,14 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type,
-						range: new Range( Position._createAt( root, 0 ), Position._createAt( p1, 0 ) ),
+						range: new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( p1, 0 ) ),
 						attributeKey,
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( root, 1 ), Position._createAt( p2, 0 ) ),
+						range: new ModelRange( ModelPosition._createAt( root, 1 ), ModelPosition._createAt( p2, 0 ) ),
 						attributeKey,
 						attributeOldValue,
 						attributeNewValue
@@ -1119,14 +1344,14 @@ describe( 'Differ', () => {
 
 			p.getChild( 0 )._setAttribute( 'bold', true );
 
-			const range = new Range( Position._createAt( p, 1 ), Position._createAt( p, 3 ) );
+			const range = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 3 ) );
 
 			model.change( () => {
 				attribute( range, 'bold', true, null );
 				attribute( range, 'italic', null, true );
 
-				const range1 = new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) );
-				const range2 = new Range( Position._createAt( p, 2 ), Position._createAt( p, 3 ) );
+				const range1 = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) );
+				const range2 = new ModelRange( ModelPosition._createAt( p, 2 ), ModelPosition._createAt( p, 3 ) );
 
 				// Attribute change glueing does not work 100% correct.
 				expectChanges( [
@@ -1163,92 +1388,92 @@ describe( 'Differ', () => {
 		} );
 
 		it( 'on some old nodes and inserted nodes', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 2 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 2 ) );
 
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
-				const rangeBefore = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 1 ) );
+				const rangeBefore = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 1 ) );
 
 				expectChanges( [
 					{ type: 'attribute', range: rangeBefore, attributeKey, attributeOldValue, attributeNewValue },
-					{ type: 'insert', name: '$text', length: 2, position }
+					{ type: 'insert', name: '$text', length: 2, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'only on inserted nodes', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 2 ), Position._createAt( p1, 3 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 2 ), ModelPosition._createAt( p1, 3 ) );
 
 			model.change( () => {
-				insert( new Text( 'xxx' ), position );
+				insert( new ModelText( 'xxx' ), position );
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 3, position }
+					{ type: 'insert', name: '$text', length: 3, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'on a node inside an inserted element', () => {
-			const position = new Position( root, [ 0 ] );
+			const position = new ModelPosition( root, [ 0 ] );
 
 			model.change( () => {
-				const p = new Element( 'paragraph', null, new Text( 'xxx' ) );
+				const p = new ModelElement( 'paragraph', null, new ModelText( 'xxx' ) );
 				insert( p, position );
 
-				const range = new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) );
+				const range = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) );
 
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
 				expectChanges( [
-					{ type: 'insert', name: 'paragraph', length: 1, position }
+					{ type: 'insert', name: 'paragraph', length: 1, position, action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'on some inserted nodes and old nodes', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 2 ), Position._createAt( p1, 4 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 2 ), ModelPosition._createAt( p1, 4 ) );
 
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
-				const rangeAfter = new Range( Position._createAt( p1, 3 ), Position._createAt( p1, 4 ) );
+				const rangeAfter = new ModelRange( ModelPosition._createAt( p1, 3 ), ModelPosition._createAt( p1, 4 ) );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 2, position },
+					{ type: 'insert', name: '$text', length: 2, position, action: 'insert' },
 					{ type: 'attribute', range: rangeAfter, attributeKey, attributeOldValue, attributeNewValue }
 				] );
 			} );
 		} );
 
 		it( 'over all inserted nodes and some old nodes', () => {
-			const position = new Position( root, [ 0, 1 ] );
+			const position = new ModelPosition( root, [ 0, 1 ] );
 
 			const p1 = root.getChild( 0 );
-			const range = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 4 ) );
+			const range = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 4 ) );
 
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
 
-				const rangeBefore = new Range( Position._createAt( p1, 0 ), Position._createAt( p1, 1 ) );
-				const rangeAfter = new Range( Position._createAt( p1, 3 ), Position._createAt( p1, 4 ) );
+				const rangeBefore = new ModelRange( ModelPosition._createAt( p1, 0 ), ModelPosition._createAt( p1, 1 ) );
+				const rangeAfter = new ModelRange( ModelPosition._createAt( p1, 3 ), ModelPosition._createAt( p1, 4 ) );
 
 				expectChanges( [
 					{ type: 'attribute', range: rangeBefore, attributeKey, attributeOldValue, attributeNewValue },
-					{ type: 'insert', name: '$text', length: 2, position },
+					{ type: 'insert', name: '$text', length: 2, position, action: 'insert' },
 					{ type: 'attribute', range: rangeAfter, attributeKey, attributeOldValue, attributeNewValue }
 				] );
 			} );
@@ -1257,8 +1482,8 @@ describe( 'Differ', () => {
 		it( 'on some not changed and some changed nodes', () => {
 			const p = root.getChild( 0 );
 
-			const rangeA = new Range( Position._createAt( p, 1 ), Position._createAt( p, 3 ) );
-			const rangeB = new Range( Position._createAt( p, 0 ), Position._createAt( p, 2 ) );
+			const rangeA = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 3 ) );
+			const rangeB = new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 2 ) );
 
 			model.change( () => {
 				attribute( rangeA, 'a', null, true );
@@ -1272,28 +1497,28 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type,
-						range: new Range( Position._createAt( p, 0 ), Position._createAt( p, 1 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 1 ) ),
 						attributeKey: 'b',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'b',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 2 ), Position._createAt( p, 3 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 2 ), ModelPosition._createAt( p, 3 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
@@ -1305,8 +1530,8 @@ describe( 'Differ', () => {
 		it( 'on already changed nodes', () => {
 			const p = root.getChild( 1 );
 
-			const rangeA = new Range( Position._createAt( p, 0 ), Position._createAt( p, 3 ) );
-			const rangeB = new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) );
+			const rangeA = new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 3 ) );
+			const rangeB = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) );
 
 			model.change( () => {
 				attribute( rangeA, 'a', null, true );
@@ -1320,21 +1545,21 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type,
-						range: new Range( Position._createAt( p, 0 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'b',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 2 ), Position._createAt( p, 3 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 2 ), ModelPosition._createAt( p, 3 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
@@ -1346,8 +1571,8 @@ describe( 'Differ', () => {
 		it( 'on some changed and some not changed nodes', () => {
 			const p = root.getChild( 1 );
 
-			const rangeA = new Range( Position._createAt( p, 0 ), Position._createAt( p, 2 ) );
-			const rangeB = new Range( Position._createAt( p, 1 ), Position._createAt( p, 3 ) );
+			const rangeA = new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 2 ) );
+			const rangeB = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 3 ) );
 
 			model.change( () => {
 				attribute( rangeA, 'a', null, true );
@@ -1360,14 +1585,14 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type,
-						range: new Range( Position._createAt( p, 0 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 3 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 3 ) ),
 						attributeKey: 'b',
 						attributeOldValue,
 						attributeNewValue
@@ -1380,27 +1605,28 @@ describe( 'Differ', () => {
 			const p = root.getChild( 0 );
 
 			model.change( () => {
-				insert( new Text( 'x' ), Position._createAt( p, 3 ) );
-				insert( new Text( 'x' ), Position._createAt( p, 4 ) );
-				insert( new Text( 'x' ), Position._createAt( p, 5 ) );
+				insert( new ModelText( 'x' ), ModelPosition._createAt( p, 3 ) );
+				insert( new ModelText( 'x' ), ModelPosition._createAt( p, 4 ) );
+				insert( new ModelText( 'x' ), ModelPosition._createAt( p, 5 ) );
 
-				attribute( new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) ), 'a', null, true );
+				attribute( new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) ), 'a', null, true );
 
-				insert( new Text( 'y' ), Position._createAt( p, 6 ) );
+				insert( new ModelText( 'y' ), ModelPosition._createAt( p, 6 ) );
 
 				expectChanges( [
 					{
 						type: 'attribute',
-						range: new Range( Position._createAt( root, 0 ), Position._createAt( p, 0 ) ),
+						range: new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( p, 0 ) ),
 						attributeKey: 'a',
 						attributeOldValue: null,
 						attributeNewValue: true
 					},
 					{
 						type: 'insert',
-						position: Position._createAt( p, 3 ),
+						position: ModelPosition._createAt( p, 3 ),
 						length: 4,
-						name: '$text'
+						name: '$text',
+						action: 'insert'
 					}
 				] );
 			} );
@@ -1409,8 +1635,8 @@ describe( 'Differ', () => {
 		it( 'over all changed nodes and some not changed nodes', () => {
 			const p = root.getChild( 0 );
 
-			const rangeA = new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) );
-			const rangeB = new Range( Position._createAt( p, 0 ), Position._createAt( p, 3 ) );
+			const rangeA = new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) );
+			const rangeB = new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 3 ) );
 
 			model.change( () => {
 				attribute( rangeA, 'a', null, true );
@@ -1424,21 +1650,21 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type,
-						range: new Range( Position._createAt( p, 0 ), Position._createAt( p, 1 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 1 ) ),
 						attributeKey: 'b',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 3 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 3 ) ),
 						attributeKey: 'b',
 						attributeOldValue,
 						attributeNewValue
@@ -1450,8 +1676,8 @@ describe( 'Differ', () => {
 		it( 'add attribute after some text was removed', () => {
 			const p = root.getChild( 0 );
 
-			const range = new Range( Position._createAt( p, 0 ), Position._createAt( p, 2 ) );
-			const position = Position._createAt( p, 1 );
+			const range = new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 2 ) );
+			const position = ModelPosition._createAt( p, 1 );
 
 			model.change( () => {
 				remove( position, 1 );
@@ -1465,7 +1691,7 @@ describe( 'Differ', () => {
 				expectChanges( [
 					{
 						type,
-						range: new Range( Position._createAt( p, 0 ), Position._createAt( p, 1 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 0 ), ModelPosition._createAt( p, 1 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
@@ -1474,11 +1700,12 @@ describe( 'Differ', () => {
 						type: 'remove',
 						position,
 						length: 1,
-						name: '$text'
+						name: '$text',
+						action: 'remove'
 					},
 					{
 						type,
-						range: new Range( Position._createAt( p, 1 ), Position._createAt( p, 2 ) ),
+						range: new ModelRange( ModelPosition._createAt( p, 1 ), ModelPosition._createAt( p, 2 ) ),
 						attributeKey: 'a',
 						attributeOldValue,
 						attributeNewValue
@@ -1490,7 +1717,7 @@ describe( 'Differ', () => {
 		it( 'inside a non-loaded root - not buffered', () => {
 			root._isLoaded = false;
 
-			const range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) );
+			const range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) );
 
 			model.change( () => {
 				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
@@ -1498,70 +1725,134 @@ describe( 'Differ', () => {
 				expectChanges( [] );
 			} );
 		} );
+
+		// See: https://github.com/ckeditor/ckeditor5/issues/16819
+		it( 'should generate diff instructions for text shorter than max push call stack args count', () => {
+			const p = root.getChild( 0 );
+			const veryLongString = 'a'.repeat( 300 );
+
+			model.change( () => {
+				insert( new ModelText( veryLongString ), ModelPosition._createAt( p, 0 ) );
+			} );
+
+			model.change( writer => {
+				const range = writer.createRangeIn( p );
+
+				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
+
+				expectChanges( [
+					{ type: 'attribute', range, attributeKey, attributeOldValue, attributeNewValue }
+				] );
+			} );
+		} );
+
+		// See: https://github.com/ckeditor/ckeditor5/issues/16819
+		it( 'should generate diff instructions for text longer than max push call stack args count', () => {
+			const MAX_PUSH_CALL_STACK_ARGS = 1500;
+
+			const p = root.getChild( 0 );
+			const veryLongString = 'a'.repeat( MAX_PUSH_CALL_STACK_ARGS + 10 );
+
+			model.change( () => {
+				insert( new ModelText( veryLongString ), ModelPosition._createAt( p, 0 ) );
+			} );
+
+			model.change( writer => {
+				const range = writer.createRangeIn( p );
+
+				attribute( range, attributeKey, attributeOldValue, attributeNewValue );
+
+				expectChanges( [
+					{ type: 'attribute', range, attributeKey, attributeOldValue, attributeNewValue }
+				] );
+			} );
+		} );
 	} );
 
 	describe( 'split', () => {
 		it( 'split an element', () => {
-			const position = new Position( root, [ 0, 2 ] );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			model.change( () => {
 				split( position );
 
 				expectChanges( [
-					{ type: 'remove', name: '$text', length: 1, position },
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'remove', name: '$text', length: 1, position, action: 'remove' },
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'split a new element', () => {
 			model.change( () => {
-				insert(
-					new Element( 'paragraph', null, new Text( 'Ab' ) ),
-					new Position( root, [ 0 ] )
-				);
+				const element = new ModelElement( 'paragraph', null, new ModelText( 'Ab' ) );
 
-				split( new Position( root, [ 0, 1 ] ) );
+				insert( element, new ModelPosition( root, [ 0 ] ) );
+				split( new ModelPosition( root, [ 0, 1 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' },
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'split an element inside a new element', () => {
 			model.change( () => {
-				insert(
-					new Element( 'blockQuote', null, new Element( 'paragraph', null, new Text( 'Ab' ) ) ),
-					new Position( root, [ 0 ] )
-				);
+				const blockQuote = new ModelElement( 'blockQuote', null, new ModelElement( 'paragraph', null, new ModelText( 'Ab' ) ) );
 
-				split( new Position( root, [ 0, 0, 1 ] ) );
+				insert( blockQuote, new ModelPosition( root, [ 0 ] ) );
+				split( new ModelPosition( root, [ 0, 0, 1 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'blockQuote', length: 1, position: new Position( root, [ 0 ] ) }
+					{ type: 'insert', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' }
+				] );
+			} );
+		} );
+
+		it( 'split an element with renamed element after split position', () => {
+			const elA = new ModelElement( 'paragraph', null, new ModelText( 'A' ) );
+			const elB = new ModelElement( 'paragraph', null, new ModelText( 'B' ) );
+
+			model.change( () => {
+				insert( new ModelElement( 'blockQuote', null, [ elA, elB ] ), new ModelPosition( root, [ 0 ] ) );
+			} );
+
+			model.change( () => {
+				rename( elB, 'listItem' );
+				split( new ModelPosition( root, [ 0, 1 ] ) );
+
+				expectChanges( [
+					{
+						type: 'remove',
+						name: 'paragraph', // Element name before any changes.
+						length: 1,
+						position: new ModelPosition( root, [ 0, 1 ] ),
+						action: 'remove' // The end result is the `paragraph` was removed from the blockquote (split overwrites rename).
+					},
+					{ type: 'insert', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'should correctly mark a change in graveyard', () => {
 			model.change( () => {
-				merge( new Position( root, [ 1, 0 ] ), new Position( root, [ 0, 3 ] ) );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 3 ] ) );
 			} );
 
 			model.change( () => {
-				const position = new Position( root, [ 0, 3 ] );
+				const position = new ModelPosition( root, [ 0, 3 ] );
 				const insertionPosition = SplitOperation.getInsertionPosition( position );
 
-				const operation = new SplitOperation( position, 3, insertionPosition, new Position( doc.graveyard, [ 0 ] ), doc.version );
+				const gyPosition = new ModelPosition( doc.graveyard, [ 0 ] );
+				const operation = new SplitOperation( position, 3, insertionPosition, gyPosition, doc.version );
 
 				model.applyOperation( operation );
 
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( doc.graveyard, [ 0 ] ) },
-					{ type: 'remove', name: '$text', length: 3, position: new Position( root, [ 0, 3 ] ) },
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( doc.graveyard, [ 0 ] ), action: 'remove' },
+					{ type: 'remove', name: '$text', length: 3, position: new ModelPosition( root, [ 0, 3 ] ), action: 'remove' },
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'insert' }
 				], true );
 			} );
 		} );
@@ -1569,7 +1860,7 @@ describe( 'Differ', () => {
 		it( 'inside a non-loaded root - not buffered', () => {
 			root._isLoaded = false;
 
-			const position = new Position( root, [ 0, 2 ] );
+			const position = new ModelPosition( root, [ 0, 2 ] );
 
 			model.change( () => {
 				split( position );
@@ -1582,64 +1873,130 @@ describe( 'Differ', () => {
 	describe( 'merge', () => {
 		it( 'merge two elements', () => {
 			model.change( () => {
-				merge( new Position( root, [ 1, 0 ] ), new Position( root, [ 0, 3 ] ) );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 3 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 3, position: new Position( root, [ 0, 3 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'insert', name: '$text', length: 3, position: new ModelPosition( root, [ 0, 3 ] ), action: 'insert' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'merge a new element', () => {
 			model.change( () => {
-				insert( new Element( 'paragraph', null, new Text( 'Ab' ) ), new Position( root, [ 1 ] ) );
-				merge( new Position( root, [ 1, 0 ] ), new Position( root, [ 0, 3 ] ) );
+				insert( new ModelElement( 'paragraph', null, new ModelText( 'Ab' ) ), new ModelPosition( root, [ 1 ] ) );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 3 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 2, position: new Position( root, [ 0, 3 ] ) }
+					{ type: 'insert', name: '$text', length: 2, position: new ModelPosition( root, [ 0, 3 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		it( 'merge into a new element', () => {
 			model.change( () => {
-				insert( new Element( 'paragraph', null, new Text( 'Ab' ) ), new Position( root, [ 0 ] ) );
-				merge( new Position( root, [ 1, 0 ] ), new Position( root, [ 0, 2 ] ) );
+				const newP = new ModelElement( 'paragraph', null, new ModelText( 'Ab' ) );
+
+				insert( newP, new ModelPosition( root, [ 0 ] ) );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 2 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'merge elements inside a new element', () => {
 			model.change( () => {
-				insert(
-					new Element( 'blockQuote', null, [
-						new Element( 'paragraph', null, new Text( 'Ab' ) ),
-						new Element( 'paragraph', null, new Text( 'Xyz' ) )
-					] ),
-					new Position( root, [ 0 ] )
-				);
+				const blockQuote = new ModelElement( 'blockQuote', null, [
+					new ModelElement( 'paragraph', null, new ModelText( 'Ab' ) ),
+					new ModelElement( 'paragraph', null, new ModelText( 'Xyz' ) )
+				] );
 
-				merge( new Position( root, [ 0, 1, 0 ] ), new Position( root, [ 0, 0, 2 ] ) );
+				insert( blockQuote, new ModelPosition( root, [ 0 ] ) );
+
+				merge( new ModelPosition( root, [ 0, 1, 0 ] ), new ModelPosition( root, [ 0, 0, 2 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'blockQuote', length: 1, position: new Position( root, [ 0 ] ) }
+					{ type: 'insert', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' }
+				] );
+			} );
+		} );
+
+		it( 'merge element with renamed item inside', () => {
+			const elA = new ModelElement( 'paragraph', null, new ModelText( 'A' ) );
+			const elB = new ModelElement( 'paragraph', null, new ModelText( 'B' ) );
+
+			model.change( () => {
+				insert( new ModelElement( 'blockQuote', null, [ elA ] ), new ModelPosition( root, [ 0 ] ) );
+				insert( new ModelElement( 'blockQuote', null, [ elB ] ), new ModelPosition( root, [ 1 ] ) );
+			} );
+
+			// Model is:
+			// <blockQuote><paragraph>A</paragraph></blockQuote><blockQuote><paragraph>B</paragraph></blockQuote>
+			//
+			// We rename second paragraph to `listItem` and merge `blockQuote`s.
+			//
+			model.change( () => {
+				rename( elB, 'listItem' );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 1 ] ) );
+
+				expectChanges( [
+					{
+						type: 'insert',
+						name: 'listItem',
+						length: 1,
+						position: new ModelPosition( root, [ 0, 1 ] ),
+						action: 'insert', // The end result is a new `listItem` inserted to the first blockquote (merge overwrites rename).
+						before: undefined // Since this is marked as action `'insert'`, `before` is not available.
+					},
+					{ type: 'remove', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'remove' }
+				] );
+			} );
+		} );
+
+		it( 'merge element with refreshed item inside', () => {
+			// This is the same case as above but refresh is used instead of rename.
+			const elA = new ModelElement( 'paragraph', null, new ModelText( 'A' ) );
+			const elB = new ModelElement( 'paragraph', null, new ModelText( 'B' ) );
+
+			model.change( () => {
+				insert( new ModelElement( 'blockQuote', null, [ elA ] ), new ModelPosition( root, [ 0 ] ) );
+				insert( new ModelElement( 'blockQuote', null, [ elB ] ), new ModelPosition( root, [ 1 ] ) );
+			} );
+
+			// Model is:
+			// <blockQuote><paragraph>A</paragraph></blockQuote><blockQuote><paragraph>B</paragraph></blockQuote>
+			//
+			// We rename second paragraph to `listItem` and merge `blockQuote`s.
+			//
+			model.change( () => {
+				differ._refreshItem( elB );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 1 ] ) );
+
+				expectChanges( [
+					{
+						type: 'insert',
+						name: 'paragraph',
+						length: 1,
+						position: new ModelPosition( root, [ 0, 1 ] ),
+						action: 'insert', // The end result is a new `listItem` inserted to the first blockquote (merge overwrites refresh).
+						before: undefined // Since this is marked as action `'insert'`, `before` is not available.
+					},
+					{ type: 'remove', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'remove' }
 				] );
 			} );
 		} );
 
 		it( 'should correctly mark a change in graveyard', () => {
 			model.change( () => {
-				merge( new Position( root, [ 1, 0 ] ), new Position( root, [ 0, 3 ] ) );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 3 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( doc.graveyard, [ 0 ] ) },
-					{ type: 'insert', name: '$text', length: 3, position: new Position( root, [ 0, 3 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( doc.graveyard, [ 0 ] ), action: 'insert' },
+					{ type: 'insert', name: '$text', length: 3, position: new ModelPosition( root, [ 0, 3 ] ), action: 'insert' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'remove' }
 				], true );
 			} );
 		} );
@@ -1648,7 +2005,7 @@ describe( 'Differ', () => {
 			root._isLoaded = false;
 
 			model.change( () => {
-				merge( new Position( root, [ 1, 0 ] ), new Position( root, [ 0, 3 ] ) );
+				merge( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 0, 3 ] ) );
 
 				expectChanges( [] );
 			} );
@@ -1659,20 +2016,20 @@ describe( 'Differ', () => {
 		let range, rangeB;
 
 		beforeEach( () => {
-			range = new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) );
-			rangeB = new Range( Position._createAt( root, 1 ), Position._createAt( root, 2 ) );
+			range = new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) );
+			rangeB = new ModelRange( ModelPosition._createAt( root, 1 ), ModelPosition._createAt( root, 2 ) );
 		} );
 
 		it( 'add marker', () => {
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: true }, { range, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1686,13 +2043,13 @@ describe( 'Differ', () => {
 		it( 'add marker not affecting data', () => {
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: false }, { range, affectsData: false } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1706,13 +2063,13 @@ describe( 'Differ', () => {
 		it( 'remove marker', () => {
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: null, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [
+			expect( differ.getMarkersToRemove() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [] );
+			expect( differ.getMarkersToAdd() ).toEqual( [] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1726,15 +2083,15 @@ describe( 'Differ', () => {
 		it( 'change marker\'s range', () => {
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: rangeB, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [
+			expect( differ.getMarkersToRemove() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range: rangeB }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1749,22 +2106,22 @@ describe( 'Differ', () => {
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: true }, { range, affectsData: true } );
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: null, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [] );
-			expect( differ.getChangedMarkers() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
+			expect( differ.getMarkersToAdd() ).toEqual( [] );
+			expect( differ.getChangedMarkers() ).toEqual( [] );
 		} );
 
 		it( 'add marker and change range', () => {
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: true }, { range, affectsData: true } );
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: rangeB, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range: rangeB }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1779,13 +2136,13 @@ describe( 'Differ', () => {
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: false }, { range, affectsData: false } );
 			differ.bufferMarkerChange( 'name', { range, affectsData: false }, { range, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1800,39 +2157,39 @@ describe( 'Differ', () => {
 			it( 'should return `true` when the range changes and the marker affects data', () => {
 				differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: rangeB, affectsData: true } );
 
-				expect( differ.hasDataChanges() ).to.be.true;
+				expect( differ.hasDataChanges() ).toBe( true );
 			} );
 
 			it( 'should return `false` when the range does not change', () => {
 				differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range, affectsData: true } );
 
-				expect( differ.hasDataChanges() ).to.be.false;
+				expect( differ.hasDataChanges() ).toBe( false );
 			} );
 
 			it( 'should return `false` when multiple changes result in not changed range', () => {
 				differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: rangeB, affectsData: true } );
 				differ.bufferMarkerChange( 'name', { range: rangeB, affectsData: true }, { range, affectsData: true } );
 
-				expect( differ.hasDataChanges() ).to.be.false;
+				expect( differ.hasDataChanges() ).toBe( false );
 			} );
 
 			it( 'should return `true` when marker stops affecting data', () => {
 				differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range, affectsData: false } );
 
-				expect( differ.hasDataChanges() ).to.be.true;
+				expect( differ.hasDataChanges() ).toBe( true );
 			} );
 
 			it( 'should return `true` when marker starts affecting data', () => {
 				differ.bufferMarkerChange( 'name', { range, affectsData: false }, { range, affectsData: true } );
 
-				expect( differ.hasDataChanges() ).to.be.true;
+				expect( differ.hasDataChanges() ).toBe( true );
 			} );
 
 			it( 'should return `false` when multiple marker changes do not change affecting data (which is false)', () => {
 				differ.bufferMarkerChange( 'name', { range, affectsData: false }, { range: rangeB, affectsData: true } );
 				differ.bufferMarkerChange( 'name', { range: rangeB, affectsData: true }, { range: rangeB, affectsData: false } );
 
-				expect( differ.hasDataChanges() ).to.be.false;
+				expect( differ.hasDataChanges() ).toBe( false );
 			} );
 
 			it( 'should return `true` if at least one marker changed', () => {
@@ -1840,7 +2197,7 @@ describe( 'Differ', () => {
 				differ.bufferMarkerChange( 'nameB', { range, affectsData: true }, { range: rangeB, affectsData: true } );
 				differ.bufferMarkerChange( 'nameC', { range, affectsData: true }, { range, affectsData: true } );
 
-				expect( differ.hasDataChanges() ).to.be.true;
+				expect( differ.hasDataChanges() ).toBe( true );
 			} );
 		} );
 
@@ -1848,13 +2205,13 @@ describe( 'Differ', () => {
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: rangeB, affectsData: true } );
 			differ.bufferMarkerChange( 'name', { range: rangeB, affectsData: true }, { range: null, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [
+			expect( differ.getMarkersToRemove() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [] );
+			expect( differ.getMarkersToAdd() ).toEqual( [] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1864,22 +2221,22 @@ describe( 'Differ', () => {
 				}
 			] );
 
-			expect( differ.hasDataChanges() ).to.be.true;
+			expect( differ.hasDataChanges() ).toBe( true );
 		} );
 
 		it( 'remove marker and add it at same range', () => {
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: null, affectsData: true } );
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: true }, { range, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [
+			expect( differ.getMarkersToRemove() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1893,15 +2250,15 @@ describe( 'Differ', () => {
 		it( 'change marker to the same range', () => {
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [
+			expect( differ.getMarkersToRemove() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1917,9 +2274,9 @@ describe( 'Differ', () => {
 
 			differ.bufferMarkerChange( 'name', { range: null, affectsData: true }, { range, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [] );
-			expect( differ.getChangedMarkers() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
+			expect( differ.getMarkersToAdd() ).toEqual( [] );
+			expect( differ.getChangedMarkers() ).toEqual( [] );
 		} );
 
 		it( 'remove marker inside a non-loaded root - not buffered', () => {
@@ -1927,26 +2284,26 @@ describe( 'Differ', () => {
 
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: null, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [] );
-			expect( differ.getChangedMarkers() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
+			expect( differ.getMarkersToAdd() ).toEqual( [] );
+			expect( differ.getChangedMarkers() ).toEqual( [] );
 		} );
 
 		it( 'move marker from a loaded to a non-loaded root - partially not buffered', () => {
 			const newRoot = model.document.createRoot( '$root', 'new' );
 			newRoot._isLoaded = false;
 
-			const newRange = new Range( Position._createAt( newRoot, 0 ), Position._createAt( newRoot, 0 ) );
+			const newRange = new ModelRange( ModelPosition._createAt( newRoot, 0 ), ModelPosition._createAt( newRoot, 0 ) );
 
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: newRange, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [
+			expect( differ.getMarkersToRemove() ).toEqual( [
 				{ name: 'name', range }
 			] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [] );
+			expect( differ.getMarkersToAdd() ).toEqual( [] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1959,19 +2316,19 @@ describe( 'Differ', () => {
 
 		it( 'move marker from a non-loaded to a loaded root - partially not buffered', () => {
 			const newRoot = model.document.createRoot( '$root', 'new' );
-			const newRange = new Range( Position._createAt( newRoot, 0 ), Position._createAt( newRoot, 0 ) );
+			const newRange = new ModelRange( ModelPosition._createAt( newRoot, 0 ), ModelPosition._createAt( newRoot, 0 ) );
 
 			root._isLoaded = false;
 
 			differ.bufferMarkerChange( 'name', { range, affectsData: true }, { range: newRange, affectsData: true } );
 
-			expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+			expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-			expect( differ.getMarkersToAdd() ).to.deep.equal( [
+			expect( differ.getMarkersToAdd() ).toEqual( [
 				{ name: 'name', range: newRange }
 			] );
 
-			expect( differ.getChangedMarkers() ).to.deep.equal( [
+			expect( differ.getChangedMarkers() ).toEqual( [
 				{
 					name: 'name',
 					data: {
@@ -1990,10 +2347,10 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'new', state: 'attached' } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'new', state: 'attached' } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2007,9 +2364,9 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
-				expect( differ.isEmpty ).to.be.true;
+				expect( rootChanges.length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
+				expect( differ.isEmpty ).toBe( true );
 			} );
 		} );
 
@@ -2019,10 +2376,10 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'main', state: 'detached' } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'main', state: 'detached' } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2036,9 +2393,9 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
-				expect( differ.isEmpty ).to.be.true;
+				expect( rootChanges.length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
+				expect( differ.isEmpty ).toBe( true );
 			} );
 		} );
 
@@ -2048,18 +2405,18 @@ describe( 'Differ', () => {
 				writer.detachRoot( 'new' );
 
 				let rootChanges = differ.getChangedRoots();
-				expect( rootChanges.length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
-				expect( differ.isEmpty ).to.be.true;
+				expect( rootChanges.length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
+				expect( differ.isEmpty ).toBe( true );
 
 				writer.addRoot( 'new' );
 
 				rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'new', state: 'attached' } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'new', state: 'attached' } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2068,9 +2425,9 @@ describe( 'Differ', () => {
 				writer.addRoot( 'new' );
 			} );
 
-			expect( differ.getChangedRoots().length ).to.equal( 0 );
-			expect( differ.hasDataChanges() ).to.be.false;
-			expect( differ.isEmpty ).to.be.true;
+			expect( differ.getChangedRoots().length ).toBe( 0 );
+			expect( differ.hasDataChanges() ).toBe( false );
+			expect( differ.isEmpty ).toBe( true );
 		} );
 
 		it( 'detach root, then add root, then detach root', () => {
@@ -2085,18 +2442,18 @@ describe( 'Differ', () => {
 				writer.addRoot( 'main2' );
 
 				let rootChanges = differ.getChangedRoots();
-				expect( rootChanges.length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
-				expect( differ.isEmpty ).to.be.true;
+				expect( rootChanges.length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
+				expect( differ.isEmpty ).toBe( true );
 
 				writer.detachRoot( 'main2' );
 
 				rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'main2', state: 'detached' } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'main2', state: 'detached' } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2114,13 +2471,13 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 4 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'new', state: 'attached' } );
-				expect( rootChanges[ 1 ] ).to.deep.equal( { name: 'main', state: 'detached' } );
-				expect( rootChanges[ 2 ] ).to.deep.equal( { name: 'main2', state: 'detached' } );
-				expect( rootChanges[ 3 ] ).to.deep.equal( { name: 'new2', state: 'attached' } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 4 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'new', state: 'attached' } );
+				expect( rootChanges[ 1 ] ).toEqual( { name: 'main', state: 'detached' } );
+				expect( rootChanges[ 2 ] ).toEqual( { name: 'main2', state: 'detached' } );
+				expect( rootChanges[ 3 ] ).toEqual( { name: 'new2', state: 'attached' } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2132,10 +2489,10 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'main', attributes: { key: { oldValue: null, newValue: 'foo' } } } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'main', attributes: { key: { oldValue: null, newValue: 'foo' } } } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2151,10 +2508,10 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'main', attributes: { key: { oldValue: 'foo', newValue: null } } } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'main', attributes: { key: { oldValue: 'foo', newValue: null } } } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2170,10 +2527,10 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'main', attributes: { key: { oldValue: 'foo', newValue: 'bar' } } } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'main', attributes: { key: { oldValue: 'foo', newValue: 'bar' } } } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2186,9 +2543,9 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
-				expect( differ.isEmpty ).to.be.true;
+				expect( rootChanges.length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
+				expect( differ.isEmpty ).toBe( true );
 			} );
 		} );
 
@@ -2200,9 +2557,9 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2216,10 +2573,10 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'main', attributes: { key: { oldValue: null, newValue: 'baz' } } } );
-				expect( differ.hasDataChanges() ).to.be.true;
-				expect( differ.isEmpty ).to.be.false;
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'main', attributes: { key: { oldValue: null, newValue: 'baz' } } } );
+				expect( differ.hasDataChanges() ).toBe( true );
+				expect( differ.isEmpty ).toBe( false );
 			} );
 		} );
 
@@ -2236,9 +2593,9 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
-				expect( differ.isEmpty ).to.be.true;
+				expect( rootChanges.length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
+				expect( differ.isEmpty ).toBe( true );
 			} );
 		} );
 
@@ -2255,8 +2612,8 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'main',
 					attributes: {
 						abc: { oldValue: null, newValue: 'xyz' },
@@ -2275,8 +2632,8 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'root',
 					state: 'attached'
 				} );
@@ -2298,8 +2655,8 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'main',
 					state: 'detached'
 				} );
@@ -2319,8 +2676,8 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'main',
 					state: 'attached'
 				} );
@@ -2336,8 +2693,8 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'main',
 					state: 'detached'
 				} );
@@ -2364,8 +2721,8 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'main',
 					attributes: {
 						abc: { oldValue: null, newValue: 'abc' },
@@ -2391,14 +2748,14 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 2 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( {
+				expect( rootChanges.length ).toBe( 2 );
+				expect( rootChanges[ 0 ] ).toEqual( {
 					name: 'main',
 					attributes: {
 						key: { oldValue: 'foo', newValue: null }
 					}
 				} );
-				expect( rootChanges[ 1 ] ).to.deep.equal( {
+				expect( rootChanges[ 1 ] ).toEqual( {
 					name: 'root',
 					attributes: {
 						abc: { oldValue: null, newValue: 'xyz' }
@@ -2417,7 +2774,7 @@ describe( 'Differ', () => {
 
 				expectChanges( [] );
 
-				expect( rootChanges.length ).to.equal( 0 );
+				expect( rootChanges.length ).toBe( 0 );
 			} );
 		} );
 
@@ -2433,7 +2790,7 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 0 );
+				expect( rootChanges.length ).toBe( 0 );
 			} );
 
 			model.change( writer => {
@@ -2442,7 +2799,7 @@ describe( 'Differ', () => {
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 0 );
+				expect( rootChanges.length ).toBe( 0 );
 			} );
 		} );
 	} );
@@ -2451,49 +2808,50 @@ describe( 'Differ', () => {
 		// See https://github.com/ckeditor/ckeditor5/issues/4284.
 		it( 'multiple inserts and removes in one element', () => {
 			model.change( () => {
-				insert( new Text( 'x' ), new Position( root, [ 0, 2 ] ) );
-				insert( new Text( 'x' ), new Position( root, [ 0, 3 ] ) );
-				move( new Position( root, [ 0, 2 ] ), 1, new Position( root, [ 1, 0 ] ) );
+				insert( new ModelText( 'x' ), new ModelPosition( root, [ 0, 2 ] ) );
+				insert( new ModelText( 'x' ), new ModelPosition( root, [ 0, 3 ] ) );
+				move( new ModelPosition( root, [ 0, 2 ] ), 1, new ModelPosition( root, [ 1, 0 ] ) );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 1, position: new Position( root, [ 0, 2 ] ) },
-					{ type: 'insert', name: '$text', length: 1, position: new Position( root, [ 1, 0 ] ) }
+					{ type: 'insert', name: '$text', length: 1, position: new ModelPosition( root, [ 0, 2 ] ), action: 'insert' },
+					{ type: 'insert', name: '$text', length: 1, position: new ModelPosition( root, [ 1, 0 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		// See https://github.com/ckeditor/ckeditor5/issues/733.
 		it( 'proper filtering of changes in removed elements', () => {
-			// Before fix there was a buggy scenario described in ckeditor5#733.
+			// Before fix there was a buggy scenario described in https://github.com/ckeditor/ckeditor5/issues/733.
 			// There was this structure: `<paragraph>foo[</paragraph><imageBlock /><blockQuote><p>te]xt</p></blockQuote>`
 			// On delete of above selection `image` and `paragraph` inside `blockQuote` are removed (it gets merged).
 			// However, since `image` was removed first, when checking if `paragraph` is in a removed element,
 			// it appeared that `blockQuote` looks like it is removed because it had the same path as the already removed `<imageBlock>`.
 			// In a result, removing `paragraph` was discarded.
 			// The mistake was that the checking for removing was done at incorrect moment.
+			const imageBlock = new ModelElement( 'imageBlock' );
+			const paragraph = new ModelElement( 'paragraph', null, new ModelText( 'text' ) );
+
 			root._removeChildren( 0, root.childCount );
 			root._appendChild( [
-				new Element( 'paragraph', null, new Text( 'foo' ) ),
-				new Element( 'imageBlock' ),
-				new Element( 'blockQuote', null, [
-					new Element( 'paragraph', null, new Text( 'text' ) )
-				] )
+				new ModelElement( 'paragraph', null, new ModelText( 'foo' ) ),
+				imageBlock,
+				new ModelElement( 'blockQuote', null, paragraph )
 			] );
 
 			model.change( () => {
 				// Remove `"te"`.
-				remove( new Position( root, [ 2, 0, 0 ] ), 2 );
+				remove( new ModelPosition( root, [ 2, 0, 0 ] ), 2 );
 				// Remove `image` before `blockQuote`.
-				remove( new Position( root, [ 1 ] ), 1 );
+				remove( new ModelPosition( root, [ 1 ] ), 1 );
 				// Move `"xt"` to first `paragraph` (merging).
-				move( new Position( root, [ 1, 0, 0 ] ), 2, new Position( root, [ 0, 3 ] ) );
+				move( new ModelPosition( root, [ 1, 0, 0 ] ), 2, new ModelPosition( root, [ 0, 3 ] ) );
 				// Remove `paragraph` inside `blockQuote`.
-				remove( new Position( root, [ 1, 0 ] ), 1 );
+				remove( new ModelPosition( root, [ 1, 0 ] ), 1 );
 
 				expectChanges( [
-					{ type: 'insert', name: '$text', length: 2, position: new Position( root, [ 0, 3 ] ) },
-					{ type: 'remove', name: 'imageBlock', length: 1, position: new Position( root, [ 1 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1, 0 ] ) }
+					{ type: 'insert', name: '$text', length: 2, position: new ModelPosition( root, [ 0, 3 ] ), action: 'insert' },
+					{ type: 'remove', name: 'imageBlock', length: 1, position: new ModelPosition( root, [ 1 ] ), action: 'remove' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1, 0 ] ), action: 'remove' }
 				] );
 			} );
 		} );
@@ -2502,22 +2860,24 @@ describe( 'Differ', () => {
 		// finally we insert some content into a new element. Since we are inserting into a new element, the
 		// inserted children should not be shown on changes list.
 		it( 'proper filtering of changes in inserted elements', () => {
-			root._removeChildren( 0, root.childCount );
-			root._appendChild( new Element( 'imageBlock' ) );
+			const imageBlock = new ModelElement( 'imageBlock' );
 
-			const blockQuote = new Element( 'blockQuote', null, new Element( 'paragraph' ) );
+			root._removeChildren( 0, root.childCount );
+			root._appendChild( imageBlock );
+
+			const blockQuote = new ModelElement( 'blockQuote', null, new ModelElement( 'paragraph' ) );
 
 			model.change( () => {
 				// Insert `blockQuote` with `paragraph` after `image`.
-				insert( blockQuote, new Position( root, [ 1 ] ) );
+				insert( blockQuote, new ModelPosition( root, [ 1 ] ) );
 				// Remove `image` from before `blockQuote`.
-				remove( new Position( root, [ 0 ] ), 1 );
+				remove( new ModelPosition( root, [ 0 ] ), 1 );
 				// Insert text into `paragraph` in `blockQuote`.
-				insert( new Text( 'foo' ), new Position( root, [ 0, 0, 0 ] ) );
+				insert( new ModelText( 'foo' ), new ModelPosition( root, [ 0, 0, 0 ] ) );
 
 				expectChanges( [
-					{ type: 'remove', name: 'imageBlock', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'insert', name: 'blockQuote', length: 1, position: new Position( root, [ 0 ] ) }
+					{ type: 'remove', name: 'imageBlock', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' },
+					{ type: 'insert', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' }
 				] );
 			} );
 		} );
@@ -2526,35 +2886,37 @@ describe( 'Differ', () => {
 		// the new element. This way we mess up with offsets and insert content into a new element in one operation.
 		// Since we are inserting into a new element, the insertion of moved element should not be shown on changes list.
 		it( 'proper filtering of changes in inserted elements #2', () => {
+			const imageBlock = new ModelElement( 'imageBlock' );
+
 			root._removeChildren( 0, root.childCount );
-			root._appendChild( new Element( 'imageBlock' ) );
+			root._appendChild( imageBlock );
 
 			model.change( () => {
 				// Insert `div` after `image`.
-				insert( new Element( 'div' ), new Position( root, [ 1 ] ) );
+				const div = new ModelElement( 'div' );
+				insert( div, new ModelPosition( root, [ 1 ] ) );
 				// Move `image` to the new `div`.
-				move( new Position( root, [ 0 ] ), 1, new Position( root, [ 1, 0 ] ) );
+				move( new ModelPosition( root, [ 0 ] ), 1, new ModelPosition( root, [ 1, 0 ] ) );
 
 				expectChanges( [
-					{ type: 'remove', name: 'imageBlock', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'insert', name: 'div', length: 1, position: new Position( root, [ 0 ] ) }
+					{ type: 'remove', name: 'imageBlock', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' },
+					{ type: 'insert', name: 'div', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'insert' }
 				] );
 			} );
 		} );
 
 		// #1392.
 		it( 'remove is correctly transformed by multiple affecting changes', () => {
-			root._appendChild( new Element( 'paragraph', null, new Text( 'xyz' ) ) );
-
+			root._appendChild( new ModelElement( 'paragraph', null, new ModelText( 'xyz' ) ) );
 			model.change( writer => {
 				rename( root.getChild( 1 ), 'heading' );
 				rename( root.getChild( 2 ), 'heading' );
 				remove( writer.createPositionAt( root, 0 ), 3 );
 
 				expectChanges( [
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) },
-					{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 0 ] ) }
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' },
+					{ type: 'remove', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 0 ] ), action: 'remove' }
 				] );
 			} );
 		} );
@@ -2591,8 +2953,8 @@ describe( 'Differ', () => {
 
 				const changes = differ.getChangedRoots();
 
-				expect( changes.length ).to.equal( 1 );
-				expect( changes[ 0 ] ).to.deep.equal( { name: 'new', state: 'attached' } );
+				expect( changes.length ).toBe( 1 );
+				expect( changes[ 0 ] ).toEqual( { name: 'new', state: 'attached' } );
 			} );
 		} );
 
@@ -2602,8 +2964,8 @@ describe( 'Differ', () => {
 				differ._bufferRootLoad( newRoot );
 
 				expectChanges( [
-					{ type: 'insert', name: 'heading2', length: 1, position: new Position( newRoot, [ 0 ] ) },
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( newRoot, [ 1 ] ) }
+					{ type: 'insert', name: 'heading2', length: 1, position: new ModelPosition( newRoot, [ 0 ] ), action: 'insert' },
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( newRoot, [ 1 ] ), action: 'insert' }
 				] );
 			} );
 		} );
@@ -2613,14 +2975,14 @@ describe( 'Differ', () => {
 				newRoot._isLoaded = true;
 				differ._bufferRootLoad( newRoot );
 
-				expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+				expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-				expect( differ.getMarkersToAdd() ).to.deep.equal( [
+				expect( differ.getMarkersToAdd() ).toEqual( [
 					{ name: 'markerA', range: rangeA },
 					{ name: 'markerB', range: rangeB }
 				] );
 
-				expect( differ.getChangedMarkers() ).to.deep.equal( [
+				expect( differ.getChangedMarkers() ).toEqual( [
 					{
 						name: 'markerA',
 						data: {
@@ -2649,9 +3011,9 @@ describe( 'Differ', () => {
 				differ._bufferRootLoad( newRoot );
 
 				expectChanges( [] );
-				expect( differ.getChangedMarkers() ).to.deep.equal( [] );
-				expect( differ.getChangedRoots().length ).to.equal( 0 );
-				expect( differ.hasDataChanges() ).to.be.false;
+				expect( differ.getChangedMarkers() ).toEqual( [] );
+				expect( differ.getChangedRoots().length ).toBe( 0 );
+				expect( differ.hasDataChanges() ).toBe( false );
 			} );
 		} );
 
@@ -2662,11 +3024,11 @@ describe( 'Differ', () => {
 				writer.detachRoot( newRoot );
 
 				expectChanges( [] );
-				expect( differ.getChangedMarkers() ).to.deep.equal( [] );
-				expect( differ.getChangedRoots().length ).to.equal( 0 );
+				expect( differ.getChangedMarkers() ).toEqual( [] );
+				expect( differ.getChangedRoots().length ).toBe( 0 );
 
 				// It has changes in graveyard!
-				expect( differ.hasDataChanges() ).to.be.true;
+				expect( differ.hasDataChanges() ).toBe( false );
 			} );
 		} );
 
@@ -2695,23 +3057,23 @@ describe( 'Differ', () => {
 				writer.addMarker( 'markerC', { range: rangeC, usingOperation: true } );
 
 				expectChanges( [
-					{ type: 'insert', name: 'imageBlock', length: 1, position: new Position( newRoot, [ 0 ] ) },
-					{ type: 'insert', name: 'heading2', length: 1, position: new Position( newRoot, [ 1 ] ) }
+					{ type: 'insert', name: 'imageBlock', length: 1, position: new ModelPosition( newRoot, [ 0 ] ) },
+					{ type: 'insert', name: 'heading2', length: 1, position: new ModelPosition( newRoot, [ 1 ] ) }
 				] );
 
 				const rootChanges = differ.getChangedRoots();
 
-				expect( rootChanges.length ).to.equal( 1 );
-				expect( rootChanges[ 0 ] ).to.deep.equal( { name: 'new', state: 'attached' } );
+				expect( rootChanges.length ).toBe( 1 );
+				expect( rootChanges[ 0 ] ).toEqual( { name: 'new', state: 'attached' } );
 
-				expect( differ.getMarkersToRemove() ).to.deep.equal( [] );
+				expect( differ.getMarkersToRemove() ).toEqual( [] );
 
-				expect( differ.getMarkersToAdd() ).to.deep.equal( [
+				expect( differ.getMarkersToAdd() ).toEqual( [
 					{ name: 'markerA', range: newRangeA },
 					{ name: 'markerC', range: rangeC }
 				] );
 
-				expect( differ.getChangedMarkers() ).to.deep.equal( [
+				expect( differ.getChangedMarkers() ).toEqual( [
 					{
 						name: 'markerA',
 						data: {
@@ -2734,16 +3096,17 @@ describe( 'Differ', () => {
 	describe( '#_refreshItem()', () => {
 		it( 'should mark given element to be removed and added again', () => {
 			const p = root.getChild( 0 );
+			const before = { name: 'paragraph', attributes: new Map() };
 
 			differ._refreshItem( p );
 
 			expectChanges( [
-				{ type: 'remove', name: 'paragraph', length: 1, position: model.createPositionBefore( p ) },
-				{ type: 'insert', name: 'paragraph', length: 1, position: model.createPositionBefore( p ) }
+				{ type: 'remove', action: 'refresh', name: 'paragraph', length: 1, position: model.createPositionBefore( p ) },
+				{ type: 'insert', action: 'refresh', name: 'paragraph', length: 1, position: model.createPositionBefore( p ), before }
 			], true );
 
 			const refreshedItems = Array.from( differ.getRefreshedItems() );
-			expect( refreshedItems ).to.deep.equal( [ p ] );
+			expect( refreshedItems ).toEqual( [ p ] );
 		} );
 
 		it( 'should mark given text proxy to be removed and added again', () => {
@@ -2753,60 +3116,109 @@ describe( 'Differ', () => {
 
 			differ._refreshItem( textProxy );
 
+			// When text is refreshed its actions are still remove and insert.
 			expectChanges( [
-				{ type: 'remove', name: '$text', length: 3, position: model.createPositionAt( p, 0 ) },
-				{ type: 'insert', name: '$text', length: 3, position: model.createPositionAt( p, 0 ) }
+				{ type: 'remove', action: 'remove', name: '$text', length: 3, position: model.createPositionAt( p, 0 ) },
+				{ type: 'insert', action: 'insert', name: '$text', length: 3, position: model.createPositionAt( p, 0 ) }
 			], true );
 
 			const refreshedItems = Array.from( differ.getRefreshedItems() );
-			expect( refreshedItems ).to.deep.equal( [ textProxy ] );
+			expect( refreshedItems ).toEqual( [ textProxy ] );
 		} );
 
 		it( 'inside a new element', () => {
 			// Since the refreshed element is inside a new element, it should not be listed on changes list.
 			model.change( () => {
-				insert( new Element( 'blockQuote', null, new Element( 'paragraph' ) ), new Position( root, [ 2 ] ) );
+				const blockQuote = new ModelElement( 'blockQuote', null, new ModelElement( 'paragraph' ) );
+
+				insert( blockQuote, new ModelPosition( root, [ 2 ] ) );
 
 				differ._refreshItem( root.getChild( 2 ).getChild( 0 ) );
 
 				expectChanges( [
-					{ type: 'insert', name: 'blockQuote', length: 1, position: new Position( root, [ 2 ] ) }
+					{ type: 'insert', name: 'blockQuote', length: 1, position: new ModelPosition( root, [ 2 ] ), action: 'insert' }
 				] );
 
 				const refreshedItems = Array.from( differ.getRefreshedItems() );
-				expect( refreshedItems ).to.deep.equal( [] );
+				expect( refreshedItems ).toEqual( [] );
 			} );
 		} );
 
 		it( 'markers refreshing', () => {
 			model.change( () => {
 				// Refreshed element contains marker.
-				model.markers._set( 'markerA', new Range( new Position( root, [ 1, 1 ] ), new Position( root, [ 1, 2 ] ) ) );
+				model.markers._set( 'markerA', new ModelRange( new ModelPosition( root, [ 1, 1 ] ), new ModelPosition( root, [ 1, 2 ] ) ) );
 
 				// Marker contains refreshed element.
-				model.markers._set( 'markerB', new Range( new Position( root, [ 0 ] ), new Position( root, [ 2 ] ) ) );
+				model.markers._set( 'markerB', new ModelRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 2 ] ) ) );
 
 				// Intersecting.
-				model.markers._set( 'markerC', new Range( new Position( root, [ 0, 2 ] ), new Position( root, [ 1, 2 ] ) ) );
+				model.markers._set( 'markerC', new ModelRange( new ModelPosition( root, [ 0, 2 ] ), new ModelPosition( root, [ 1, 2 ] ) ) );
 
 				// Not intersecting.
-				model.markers._set( 'markerD', new Range( new Position( root, [ 0, 0 ] ), new Position( root, [ 1 ] ) ) );
+				model.markers._set( 'markerD', new ModelRange( new ModelPosition( root, [ 0, 0 ] ), new ModelPosition( root, [ 1 ] ) ) );
 			} );
 
 			const markersToRefresh = [ 'markerA', 'markerB', 'markerC' ];
+			const element = root.getChild( 1 );
+			const before = { name: 'paragraph', attributes: new Map() };
 
-			differ._refreshItem( root.getChild( 1 ) );
+			differ._refreshItem( element );
 
 			expectChanges( [
-				{ type: 'remove', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) },
-				{ type: 'insert', name: 'paragraph', length: 1, position: new Position( root, [ 1 ] ) }
+				{ type: 'remove', action: 'refresh', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ) },
+				{ type: 'insert', action: 'refresh', name: 'paragraph', length: 1, position: new ModelPosition( root, [ 1 ] ), before }
 			] );
 
 			const markersToRemove = differ.getMarkersToRemove().map( entry => entry.name );
 			const markersToAdd = differ.getMarkersToAdd().map( entry => entry.name );
 
-			expect( markersToRefresh ).to.deep.equal( markersToRemove );
-			expect( markersToRefresh ).to.deep.equal( markersToAdd );
+			expect( markersToRefresh ).toEqual( markersToRemove );
+			expect( markersToRefresh ).toEqual( markersToAdd );
+		} );
+
+		it( 'inserted element is refreshed', () => {
+			const element = new ModelElement( 'paragraph' );
+			const position = new ModelPosition( root, [ 0 ] );
+
+			model.change( () => {
+				insert( element, position );
+
+				differ._refreshItem( element );
+
+				expectChanges( [
+					{
+						type: 'insert',
+						action: 'insert', // Stays as `insert`, as the end result is an insert, even though the element was refreshed too.
+						name: 'paragraph',
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						attributes: new Map( [] ),
+						before: undefined
+					}
+				] );
+			} );
+		} );
+
+		it( 'refreshed element is removed', () => {
+			model.change( () => {
+				const p = root.getChild( 0 );
+
+				differ._refreshItem( p );
+
+				remove( new ModelPosition( root, [ 0 ] ), 1 );
+
+				expectChanges( [
+					{
+						type: 'remove',
+						action: 'remove', // The end result is `remove` (remove overwrites refresh).
+						name: 'paragraph',
+						length: 1,
+						position: new ModelPosition( root, [ 0 ] ),
+						attributes: new Map( [] )
+					}
+				] );
+			} );
 		} );
 	} );
 
@@ -2814,24 +3226,24 @@ describe( 'Differ', () => {
 		let position, p1, rangeAttrChange, range;
 
 		beforeEach( () => {
-			position = new Position( root, [ 0, 1 ] );
+			position = new ModelPosition( root, [ 0, 1 ] );
 			p1 = root.getChild( 0 );
 
-			range = new Range( Position._createAt( p1, 2 ), Position._createAt( p1, 4 ) );
-			rangeAttrChange = new Range( Position._createAt( p1, 3 ), Position._createAt( p1, 4 ) );
+			range = new ModelRange( ModelPosition._createAt( p1, 2 ), ModelPosition._createAt( p1, 4 ) );
+			rangeAttrChange = new ModelRange( ModelPosition._createAt( p1, 3 ), ModelPosition._createAt( p1, 4 ) );
 		} );
 
 		it( 'should return changes in graveyard if a flag was set up', () => {
-			const removePosition = new Position( root, [ 1 ] );
+			const removePosition = new ModelPosition( root, [ 1 ] );
 
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, 'key', null, 'foo' );
 
 				remove( removePosition, 1 );
 
 				expectChanges( [
-					{ type: 'insert', name: 'paragraph', length: 1, position: new Position( doc.graveyard, [ 0 ] ) },
+					{ type: 'insert', name: 'paragraph', length: 1, position: new ModelPosition( doc.graveyard, [ 0 ] ) },
 					{ type: 'insert', name: '$text', length: 2, position },
 					{
 						type: 'attribute',
@@ -2848,34 +3260,34 @@ describe( 'Differ', () => {
 		// Below tests test caching.
 		it( 'should return same change set if was called twice in a row', () => {
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, 'key', null, 'foo' );
 
 				const changesA = differ.getChanges();
 				const changesB = differ.getChanges();
 
-				expect( changesA ).to.deep.equal( changesB );
+				expect( changesA ).toEqual( changesB );
 			} );
 		} );
 
 		it( 'should return same change set if was called twice in a row - graveyard changes', () => {
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, 'key', null, 'foo' );
 
-				const removePosition = new Position( root, [ 1 ] );
+				const removePosition = new ModelPosition( root, [ 1 ] );
 				remove( removePosition, 1 );
 
 				const changesA = differ.getChanges( { includeChangesInGraveyard: true } );
 				const changesB = differ.getChanges( { includeChangesInGraveyard: true } );
 
-				expect( changesA ).to.deep.equal( changesB );
+				expect( changesA ).toEqual( changesB );
 			} );
 		} );
 
 		it( 'should return correct changes if change happened between getChanges() calls', () => {
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, 'key', null, 'foo' );
 
 				expectChanges( [
@@ -2889,7 +3301,7 @@ describe( 'Differ', () => {
 					}
 				] );
 
-				const removePosition = new Position( root, [ 1 ] );
+				const removePosition = new ModelPosition( root, [ 1 ] );
 				remove( removePosition, 1 );
 
 				expectChanges( [
@@ -2908,7 +3320,7 @@ describe( 'Differ', () => {
 
 		it( 'should return correct changes if reset happened between getChanges() calls', () => {
 			model.change( () => {
-				insert( new Text( 'xx' ), position );
+				insert( new ModelText( 'xx' ), position );
 				attribute( range, 'key', null, 'foo' );
 
 				expectChanges( [
@@ -2924,7 +3336,7 @@ describe( 'Differ', () => {
 
 				differ.reset();
 
-				const removePosition = new Position( root, [ 1 ] );
+				const removePosition = new ModelPosition( root, [ 1 ] );
 				remove( removePosition, 1 );
 
 				expectChanges( [
@@ -2950,13 +3362,13 @@ describe( 'Differ', () => {
 
 	function merge( source, target ) {
 		const howMany = source.parent.maxOffset;
-		const operation = new MergeOperation( source, howMany, target, new Position( doc.graveyard, [ 0 ] ), doc.version );
+		const operation = new MergeOperation( source, howMany, target, new ModelPosition( doc.graveyard, [ 0 ] ), doc.version );
 
 		model.applyOperation( operation );
 	}
 
 	function remove( sourcePosition, howMany ) {
-		const targetPosition = Position._createAt( doc.graveyard, doc.graveyard.maxOffset );
+		const targetPosition = ModelPosition._createAt( doc.graveyard, doc.graveyard.maxOffset );
 		const operation = new MoveOperation( sourcePosition, howMany, targetPosition, doc.version );
 
 		model.applyOperation( operation );
@@ -2969,7 +3381,7 @@ describe( 'Differ', () => {
 	}
 
 	function rename( element, newName ) {
-		const operation = new RenameOperation( Position._createBefore( element ), element.name, newName, doc.version );
+		const operation = new RenameOperation( ModelPosition._createBefore( element ), element.name, newName, doc.version );
 
 		model.applyOperation( operation );
 	}
@@ -2983,17 +3395,17 @@ describe( 'Differ', () => {
 	function expectChanges( expected, includeChangesInGraveyard = false ) {
 		const changes = differ.getChanges( { includeChangesInGraveyard } );
 
-		expect( changes.length, 'changes length' ).to.equal( expected.length );
+		expect( changes.length, 'changes length' ).toBe( expected.length );
 
 		for ( let i = 0; i < expected.length; i++ ) {
 			for ( const key in expected[ i ] ) {
 				if ( Object.prototype.hasOwnProperty.call( expected[ i ], key ) ) {
 					if ( key == 'position' || key == 'range' ) {
-						expect( changes[ i ][ key ].isEqual( expected[ i ][ key ] ), `item ${ i }, key "${ key }"` ).to.be.true;
-					} else if ( key == 'attributes' ) {
-						expect( changes[ i ][ key ], `item ${ i }, key "${ key }"` ).to.deep.equal( expected[ i ][ key ] );
+						expect( changes[ i ][ key ].isEqual( expected[ i ][ key ] ), `item ${ i }, key "${ key }"` ).toBe( true );
+					} else if ( key == 'attributes' || key == 'before' || key == 'action' ) {
+						expect( changes[ i ][ key ], `item ${ i }, key "${ key }"` ).toEqual( expected[ i ][ key ] );
 					} else {
-						expect( changes[ i ][ key ], `item ${ i }, key "${ key }"` ).to.equal( expected[ i ][ key ] );
+						expect( changes[ i ][ key ], `item ${ i }, key "${ key }"` ).toBe( expected[ i ][ key ] );
 					}
 				}
 			}

@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import mapsEqual from '../src/mapsequal';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { mapsEqual } from '../src/mapsequal.js';
 
 describe( 'utils', () => {
 	describe( 'mapsEqual', () => {
@@ -21,7 +22,7 @@ describe( 'utils', () => {
 			mapB.set( 'abc', 'xyz' );
 			mapB.set( 'foo', 'bar' );
 
-			expect( mapsEqual( mapA, mapB ) ).to.be.true;
+			expect( mapsEqual( mapA, mapB ) ).toBe( true );
 		} );
 
 		it( 'should return false if maps size is not the same', () => {
@@ -30,7 +31,7 @@ describe( 'utils', () => {
 
 			mapB.set( 'abc', 'xyz' );
 
-			expect( mapsEqual( mapA, mapB ) ).to.be.false;
+			expect( mapsEqual( mapA, mapB ) ).toBe( false );
 		} );
 
 		it( 'should return false if maps entries are not exactly the same', () => {
@@ -40,7 +41,7 @@ describe( 'utils', () => {
 			mapB.set( 'foo', 'bar' );
 			mapB.set( 'xyz', 'abc' );
 
-			expect( mapsEqual( mapA, mapB ) ).to.be.false;
+			expect( mapsEqual( mapA, mapB ) ).toBe( false );
 		} );
 	} );
 } );

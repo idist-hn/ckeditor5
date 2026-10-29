@@ -1,24 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import priorities from '../src/priorities';
+import { describe, expect, it } from 'vitest';
+import { priorities } from '../src/priorities.js';
 
 describe( 'get', () => {
 	it( 'should return correct value for string priority', () => {
-		for ( const name in priorities ) {
-			if ( Object.prototype.hasOwnProperty.call( priorities, name ) && name != 'get' ) {
-				expect( priorities.get( name ) ).to.equal( priorities[ name ] );
-			}
+		const priorityNames = Object.keys( priorities ).filter( name => name != 'get' );
+
+		for ( const name of priorityNames ) {
+			expect( priorities.get( name ) ).toEqual( priorities[ name ] );
 		}
 	} );
 
 	it( 'should return value equal to normal for unrecognized string priority', () => {
-		expect( priorities.get( 'foobar' ) ).to.equal( priorities.normal );
+		expect( priorities.get( 'foobar' ) ).toEqual( priorities.normal );
 	} );
 
 	it( 'should return passed number', () => {
-		expect( priorities.get( 2 ) ).to.equal( 2 );
+		expect( priorities.get( 2 ) ).toEqual( 2 );
 	} );
 } );

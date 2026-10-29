@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -9,14 +9,16 @@
 
 /* eslint-disable @typescript-eslint/no-invalid-void-type */
 
-import { ObservableMixin, type ObservableSetEvent, type EventInfo } from '@ckeditor/ckeditor5-utils';
+import { ObservableMixin, type ObservableSetEvent, type EventInfo, type ObservableMixinConstructor } from '@ckeditor/ckeditor5-utils';
 
-import type Editor from './editor/editor';
+import { type Editor } from './editor/editor.js';
+
+const PluginBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * The base class for CKEditor plugin classes.
  */
-export default class Plugin extends ObservableMixin() implements PluginInterface {
+export class Plugin extends PluginBase implements PluginInterface {
 	/**
 	 * The editor instance.
 	 *
@@ -142,6 +144,22 @@ export default class Plugin extends ObservableMixin() implements PluginInterface
 	public static get isContextPlugin(): false {
 		return false;
 	}
+
+	/**
+	 * @inheritDoc
+	 * @internal
+	 */
+	public static get isOfficialPlugin(): boolean {
+		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @internal
+	 */
+	public static get isPremiumPlugin(): boolean {
+		return false;
+	}
 }
 
 /**
@@ -211,7 +229,7 @@ export interface PluginInterface {
 	 *
 	 * **Note:** This method is optional. A plugin instance does not need to have it defined.
 	 */
-	destroy(): Promise<unknown> | null | undefined | void;
+	destroy?(): Promise<unknown> | null | undefined | void;
 }
 
 /**
@@ -274,10 +292,10 @@ export interface PluginStaticMembers<TContext = Editor> {
 	 * To keep the plugin class definition tight it is recommended to define this property as a static getter:
 	 *
 	 * ```ts
-	 * import Image from './image.js';
+	 * import { Image } from './image.js';
 	 *
-	 * export default class ImageCaption {
-	 * 	static get requires() {
+	 * export class ImageCaption {
+	 * 	static get requires(): PluginDependenciesOf<[ Image ]> {
 	 * 		return [ Image ];
 	 * 	}
 	 * }
@@ -295,7 +313,7 @@ export interface PluginStaticMembers<TContext = Editor> {
 	 * To keep the plugin class definition tight, it is recommended to define this property as a static getter:
 	 *
 	 * ```ts
-	 * export default class ImageCaption {
+	 * export class ImageCaption {
 	 * 	static get pluginName() {
 	 * 		return 'ImageCaption';
 	 * 	}
@@ -314,9 +332,42 @@ export interface PluginStaticMembers<TContext = Editor> {
 	 * A flag which defines if a plugin is allowed or not allowed to be used directly by a {@link module:core/context~Context}.
 	 */
 	readonly isContextPlugin?: boolean;
+
+	/**
+	 * A flag which defines if a plugin is an official CKEditor 5 plugin.
+	 *
+	 * @internal
+	 */
+	readonly isOfficialPlugin?: boolean;
+
+	/**
+	 * A flag which defines if a plugin is a premium CKEditor 5 plugin.
+	 *
+	 * @internal
+	 */
+	readonly isPremiumPlugin?: boolean;
+
+	/**
+	 * An unique id of a plugin which belongs to the free plan on commercial license.
+	 *
+	 * @internal
+	 */
+	readonly licenseFeatureCode?: string;
 }
 
 export type PluginDependencies<TContext = Editor> = ReadonlyArray<PluginConstructor<TContext> | string>;
+
+/**
+ * Maps plugin instances and plugin names to plugin dependency constructors and literal plugin names.
+ */
+export type PluginDependenciesOf<
+	TDependencies extends ReadonlyArray<PluginInterface | string>,
+	TContext = Editor
+> = Readonly<{
+	[ K in keyof TDependencies ]: TDependencies[ K ] extends string ?
+		TDependencies[ K ] :
+		PluginConstructor<TContext> & ( new ( context: TContext ) => TDependencies[ K ] )
+}>;
 
 /**
  * An array of loaded plugins.

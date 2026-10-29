@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module paragraph/paragraph
  */
 
-import ParagraphCommand from './paragraphcommand';
-import InsertParagraphCommand from './insertparagraphcommand';
+import { ParagraphCommand } from './paragraphcommand.js';
+import { InsertParagraphCommand } from './insertparagraphcommand.js';
 
 import { Plugin } from '@ckeditor/ckeditor5-core';
 
@@ -24,12 +24,19 @@ import { Plugin } from '@ckeditor/ckeditor5-core';
  * * The {@link module:paragraph/insertparagraphcommand~InsertParagraphCommand `'insertParagraph'`} command
  * that inserts a new paragraph at a specified location in the model.
  */
-export default class Paragraph extends Plugin {
+export class Paragraph extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'Paragraph' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -99,7 +106,7 @@ export default class Paragraph extends Plugin {
 	 * Note: The `<td>` containing two `<li>` elements was ignored as the innermost paragraph-like elements
 	 * have a priority upon conversion.
 	 */
-	public static paragraphLikeElements = new Set( [
+	public static paragraphLikeElements: Set<string> = new Set( [
 		'blockquote',
 		'dd',
 		'div',

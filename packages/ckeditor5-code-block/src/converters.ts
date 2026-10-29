@@ -1,16 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module code-block/converters
  */
 
-import type { GetCallback } from 'ckeditor5/src/utils';
-import type { DowncastInsertEvent, Element, Model, UpcastElementEvent, UpcastTextEvent, View } from 'ckeditor5/src/engine';
-import type { CodeBlockLanguageDefinition } from './codeblockconfig';
-import { getPropertyAssociation } from './utils';
+import type { GetCallback } from '@ckeditor/ckeditor5-utils';
+import type {
+	DowncastInsertEvent,
+	ModelElement,
+	Model,
+	UpcastElementEvent,
+	UpcastTextEvent,
+	EditingView
+} from '@ckeditor/ckeditor5-engine';
+import type { CodeBlockLanguageDefinition } from './codeblockconfig.js';
+import { getPropertyAssociation } from './utils.js';
 
 /**
  * A model-to-view (both editing and data) converter for the `codeBlock` element.
@@ -37,6 +44,7 @@ import { getPropertyAssociation } from './utils';
  * @param useLabels When `true`, the `<pre>` element will get a `data-language` attribute with a
  * human–readable label of the language. Used only in the editing.
  * @returns Returns a conversion callback.
+ * @internal
  */
 export function modelToViewCodeBlockInsertion(
 	model: Model,
@@ -89,7 +97,7 @@ export function modelToViewCodeBlockInsertion(
 
 		writer.insert( targetViewPosition, pre );
 
-		mapper.bindElements( data.item as Element, code );
+		mapper.bindElements( data.item as ModelElement, code );
 	};
 }
 
@@ -109,6 +117,7 @@ export function modelToViewCodeBlockInsertion(
  * ```
  *
  * @returns Returns a conversion callback.
+ * @internal
  */
 export function modelToDataViewSoftBreakInsertion( model: Model ): GetCallback<DowncastInsertEvent> {
 	return ( evt, data, conversionApi ) => {
@@ -145,9 +154,10 @@ export function modelToDataViewSoftBreakInsertion( model: Model ): GetCallback<D
  *
  * @param languageDefs The normalized language configuration passed to the feature.
  * @returns Returns a conversion callback.
+ * @internal
  */
 export function dataViewToModelCodeBlockInsertion(
-	editingView: View,
+	editingView: EditingView,
 	languageDefs: Array<CodeBlockLanguageDefinition>
 ): GetCallback<UpcastElementEvent> {
 	// Language names associated with CSS classes:
@@ -196,6 +206,7 @@ export function dataViewToModelCodeBlockInsertion(
 			const language = classesToLanguages[ className ];
 
 			if ( language ) {
+				consumable.consume( viewCodeElement, { classes: [ className ] } );
 				writer.setAttribute( 'language', language, codeBlock );
 				break;
 			}
@@ -206,6 +217,8 @@ export function dataViewToModelCodeBlockInsertion(
 			writer.setAttribute( 'language', defaultLanguageName, codeBlock );
 		}
 
+		// Convert children before inserting the code block element
+		// to make sure that code block won't be splitted by any block.
 		conversionApi.convertChildren( viewCodeElement, codeBlock );
 
 		// Let's try to insert code block.
@@ -235,6 +248,7 @@ export function dataViewToModelCodeBlockInsertion(
  * ```
  *
  * @returns {Function} Returns a conversion callback.
+ * @internal
  */
 export function dataViewToModelTextNewlinesInsertion(): GetCallback<UpcastTextEvent> {
 	return ( evt, data, { consumable, writer } ) => {
@@ -308,6 +322,7 @@ export function dataViewToModelTextNewlinesInsertion(): GetCallback<UpcastTextEv
  * ```
  *
  * @returns Returns a conversion callback.
+ * @internal
  */
 export function dataViewToModelOrphanNodeConsumer(): GetCallback<UpcastElementEvent> {
 	return ( evt, data, { consumable } ) => {

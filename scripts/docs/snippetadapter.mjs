@@ -1,0 +1,446 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import url from 'node:url';
+import { realpathSync } from 'node:fs';
+import { constants, readFile, writeFile, copyFile, access, mkdir } from 'node:fs/promises';
+import upath from 'upath';
+import { build as esbuild } from 'esbuild';
+import { CKEDITOR5_COMMERCIAL_PATH, CKEDITOR5_ROOT_PATH } from '../constants.mjs';
+import getPremiumSnippets from './get-premium-snippets.mjs';
+
+/**
+ * @param {Set<Snippet>} snippets Snippet collection extracted from documentation files.
+ * @param {Record<string, any>} options
+ * @param {Record<string, function>} umbertoHelpers
+ * @returns {Promise<void>}
+ */
+export default async function snippetAdapter( snippets, _options, { getSnippetPlaceholder } ) {
+	console.log( 'Started building snippets.' );
+
+	const paths = getPaths( snippets );
+	const imports = await getImportMap();
+	const constants = await getConstants();
+
+	await addBootstrapSnippet( snippets, paths );
+
+	const ckboxModulePaths = await buildCKBoxAssets( paths );
+	const premiumSnippets = await buildSnippets( snippets, paths, constants, imports );
+
+	await buildDocuments( snippets, paths, constants, imports, premiumSnippets, ckboxModulePaths, getSnippetPlaceholder );
+
+	console.log( 'Finished building snippets.' );
+}
+
+/**
+ * Returns input and output paths for snippets and other assets.
+ *
+ * @param {Set<Snippet>} snippets
+ * @returns {Paths}
+ */
+function getPaths( [ snippet ] ) {
+	const version = upath.normalize( snippet.outputPath ).split( upath.sep ).at( -2 );
+	const input = upath.normalize( snippet.snippetSources.html ).split( version, 1 ) + version;
+
+	return {
+		input,
+		output: upath.resolve( snippet.outputPath, '..' ),
+		snippetsInput: upath.resolve( input, '_snippets' ),
+		snippetsOutput: snippet.outputPath
+	};
+}
+
+/**
+ * Returns dependencies of a given package.
+ *
+ * @param {string} packageName
+ * @returns {Promise<Array<string>>}
+ */
+async function getDependencies( packageName ) {
+	try {
+		const path = new URL( import.meta.resolve( `${ packageName }/package.json` ) );
+		const content = await readFile( path, { encoding: 'utf-8' } );
+
+		return Object.keys( JSON.parse( content ).dependencies );
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Builds CKBox JS and CSS assets from the `ckbox` npm package and writes them to the output path.
+ *
+ * @param {Paths} paths
+ * @returns {Promise<Array<string>>} Module paths relative to the documentation project, including shared chunks.
+ */
+async function buildCKBoxAssets( paths ) {
+	const outputDir = upath.join( paths.output, 'assets', 'ckbox' );
+
+	await mkdir( outputDir, { recursive: true } );
+
+	const sharedOptions = {
+		bundle: true,
+		minify: true,
+		legalComments: 'none',
+		nodePaths: [
+			upath.join( CKEDITOR5_ROOT_PATH, 'node_modules' ),
+			upath.join( CKEDITOR5_COMMERCIAL_PATH, 'node_modules' )
+		]
+	};
+
+	const [ { metafile } ] = await Promise.all( [
+		esbuild( {
+			...sharedOptions,
+			// Both packages use the same CKBox core and React runtime. Bundle them together to avoid downloading
+			// and evaluating those dependencies twice, while preserving their separate module exports.
+			entryPoints: { ckbox: 'ckbox', ckboxWidget: '@ckbox/uploader' },
+			format: 'esm',
+			target: 'es2023',
+			splitting: true,
+			metafile: true,
+			outdir: outputDir
+		} ),
+		esbuild( {
+			...sharedOptions,
+			entryPoints: [ 'ckbox/dist/styles/ckbox.css' ],
+			outfile: upath.join( outputDir, 'ckbox.css' )
+		} )
+	] );
+
+	// Preload shared chunks with the entries so their discovery does not add a network round trip.
+	return Object.keys( metafile.outputs ).map( path => upath.relative( paths.output, path ) );
+}
+
+/**
+ * Builds all snippets from the provided paths and saves them to the output path.
+ *
+ * @param {Set<Snippet>} snippets
+ * @param {Paths} paths
+ * @param {Record<string, string>} constants
+ * @param {Record<string, any>} imports
+ * @returns {Promise<Set<string>>} Absolute entry paths of snippets that need premium assets.
+ */
+async function buildSnippets( snippets, paths, constants, imports ) {
+	const externals = Object.keys( imports );
+
+	const { metafile } = await esbuild( {
+		metafile: true,
+		entryPoints: Array.from( snippets ).map( snippet => snippet.snippetSources.js ).filter( Boolean ),
+		define: Object.fromEntries( Object.entries( constants ).map( ( [ key, value ] ) => [ key, JSON.stringify( value ) ] ) ),
+		outdir: paths.snippetsOutput,
+		entryNames: '[dir]/[name]/snippet',
+		nodePaths: [
+			/**
+			 * This script can be run from a location where the local `node_modules` directory is not available
+			 * (e.g. in https://github.com/cksource/docs/). To ensure that all dependencies can be resolved,
+			 * we need to add the local `node_modules` directory to the list of node paths.
+			 */
+			upath.join( CKEDITOR5_ROOT_PATH, 'node_modules' ),
+			upath.join( CKEDITOR5_COMMERCIAL_PATH, 'node_modules' )
+		],
+		bundle: true,
+		minify: true,
+		treeShaking: true,
+		platform: 'browser',
+		legalComments: 'none',
+		format: 'esm',
+		target: 'es2023',
+		tsconfigRaw: {},
+		alias: {
+			'@snippets': paths.snippetsInput,
+			'@assets': upath.resolve( paths.input, 'assets' )
+		},
+		loader: {
+			'.js': 'jsx',
+			'.svg': 'text'
+		},
+		plugins: [
+			/**
+			 * Handles imports ending with `?raw`, loading file contents as plain text. Useful for inlining raw assets.
+			 *
+			 * Must be loaded before `externalize-ckeditor5` to avoid `?raw` imports being marked as external.
+			 */
+			{
+				name: 'raw-import',
+				setup( build ) {
+					build.onResolve( { filter: /\?raw$/ }, async args => {
+						const cleanPath = args.path.replace( /\?raw$/, '' );
+
+						return {
+							path: upath.join( args.resolveDir, cleanPath ),
+							namespace: 'raw-file'
+						};
+					} );
+
+					build.onLoad( { filter: /.*/, namespace: 'raw-file' }, async args => {
+						return {
+							contents: await readFile( args.path, 'utf8' ),
+							loader: 'text'
+						};
+					} );
+				}
+			},
+
+			/**
+			 * Esbuild has an `external` property. However, it doesn't look for direct match, but checks if the path starts
+			 * with the provided value. This means that if the `external` array includes `@ckeditor/ckeditor5-core` and we
+			 * have an import like `@ckeditor/ckeditor5-core/tests/...`, then it will be marked as external instead of being
+			 * bundled. This will cause issues, because the `tests` directory is not available in the CDN build.
+			 */
+			{
+				name: 'externalize-ckeditor5',
+				setup( build ) {
+					build.onResolve( { filter: /.*/ }, args => ( {
+						external: externals.some( name => name.endsWith( '/' ) ? args.path.startsWith( name ) : args.path === name )
+					} ) );
+				}
+			},
+
+			/**
+			 * Code from "ckeditor5" and "ckeditor5-premium-features" is externalized to avoid bundling it with the snippet
+			 * code. However, if the source file is imported directly, it can be bundled and (in case of commercial features)
+			 * not obfuscated. To prevent this, we throw an error if such an import is detected.
+			 */
+			{
+				name: 'throw-on-source-import',
+				setup( build ) {
+					build.onLoad( { filter: /packages[\\/].*[\\/]src/ }, args => ( {
+						errors: [
+							{
+								// eslint-disable-next-line @stylistic/max-len
+								text: `Can't use the source file "${ args.path }" in the snippet. Use "ckeditor5" or "ckeditor5-premium-features" import instead.`
+							}
+						]
+					} ) );
+				}
+			}
+		]
+	} );
+
+	return getPremiumSnippets( metafile, imports );
+}
+
+/**
+ * Builds documents and replaces all placeholders with the actual content.
+ *
+ * @param {Set<Snippet>} snippets
+ * @param {Paths} paths
+ * @param {Record<string, string>} constants
+ * @param {Record<string, any>} imports
+ * @param {Set<string>} premiumSnippets
+ * @param {Array<string>} ckboxModulePaths
+ * @param {function} getSnippetPlaceholder
+ * @returns {Promise<void>}
+ */
+async function buildDocuments( snippets, paths, constants, imports, premiumSnippets, ckboxModulePaths, getSnippetPlaceholder ) {
+	const getStyle = href => `<link rel="stylesheet" href="${ href }" data-cke="true">`;
+	const getScript = src => `<script type="module" src="${ src }"></script>`;
+	const getLayeredStyles = ( layer, hrefs ) =>
+		'<style>' +
+			hrefs.map( href => `@import '${ href }' layer(${ layer });` ).join( '\n' ) +
+		'</style>';
+
+	const documents = Object.groupBy( snippets, snippet => snippet.destinationPath );
+
+	// Iterate over each document and replace placeholders with the actual content.
+	for ( const [ document, documentSnippets ] of Object.entries( documents ) ) {
+		const usesPremiumFeatures = documentSnippets.some( snippet => {
+			// Esbuild resolves symlinks in entry point paths (including macOS temporary directories).
+			const sourcePath = snippet.snippetSources.js && upath.normalize( realpathSync( snippet.snippetSources.js ) );
+
+			return premiumSnippets.has( sourcePath );
+		} );
+
+		// Keep the styles and their preloads in the same order on every page that needs them.
+		const editorStylePaths = [
+			'%BASE_PATH%/assets/ckeditor5/ckeditor5.css',
+			...( usesPremiumFeatures ? [ '%BASE_PATH%/assets/ckeditor5-premium-features/ckeditor5-premium-features.css' ] : [] ),
+			'%BASE_PATH%/assets/ckbox/ckbox.css',
+			'%BASE_PATH%/assets/global.css'
+		];
+
+		const documentTags = [
+			...editorStylePaths.map( href => `<link rel="preload" href="${ href }" as="style">` ),
+			'<link rel="modulepreload" href="%BASE_PATH%/assets/ckeditor5/ckeditor5.js">',
+			...( usesPremiumFeatures ? [
+				'<link rel="modulepreload" href="%BASE_PATH%/assets/ckeditor5-premium-features/ckeditor5-premium-features.js">'
+			] : [] ),
+			...ckboxModulePaths.map( path => `<link rel="modulepreload" href="%BASE_PATH%/${ path }">` ),
+			'<link rel="preload" href="%BASE_PATH%/assets/global.js" as="script">',
+			`<script>window.CKEDITOR_GLOBAL_LICENSE_KEY = '${ constants.LICENSE_KEY }';</script>`,
+			'<script src="%BASE_PATH%/assets/global.js"></script>',
+			'<script type="module">' +
+				'import * as CKBox from \'ckbox\';' +
+				'import * as CKBoxUploader from \'@ckbox/uploader\'; ' +
+				'window.CKBox = Object.assign( {}, CKBox, CKBoxUploader );' +
+			'</script>',
+			getLayeredStyles( 'editor', editorStylePaths )
+		];
+		const relativeOutputPath = upath.relative( upath.dirname( document ), paths.output );
+
+		let documentContent = await readFile( document, { encoding: 'utf-8' } );
+
+		// Iterate over each snippet in the document and replace placeholders with the actual content.
+		for ( const snippet of documentSnippets ) {
+			const data = await readFile( snippet.snippetSources.html, { encoding: 'utf-8' } );
+			const snippetSizeCssClass = snippet.snippetSize ? `live-snippet--${ snippet.snippetSize }` : '';
+
+			documentContent = documentContent.replace(
+				getSnippetPlaceholder( snippet.snippetName ),
+				() => [
+					`<div class="doc live-snippet ${ snippetSizeCssClass }">${ data }</div>`,
+					'<script>',
+					'(function() {',
+					'  const snippet = document.currentScript.previousElementSibling;',
+					'  snippet.dispatchEvent( new CustomEvent( "ck:snippet-transform", { bubbles: true, detail: { snippet } } ) );',
+					'})();',
+					'</script>'
+				].join( '\n' )
+			);
+
+			if ( await fileExists( upath.join( snippet.outputPath, snippet.snippetName, 'snippet.css' ) ) ) {
+				documentTags.push( getStyle( `%BASE_PATH%/snippets/${ snippet.snippetName }/snippet.css` ) );
+			}
+
+			if ( await fileExists( upath.join( snippet.outputPath, snippet.snippetName, 'snippet.js' ) ) ) {
+				documentTags.push( getScript( `%BASE_PATH%/snippets/${ snippet.snippetName }/snippet.js` ) );
+			}
+		}
+
+		documentContent = documentContent
+			.replace( '<!--UMBERTO: SNIPPET: HEAD-->', () => `<script type="importmap">${ JSON.stringify( { imports } ) }</script>` )
+			.replace( '<!--UMBERTO: SNIPPET: CSS-->', () => documentTags.join( '\n' ) )
+			.replace( '<!--UMBERTO: SNIPPET: JS-->', () => '' )
+			.replaceAll( /%BASE_PATH%/g, () => relativeOutputPath );
+
+		await writeFile( document, documentContent );
+	}
+}
+
+/**
+ * Returns the license key or 'GPL' if the file with the license key is not found.
+ *
+ * @returns {Promise<Record<string, string>>}
+ */
+async function getConstants() {
+	try {
+		const scriptPath = upath.join( CKEDITOR5_COMMERCIAL_PATH, 'docs', 'constants.cjs' );
+		const { href } = url.pathToFileURL( scriptPath );
+		const { default: constants } = await import( href );
+
+		return constants;
+	} catch {
+		return { LICENSE_KEY: 'GPL' };
+	}
+}
+
+/**
+ * Returns an import map for the CKEditor 5 packages.
+ *
+ * @returns {Promise<Object<string, string>>}
+ */
+async function getImportMap() {
+	const core = await getDependencies( 'ckeditor5' );
+	const commercial = await getDependencies( 'ckeditor5-premium-features' );
+
+	const imports = {
+		'ckeditor5': '%BASE_PATH%/assets/ckeditor5/ckeditor5.js',
+		'ckeditor5/': '%BASE_PATH%/assets/ckeditor5/',
+		'ckeditor5-premium-features': '%BASE_PATH%/assets/ckeditor5-premium-features/ckeditor5-premium-features.js',
+		'ckeditor5-premium-features/': '%BASE_PATH%/assets/ckeditor5-premium-features/',
+		'ckbox': '%BASE_PATH%/assets/ckbox/ckbox.js',
+		'@ckbox/uploader': '%BASE_PATH%/assets/ckbox/ckboxWidget.js'
+	};
+
+	/**
+	 * Some snippets may use imports from individual packages instead of the main `ckeditor5` or
+	 * `ckeditor5-premium-features` packages. In such cases, we need to add these imports to the import map.
+	 */
+	for ( const dependency of core ) {
+		imports[ dependency ] ||= imports.ckeditor5;
+		imports[ `${ dependency }/dist/index.js` ] ||= imports.ckeditor5;
+	}
+
+	for ( const dependency of commercial ) {
+		imports[ dependency ] ||= imports[ 'ckeditor5-premium-features' ];
+		imports[ `${ dependency }/dist/index.js` ] ||= imports[ 'ckeditor5-premium-features' ];
+	}
+
+	return imports;
+}
+
+/**
+ * Checks if a file exists at the given path.
+ *
+ * @param {string} path The path to the file.
+ * @returns {Promise<boolean>} True if the file exists, false otherwise.
+ */
+async function fileExists( path ) {
+	try {
+		await access( path, constants.F_OK );
+
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * The `examples/bootstrap-ui.html` is a special case, because it cannot be inlined like other snippets.
+ * This is because it includes Bootstrap assets which leak into the rest of the document, breaking the
+ * styles, so, we need to load it in an iframe. This function creates the necessary data for to process
+ * this snippet like a regular document, rather than a snippet.
+ *
+ * @param {Set<Snippet>} snippets
+ * @param {Paths} paths
+ * @returns {Promise<void>}
+ */
+async function addBootstrapSnippet( snippets, paths ) {
+	const destinationPath = upath.join( paths.snippetsOutput, 'examples', 'bootstrap-ui.html' );
+	const basePath = upath.relative( upath.dirname( destinationPath ), paths.output );
+
+	const snippet = {
+		basePath,
+		destinationPath,
+		outputPath: paths.snippetsOutput,
+		pageSourcePath: '',
+		relativeOutputPath: upath.join( basePath, 'snippets' ),
+		snippetName: 'examples/bootstrap-ui',
+		snippetSources: {
+			html: upath.join( paths.snippetsInput, 'examples', 'bootstrap-ui.html' ),
+			js: upath.join( paths.snippetsInput, 'examples', 'bootstrap-ui.js' )
+		}
+	};
+
+	await mkdir( upath.dirname( destinationPath ), { recursive: true } );
+	await copyFile( snippet.snippetSources.html, destinationPath );
+
+	snippets.add( snippet );
+}
+
+/**
+ * @typedef {Object} Snippet
+ * @property {SnippetSource} snippetSources Sources of the snippet.
+ * @property {string} snippetName Name of the snippet. Defined directly after `@snippet` tag.
+ * @property {string} outputPath An absolute path where to write file produced by the `snippetAdapter`.
+ * @property {string} destinationPath An absolute path to the file where the snippet is being used.
+ * @property {string} basePath Relative path from the processed file to the root of the documentation.
+ * @property {string} relativeOutputPath The same like `basePath` but for the output path (where processed file will be saved).
+ */
+
+/**
+ * @typedef {Object} SnippetSource
+ * @property {string} html An absolute path to the HTML sample.
+ * @property {string} css An absolute path to the CSS sample.
+ * @property {string} js An absolute path to the JS sample.
+ */
+
+/**
+ * @typedef {Object} Paths
+ * @property {string} input Path to the directory created by Umberto containing all the documentation files.
+ * @property {string} output Path to the output directory where processed documentation will be saved.
+ * @property {string} snippetsInput Path to the directory created by Umberto containing the input snippets.
+ * @property {string} snippetsOutput Path to the directory where output snippets will be written.
+ */

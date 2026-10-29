@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/operation/utils
  */
 
-import Node from '../node';
-import Range from '../range';
-import Text from '../text';
-import TextProxy from '../textproxy';
+import { ModelNode } from '../node.js';
+import { ModelRange } from '../range.js';
+import { ModelText } from '../text.js';
+import { ModelTextProxy } from '../textproxy.js';
 
-import type DocumentFragment from '../documentfragment';
-import type Element from '../element';
-import type Item from '../item';
-import type NodeList from '../nodelist';
-import type Position from '../position';
+import { type ModelDocumentFragment } from '../documentfragment.js';
+import { type ModelElement } from '../element.js';
+import { type ModelItem } from '../item.js';
+import { type ModelNodeList } from '../nodelist.js';
+import { type ModelPosition } from '../position.js';
 
 import { CKEditorError, isIterable } from '@ckeditor/ckeditor5-utils';
 
@@ -25,10 +25,10 @@ import { CKEditorError, isIterable } from '@ckeditor/ckeditor5-utils';
  *
  * @internal
  * @param position Position at which nodes should be inserted.
- * @param normalizedNodes Nodes to insert.
+ * @param nodes Nodes to insert.
  * @returns Range spanning over inserted elements.
  */
-export function _insert( position: Position, nodes: NodeSet ): Range {
+export function _insert( position: ModelPosition, nodes: ModelNodeSet ): ModelRange {
 	const normalizedNodes = _normalizeNodes( nodes );
 
 	// We have to count offset before inserting nodes because they can get merged and we would get wrong offsets.
@@ -47,16 +47,16 @@ export function _insert( position: Position, nodes: NodeSet ): Range {
 	_mergeNodesAtIndex( parent, index + normalizedNodes.length );
 	_mergeNodesAtIndex( parent, index );
 
-	return new Range( position, position.getShiftedBy( offset ) );
+	return new ModelRange( position, position.getShiftedBy( offset ) );
 }
 
 /**
- * Removed nodes in given range. Only {@link module:engine/model/range~Range#isFlat flat} ranges are accepted.
+ * Removed nodes in given range. Only {@link module:engine/model/range~ModelRange#isFlat flat} ranges are accepted.
  *
  * @internal
  * @param range Range containing nodes to remove.
  */
-export function _remove( this: any, range: Range ): Array<Node> {
+export function _remove( this: any, range: ModelRange ): Array<ModelNode> {
 	if ( !range.isFlat ) {
 		/**
 		 * Trying to remove a range which starts and ends in different element.
@@ -86,14 +86,14 @@ export function _remove( this: any, range: Range ): Array<Node> {
 }
 
 /**
- * Moves nodes in given range to given target position. Only {@link module:engine/model/range~Range#isFlat flat} ranges are accepted.
+ * Moves nodes in given range to given target position. Only {@link module:engine/model/range~ModelRange#isFlat flat} ranges are accepted.
  *
  * @internal
  * @param sourceRange Range containing nodes to move.
  * @param targetPosition Position to which nodes should be moved.
  * @returns Range containing moved nodes.
  */
-export function _move( this: any, sourceRange: Range, targetPosition: Position ): Range {
+export function _move( this: any, sourceRange: ModelRange, targetPosition: ModelPosition ): ModelRange {
 	if ( !sourceRange.isFlat ) {
 		/**
 		 * Trying to move a range which starts and ends in different element.
@@ -123,14 +123,14 @@ export function _move( this: any, sourceRange: Range, targetPosition: Position )
  * @param key Key of attribute to set.
  * @param value Attribute value.
  */
-export function _setAttribute( range: Range, key: string, value: unknown ): void {
+export function _setAttribute( range: ModelRange, key: string, value: unknown ): void {
 	// Range might start or end in text nodes, so we have to split them.
 	_splitNodeAtPosition( range.start );
 	_splitNodeAtPosition( range.end );
 
 	// Iterate over all items in the range.
 	for ( const item of range.getItems( { shallow: true } ) ) {
-		// Iterator will return `TextProxy` instances but we know that those text proxies will
+		// Iterator will return `ModelTextProxy` instances but we know that those text proxies will
 		// always represent full text nodes (this is guaranteed thanks to splitting we did before).
 		// So, we can operate on those text proxies' text nodes.
 		const node = item.is( '$textProxy' ) ? item.textNode : item;
@@ -150,29 +150,32 @@ export function _setAttribute( range: Range, key: string, value: unknown ): void
 }
 
 /**
- * Normalizes given object or an array of objects to an array of {@link module:engine/model/node~Node nodes}. See
- * {@link ~NodeSet NodeSet} for details on how normalization is performed.
+ * Normalizes given object or an array of objects to an array of {@link module:engine/model/node~ModelNode nodes}. See
+ * {@link ~ModelNodeSet NodeSet} for details on how normalization is performed.
  *
  * @internal
  * @param nodes Objects to normalize.
  * @returns Normalized nodes.
  */
-export function _normalizeNodes( nodes: NodeSet ): Array<Node> {
-	const normalized: Array<Node> = [];
+export function _normalizeNodes( nodes: ModelNodeSet ): Array<ModelNode> {
+	const normalized: Array<ModelNode> = [];
 
-	function convert( nodes: NodeSet ) {
+	function convert( nodes: ModelNodeSet ) {
 		if ( typeof nodes == 'string' ) {
-			normalized.push( new Text( nodes ) );
-		} else if ( nodes instanceof TextProxy ) {
-			normalized.push( new Text( nodes.data, nodes.getAttributes() ) );
-		} else if ( nodes instanceof Node ) {
+			normalized.push( new ModelText( nodes ) );
+		} else if ( nodes instanceof ModelTextProxy ) {
+			normalized.push( new ModelText( nodes.data, nodes.getAttributes() ) );
+		} else if ( nodes instanceof ModelNode ) {
 			normalized.push( nodes );
 		} else if ( isIterable( nodes ) ) {
 			for ( const node of nodes ) {
 				convert( node );
 			}
+		} else {
+			// Skip unrecognized type.
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			const unreachable: never = nodes;
 		}
-		// Skip unrecognized type.
 	}
 
 	convert( nodes );
@@ -182,9 +185,9 @@ export function _normalizeNodes( nodes: NodeSet ): Array<Node> {
 		const node = normalized[ i ];
 		const prev = normalized[ i - 1 ];
 
-		if ( node instanceof Text && prev instanceof Text && _haveSameAttributes( node, prev ) ) {
+		if ( node instanceof ModelText && prev instanceof ModelText && _haveSameAttributes( node, prev ) ) {
 			// Doing this instead changing `prev.data` because `data` is readonly.
-			normalized.splice( i - 1, 2, new Text( prev.data + node.data, prev.getAttributes() ) );
+			normalized.splice( i - 1, 2, new ModelText( prev.data + node.data, prev.getAttributes() ) );
 			i--;
 		}
 	}
@@ -193,7 +196,7 @@ export function _normalizeNodes( nodes: NodeSet ): Array<Node> {
 }
 
 /**
- * Checks if nodes before and after given index in given element are {@link module:engine/model/text~Text text nodes} and
+ * Checks if nodes before and after given index in given element are {@link module:engine/model/text~ModelText text nodes} and
  * merges them into one node if they have same attributes.
  *
  * Merging is done by removing two text nodes and inserting a new text node containing data from both merged text nodes.
@@ -201,14 +204,14 @@ export function _normalizeNodes( nodes: NodeSet ): Array<Node> {
  * @param element Parent element of nodes to merge.
  * @param index Index between nodes to merge.
  */
-function _mergeNodesAtIndex( element: Element | DocumentFragment, index: number ) {
+function _mergeNodesAtIndex( element: ModelElement | ModelDocumentFragment, index: number ) {
 	const nodeBefore = element.getChild( index - 1 );
 	const nodeAfter = element.getChild( index );
 
 	// Check if both of those nodes are text objects with same attributes.
 	if ( nodeBefore && nodeAfter && nodeBefore.is( '$text' ) && nodeAfter.is( '$text' ) && _haveSameAttributes( nodeBefore, nodeAfter ) ) {
 		// Append text of text node after index to the before one.
-		const mergedNode = new Text( nodeBefore.data + nodeAfter.data, nodeBefore.getAttributes() );
+		const mergedNode = new ModelText( nodeBefore.data + nodeAfter.data, nodeBefore.getAttributes() );
 
 		// Remove separate text nodes.
 		element._removeChildren( index - 1, 2 );
@@ -224,7 +227,7 @@ function _mergeNodesAtIndex( element: Element | DocumentFragment, index: number 
  *
  * @param position Position at which node should be split.
  */
-function _splitNodeAtPosition( position: Position ): void {
+function _splitNodeAtPosition( position: ModelPosition ): void {
 	const textNode = position.textNode;
 	const element = position.parent;
 
@@ -234,8 +237,8 @@ function _splitNodeAtPosition( position: Position ): void {
 
 		element._removeChildren( index, 1 );
 
-		const firstPart = new Text( textNode.data.substr( 0, offsetDiff ), textNode.getAttributes() );
-		const secondPart = new Text( textNode.data.substr( offsetDiff ), textNode.getAttributes() );
+		const firstPart = new ModelText( textNode.data.substr( 0, offsetDiff ), textNode.getAttributes() );
+		const secondPart = new ModelText( textNode.data.substr( offsetDiff ), textNode.getAttributes() );
 
 		element._insertChild( index, [ firstPart, secondPart ] );
 	}
@@ -248,7 +251,7 @@ function _splitNodeAtPosition( position: Position ): void {
  * @param nodeB Node to check.
  * @returns `true` if nodes have same attributes, `false` otherwise.
  */
-function _haveSameAttributes( nodeA: Node, nodeB: Node ): boolean | undefined {
+function _haveSameAttributes( nodeA: ModelNode, nodeB: ModelNode ): boolean | undefined {
 	const iteratorA = nodeA.getAttributes();
 	const iteratorB = nodeB.getAttributes();
 
@@ -264,17 +267,26 @@ function _haveSameAttributes( nodeA: Node, nodeB: Node ): boolean | undefined {
 }
 
 /**
- * Value that can be normalized to an array of {@link module:engine/model/node~Node nodes}.
+ * Value that can be normalized to an array of {@link module:engine/model/node~ModelNode nodes}.
  *
  * Non-arrays are normalized as follows:
- * * {@link module:engine/model/node~Node Node} is left as is,
- * * {@link module:engine/model/textproxy~TextProxy TextProxy} and `string` are normalized to {@link module:engine/model/text~Text Text},
- * * {@link module:engine/model/nodelist~NodeList NodeList} is normalized to an array containing all nodes that are in that node list,
- * * {@link module:engine/model/documentfragment~DocumentFragment DocumentFragment} is normalized to an array containing all of it's
- * * children.
+ * * {@link module:engine/model/node~ModelNode Node} is left as is,
+ * * {@link module:engine/model/textproxy~ModelTextProxy TextProxy} and `string` are normalized to
+ * {@link module:engine/model/text~ModelText Text},
+ * * {@link module:engine/model/nodelist~ModelNodeList NodeList} is normalized to an array containing all nodes that are in that node list,
+ * * {@link module:engine/model/documentfragment~ModelDocumentFragment ModelDocumentFragment} is normalized to an array containing all of
+ * it's children.
  *
  * Arrays are processed item by item like non-array values and flattened to one array. Normalization always results in
- * a flat array of {@link module:engine/model/node~Node nodes}. Consecutive text nodes (or items normalized to text nodes) will be
+ * a flat array of {@link module:engine/model/node~ModelNode nodes}. Consecutive text nodes (or items normalized to text nodes) will be
  * merged if they have same attributes.
  */
-export type NodeSet = Item | string | NodeList | DocumentFragment | Iterable<Item | string | NodeList | DocumentFragment>;
+export type ModelNodeSet =
+	| ModelItem
+	| string
+	| ModelNodeList
+	| ModelDocumentFragment
+	| Iterable<ModelItem
+	| string
+	| ModelNodeList
+	| ModelDocumentFragment>;

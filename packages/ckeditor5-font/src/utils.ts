@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/utils
  */
 
-import type { FontFamilyOption, FontSizeOption } from './fontconfig';
-import { ColorSelectorView, type ColorDefinition, type ColorPickerViewConfig, type DropdownView } from 'ckeditor5/src/ui';
-import type { ArrayOrItem } from 'ckeditor5/src/utils';
+import type { FontFamilyOption, FontSizeOption } from './fontconfig.js';
+import { ColorSelectorView, type ColorDefinition, type ColorPickerViewConfig, type DropdownView } from '@ckeditor/ckeditor5-ui';
+import type { ArrayOrItem } from '@ckeditor/ckeditor5-utils';
 import type {
 	ViewAttributeElement,
 	ViewElement,
 	MatcherPattern,
 	ViewElementDefinition,
 	DowncastConversionApi
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
 /**
  * The name of the font size plugin.
@@ -40,6 +40,8 @@ export const FONT_BACKGROUND_COLOR = 'fontBackgroundColor';
 
 /**
  * Builds a proper converter definition out of input data.
+ *
+ * @internal
  */
 export function buildDefinition(
 	modelAttributeKey: string,
@@ -66,6 +68,9 @@ export function buildDefinition(
 	return definition;
 }
 
+/**
+ * @internal
+ */
 export type FontConverterDefinition = {
 	model: { key: string; values: Array<string> };
 	view: Record<string, ViewElementDefinition>;
@@ -78,6 +83,8 @@ export type FontConverterDefinition = {
  * responsible for upcasting data to the model.
  *
  * **Note**: The `styleAttr` parameter should be either `'color'` or `'background-color'`.
+ *
+ * @internal
  */
 export function renderUpcastAttribute( styleAttr: string ) {
 	return ( viewElement: ViewElement ): string => normalizeColorCode( viewElement.getStyle( styleAttr )! );
@@ -89,6 +96,8 @@ export function renderUpcastAttribute( styleAttr: string ) {
  * responsible for downcasting a color attribute to a `<span>` element.
  *
  * **Note**: The `styleAttr` parameter should be either `'color'` or `'background-color'`.
+ *
+ * @internal
  */
 export function renderDowncastElement( styleAttr: string ) {
 	return ( modelAttributeValue: string, { writer }: DowncastConversionApi ): ViewAttributeElement =>
@@ -100,21 +109,25 @@ export function renderDowncastElement( styleAttr: string ) {
 /**
  * A helper that adds {@link module:ui/colorselector/colorselectorview~ColorSelectorView} to the color dropdown with proper initial values.
  *
- * @param config.dropdownView The dropdown view to which a {@link module:ui/colorselector/colorselectorview~ColorSelectorView}
+ * @param options Configuration options
+ * @param options.dropdownView The dropdown view to which a {@link module:ui/colorselector/colorselectorview~ColorSelectorView}
  * will be added.
- * @param config.colors An array with definitions representing colors to be displayed in the color selector.
- * @param config.removeButtonLabel The label for the button responsible for removing the color.
- * @param config.documentColorsLabel The label for the section with document colors.
- * @param config.documentColorsCount The number of document colors inside the dropdown.
- * @param config.colorPickerViewConfig Configuration of the color picker view.
+ * @param options.colors An array with definitions representing colors to be displayed in the color selector.
+ * @param options.columns The number of columns in the color grid.
+ * @param options.removeButtonLabel The label for the button responsible for removing the color.
+ * @param options.colorPickerLabel The label for the color picker button.
+ * @param options.documentColorsLabel The label for the section with document colors.
+ * @param options.documentColorsCount The number of document colors inside the dropdown.
+ * @param options.colorPickerViewConfig Configuration of the color picker view.
  * @returns The new color selector view.
+ * @internal
  */
 export function addColorSelectorToDropdown(
 	{
 		dropdownView, colors, columns, removeButtonLabel, colorPickerLabel,
 		documentColorsLabel, documentColorsCount, colorPickerViewConfig
 	}: {
-		dropdownView: ColorSelectorDropdownView;
+		dropdownView: FontColorSelectorDropdownView;
 		colors: Array<ColorDefinition>;
 		columns: number;
 		removeButtonLabel: string;
@@ -148,6 +161,6 @@ function normalizeColorCode( value: string ): string {
 	return value.replace( /\s/g, '' );
 }
 
-export type ColorSelectorDropdownView = DropdownView & {
+export type FontColorSelectorDropdownView = DropdownView & {
 	colorSelectorView?: ColorSelectorView;
 };

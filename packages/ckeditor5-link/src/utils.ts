@@ -1,34 +1,35 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/utils
  */
 
-/* global window */
-
 import type {
 	DowncastConversionApi,
-	Element,
-	Schema,
+	ModelElement,
+	ModelSchema,
 	ViewAttributeElement,
 	ViewNode,
-	ViewDocumentFragment
-} from 'ckeditor5/src/engine';
-import type { LocaleTranslate } from 'ckeditor5/src/utils';
+	ViewDocumentFragment,
+	ModelRange
+} from '@ckeditor/ckeditor5-engine';
+
+import type { LocaleTranslate } from '@ckeditor/ckeditor5-utils';
 
 import type {
 	LinkDecoratorAutomaticDefinition,
 	LinkDecoratorDefinition,
 	LinkDecoratorManualDefinition
-} from './linkconfig';
+} from './linkconfig.js';
 
-import { upperFirst } from 'lodash-es';
+import { upperFirst } from 'es-toolkit/compat';
 
 const ATTRIBUTE_WHITESPACES = /[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205f\u3000]/g; // eslint-disable-line no-control-regex
-const SAFE_URL = /^(?:(?:https?|ftps?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
+
+const SAFE_URL_TEMPLATE = '^(?:(?:<protocols>):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))';
 
 // Simplified email test - should be run over previously found URL.
 const EMAIL_REG_EXP = /^[\S]+@((?![-_])(?:[-\w\u00a1-\uffff]{0,63}[^-_]\.))+(?:[a-z\u00a1-\uffff]{2,})$/i;
@@ -36,6 +37,12 @@ const EMAIL_REG_EXP = /^[\S]+@((?![-_])(?:[-\w\u00a1-\uffff]{0,63}[^-_]\.))+(?:[
 // The regex checks for the protocol syntax ('xxxx://' or 'xxxx:')
 // or non-word characters at the beginning of the link ('/', '#' etc.).
 const PROTOCOL_REG_EXP = /^((\w+:(\/{2,})?)|(\W))/i;
+
+const DEFAULT_LINK_PROTOCOLS = [
+	'https?',
+	'ftps?',
+	'mailto'
+];
 
 /**
  * A keystroke used by the {@link module:link/linkui~LinkUI link UI feature}.
@@ -50,7 +57,7 @@ export function isLinkElement( node: ViewNode | ViewDocumentFragment ): boolean 
 }
 
 /**
- * Creates a link {@link module:engine/view/attributeelement~AttributeElement} with the provided `href` attribute.
+ * Creates a link {@link module:engine/view/attributeelement~ViewAttributeElement} with the provided `href` attribute.
  */
 export function createLinkElement( href: string, { writer }: DowncastConversionApi ): ViewAttributeElement {
 	// Priority 5 - https://github.com/ckeditor/ckeditor5-link/issues/121.
@@ -70,19 +77,22 @@ export function createLinkElement( href: string, { writer }: DowncastConversionA
  *
  * @internal
  */
-export function ensureSafeUrl( url: unknown ): string {
+export function ensureSafeUrl( url: unknown, allowedProtocols: Array<string> = DEFAULT_LINK_PROTOCOLS ): string {
 	const urlString = String( url );
 
-	return isSafeUrl( urlString ) ? urlString : '#';
+	const protocolsList = allowedProtocols.join( '|' );
+	const customSafeRegex = new RegExp( `${ SAFE_URL_TEMPLATE.replace( '<protocols>', protocolsList ) }`, 'i' );
+
+	return isSafeUrl( urlString, customSafeRegex ) ? urlString : '#';
 }
 
 /**
  * Checks whether the given URL is safe for the user (does not contain any malicious code).
  */
-function isSafeUrl( url: string ): boolean {
+function isSafeUrl( url: string, customRegexp: RegExp ): boolean {
 	const normalizedUrl = url.replace( ATTRIBUTE_WHITESPACES, '' );
 
-	return !!normalizedUrl.match( SAFE_URL );
+	return !!normalizedUrl.match( customRegexp );
 }
 
 /**
@@ -95,6 +105,7 @@ function isSafeUrl( url: string ): boolean {
  *
  * @param t Shorthand for {@link module:utils/locale~Locale#t Locale#t}.
  * @param decorators The decorator reference where the label values should be localized.
+ * @internal
  */
 export function getLocalizedDecorators(
 	t: LocaleTranslate,
@@ -119,6 +130,8 @@ export function getLocalizedDecorators(
 /**
  * Converts an object with defined decorators to a normalized array of decorators. The `id` key is added for each decorator and
  * is used as the attribute's name in the model.
+ *
+ * @internal
  */
 export function normalizeDecorators( decorators?: Record<string, LinkDecoratorDefinition> ): Array<NormalizedLinkDecoratorDefinition> {
 	const retArray: Array<NormalizedLinkDecoratorDefinition> = [];
@@ -141,7 +154,7 @@ export function normalizeDecorators( decorators?: Record<string, LinkDecoratorDe
 /**
  * Returns `true` if the specified `element` can be linked (the element allows the `linkHref` attribute).
  */
-export function isLinkableElement( element: Element | null, schema: Schema ): element is Element {
+export function isLinkableElement( element: ModelElement | null, schema: ModelSchema ): element is ModelElement {
 	if ( !element ) {
 		return false;
 	}
@@ -151,6 +164,8 @@ export function isLinkableElement( element: Element | null, schema: Schema ): el
 
 /**
  * Returns `true` if the specified `value` is an email.
+ *
+ * @internal
  */
 export function isEmail( value: string ): boolean {
 	return EMAIL_REG_EXP.test( value );
@@ -172,6 +187,8 @@ export function addLinkProtocolIfApplicable( link: string, defaultProtocol?: str
 
 /**
  * Checks if protocol is already included in the link.
+ *
+ * @internal
  */
 export function linkHasProtocol( link: string ): boolean {
 	return PROTOCOL_REG_EXP.test( link );
@@ -182,6 +199,25 @@ export function linkHasProtocol( link: string ): boolean {
  */
 export function openLink( link: string ): void {
 	window.open( link, '_blank', 'noopener' );
+}
+
+/**
+ * Returns a text of a link range.
+ *
+ * If the returned value is `undefined`, the range contains elements other than text nodes.
+ */
+export function extractTextFromLinkRange( range: ModelRange ): string | undefined {
+	let text = '';
+
+	for ( const item of range.getItems() ) {
+		if ( !item.is( '$text' ) && !item.is( '$textProxy' ) ) {
+			return;
+		}
+
+		text += item.data;
+	}
+
+	return text;
 }
 
 export type NormalizedLinkDecoratorAutomaticDefinition = LinkDecoratorAutomaticDefinition & { id: string };

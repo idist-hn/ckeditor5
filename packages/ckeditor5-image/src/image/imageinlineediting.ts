@@ -1,30 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/imageinlineediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { ClipboardPipeline, type ClipboardInputTransformationEvent } from 'ckeditor5/src/clipboard';
-import { UpcastWriter, type ViewElement } from 'ckeditor5/src/engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import {
+	ClipboardPipeline,
+	type ClipboardInputTransformationEvent,
+	type ClipboardContentInsertionEvent
+} from '@ckeditor/ckeditor5-clipboard';
+import { ViewUpcastWriter, type ViewElement } from '@ckeditor/ckeditor5-engine';
 
 import {
 	downcastImageAttribute,
-	downcastSrcsetAttribute
-} from './converters';
+	downcastSrcsetAttribute,
+	upcastImg
+} from './converters.js';
 
-import ImageEditing from './imageediting';
-import ImageSizeAttributes from '../imagesizeattributes';
-import ImageTypeCommand from './imagetypecommand';
-import ImageUtils from '../imageutils';
+import { ImageEditing } from './imageediting.js';
+import { ImageSizeAttributes } from '../imagesizeattributes.js';
+import { ImageTypeCommand } from './imagetypecommand.js';
+import { ImageUtils } from '../imageutils.js';
 import {
-	getImgViewElementMatcher,
 	createInlineImageViewElement,
-	determineImageTypeForInsertionAtSelection
-} from '../image/utils';
+	determineImageTypeForInsertionAtSelection,
+	isImageTypePlaceable
+} from './utils.js';
+import { ImagePlaceholder } from './imageplaceholder.js';
 
 /**
  * The image inline plugin.
@@ -36,12 +42,24 @@ import {
  * * {@link module:image/image/imagetypecommand~ImageTypeCommand `'imageTypeInline'`} command that converts block images into
  * inline images.
  */
-export default class ImageInlineEditing extends Plugin {
+export class ImageInlineEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageEditing, ImageSizeAttributes, ImageUtils, ClipboardPipeline ] as const;
+	public static get requires(): PluginDependenciesOf<[
+		ImageEditing,
+		ImageSizeAttributes,
+		ImageUtils,
+		ImagePlaceholder,
+		ClipboardPipeline
+	]> {
+		return [
+			ImageEditing,
+			ImageSizeAttributes,
+			ImageUtils,
+			ImagePlaceholder,
+			ClipboardPipeline
+		];
 	}
 
 	/**
@@ -54,6 +72,13 @@ export default class ImageInlineEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
 		const schema = editor.model.schema;
@@ -61,16 +86,10 @@ export default class ImageInlineEditing extends Plugin {
 		// Converters 'alt' and 'srcset' are added in 'ImageEditing' plugin.
 		schema.register( 'imageInline', {
 			inheritAllFrom: '$inlineObject',
-			allowAttributes: [ 'alt', 'src', 'srcset' ]
-		} );
-
-		// Disallow inline images in captions (for now). This is the best spot to do that because
-		// independent packages can introduce captions (ImageCaption, TableCaption, etc.) so better this
-		// be future-proof.
-		schema.addChildCheck( ( context, childDefinition ) => {
-			if ( context.endsWith( 'caption' ) && childDefinition.name === 'imageInline' ) {
-				return false;
-			}
+			allowAttributes: [ 'alt', 'src', 'srcset' ],
+			// Disallow inline images in captions (at least for now).
+			// This is the best spot to do that because independent packages can introduce captions (ImageCaption, TableCaption, etc.).
+			disallowIn: [ 'caption' ]
 		} );
 
 		this._setupConversion();
@@ -113,13 +132,7 @@ export default class ImageInlineEditing extends Plugin {
 
 		// More image related upcasts are in 'ImageEditing' plugin.
 		conversion.for( 'upcast' )
-			.elementToElement( {
-				view: getImgViewElementMatcher( editor, 'imageInline' ),
-				model: ( viewImage, { writer } ) => writer.createElement(
-					'imageInline',
-					viewImage.hasAttribute( 'src' ) ? { src: viewImage.getAttribute( 'src' ) } : undefined
-				)
-			} );
+			.add( upcastImg( 'imageInline', imageUtils ) );
 	}
 
 	/**
@@ -136,6 +149,8 @@ export default class ImageInlineEditing extends Plugin {
 	 * in the clipboard pipeline.
 	 *
 	 * See the `ImageBlockEditing` for the similar integration that works in the opposite direction.
+	 *
+	 * The feature also sets image `width` and `height` attributes when pasting.
 	 */
 	private _setupClipboardIntegration(): void {
 		const editor = this.editor;
@@ -171,9 +186,18 @@ export default class ImageInlineEditing extends Plugin {
 				const selection = model.createSelection( modelRange );
 
 				// Convert block images into inline images only when pasting or dropping into non-empty blocks
-				// and when the block is not an object (e.g. pasting to replace another widget).
-				if ( determineImageTypeForInsertionAtSelection( model.schema, selection ) === 'imageInline' ) {
-					const writer = new UpcastWriter( editingView.document );
+				// and when the block is not an object (e.g. pasting to replace another widget). Also force
+				// the unwrap when `imageBlock` cannot land at the target (e.g. inside `$inlineRoot`) - in
+				// that case the heuristic still returns `'imageBlock'` for a blockless selection, but the
+				// resulting `<figure>` would be upcast-stripped.
+				const selectionPosition = selection.getFirstPosition();
+				const canPlaceBlock = !!selectionPosition && isImageTypePlaceable( model.schema, selectionPosition, 'imageBlock' );
+
+				if (
+					!canPlaceBlock ||
+					determineImageTypeForInsertionAtSelection( model.schema, selection ) === 'imageInline'
+				) {
+					const writer = new ViewUpcastWriter( editingView.document );
 
 					// Unwrap <figure class="image"><img .../></figure> -> <img ... />
 					// but <figure class="image"><img .../><figcaption>...</figcaption></figure> -> stays the same
@@ -199,6 +223,25 @@ export default class ImageInlineEditing extends Plugin {
 
 					data.content = writer.createDocumentFragment( inlineViewImages );
 				}
+			} );
+
+		this.listenTo<ClipboardContentInsertionEvent>(
+			clipboardPipeline,
+			'contentInsertion',
+			( evt, data ) => {
+				if ( data.method !== 'paste' ) {
+					return;
+				}
+
+				model.change( writer => {
+					const range = writer.createRangeIn( data.content );
+
+					for ( const item of range.getItems() ) {
+						if ( item.is( 'element', 'imageInline' ) ) {
+							imageUtils.setImageNaturalSizeAttributes( item );
+						}
+					}
+				} );
 			} );
 	}
 }

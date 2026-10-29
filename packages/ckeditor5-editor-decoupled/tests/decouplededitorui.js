@@ -1,30 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { View, EditorUI } from '@ckeditor/ckeditor5-ui';
 
-import View from '@ckeditor/ckeditor5-ui/src/view';
-
-import DecoupledEditor from '../src/decouplededitor';
-import DecoupledEditorUI from '../src/decouplededitorui';
-import DecoupledEditorUIView from '../src/decouplededitoruiview';
-import EditorUI from '@ckeditor/ckeditor5-ui/src/editorui/editorui';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { DecoupledEditor } from '../src/decouplededitor.js';
+import { DecoupledEditorUI } from '../src/decouplededitorui.js';
+import { DecoupledEditorUIView } from '../src/decouplededitoruiview.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 import { Image, ImageCaption, ImageToolbar } from '@ckeditor/ckeditor5-image';
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { assertBinding } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import { isElement } from 'lodash-es';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { keyCodes } from '@ckeditor/ckeditor5-utils';
+import { assertBinding } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { isElement } from 'es-toolkit/compat';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { normalizeRootsConfig, Plugin } from '@ckeditor/ckeditor5-core';
 
 describe( 'DecoupledEditorUI', () => {
 	let editor, view, ui, viewElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return VirtualDecoupledTestEditor
@@ -40,19 +36,19 @@ describe( 'DecoupledEditorUI', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'extends EditorUI', () => {
-			expect( ui ).to.instanceof( EditorUI );
+			expect( ui ).toBeInstanceOf( EditorUI );
 		} );
 	} );
 
 	describe( 'init()', () => {
 		it( 'renders the #view', () => {
-			expect( view.isRendered ).to.be.true;
+			expect( view.isRendered ).toBe( true );
 		} );
 
 		describe( 'editable', () => {
@@ -60,13 +56,13 @@ describe( 'DecoupledEditorUI', () => {
 				ui.focusTracker.isFocused = false;
 
 				view.editable.element.dispatchEvent( new Event( 'focus' ) );
-				expect( ui.focusTracker.isFocused ).to.true;
+				expect( ui.focusTracker.isFocused ).toBe( true );
 			} );
 
 			it( 'sets view.editable#name', () => {
 				const editable = editor.editing.view.document.getRoot();
 
-				expect( view.editable.name ).to.equal( editable.rootName );
+				expect( view.editable.name ).toBe( editable.rootName );
 			} );
 
 			it( 'binds view.editable#isFocused', () => {
@@ -81,11 +77,121 @@ describe( 'DecoupledEditorUI', () => {
 			} );
 
 			it( 'attaches editable UI as view\'s DOM root', () => {
-				expect( editor.editing.view.getDomRoot() ).to.equal( view.editable.element );
+				expect( editor.editing.view.getDomRoot() ).toBe( view.editable.element );
+			} );
+		} );
+
+		it( 'marks view.editable as an editing root (adds the ck-editor__editable_root class)', () => {
+			expect( view.editable.isMainFrameEditingRoot ).toBe( true );
+			expect( view.editable.element.classList.contains( 'ck-editor__editable_root' ) ).toBe( true );
+		} );
+
+		describe( 'inline root', () => {
+			it( 'leaves view.editable#isInlineRoot false for a block root', () => {
+				expect( view.editable.isInlineRoot ).toBe( false );
+				expect( view.editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( false );
+			} );
+
+			it( 'sets view.editable#isInlineRoot to true when the root is $inlineRoot', () => {
+				return VirtualDecoupledTestEditor
+					.create( '', {
+						root: { modelElement: '$inlineRoot' }
+					} )
+					.then( newEditor => {
+						const editable = newEditor.ui.view.editable;
+
+						expect( editable.isInlineRoot ).toBe( true );
+						expect( editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( true );
+
+						return newEditor.destroy();
+					} );
+			} );
+
+			it( 'sets isInlineRoot=false for a custom block-like root registered by a plugin', () => {
+				class CustomBlockRootPlugin extends Plugin {
+					init() {
+						this.editor.model.schema.register( 'customBlockRoot', {
+							isLimit: true,
+							allowContentOf: '$root'
+						} );
+					}
+				}
+
+				return VirtualDecoupledTestEditor
+					.create( '', {
+						extraPlugins: [ CustomBlockRootPlugin ],
+						root: { modelElement: 'customBlockRoot' }
+					} )
+					.then( newEditor => {
+						const editable = newEditor.ui.view.editable;
+
+						expect( editable.isInlineRoot ).toBe( false );
+						expect( editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( false );
+
+						return newEditor.destroy();
+					} );
+			} );
+
+			it( 'sets isInlineRoot=true for a custom inline-only root registered by a plugin', () => {
+				class CustomInlineRootPlugin extends Plugin {
+					init() {
+						this.editor.model.schema.register( 'customInlineRoot', {
+							isLimit: true,
+							allowContentOf: '$inlineRoot'
+						} );
+					}
+				}
+
+				return VirtualDecoupledTestEditor
+					.create( '', {
+						extraPlugins: [ CustomInlineRootPlugin ],
+						root: { modelElement: 'customInlineRoot' }
+					} )
+					.then( newEditor => {
+						const editable = newEditor.ui.view.editable;
+
+						expect( editable.isInlineRoot ).toBe( true );
+						expect( editable.element.classList.contains( 'ck-editor__editable_inline-root' ) ).toBe( true );
+
+						return newEditor.destroy();
+					} );
 			} );
 		} );
 
 		describe( 'placeholder', () => {
+			it( 'sets placeholder from editor.config.placeholder - string', () => {
+				return VirtualDecoupledTestEditor
+					.create( 'foo', {
+						extraPlugins: [ Paragraph ],
+						root: { placeholder: 'placeholder-text' }
+					} )
+					.then( newEditor => {
+						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
+
+						expect( firstChild.getAttribute( 'data-placeholder' ) ).toBe( 'placeholder-text' );
+
+						return newEditor.destroy();
+					} );
+			} );
+
+			it( 'sets the placeholder directly on the root for an inline root (no block child to host it)', () => {
+				return VirtualDecoupledTestEditor
+					.create( '', {
+						root: { modelElement: '$inlineRoot', placeholder: 'placeholder-text' }
+					} )
+					.then( newEditor => {
+						const root = newEditor.editing.view.document.getRoot();
+
+						// Inline roots have no block children, so the placeholder is hosted on the root itself
+						// (isDirectHost: true) rather than on the first child.
+						expect( root.getAttribute( 'data-placeholder' ) ).toBe( 'placeholder-text' );
+
+						return newEditor.destroy();
+					} );
+			} );
+		} );
+
+		describe( 'placeholder - legacy config', () => {
 			it( 'sets placeholder from editor.config.placeholder - string', () => {
 				return VirtualDecoupledTestEditor
 					.create( 'foo', {
@@ -95,37 +201,7 @@ describe( 'DecoupledEditorUI', () => {
 					.then( newEditor => {
 						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
 
-						expect( firstChild.getAttribute( 'data-placeholder' ) ).to.equal( 'placeholder-text' );
-
-						return newEditor.destroy();
-					} );
-			} );
-
-			it( 'sets placeholder from editor.config.placeholder - object', () => {
-				return VirtualDecoupledTestEditor
-					.create( 'foo', {
-						extraPlugins: [ Paragraph ],
-						placeholder: { main: 'placeholder-text' }
-					} )
-					.then( newEditor => {
-						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
-
-						expect( firstChild.getAttribute( 'data-placeholder' ) ).to.equal( 'placeholder-text' );
-
-						return newEditor.destroy();
-					} );
-			} );
-
-			it( 'sets placeholder from editor.config.placeholder - object (invalid root name)', () => {
-				return VirtualDecoupledTestEditor
-					.create( 'foo', {
-						extraPlugins: [ Paragraph ],
-						placeholder: { 'root-name-that-not-exists': 'placeholder-text' }
-					} )
-					.then( newEditor => {
-						const firstChild = newEditor.editing.view.document.getRoot().getChild( 0 );
-
-						expect( firstChild.hasAttribute( 'data-placeholder' ) ).to.equal( false );
+						expect( firstChild.getAttribute( 'data-placeholder' ) ).toBe( 'placeholder-text' );
 
 						return newEditor.destroy();
 					} );
@@ -142,8 +218,8 @@ describe( 'DecoupledEditorUI', () => {
 						.then( editor => {
 							const items = editor.ui.view.toolbar.items;
 
-							expect( items.get( 0 ).name ).to.equal( 'foo' );
-							expect( items.get( 1 ).name ).to.equal( 'bar' );
+							expect( items.get( 0 ).name ).toBe( 'foo' );
+							expect( items.get( 1 ).name ).toBe( 'bar' );
 
 							return editor.destroy();
 						} );
@@ -164,8 +240,8 @@ describe( 'DecoupledEditorUI', () => {
 						.then( editor => {
 							const items = editor.ui.view.toolbar.items;
 
-							expect( items.get( 0 ).name ).to.equal( 'foo' );
-							expect( items.get( 1 ).name ).to.equal( 'bar' );
+							expect( items.get( 0 ).name ).toBe( 'foo' );
+							expect( items.get( 1 ).name ).toBe( 'bar' );
 
 							return editor.destroy();
 						} );
@@ -182,8 +258,8 @@ describe( 'DecoupledEditorUI', () => {
 						.then( editor => {
 							const items = editor.ui.view.toolbar.items;
 
-							expect( items.get( 0 ).name ).to.equal( 'foo' );
-							expect( items.length ).to.equal( 1 );
+							expect( items.get( 0 ).name ).toBe( 'foo' );
+							expect( items.length ).toBe( 1 );
 
 							return editor.destroy();
 						} );
@@ -196,12 +272,15 @@ describe( 'DecoupledEditorUI', () => {
 		it( 'detaches the DOM root then destroys the UI view', () => {
 			return VirtualDecoupledTestEditor.create( '' )
 				.then( newEditor => {
-					const destroySpy = sinon.spy( newEditor.ui.view, 'destroy' );
-					const detachSpy = sinon.spy( newEditor.editing.view, 'detachDomRoot' );
+					const destroySpy = vi.spyOn( newEditor.ui.view, 'destroy' );
+					const detachSpy = vi.spyOn( newEditor.editing.view, 'detachDomRoot' );
 
 					return newEditor.destroy()
 						.then( () => {
-							sinon.assert.callOrder( detachSpy, destroySpy );
+							expect( detachSpy ).toHaveBeenCalled();
+							expect( destroySpy ).toHaveBeenCalled();
+							expect( detachSpy.mock.invocationCallOrder[ 0 ] )
+								.toBeLessThan( destroySpy.mock.invocationCallOrder[ 0 ] );
 						} );
 				} );
 		} );
@@ -223,7 +302,7 @@ describe( 'DecoupledEditorUI', () => {
 								attributes[ attribute.name ] = attribute.value;
 							}
 
-							expect( attributes ).to.deep.equal( {
+							expect( attributes ).toEqual( {
 								foo: 'bar',
 								'data-baz': 'qux',
 								class: 'foo-class'
@@ -236,40 +315,49 @@ describe( 'DecoupledEditorUI', () => {
 			const newEditor = await VirtualDecoupledTestEditor.create( '' );
 			const parentEditorUIPrototype = Object.getPrototypeOf( newEditor.ui.constructor.prototype );
 
-			const parentDestroySpy = testUtils.sinon.spy( parentEditorUIPrototype, 'destroy' );
-			const viewDestroySpy = testUtils.sinon.spy( newEditor.ui.view, 'destroy' );
+			const parentDestroySpy = vi.spyOn( parentEditorUIPrototype, 'destroy' );
+			const viewDestroySpy = vi.spyOn( newEditor.ui.view, 'destroy' );
 
 			await newEditor.destroy();
 
-			sinon.assert.callOrder( parentDestroySpy, viewDestroySpy );
+			expect( parentDestroySpy ).toHaveBeenCalled();
+			expect( viewDestroySpy ).toHaveBeenCalled();
+			expect( parentDestroySpy.mock.invocationCallOrder[ 0 ] )
+				.toBeLessThan( viewDestroySpy.mock.invocationCallOrder[ 0 ] );
+		} );
+
+		it( 'should not crash if called twice', async () => {
+			const newEditor = await VirtualDecoupledTestEditor.create( '' );
+
+			await newEditor.destroy();
+
+			await expect( newEditor.destroy() ).resolves.toBeUndefined();
 		} );
 	} );
 
 	describe( 'element()', () => {
 		it( 'returns correct element instance', () => {
-			expect( ui.element ).to.equal( viewElement );
+			expect( ui.element ).toBe( viewElement );
 		} );
 	} );
 
 	describe( 'getEditableElement()', () => {
 		it( 'returns editable element (default)', () => {
-			expect( ui.getEditableElement() ).to.equal( view.editable.element );
+			expect( ui.getEditableElement() ).toBe( view.editable.element );
 		} );
 
 		it( 'returns editable element (root name passed)', () => {
-			expect( ui.getEditableElement( 'main' ) ).to.equal( view.editable.element );
+			expect( ui.getEditableElement( 'main' ) ).toBe( view.editable.element );
 		} );
 
 		it( 'returns undefined if editable with the given name is absent', () => {
-			expect( ui.getEditableElement( 'absent' ) ).to.be.undefined;
+			expect( ui.getEditableElement( 'absent' ) ).toBeUndefined();
 		} );
 	} );
 } );
 
 describe( 'Focus handling and navigation between editing root and editor toolbar', () => {
 	let editorElement, editor, ui, toolbarView, domRoot;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = document.body.appendChild( document.createElement( 'div' ) );
@@ -304,54 +392,54 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 		} );
 
 		it( 'should focus the main toolbar when the focus is in the editing root', () => {
-			const spy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const spy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			ui.focusTracker.isFocused = true;
 			ui.focusTracker.focusedElement = domRoot;
 
-			pressAltF10();
+			pressAltF10( editor );
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should do nothing if the toolbar is already focused', () => {
-			const domRootFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
-			const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const domRootFocusSpy = vi.spyOn( domRoot, 'focus' );
+			const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			// Focus the toolbar.
-			pressAltF10();
+			pressAltF10( editor );
 			ui.focusTracker.focusedElement = toolbarView.element;
 
 			// Try Alt+F10 again.
-			pressAltF10();
+			pressAltF10( editor );
 
-			sinon.assert.calledOnce( toolbarFocusSpy );
-			sinon.assert.notCalled( domRootFocusSpy );
+			expect( toolbarFocusSpy ).toHaveBeenCalledTimes( 1 );
+			expect( domRootFocusSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should prioritize widget toolbar over the global toolbar', () => {
 			const widgetToolbarRepository = editor.plugins.get( 'WidgetToolbarRepository' );
 			const imageToolbar = widgetToolbarRepository._toolbarDefinitions.get( 'image' ).view;
 
-			const toolbarSpy = testUtils.sinon.spy( toolbarView, 'focus' );
-			const imageToolbarSpy = testUtils.sinon.spy( imageToolbar, 'focus' );
+			const toolbarSpy = vi.spyOn( toolbarView, 'focus' );
+			const imageToolbarSpy = vi.spyOn( imageToolbar, 'focus' );
 
-			setModelData( editor.model,
+			_setModelData( editor.model,
 				'<paragraph>foo</paragraph>' +
 				'[<imageBlock src="https://ckeditor.com/docs/ckeditor5/latest/assets/img/warsaw.jpg"><caption>bar</caption></imageBlock>]' +
 				'<paragraph>baz</paragraph>'
 			);
 
 			// Focus the image balloon toolbar.
-			pressAltF10();
+			pressAltF10( editor );
 			ui.focusTracker.focusedElement = imageToolbar.element;
 
-			sinon.assert.calledOnce( imageToolbarSpy );
-			sinon.assert.notCalled( toolbarSpy );
+			expect( imageToolbarSpy ).toHaveBeenCalledTimes( 1 );
+			expect( toolbarSpy ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -362,49 +450,35 @@ describe( 'Focus handling and navigation between editing root and editor toolbar
 		} );
 
 		it( 'should move the focus back from the main toolbar to the editing root', () => {
-			const domRootFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
-			const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const domRootFocusSpy = vi.spyOn( domRoot, 'focus' );
+			const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
 			// Focus the toolbar.
-			pressAltF10();
+			pressAltF10( editor );
 			ui.focusTracker.focusedElement = toolbarView.element;
 
-			pressEsc();
+			pressEsc( editor );
 
-			sinon.assert.callOrder( toolbarFocusSpy, domRootFocusSpy );
+			expect( toolbarFocusSpy ).toHaveBeenCalled();
+			expect( domRootFocusSpy ).toHaveBeenCalled();
+			expect( toolbarFocusSpy.mock.invocationCallOrder[ 0 ] )
+				.toBeLessThan( domRootFocusSpy.mock.invocationCallOrder[ 0 ] );
 		} );
 
 		it( 'should do nothing if it was pressed when no toolbar was focused', () => {
-			const domRootFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
-			const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
+			const domRootFocusSpy = vi.spyOn( domRoot, 'focus' );
+			const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
 
-			setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>foo[]</paragraph>' );
 
-			pressEsc();
+			pressEsc( editor );
 
-			sinon.assert.notCalled( domRootFocusSpy );
-			sinon.assert.notCalled( toolbarFocusSpy );
+			expect( domRootFocusSpy ).not.toHaveBeenCalled();
+			expect( toolbarFocusSpy ).not.toHaveBeenCalled();
 		} );
 	} );
-
-	function pressAltF10() {
-		editor.keystrokes.press( {
-			keyCode: keyCodes.f10,
-			altKey: true,
-			preventDefault: sinon.spy(),
-			stopPropagation: sinon.spy()
-		} );
-	}
-
-	function pressEsc() {
-		editor.keystrokes.press( {
-			keyCode: keyCodes.esc,
-			preventDefault: sinon.spy(),
-			stopPropagation: sinon.spy()
-		} );
-	}
 } );
 
 function viewCreator( name ) {
@@ -418,9 +492,28 @@ function viewCreator( name ) {
 	};
 }
 
+function pressAltF10( editor ) {
+	editor.keystrokes.press( {
+		keyCode: keyCodes.f10,
+		altKey: true,
+		preventDefault: vi.fn(),
+		stopPropagation: vi.fn()
+	} );
+}
+
+function pressEsc( editor ) {
+	editor.keystrokes.press( {
+		keyCode: keyCodes.esc,
+		preventDefault: vi.fn(),
+		stopPropagation: vi.fn()
+	} );
+}
+
 class VirtualDecoupledTestEditor extends VirtualTestEditor {
 	constructor( sourceElementOrData, config ) {
 		super( config );
+
+		normalizeRootsConfig( sourceElementOrData, this.config );
 
 		if ( isElement( sourceElementOrData ) ) {
 			this.sourceElement = sourceElementOrData;

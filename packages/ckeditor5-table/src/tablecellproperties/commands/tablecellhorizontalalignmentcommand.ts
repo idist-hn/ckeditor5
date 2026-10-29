@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecellproperties/commands/tablecellhorizontalalignmentcommand
  */
 
-import type { Editor } from 'ckeditor5/src/core';
+import type { Editor } from '@ckeditor/ckeditor5-core';
 
-import TableCellPropertyCommand from './tablecellpropertycommand';
+import { TableCellPropertyCommand } from './tablecellpropertycommand.js';
 
 /**
  * The table cell horizontal alignment command.
@@ -25,7 +25,7 @@ import TableCellPropertyCommand from './tablecellpropertycommand';
  * } );
  * ```
  */
-export default class TableCellHorizontalAlignmentCommand extends TableCellPropertyCommand {
+export class TableCellHorizontalAlignmentCommand extends TableCellPropertyCommand {
 	/**
 	 * Creates a new `TableCellHorizontalAlignmentCommand` instance.
 	 *

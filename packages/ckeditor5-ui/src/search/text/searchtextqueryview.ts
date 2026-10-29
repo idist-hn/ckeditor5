@@ -1,20 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/search/text/searchtextqueryview
  */
-
-import ButtonView from '../../button/buttonview';
-import IconView from '../../icon/iconview';
-import LabeledFieldView, { type LabeledFieldViewCreator } from '../../labeledfield/labeledfieldview';
-import { createLabeledInputText } from '../../labeledfield/utils';
-import type InputBase from '../../input/inputbase';
+import { IconCancel, IconLoupe } from '@ckeditor/ckeditor5-icons';
+import { ButtonView } from '../../button/buttonview.js';
+import { IconView } from '../../icon/iconview.js';
+import { LabeledFieldView, type LabeledFieldViewCreator } from '../../labeledfield/labeledfieldview.js';
+import { createLabeledInputText } from '../../labeledfield/utils.js';
+import { type InputBase } from '../../input/inputbase.js';
 import type { Locale } from '@ckeditor/ckeditor5-utils';
-
-import { icons } from '@ckeditor/ckeditor5-core';
 
 /**
  * A search input field for the {@link module:ui/search/text/searchtextview~SearchTextView} component.
@@ -22,7 +20,7 @@ import { icons } from '@ckeditor/ckeditor5-core';
  * @internal
  * @extends module:ui/labeledfield/labeledfieldview~LabeledFieldView
  */
-export default class SearchTextQueryView<
+export class SearchTextQueryView<
 	TQueryFieldView extends InputBase<HTMLInputElement | HTMLTextAreaElement>
 > extends LabeledFieldView<TQueryFieldView> {
 	/**
@@ -58,7 +56,7 @@ export default class SearchTextQueryView<
 
 		if ( this._viewConfig.showIcon ) {
 			this.iconView = new IconView();
-			this.iconView.content = icons.loupe;
+			this.iconView.content = IconLoupe;
 			this.fieldWrapperChildren.add( this.iconView, 0 );
 
 			this.extendTemplate( {
@@ -72,7 +70,7 @@ export default class SearchTextQueryView<
 			this.resetButtonView = new ButtonView( locale );
 			this.resetButtonView.set( {
 				label: t( 'Clear' ),
-				icon: icons.cancel,
+				icon: IconCancel,
 				class: 'ck-search__reset',
 				isVisible: false,
 				tooltip: true

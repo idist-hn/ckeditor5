@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -15,10 +15,13 @@ import {
 	type LocaleTranslate
 } from '@ckeditor/ckeditor5-utils';
 
-import PluginCollection from './plugincollection';
-import type Editor from './editor/editor';
-import type { LoadedPlugins, PluginConstructor } from './plugin';
-import type { EditorConfig } from './editor/editorconfig';
+import { PluginCollection } from './plugincollection.js';
+import { getSubNodes } from './errorattribution/getsubnodes.js';
+import { _addLiveContext, _removeLiveContext } from './errorattribution/liveeditors.js';
+import { onEditorError, type EditorErrorCallback } from './errorreporter.js';
+import { type Editor } from './editor/editor.js';
+import type { LoadedPlugins, PluginConstructor } from './plugin.js';
+import type { EditorConfig } from './editor/editorconfig.js';
 
 /**
  * Provides a common, higher-level environment for solutions that use multiple {@link module:core/editor/editor~Editor editors}
@@ -47,7 +50,7 @@ import type { EditorConfig } from './editor/editorconfig';
  *
  * See {@link ~Context.create `Context.create()`} for usage examples.
  */
-export default class Context {
+export class Context {
 	/**
 	 * Stores all the configurations specific to this context instance.
 	 */
@@ -71,10 +74,29 @@ export default class Context {
 	public readonly editors: Collection<Editor>;
 
 	/**
+	 * Everything reachable from this context, with the editors in it left out.
+	 *
+	 * Error attribution decides whether an object belongs to an editor by looking for anything the two have
+	 * in common. Every editor in a context can be reached from every other one through
+	 * {@link #editors}, so without excluding what the context itself owns, any error would look like it
+	 * belongs to any editor.
+	 *
+	 * Filled in by {@link ~Context#initPlugins}, so it covers a context created through
+	 * {@link ~Context.create} as well as one built by hand, as long as its plugins were initialized. A
+	 * context an editor made for itself never gets there, because the editor initializes its own plugins
+	 * instead: it holds that editor alone, so there is nothing to tell apart.
+	 *
+	 * Temporary, for as long as attribution walks object graphs.
+	 *
+	 * @internal
+	 */
+	public _errorExclusions: Set<unknown> | undefined;
+
+	/**
 	 * The default configuration which is built into the `Context` class.
 	 *
-	 * It is used in CKEditor 5 builds featuring `Context` to provide the default configuration options which are later used during the
-	 * context initialization.
+	 * It was used in the now deprecated CKEditor 5 builds featuring `Context` to provide the default configuration options
+	 * which are later used during the context initialization.
 	 *
 	 * ```ts
 	 * Context.defaultConfig = {
@@ -106,8 +128,8 @@ export default class Context {
 	/**
 	 * An array of plugins built into the `Context` class.
 	 *
-	 * It is used in CKEditor 5 builds featuring `Context` to provide a list of context plugins which are later automatically initialized
-	 * during the context initialization.
+	 * It was used in the now deprecated CKEditor 5 builds featuring `Context` to provide the default configuration options
+	 * which are later used during the context initialization.
 	 *
 	 * They will be automatically initialized by `Context` unless `config.plugins` is passed.
 	 *
@@ -146,7 +168,11 @@ export default class Context {
 	 * @param config The context configuration.
 	 */
 	constructor( config?: ContextConfig ) {
-		this.config = new Config<ContextConfig>( config, ( this.constructor as typeof Context ).defaultConfig );
+		// We don't pass translations to the config, because its behavior of splitting keys
+		// with dots (e.g. `resize.width` => `resize: { width }`) breaks the translations.
+		const { translations, ...rest } = config || {};
+
+		this.config = new Config<ContextConfig>( rest, ( this.constructor as typeof Context ).defaultConfig );
 
 		const availablePlugins = ( this.constructor as typeof Context ).builtinPlugins;
 
@@ -158,7 +184,8 @@ export default class Context {
 
 		this.locale = new Locale( {
 			uiLanguage: typeof languageConfig === 'string' ? languageConfig : languageConfig.ui,
-			contentLanguage: this.config.get( 'language.content' )
+			contentLanguage: this.config.get( 'language.content' ),
+			translations
 		} );
 
 		this.t = this.locale.t;
@@ -205,7 +232,21 @@ export default class Context {
 			}
 		}
 
-		return this.plugins.init( plugins, [], substitutePlugins );
+		return this.plugins.init( plugins, [], substitutePlugins ).then( loadedPlugins => {
+			// After the plugins have been initialized, so that they are part of the snapshot. The editors are
+			// kept out of it explicitly rather than by counting on there being none yet — this method is
+			// public, so it can run at a moment the context does not choose: again later, when the context
+			// already has editors, or, for a context built by hand, while the integrator is creating them.
+			// A snapshot that took an editor in would make every error from it look like the context's own.
+			this._errorExclusions = getSubNodes( this, new Set( this.editors ) );
+
+			// Here rather than in `create()`, because a context can also be built by hand — `new Context()`
+			// followed by this method — and attribution has to know about that one too. A context an editor
+			// made for itself never reaches this point: the editor initializes its own plugins instead.
+			_addLiveContext( this );
+
+			return loadedPlugins;
+		} );
 	}
 
 	/**
@@ -215,6 +256,8 @@ export default class Context {
 	 * @returns A promise that resolves once the context instance is fully destroyed.
 	 */
 	public destroy(): Promise<unknown> {
+		_removeLiveContext( this );
+
 		return Promise.all( Array.from( this.editors, editor => editor.destroy() ) )
 			.then( () => this.plugins.destroy() );
 	}
@@ -271,7 +314,7 @@ export default class Context {
 	/**
 	 * Returns the context configuration which will be copied to the editors created using this context.
 	 *
-	 * The configuration returned by this method has the plugins configuration removed &mdash; plugins are shared with all editors
+	 * The configuration returned by this method has the plugins configuration removed &ndash; plugins are shared with all editors
 	 * through another mechanism.
 	 *
 	 * This method should only be used by the editor.
@@ -349,6 +392,28 @@ export default class Context {
 			resolve( context.initPlugins().then( () => context ) );
 		} );
 	}
+
+	/**
+	 * {@link module:core/errorreporter~onEditorError `onEditorError()`}, reachable without importing it.
+	 *
+	 * The same accessor as {@link module:core/editor/editor~Editor.onEditorError `Editor.onEditorError`},
+	 * and here for the same reason. A context is the only handle some integrations have: a component that
+	 * provides a shared context holds no editor class at all.
+	 */
+	public static get onEditorError(): ( callback: EditorErrorCallback ) => () => void {
+		return onEditorError;
+	}
+
+	/**
+	 * `Context` class is commonly put in `config.plugins` array.
+	 *
+	 * This property helps with better error detection.
+	 *
+	 * @internal
+	 */
+	public static get _throwErrorWhenUsedAsAPlugin(): true {
+		return true;
+	};
 }
 
 /**

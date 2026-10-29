@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
 
-import ModelElement from '@ckeditor/ckeditor5-engine/src/model/element';
-import ViewElement from '@ckeditor/ckeditor5-engine/src/view/element';
+import { ModelElement, ViewElement } from '@ckeditor/ckeditor5-engine';
 
-import ImageCaptionEditing from '../../src/imagecaption/imagecaptionediting';
-import ImageCaptionUtils from '../../src/imagecaption/imagecaptionutils';
+import { ImageCaptionEditing } from '../../src/imagecaption/imagecaptionediting.js';
+import { ImageCaptionUtils } from '../../src/imagecaption/imagecaptionutils.js';
 
 describe( 'image captioning utils', () => {
 	let editor, view, document, imageCaptionUtils;
@@ -29,8 +29,16 @@ describe( 'image captioning utils', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageCaptionUtils.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageCaptionUtils.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should be a plugin loaded by the ImageCaptionEditing', () => {
-		expect( editor.plugins.get( 'ImageCaptionUtils' ) ).to.be.instanceOf( ImageCaptionUtils );
+		expect( editor.plugins.get( 'ImageCaptionUtils' ) ).toBeInstanceOf( ImageCaptionUtils );
 	} );
 
 	describe( 'getCaptionFromImageModelElement()', () => {
@@ -39,13 +47,13 @@ describe( 'image captioning utils', () => {
 			const caption = new ModelElement( 'caption' );
 			const image = new ModelElement( 'imageBlock', null, [ dummy, caption ] );
 
-			expect( imageCaptionUtils.getCaptionFromImageModelElement( image ) ).to.equal( caption );
+			expect( imageCaptionUtils.getCaptionFromImageModelElement( image ) ).toBe( caption );
 		} );
 
 		it( 'should return null when caption element is not present', () => {
 			const image = new ModelElement( 'imageBlock' );
 
-			expect( imageCaptionUtils.getCaptionFromImageModelElement( image ) ).to.be.null;
+			expect( imageCaptionUtils.getCaptionFromImageModelElement( image ) ).toBeNull();
 		} );
 	} );
 
@@ -53,34 +61,34 @@ describe( 'image captioning utils', () => {
 		it( 'should return null for element that is not a figcaption', () => {
 			const element = new ViewElement( document, 'div' );
 
-			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).to.be.null;
+			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).toBeNull();
 		} );
 
 		it( 'should return null if figcaption has no parent', () => {
 			const element = new ViewElement( document, 'figcaption' );
 
-			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).to.be.null;
+			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).toBeNull();
 		} );
 
 		it( 'should return null if figcaption\'s parent is not a figure', () => {
 			const element = new ViewElement( document, 'figcaption' );
 			new ViewElement( document, 'div', null, element ); // eslint-disable-line no-new
 
-			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).to.be.null;
+			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).toBeNull();
 		} );
 
 		it( 'should return null if parent has no image class', () => {
 			const element = new ViewElement( document, 'figcaption' );
 			new ViewElement( document, 'figure', null, element ); // eslint-disable-line no-new
 
-			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).to.be.null;
+			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).toBeNull();
 		} );
 
 		it( 'should return object if element is a valid caption', () => {
 			const element = new ViewElement( document, 'figcaption' );
 			new ViewElement( document, 'figure', { class: 'image' }, element ); // eslint-disable-line no-new
 
-			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).to.deep.equal( { name: true } );
+			expect( imageCaptionUtils.matchImageCaptionViewElement( element ) ).toEqual( { name: true } );
 		} );
 	} );
 } );

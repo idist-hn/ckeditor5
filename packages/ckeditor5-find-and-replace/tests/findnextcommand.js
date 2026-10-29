@@ -1,12 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import { setData, stringify } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import FindAndReplaceEditing from '../src/findandreplaceediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _setModelData, _stringifyModel } from '@ckeditor/ckeditor5-engine';
+import { FindAndReplaceEditing } from '../src/findandreplaceediting.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
 describe( 'FindNextCommand', () => {
 	let editor, model, command;
@@ -28,33 +30,33 @@ describe( 'FindNextCommand', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets public properties', () => {
-			expect( command ).to.have.property( 'isEnabled', false );
-			expect( command ).to.have.property( 'affectsData', false );
+			expect( command ).toHaveProperty( 'isEnabled', false );
+			expect( command ).toHaveProperty( 'affectsData', false );
 		} );
 
 		it( 'sets state property', () => {
-			expect( command ).to.have.property( '_state', editor.plugins.get( 'FindAndReplaceEditing' ).state );
+			expect( command ).toHaveProperty( '_state', editor.plugins.get( 'FindAndReplaceEditing' ).state );
 		} );
 	} );
 
 	describe( 'isEnabled', () => {
 		it( 'should be disabled in empty document', () => {
-			setData( model, '[]' );
+			_setModelData( model, '[]' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'is disabled when there are no results', () => {
 			command._state.results.clear();
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'is disabled when there is just one result', () => {
 			command._state.results.clear();
 			command._state.results.add( {} );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'is enabled when there are more than one result', () => {
@@ -62,11 +64,11 @@ describe( 'FindNextCommand', () => {
 			command._state.results.add( {} );
 			command._state.results.add( {} );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled in readonly mode editor', () => {
-			setData( model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 			command._state.results.clear();
 			command._state.results.add( {} );
@@ -74,11 +76,11 @@ describe( 'FindNextCommand', () => {
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled after disabling readonly mode', () => {
-			setData( model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 			command._state.results.clear();
 			command._state.results.add( {} );
@@ -87,7 +89,7 @@ describe( 'FindNextCommand', () => {
 			editor.enableReadOnlyMode( 'unit-test' );
 			editor.disableReadOnlyMode( 'unit-test' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled if the next occurrence is not in the main root', async () => {
@@ -95,7 +97,7 @@ describe( 'FindNextCommand', () => {
 
 			multiRootEditor.execute( 'find', 'bar' );
 
-			expect( multiRootEditor.commands.get( 'findNext' ).isEnabled ).to.be.true;
+			expect( multiRootEditor.commands.get( 'findNext' ).isEnabled ).toBe( true );
 
 			await multiRootEditor.destroy();
 		} );
@@ -103,7 +105,7 @@ describe( 'FindNextCommand', () => {
 
 	describe( 'execute()', () => {
 		it( 'moves forward from the first match', () => {
-			setData( model, '<paragraph>[]Foo bar baz. Bam bar bom. bar bar</paragraph>' );
+			_setModelData( model, '<paragraph>[]Foo bar baz. Bam bar bom. bar bar</paragraph>' );
 
 			editor.execute( 'find', 'bar' );
 
@@ -111,7 +113,7 @@ describe( 'FindNextCommand', () => {
 
 			const markers = getSimplifiedHighlightedMarkers( model.markers );
 
-			expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+			expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 				'<paragraph>' +
 					'Foo bar baz. Bam ' +
 					'<highlightedResult:start></highlightedResult:start>' +
@@ -123,7 +125,7 @@ describe( 'FindNextCommand', () => {
 		} );
 
 		it( 'handles subsequent calls properly', () => {
-			setData( model, '<paragraph>Foo bar baz. Bam[] bar bom. bar bar</paragraph>' );
+			_setModelData( model, '<paragraph>Foo bar baz. Bam[] bar bom. bar bar</paragraph>' );
 
 			editor.execute( 'find', 'bar' );
 
@@ -132,7 +134,7 @@ describe( 'FindNextCommand', () => {
 
 			const markers = getSimplifiedHighlightedMarkers( model.markers );
 
-			expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+			expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 				'<paragraph>' +
 					'Foo bar baz. Bam bar bom. ' +
 					'<highlightedResult:start></highlightedResult:start>' +
@@ -152,7 +154,7 @@ describe( 'FindNextCommand', () => {
 
 			const markers = getSimplifiedHighlightedMarkers( model.markers );
 
-			expect( stringify( model.document.getRoot( 'second' ), null, markers ) ).to.equal(
+			expect( _stringifyModel( model.document.getRoot( 'second' ), null, markers ) ).toBe(
 				'<paragraph>' +
 					'Foo ' +
 					'<highlightedResult:start></highlightedResult:start>' +
@@ -192,8 +194,8 @@ describe( 'FindNextCommand', () => {
 	async function initMultiRootEditor() {
 		const multiRootEditor = await MultiRootEditor.create( { plugins: [ FindAndReplaceEditing, Paragraph ] } );
 
-		setData( multiRootEditor.model, '<paragraph>Foo bar baz</paragraph>' );
-		setData( multiRootEditor.model, '<paragraph>Foo bar baz</paragraph>', { rootName: 'second' } );
+		_setModelData( multiRootEditor.model, '<paragraph>Foo bar baz</paragraph>' );
+		_setModelData( multiRootEditor.model, '<paragraph>Foo bar baz</paragraph>', { rootName: 'second' } );
 
 		return multiRootEditor;
 	}

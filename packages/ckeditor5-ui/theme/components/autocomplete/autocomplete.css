@@ -1,22 +1,56 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-.ck.ck-autocomplete {
-	position: relative;
+:root,
+:host {
+	/* Size */
+	--ck-autocomplete-results-max-height: 200px;
 
+	/* Radius */
+	/* Uniform (fully rounded) corners by default; set this to initial to restore the attached-corner (squared connecting edge) look, as the legacy theme does. */
+	--ck-autocomplete-results-uniform-border-radius: var(--ck-border-radius-uniform);
+	--ck-autocomplete-results-border-radius: var(--ck-border-radius-surface-attached);
+
+	/* Border */
+	/* Override-only: the border is composed at the point of use, so a legacy color or a part set on a narrower selector applies. */
+	--ck-autocomplete-results-border: initial;
+
+	/* Color */
+	--ck-autocomplete-results-background-color: var(--ck-color-surface-container);
+}
+
+.ck.ck-autocomplete {
 	& > .ck-search__results {
+		border-radius: var(--ck-autocomplete-results-border-radius);
+		/* Backward compatibility: falls back to legacy --ck-drop-shadow if overridden. */
+		box-shadow: var(--ck-drop-shadow, var(--ck-shadow-surface-floating)), 0 0;
+		max-height: var(--ck-autocomplete-results-max-height);
+		overflow-y: auto;
+		background: var(--ck-autocomplete-results-background-color);
+		border: var(--ck-autocomplete-results-border, var(--ck-border-width-surface) solid var(--ck-color-dropdown-panel-border, var(--ck-dropdown-panel-border-color)));
+		min-width: auto;
 		position: absolute;
-		z-index: var(--ck-z-modal);
 
 		&.ck-search__results_n {
+			border-radius: var(--ck-autocomplete-results-uniform-border-radius, var(--ck-border-radius-surface-attached-bottom));
+
+			/* Prevent duplicated borders between the input and the results pane. */
+			margin-bottom: calc(-1 * var(--ck-border-width-surface));
 			bottom: 100%;
 		}
 
 		&.ck-search__results_s {
+			border-radius: var(--ck-autocomplete-results-uniform-border-radius, var(--ck-border-radius-surface-attached-top));
+
+			/* Prevent duplicated borders between the input and the results pane. */
+			margin-top: calc(-1 * var(--ck-border-width-surface));
 			top: 100%;
 			bottom: auto;
 		}
+		/* Backward compatibility: falls back to legacy --ck-z-panel if overridden. */
+		z-index: var(--ck-z-panel, var(--ck-z-overlay))
 	}
+	position: relative
 }

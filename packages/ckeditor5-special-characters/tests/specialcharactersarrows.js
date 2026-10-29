@@ -1,24 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import SpecialCharacters from '../src/specialcharacters';
-import SpecialCharactersArrows from '../src/specialcharactersarrows';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { SpecialCharacters } from '../src/specialcharacters.js';
+import { SpecialCharactersArrows } from '../src/specialcharactersarrows.js';
 
 describe( 'SpecialCharactersArrows', () => {
-	testUtils.createSinonSandbox();
-
 	let editor, editorElement, addItemsSpy, addItemsFirstCallArgs;
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
 
-		addItemsSpy = sinon.spy( SpecialCharacters.prototype, 'addItems' );
+		addItemsSpy = vi.spyOn( SpecialCharacters.prototype, 'addItems' );
 
 		document.body.appendChild( editorElement );
 		return ClassicTestEditor
@@ -27,27 +23,33 @@ describe( 'SpecialCharactersArrows', () => {
 			} )
 			.then( newEditor => {
 				editor = newEditor;
-				addItemsFirstCallArgs = addItemsSpy.args[ 0 ];
+				addItemsFirstCallArgs = addItemsSpy.mock.calls[ 0 ];
 			} );
 	} );
 
 	afterEach( () => {
-		addItemsSpy.restore();
-
 		editorElement.remove();
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( SpecialCharactersArrows.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( SpecialCharactersArrows.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'adds new items', () => {
-		expect( addItemsSpy.callCount ).to.equal( 1 );
+		expect( addItemsSpy ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'properly names the category', () => {
-		expect( addItemsFirstCallArgs[ 0 ] ).to.equal( 'Arrows' );
+		expect( addItemsFirstCallArgs[ 0 ] ).toEqual( 'Arrows' );
 	} );
 
 	it( 'defines a label displayed in the toolbar', () => {
-		expect( addItemsFirstCallArgs[ 2 ] ).to.deep.equal( {
+		expect( addItemsFirstCallArgs[ 2 ] ).toEqual( {
 			label: 'Arrows'
 		} );
 	} );

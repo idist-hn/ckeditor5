@@ -1,42 +1,58 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document, setTimeout */
-
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-
-import { Code, Strikethrough } from '@ckeditor/ckeditor5-basic-styles';
-import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
-import { ImageUpload, PictureEditing } from '@ckeditor/ckeditor5-image';
-import { TodoList } from '@ckeditor/ckeditor5-list';
-import { SourceEditing } from '@ckeditor/ckeditor5-source-editing';
-
-import { Markdown } from '@ckeditor/ckeditor5-markdown-gfm';
+import {
+	ClassicEditor,
+	Code,
+	Strikethrough,
+	CloudServices,
+	CodeBlock,
+	CKBox,
+	CKBoxImageEdit,
+	HorizontalLine,
+	ImageUpload,
+	ImageInsert,
+	PictureEditing,
+	AutoImage,
+	TodoList,
+	Markdown
+} from 'ckeditor5';
+import { SourceEditingEnhanced } from 'ckeditor5-premium-features';
+import {
+	TOKEN_URL,
+	ArticlePluginSet,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
 
 ClassicEditor
-	.create( document.querySelector( '#snippet-markdown' ), {
+	.create( {
+		attachTo: document.querySelector( '#snippet-markdown' ),
 		plugins: [
-			ArticlePluginSet, SourceEditing, CKBox, ImageUpload, PictureEditing, CloudServices, Markdown,
-			Code, CodeBlock, TodoList, Strikethrough, HorizontalLine
+			ArticlePluginSet, SourceEditingEnhanced, CKBox, CKBoxImageEdit, ImageInsert, ImageUpload, PictureEditing, AutoImage,
+			CloudServices, Markdown, Code, CodeBlock, TodoList, Strikethrough, HorizontalLine
 		],
 		toolbar: {
 			items: [
-				'undo', 'redo', '|', 'sourceEditing', '|', 'heading',
+				'undo', 'redo', '|', 'sourceEditingEnhanced', '|', 'heading',
 				'|', 'bold', 'italic', 'strikethrough', 'code',
-				'-', 'link', 'uploadImage', 'insertTable', 'mediaEmbed', 'blockQuote', 'codeBlock', 'horizontalLine',
+				'-', 'link', 'insertImage', 'insertTable', 'mediaEmbed', 'blockQuote', 'codeBlock', 'horizontalLine',
 				'|', 'bulletedList', 'numberedList', 'todoList', 'outdent', 'indent'
 			],
 			shouldNotGroupWhenFull: true
 		},
 		image: {
-			toolbar: [ 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side', '|', 'toggleImageCaption', 'imageTextAlternative' ]
+			toolbar: [
+				'imageStyle:inline',
+				'imageStyle:wrapText',
+				'imageStyle:breakText',
+				'|',
+				'toggleImageCaption',
+				'imageTextAlternative',
+				'|',
+				'ckboxImageEdit'
+			]
 		},
 		codeBlock: {
 			languages: [
@@ -46,26 +62,32 @@ ClassicEditor
 				{ language: 'php', label: 'PHP' }
 			]
 		},
-		cloudServices: CS_CONFIG,
+		list: {
+			enableSkipLevelLists: true
+		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		}
 	} )
 	.then( editor => {
 		window.editor = editor;
 
-		const outputElement = document.querySelector( '#snippet-markdown-output' );
+		const { codeBlock } = document.querySelector( '#snippet-markdown-output' );
+		const throttleRefreshPreview = window.umberto.throttle( () => {
+			codeBlock.setCode( editor.getData() );
+		}, 200 );
 
-		editor.model.document.on( 'change', () => {
-			outputElement.innerText = editor.getData();
+		window.umberto.afterReady( () => {
+			editor.model.document.on( 'change', throttleRefreshPreview );
+			throttleRefreshPreview();
 		} );
-
-		// Set the initial data with delay so hightlight.js doesn't catch it.
-		setTimeout( () => {
-			outputElement.innerText = editor.getData();
-		}, 500 );
 	} )
 	.catch( err => {
 		console.error( err.stack );

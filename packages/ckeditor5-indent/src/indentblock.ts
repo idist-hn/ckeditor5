@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module indent/indentblock
  */
 
-import { Plugin, type Editor, type MultiCommand } from 'ckeditor5/src/core';
-import { addMarginRules, type AttributeDescriptor, type ViewElement } from 'ckeditor5/src/engine';
+import { Plugin, type Editor, type MultiCommand, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { addMarginStylesRules, type DowncastAttributeDescriptor, type ViewElement } from '@ckeditor/ckeditor5-engine';
 
-import IndentBlockCommand from './indentblockcommand';
-import IndentUsingOffset from './indentcommandbehavior/indentusingoffset';
-import IndentUsingClasses from './indentcommandbehavior/indentusingclasses';
 import type { HeadingOption } from '@ckeditor/ckeditor5-heading';
+import { IndentBlockCommand } from './indentblockcommand.js';
+import { IndentUsingOffset } from './indentcommandbehavior/indentusingoffset.js';
+import { IndentUsingClasses } from './indentcommandbehavior/indentusingclasses.js';
+import { IndentBlockListIntegration } from './integrations/indentblocklistintegration.js';
 
 const DEFAULT_ELEMENTS = [ 'paragraph', 'heading1', 'heading2', 'heading3', 'heading4', 'heading5', 'heading6' ];
 
@@ -25,7 +26,7 @@ const DEFAULT_ELEMENTS = [ 'paragraph', 'heading1', 'heading2', 'heading3', 'hea
  * If the plugin {@link module:indent/indent~Indent} is defined, it also attaches the `'indentBlock'` and `'outdentBlock'` commands to
  * the `'indent'` and `'outdent'` commands.
  */
-export default class IndentBlock extends Plugin {
+export class IndentBlock extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -48,6 +49,20 @@ export default class IndentBlock extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ IndentBlockListIntegration ]> {
+		return [ IndentBlockListIntegration ];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
 		const configuration = editor.config.get( 'indentBlock' )!;
@@ -65,7 +80,7 @@ export default class IndentBlock extends Plugin {
 				classes: configuration.classes
 			} ) ) );
 		} else {
-			editor.data.addStyleProcessorRules( addMarginRules );
+			editor.data.addStyleProcessorRules( addMarginStylesRules );
 			this._setupConversionUsingOffset();
 
 			editor.commands.add( 'indentBlock', new IndentBlockCommand( editor, new IndentUsingOffset( {
@@ -153,7 +168,7 @@ export default class IndentBlock extends Plugin {
 	private _setupConversionUsingClasses( classes: Array<string> ) {
 		const definition: {
 			model: { key: string; values: Array<string> };
-			view: Record<string, AttributeDescriptor>;
+			view: Record<string, DowncastAttributeDescriptor>;
 		} = {
 			model: {
 				key: 'blockIndent',

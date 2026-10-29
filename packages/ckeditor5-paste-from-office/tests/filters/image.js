@@ -1,16 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import normalizeHtml from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml';
-import { stringify as stringifyView } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
 
-import { parseHtml } from '../../src/filters/parse';
-import { replaceImagesSourceWithBase64, _convertHexToBase64 } from '../../src/filters/image';
-import { browserFixtures } from '../_data/image/index';
+import { normalizeHtml } from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml.js';
+import { _stringifyView } from '@ckeditor/ckeditor5-engine';
+
+import { parsePasteOfficeHtml } from '../../src/filters/parse.js';
+import { replaceImagesSourceWithBase64, _convertHexToBase64 } from '../../src/filters/image.js';
+import { browserFixtures } from '../_data/image/index.js';
 
 describe( 'PasteFromOffice - filters', () => {
 	describe( 'image', () => {
@@ -26,38 +28,38 @@ describe( 'PasteFromOffice - filters', () => {
 						} );
 				} );
 
-				afterEach( () => {
-					editor.destroy();
+				afterEach( async () => {
+					await editor.destroy();
 				} );
 
 				it( 'should handle correctly empty RTF data', () => {
 					const input = '<p>Foo <img src="file://test.jpg" /></p>';
 					const rtfString = '';
-					const { body } = parseHtml( input );
+					const { body } = parsePasteOfficeHtml( input );
 
 					replaceImagesSourceWithBase64( body, rtfString, editor.editing.model );
 
-					expect( stringifyView( body ) ).to.equal( normalizeHtml( input ) );
+					expect( _stringifyView( body ) ).toBe( normalizeHtml( input ) );
 				} );
 
 				it( 'should not change image with "http://" source', () => {
 					const input = '<p>Foo <img src="http://ckeditor.com/logo.jpg" /></p>';
 					const rtfString = browserFixtures.chrome.inputRtf.onlineOffline;
-					const { body } = parseHtml( input );
+					const { body } = parsePasteOfficeHtml( input );
 
 					replaceImagesSourceWithBase64( body, rtfString, editor.editing.model );
 
-					expect( stringifyView( body ) ).to.equal( normalizeHtml( input ) );
+					expect( _stringifyView( body ) ).toBe( normalizeHtml( input ) );
 				} );
 
 				it( 'should not change image with "file://" source if not images in RTF data', () => {
 					const input = '<p>Foo <img src="file://test.jpg" /></p>';
 					const rtfString = '{\\rtf1\\adeflang1025\\ansi\\ansicpg1252\\uc1\\adeff31507}';
-					const { body } = parseHtml( input );
+					const { body } = parsePasteOfficeHtml( input );
 
 					replaceImagesSourceWithBase64( body, rtfString, editor.editing.model );
 
-					expect( stringifyView( body ) ).to.equal( normalizeHtml( input ) );
+					expect( _stringifyView( body ) ).toBe( normalizeHtml( input ) );
 				} );
 			} );
 		} );
@@ -67,28 +69,28 @@ describe( 'PasteFromOffice - filters', () => {
 				const hex = '48656c6c6f20576f726c6421';
 				const base64 = 'SGVsbG8gV29ybGQh';
 
-				expect( _convertHexToBase64( hex ) ).to.equal( base64 );
+				expect( _convertHexToBase64( hex ) ).toBe( base64 );
 			} );
 
 			it( '#2', () => {
 				const hex = '466f6f204261722042617a';
 				const base64 = 'Rm9vIEJhciBCYXo=';
 
-				expect( _convertHexToBase64( hex ) ).to.equal( base64 );
+				expect( _convertHexToBase64( hex ) ).toBe( base64 );
 			} );
 
 			it( '#3', () => {
 				const hex = '687474703a2f2f636b656469746f722e636f6d';
 				const base64 = 'aHR0cDovL2NrZWRpdG9yLmNvbQ==';
 
-				expect( _convertHexToBase64( hex ) ).to.equal( base64 );
+				expect( _convertHexToBase64( hex ) ).toBe( base64 );
 			} );
 
 			it( '#4', () => {
 				const hex = '434B456469746F72203520697320746865206265737421';
 				const base64 = 'Q0tFZGl0b3IgNSBpcyB0aGUgYmVzdCE=';
 
-				expect( _convertHexToBase64( hex ) ).to.equal( base64 );
+				expect( _convertHexToBase64( hex ) ).toBe( base64 );
 			} );
 
 			it( '#5', () => {
@@ -101,7 +103,7 @@ describe( 'PasteFromOffice - filters', () => {
 					'B3aXRoIEFuZ3VsYXIgMisgYW5kIFJlYWN0LiBGaW5kIG91dCBtb3JlIGluIHRoZSBDS0VkaXRvciA1IHYxMS4xLjAgcmVsZWF' +
 					'zZWQgYmxvZyBwb3N0Lg==';
 
-				expect( _convertHexToBase64( hex ) ).to.equal( base64 );
+				expect( _convertHexToBase64( hex ) ).toBe( base64 );
 			} );
 		} );
 	} );

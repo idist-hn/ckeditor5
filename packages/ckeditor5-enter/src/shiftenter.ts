@@ -1,15 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module enter/shiftenter
  */
 
-import ShiftEnterCommand from './shiftentercommand';
-import EnterObserver, { type ViewDocumentEnterEvent } from './enterobserver';
+import { ShiftEnterCommand } from './shiftentercommand.js';
+import { EnterObserver, type ViewDocumentEnterEvent } from './enterobserver.js';
 import { Plugin } from '@ckeditor/ckeditor5-core';
+
+import type {
+	ModelElement,
+	ModelNode,
+	ModelWriter
+} from '@ckeditor/ckeditor5-engine';
 
 /**
  * This plugin handles the <kbd>Shift</kbd>+<kbd>Enter</kbd> keystroke (soft line break) in the editor.
@@ -18,12 +24,19 @@ import { Plugin } from '@ckeditor/ckeditor5-core';
  *
  * For more information about this feature see the {@glink api/enter package page}.
  */
-export default class ShiftEnter extends Plugin {
+export class ShiftEnter extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'ShiftEnter' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	public init(): void {
@@ -32,10 +45,12 @@ export default class ShiftEnter extends Plugin {
 		const conversion = editor.conversion;
 		const view = editor.editing.view;
 		const viewDocument = view.document;
+		const t = this.editor.t;
 
 		// Configure the schema.
 		schema.register( 'softBreak', {
 			allowWhere: '$text',
+			allowAttributesOf: '$text',
 			isInline: true
 		} );
 
@@ -55,6 +70,7 @@ export default class ShiftEnter extends Plugin {
 		view.addObserver( EnterObserver );
 
 		editor.commands.add( 'shiftEnter', new ShiftEnterCommand( editor ) );
+		editor.model.document.registerPostFixer( writer => removeStaleSoftBreakAttributes( writer ) );
 
 		this.listenTo<ViewDocumentEnterEvent>( viewDocument, 'enter', ( evt, data ) => {
 			// When not in composition, we handle the action, so prevent the default one.
@@ -71,5 +87,76 @@ export default class ShiftEnter extends Plugin {
 			editor.execute( 'shiftEnter' );
 			view.scrollToTheSelection();
 		}, { priority: 'low' } );
+
+		// Add the information about the keystroke to the accessibility database.
+		editor.accessibility.addKeystrokeInfos( {
+			keystrokes: [
+				{
+					label: t( 'Insert a soft break (a <code>&lt;br&gt;</code> element)' ),
+					keystroke: 'Shift+Enter'
+				}
+			]
+		} );
 	}
+}
+
+/**
+ * The post-fixer that removes attributes from stale soft-break elements.
+ */
+function removeStaleSoftBreakAttributes( writer: ModelWriter ): boolean {
+	const parentsToCheck = new Set<ModelElement>();
+
+	for ( const change of writer.model.document.differ.getChanges() ) {
+		if ( change.type == 'insert' || change.type == 'remove' ) {
+			/* v8 ignore else -- @preserve */
+			if ( change.position.parent.is( 'element' ) ) {
+				parentsToCheck.add( change.position.parent );
+			}
+		} else {
+			/* v8 ignore else -- @preserve */
+			if ( change.type == 'attribute' ) {
+				/* v8 ignore else -- @preserve */
+				if ( change.range.start.parent.is( 'element' ) ) {
+					parentsToCheck.add( change.range.start.parent );
+				}
+			}
+		}
+	}
+
+	let wasChanged = false;
+
+	for ( const parent of parentsToCheck ) {
+		// Just a sibling nodes check. We do not need to check attributes of nested elements.
+		for ( const child of parent.getChildren() ) {
+			// Find a softBreak element.
+			if ( !child.is( 'element', 'softBreak' ) ) {
+				continue;
+			}
+
+			const nextSibling = child.nextSibling;
+
+			// Do not remove attributes when softBreak is the last element or there is some element after it.
+			if ( !nextSibling || nextSibling.is( 'element' ) ) {
+				continue;
+			}
+
+			// Remove the attribute if the next sibling does not have the same attribute.
+			const attributesToRemove = Array.from( child.getAttributes() )
+				.filter( ( [ key, value ] ) => !hasSameAttribute( nextSibling, key, value ) );
+
+			for ( const [ key ] of attributesToRemove ) {
+				writer.removeAttribute( key, child );
+				wasChanged = true;
+			}
+		}
+	}
+
+	return wasChanged;
+}
+
+/**
+ * Returns `true` if the given node has the same attribute as the one provided in the parameters.
+ */
+function hasSameAttribute( node: ModelNode | null, key: string, value: unknown ): boolean {
+	return node?.getAttribute( key ) === value;
 }

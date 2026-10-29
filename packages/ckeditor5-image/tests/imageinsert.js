@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ImageInsert from '../src/imageinsert';
-import ImageUpload from '../src/imageupload';
-import ImageInsertUI from '../src/imageinsert/imageinsertui';
-import ImageInsertViaUrl from '../src/imageinsertviaurl';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { ImageInsert } from '../src/imageinsert.js';
+import { ImageUpload } from '../src/imageupload.js';
+import { ImageInsertUI } from '../src/imageinsert/imageinsertui.js';
+import { ImageInsertViaUrl } from '../src/imageinsertviaurl.js';
 
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
+import { global } from '@ckeditor/ckeditor5-utils';
 
 describe( 'ImageInsert', () => {
 	let editorElement, editor;
@@ -30,18 +31,26 @@ describe( 'ImageInsert', () => {
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( 'ImageInsert' ) ).to.instanceOf( ImageInsert );
+		expect( editor.plugins.get( 'ImageInsert' ) ).toBeInstanceOf( ImageInsert );
 	} );
 
 	it( 'should load ImageInsertUI plugin', () => {
-		expect( editor.plugins.get( 'ImageInsertUI' ) ).to.instanceOf( ImageInsertUI );
+		expect( editor.plugins.get( 'ImageInsertUI' ) ).toBeInstanceOf( ImageInsertUI );
 	} );
 
 	it( 'should load ImageUpload plugin', () => {
-		expect( editor.plugins.get( 'ImageUpload' ) ).to.instanceOf( ImageUpload );
+		expect( editor.plugins.get( 'ImageUpload' ) ).toBeInstanceOf( ImageUpload );
 	} );
 
 	it( 'should load ImageInsertViaUrl plugin', () => {
-		expect( editor.plugins.get( 'ImageInsertViaUrl' ) ).to.instanceOf( ImageInsertViaUrl );
+		expect( editor.plugins.get( 'ImageInsertViaUrl' ) ).toBeInstanceOf( ImageInsertViaUrl );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageInsert.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageInsert.isPremiumPlugin ).toBe( false );
 	} );
 } );

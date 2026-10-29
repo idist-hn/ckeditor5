@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -10,30 +10,39 @@
 import type {
 	DowncastAttributeEvent,
 	DowncastDispatcher,
-	Element,
+	ModelElement,
 	UpcastDispatcher,
 	UpcastElementEvent,
 	ViewElement,
 	ModelPostFixer,
 	Model
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 import type { TableUtils } from '@ckeditor/ckeditor5-table';
 
-import { updateViewAttributes, type GHSViewAttributes } from '../utils';
-import DataFilter, { type DataFilterRegisterEvent } from '../datafilter';
-import { getDescendantElement } from './integrationutils';
+import { updateViewAttributes, type GHSViewAttributes } from '../utils.js';
+import { DataFilter, type HtmlSupportDataFilterRegisterEvent } from '../datafilter.js';
+import { getDescendantElement } from './integrationutils.js';
+
+const STYLE_ATTRIBUTES_TO_PROPAGATE = [
+	'width',
+	'max-width',
+	'min-width',
+	'height',
+	'min-height',
+	'max-height'
+];
 
 /**
  * Provides the General HTML Support integration with {@link module:table/table~Table Table} feature.
  */
-export default class TableElementSupport extends Plugin {
+export class TableElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ DataFilter ] as const;
+	public static get requires(): PluginDependenciesOf<[ DataFilter ]> {
+		return [ DataFilter ];
 	}
 
 	/**
@@ -41,6 +50,13 @@ export default class TableElementSupport extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'TableElementSupport' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -58,11 +74,11 @@ export default class TableElementSupport extends Plugin {
 		const dataFilter = editor.plugins.get( DataFilter );
 		const tableUtils: TableUtils = editor.plugins.get( 'TableUtils' );
 
-		dataFilter.on<DataFilterRegisterEvent>( 'register:figure', ( ) => {
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( 'register:figure', ( ) => {
 			conversion.for( 'upcast' ).add( viewToModelFigureAttributeConverter( dataFilter ) );
 		} );
 
-		dataFilter.on<DataFilterRegisterEvent>( 'register:table', ( evt, definition ) => {
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( 'register:table', ( evt, definition ) => {
 			if ( definition.model !== 'table' ) {
 				return;
 			}
@@ -70,9 +86,9 @@ export default class TableElementSupport extends Plugin {
 			schema.extend( 'table', {
 				allowAttributes: [
 					'htmlTableAttributes',
-					// Figure, thead and tbody elements don't have model counterparts.
+					// Figure, thead, tfoot and tbody elements don't have model counterparts.
 					// We will be preserving attributes on table element using these attribute keys.
-					'htmlFigureAttributes', 'htmlTheadAttributes', 'htmlTbodyAttributes'
+					'htmlFigureAttributes', 'htmlTheadAttributes', 'htmlTbodyAttributes', 'htmlTfootAttributes'
 				]
 			} );
 
@@ -87,7 +103,7 @@ export default class TableElementSupport extends Plugin {
 }
 
 /**
- * Creates a model post-fixer for thead and tbody GHS related attributes.
+ * Creates a model post-fixer for thead, tbody and tfoot GHS related attributes.
  */
 function createHeadingRowsPostFixer( model: Model, tableUtils: TableUtils ): ModelPostFixer {
 	return writer => {
@@ -95,21 +111,36 @@ function createHeadingRowsPostFixer( model: Model, tableUtils: TableUtils ): Mod
 		let wasFixed = false;
 
 		for ( const change of changes ) {
-			if ( change.type != 'attribute' || change.attributeKey != 'headingRows' ) {
+			if (
+				change.type != 'attribute' ||
+				( change.attributeKey != 'headingRows' && change.attributeKey != 'footerRows' )
+			) {
 				continue;
 			}
 
-			const table = change.range.start.nodeAfter as Element;
+			const table = change.range.start.nodeAfter as ModelElement;
 			const hasTHeadAttributes = table.getAttribute( 'htmlTheadAttributes' );
 			const hasTBodyAttributes = table.getAttribute( 'htmlTbodyAttributes' );
+			const hasTFootAttributes = table.getAttribute( 'htmlTfootAttributes' );
 
-			if ( hasTHeadAttributes && !change.attributeNewValue ) {
+			if ( hasTHeadAttributes && change.attributeKey === 'headingRows' && !change.attributeNewValue ) {
 				writer.removeAttribute( 'htmlTheadAttributes', table );
 				wasFixed = true;
 			}
-			else if ( hasTBodyAttributes && change.attributeNewValue == tableUtils.getRows( table ) ) {
-				writer.removeAttribute( 'htmlTbodyAttributes', table );
+
+			if ( hasTFootAttributes && change.attributeKey === 'footerRows' && !change.attributeNewValue ) {
+				writer.removeAttribute( 'htmlTfootAttributes', table );
 				wasFixed = true;
+			}
+
+			if ( hasTBodyAttributes ) {
+				const headingRows = table.getAttribute( 'headingRows' ) as number || 0;
+				const footerRows = table.getAttribute( 'footerRows' ) as number || 0;
+
+				if ( headingRows + footerRows == tableUtils.getRows( table ) ) {
+					writer.removeAttribute( 'htmlTbodyAttributes', table );
+					wasFixed = true;
+				}
 			}
 		}
 
@@ -132,11 +163,18 @@ function viewToModelTableAttributeConverter( dataFilter: DataFilter ) {
 
 			const viewTableElement = data.viewItem;
 
+			// Prevent `table` class on both <table> and <figure> elements simultaneously.
+			conversionApi.consumable.consume( viewTableElement, { classes: 'table' } );
+
 			preserveElementAttributes( viewTableElement, 'htmlTableAttributes' );
 
 			for ( const childNode of viewTableElement.getChildren() ) {
 				if ( childNode.is( 'element', 'thead' ) ) {
 					preserveElementAttributes( childNode, 'htmlTheadAttributes' );
+				}
+
+				if ( childNode.is( 'element', 'tfoot' ) ) {
+					preserveElementAttributes( childNode, 'htmlTfootAttributes' );
 				}
 
 				if ( childNode.is( 'element', 'tbody' ) ) {
@@ -191,6 +229,7 @@ function modelToViewTableAttributeConverter() {
 		addAttributeConversionDispatcherHandler( 'figure', 'htmlFigureAttributes' );
 		addAttributeConversionDispatcherHandler( 'thead', 'htmlTheadAttributes' );
 		addAttributeConversionDispatcherHandler( 'tbody', 'htmlTbodyAttributes' );
+		addAttributeConversionDispatcherHandler( 'tfoot', 'htmlTfootAttributes' );
 
 		function addAttributeConversionDispatcherHandler( elementName: string, attributeName: string ) {
 			dispatcher.on<DowncastAttributeEvent>( `attribute:${ attributeName }:table`, ( evt, data, conversionApi ) => {
@@ -198,7 +237,7 @@ function modelToViewTableAttributeConverter() {
 					return;
 				}
 
-				const containerElement = conversionApi.mapper.toViewElement( data.item as Element );
+				const containerElement = conversionApi.mapper.toViewElement( data.item as ModelElement );
 				const viewElement = getDescendantElement( conversionApi.writer, containerElement!, elementName );
 
 				if ( !viewElement ) {
@@ -207,13 +246,61 @@ function modelToViewTableAttributeConverter() {
 
 				conversionApi.consumable.consume( data.item, evt.name );
 
-				updateViewAttributes(
-					conversionApi.writer,
-					data.attributeOldValue as GHSViewAttributes,
-					data.attributeNewValue as GHSViewAttributes,
-					viewElement!
-				);
+				// Downcast selected styles to a figure element instead of a table element.
+				if ( attributeName === 'htmlTableAttributes' && containerElement !== viewElement ) {
+					const oldAttributes = splitAttributesForFigureAndTable( data.attributeOldValue as GHSViewAttributes );
+					const newAttributes = splitAttributesForFigureAndTable( data.attributeNewValue as GHSViewAttributes );
+
+					updateViewAttributes(
+						conversionApi.writer,
+						oldAttributes.tableAttributes,
+						newAttributes.tableAttributes,
+						viewElement!
+					);
+
+					updateViewAttributes(
+						conversionApi.writer,
+						oldAttributes.figureAttributes,
+						newAttributes.figureAttributes,
+						containerElement!
+					);
+				} else {
+					updateViewAttributes(
+						conversionApi.writer,
+						data.attributeOldValue as GHSViewAttributes,
+						data.attributeNewValue as GHSViewAttributes,
+						viewElement!
+					);
+				}
 			} );
 		}
 	};
+}
+
+/**
+ * Splits styles based on the `STYLE_ATTRIBUTES_TO_PROPAGATE` pattern that should be moved to the parent element
+ * and those that should remain on element.
+ */
+function splitAttributesForFigureAndTable( data: GHSViewAttributes ): {
+	figureAttributes: GHSViewAttributes;
+	tableAttributes: GHSViewAttributes;
+} {
+	const figureAttributes: GHSViewAttributes = {};
+	const tableAttributes: GHSViewAttributes = { ...data };
+
+	if ( !data || !( 'styles' in data ) ) {
+		return { figureAttributes, tableAttributes };
+	}
+
+	tableAttributes.styles = {};
+
+	for ( const [ key, value ] of Object.entries( data.styles! ) ) {
+		if ( STYLE_ATTRIBUTES_TO_PROPAGATE.includes( key ) ) {
+			figureAttributes.styles = { ...figureAttributes.styles, [ key ]: value };
+		} else {
+			tableAttributes.styles = { ...tableAttributes.styles, [ key ]: value };
+		}
+	}
+
+	return { figureAttributes, tableAttributes };
 }

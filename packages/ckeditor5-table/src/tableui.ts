@@ -1,44 +1,43 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tableui
  */
 
-import { Plugin, type Command, type Editor } from 'ckeditor5/src/core';
+import { Plugin, type Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { IconTable, IconTableColumn, IconTableRow, IconTableMergeCell } from '@ckeditor/ckeditor5-icons';
 import {
 	addListToDropdown,
 	createDropdown,
-	Model,
+	UIModel,
 	SplitButtonView,
 	SwitchButtonView,
 	type DropdownView,
-	type ListDropdownItemDefinition
-} from 'ckeditor5/src/ui';
-import { Collection, type Locale } from 'ckeditor5/src/utils';
+	type ListDropdownItemDefinition,
+	MenuBarMenuView
+} from '@ckeditor/ckeditor5-ui';
+import { Collection, type ObservableChangeEvent, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import InsertTableView from './ui/inserttableview';
+import { InsertTableView } from './ui/inserttableview.js';
 
-import tableIcon from './../theme/icons/table.svg';
-import tableColumnIcon from './../theme/icons/table-column.svg';
-import tableRowIcon from './../theme/icons/table-row.svg';
-import tableMergeCellIcon from './../theme/icons/table-merge-cell.svg';
-import type InsertTableCommand from './commands/inserttablecommand';
-import type MergeCellsCommand from './commands/mergecellscommand';
+import { type InsertTableCommand } from './commands/inserttablecommand.js';
+import { type MergeCellsCommand } from './commands/mergecellscommand.js';
 
 /**
  * The table UI plugin. It introduces:
  *
  * * The `'insertTable'` dropdown,
+ * * The `'menuBar:insertTable'` menu bar menu,
  * * The `'tableColumn'` dropdown,
  * * The `'tableRow'` dropdown,
  * * The `'mergeTableCells'` split button.
  *
  * The `'tableColumn'`, `'tableRow'` and `'mergeTableCells'` dropdowns work best with {@link module:table/tabletoolbar~TableToolbar}.
  */
-export default class TableUI extends Plugin {
+export class TableUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -49,11 +48,19 @@ export default class TableUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
 		const t = this.editor.t;
 		const contentLanguageDirection = editor.locale.contentLanguageDirection;
 		const isContentLtr = contentLanguageDirection === 'ltr';
+		const areTableFootersEnabled = !!editor.config.get( 'table.enableFooters' );
 
 		editor.ui.componentFactory.add( 'insertTable', locale => {
 			const command: InsertTableCommand = editor.commands.get( 'insertTable' )!;
@@ -63,7 +70,7 @@ export default class TableUI extends Plugin {
 
 			// Decorate dropdown's button.
 			dropdownView.buttonView.set( {
-				icon: tableIcon,
+				icon: IconTable,
 				label: t( 'Insert table' ),
 				tooltip: true
 			} );
@@ -88,6 +95,36 @@ export default class TableUI extends Plugin {
 			} );
 
 			return dropdownView;
+		} );
+
+		editor.ui.componentFactory.add( 'menuBar:insertTable', locale => {
+			const command: InsertTableCommand = editor.commands.get( 'insertTable' )!;
+			const menuView = new MenuBarMenuView( locale );
+			const insertTableView = new InsertTableView( locale );
+
+			insertTableView.delegate( 'execute' ).to( menuView );
+
+			menuView.on<ObservableChangeEvent<boolean>>( 'change:isOpen', ( event, name, isOpen ) => {
+				if ( !isOpen ) {
+					insertTableView.reset();
+				}
+			} );
+
+			insertTableView.on( 'execute', () => {
+				editor.execute( 'insertTable', { rows: insertTableView.rows, columns: insertTableView.columns } );
+				editor.editing.view.focus();
+			} );
+
+			menuView.buttonView.set( {
+				label: t( 'Table' ),
+				icon: IconTable
+			} );
+
+			menuView.panelView.children.add( insertTableView );
+
+			menuView.bind( 'isEnabled' ).to( command );
+
+			return menuView;
 		} );
 
 		editor.ui.componentFactory.add( 'tableColumn', locale => {
@@ -131,7 +168,7 @@ export default class TableUI extends Plugin {
 				}
 			] as Array<ListDropdownItemDefinition>;
 
-			return this._prepareDropdown( t( 'Column' ), tableColumnIcon, options, locale );
+			return this._prepareDropdown( t( 'Column' ), IconTableColumn, options, locale );
 		} );
 
 		editor.ui.componentFactory.add( 'tableRow', locale => {
@@ -141,6 +178,14 @@ export default class TableUI extends Plugin {
 					model: {
 						commandName: 'setTableRowHeader',
 						label: t( 'Header row' ),
+						bindIsOn: true
+					}
+				},
+				areTableFootersEnabled && {
+					type: 'switchbutton',
+					model: {
+						commandName: 'setTableFooterRow',
+						label: t( 'Footer row' ),
 						bindIsOn: true
 					}
 				},
@@ -173,9 +218,9 @@ export default class TableUI extends Plugin {
 						label: t( 'Select row' )
 					}
 				}
-			] as Array<ListDropdownItemDefinition>;
+			].filter( Boolean ) as Array<ListDropdownItemDefinition>;
 
-			return this._prepareDropdown( t( 'Row' ), tableRowIcon, options, locale );
+			return this._prepareDropdown( t( 'Row' ), IconTableRow, options, locale );
 		} );
 
 		editor.ui.componentFactory.add( 'mergeTableCells', locale => {
@@ -225,7 +270,7 @@ export default class TableUI extends Plugin {
 				}
 			] as Array<ListDropdownItemDefinition>;
 
-			return this._prepareMergeSplitButtonDropdown( t( 'Merge cells' ), tableMergeCellIcon, options, locale );
+			return this._prepareMergeSplitButtonDropdown( t( 'Merge cells' ), IconTableMergeCell, options, locale );
 		} );
 	}
 
@@ -347,7 +392,7 @@ function addListOption(
 	itemDefinitions: Collection<ListDropdownItemDefinition>
 ) {
 	if ( option.type === 'button' || option.type === 'switchbutton' ) {
-		const model = option.model = new Model( option.model );
+		const model = option.model = new UIModel( option.model );
 		const { commandName, bindIsOn } = option.model;
 		const command = editor.commands.get( commandName as string )!;
 

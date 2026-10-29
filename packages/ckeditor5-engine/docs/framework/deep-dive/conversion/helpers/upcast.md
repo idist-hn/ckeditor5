@@ -2,12 +2,13 @@
 category: framework-deep-dive-conversion-helpers
 menu-title: Upcast helpers
 meta-title: Upcast helpers | CKEditor 5 Framework Documentation
+meta-description: Discover CKEditor 5 upcast helpers to simplify converting view elements into model elements during content loading and editing.
 order: 30
 since: 33.0.0
 modified_at: 2022-03-02
 ---
 
-# Upcast helpers &mdash; view to model conversion
+# Upcast helpers &ndash; view to model conversion
 
 This article lists all editor helpers available in the {@link framework/deep-dive/conversion/upcast upcast conversion}.
 
@@ -34,7 +35,7 @@ The example above creates a model element `<paragraph>` from every `<p>` view el
 
 ### Using view element definition
 
-You can limit the view elements that qualify for the conversion by specifying their attributes, e.g. a class name. To achieve it, provide the desired element element definition in the `view` property like in the example below:
+You can limit the view elements that qualify for the conversion by specifying their attributes, like a class name. To achieve it, provide the desired element definition in the `view` property like in the example below:
 
 ```js
 editor.conversion
@@ -48,7 +49,7 @@ editor.conversion
 	} );
 ```
 
-Check out the [ElementDefinition documentation](https://ckeditor.com/docs/ckeditor5/latest/api/module_engine_view_elementdefinition-ElementDefinition.html) for more details.
+Check out the {@link module:engine/view/elementdefinition~ViewElementObjectDefinition `ViewElementObjectDefinition` documentation} for more details.
 
 ### Creating a model element using a callback
 
@@ -70,7 +71,7 @@ editor.conversion
 
 In the example above, the model element is created only from the `<p class="heading">` view element. All other `<p>` elements without the `heading` class name will be filtered out and will not be converted.
 
-The second parameter of the model callback is the [UpcastConversionApi](https://ckeditor.com/docs/ckeditor5/latest/api/module_engine_conversion_upcastdispatcher-UpcastConversionApi.html) object, that contains many properties and methods useful when writing more complex converters.
+The second parameter of the model callback is the {@link module:engine/conversion/upcastdispatcher~UpcastConversionApi UpcastConversionApi} object, that contains many properties and methods useful when writing more complex converters.
 
 ### Handling view elements with attributes
 
@@ -91,12 +92,12 @@ editor.conversion
 ```
 
 <info-box>
-	If you forget to specify these attributes, another converter, e.g. from {@link features/general-html-support General HTML Support feature}, may also handle these attributes resulting in duplicating them in the model.
+	If you forget to specify these attributes, another converter, for example, from the {@link features/general-html-support General HTML Support feature}, may also handle these attributes resulting in duplicating them in the model.
 </info-box>
 
 ### Changing converter priority
 
-In case there are more converters with the overlapping `view` patterns already present, you can prioritize your converter in order to override them. To do so, use the `converterPriority` property:
+In case there are more converters with overlapping `view` patterns already present, you can prioritize your converter to override them. To do so, use the `converterPriority` property:
 
 ```js
 editor.conversion
@@ -117,7 +118,7 @@ editor.conversion
 
 In the above example, the first converter has the default priority, `normal` (no need to set it explicitly). The second one overrides it, having its priority set to `high`. Using both of these converters at once will result in the `<div>` view element being converted to `sideContent`.
 
-Another practical application of this solution is to have your converter act as a fallback when other converters for a given element are not present (e.g. a plugin has not been loaded). It can be easily achieved by setting the `converterProperty` to `low`.
+Another practical application of this solution is to have your converter act as a fallback when other converters for a given element are not present (for example, a plugin has not been loaded). It can be easily achieved by setting the `converterProperty` to `low`.
 
 ## Element to attribute conversion helper
 
@@ -142,7 +143,7 @@ In the example above, the view `<strong>CKEditor&nbsp;5</strong>` will become th
 
 ### Converting attribute in a specific view element
 
-You might want to only convert view elements with a specific class name or other attribute. To achieve it, you can provide [element definition](https://ckeditor.com/docs/ckeditor5/latest/api/module_engine_view_elementdefinition-ElementDefinition.html) in the `view` property.
+You might want to only convert view elements with a specific class name or other attribute. To achieve it, you can provide {@link module:engine/view/elementdefinition~ViewElementDefinition element definition}) in the `view` property.
 
 ```js
 editor.conversion
@@ -156,7 +157,7 @@ editor.conversion
 	} );
 ```
 
-Check out the [ElementDefinition documentation](https://ckeditor.com/docs/ckeditor5/latest/api/module_engine_view_elementdefinition-ElementDefinition.html) for more details.
+Check out the {@link module:engine/view/elementdefinition~ViewElementObjectDefinition `ViewElementObjectDefinition` documentation} for more details.
 
 ### Setting a predefined value to model attribute
 
@@ -240,9 +241,9 @@ In this example, the first converter has the default priority, `normal`. The sec
 
 The `attributeToAttribute()` helper allows registering a converter that handles a specific attribute and converts it to an attribute of a model element.
 
-Usually, when registering converters for elements (e.g. by using `elementToElement()`), you will want to handle their attributes while handling the element itself.
+Usually, when registering converters for elements (for example, by using `elementToElement()`), you will want to handle their attributes while handling the element itself.
 
-The `attributeToAttribute()` helper comes handy when, for some reason, you cannot cover a specific attribute inside `elementToElement()`. This may happen, for instance, when you are extending someone else’s plugin.
+The `attributeToAttribute()` helper comes in handy when, for some reason, you cannot cover a specific attribute inside `elementToElement()`. This may happen, for instance, when you are extending someone else’s plugin.
 
 <info-box>
 	This type of converter helper only works if there is already an element converter provided. Trying to convert to an attribute while there is no receiving model element will cause an error.

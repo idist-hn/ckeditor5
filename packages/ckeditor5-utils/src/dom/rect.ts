@@ -1,27 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/dom/rect
  */
 
-import isRange from './isrange';
-import isWindow from './iswindow';
-import getBorderWidths from './getborderwidths';
-import isText from './istext';
-import getPositionedAncestor from './getpositionedancestor';
-import global from './global';
+import { isRange } from './isrange.js';
+import { isWindow } from './iswindow.js';
+import { getBorderWidths } from './getborderwidths.js';
+import { isText } from './istext.js';
+import { getPositionedAncestor } from './getpositionedancestor.js';
+import { getParentElement } from './getparentelement.js';
+import { getLayoutParentElement } from './getlayoutparentelement.js';
+import { isShadowRoot } from './isshadowroot.js';
+import { global } from './global.js';
 
-const rectProperties: Array<keyof RectLike> = [ 'top', 'right', 'bottom', 'left', 'width', 'height' ];
+const RECT_PROPERTIES: ReadonlyArray<keyof DomRectLike> = [ 'top', 'right', 'bottom', 'left', 'width', 'height' ];
+const POSITIONING_VALUES: ReadonlySet<string> = new Set( [ 'relative', 'absolute', 'fixed', 'sticky' ] );
 
 /**
  * A helper class representing a `ClientRect` object, e.g. value returned by
  * the native `object.getBoundingClientRect()` method. Provides a set of methods
  * to manipulate the rect and compare it against other rect instances.
  */
-export default class Rect {
+export class Rect {
 	/**
 	 * The "top" value of the rect.
 	 *
@@ -114,9 +118,10 @@ export default class Rect {
 			// The `Rect` class depends on `getBoundingClientRect` and `getClientRects` DOM methods. If the source
 			// of a rect in an HTML element or a DOM range but it does not belong to any rendered DOM tree, these methods
 			// will fail to obtain the geometry and the rect instance makes little sense to the features using it.
-			// To get rid of this warning make sure the source passed to the constructor is a descendant of `window.document.body`.
+			// To get rid of this warning make sure the source passed to the constructor is connected to a rendered
+			// DOM tree, that is, to a document or to a shadow tree attached to one.
 			// @if CK_DEBUG // const sourceNode = isSourceRange ? source.startContainer : source;
-			// @if CK_DEBUG // if ( !sourceNode.ownerDocument || !sourceNode.ownerDocument.body.contains( sourceNode ) ) {
+			// @if CK_DEBUG // if ( !sourceNode.isConnected ) {
 			// @if CK_DEBUG // 	console.warn(
 			// @if CK_DEBUG // 		'rect-source-not-in-dom: The source of this rect does not belong to any rendered DOM tree.',
 			// @if CK_DEBUG // 		{ source } );
@@ -249,10 +254,14 @@ export default class Rect {
 	 * const visibleInViewportRect = new Rect( window ).getIntersection( new Rect( source ).getVisible() );
 	 * ```
 	 *
+	 * **Note**: The ancestor walk crosses shadow DOM boundaries, continuing from the host element of a shadow
+	 * root instead of stopping at it, so a rect inside a shadow tree is still cropped by the ancestors in the
+	 * surrounding document. Works for open and closed shadow roots alike.
+	 *
 	 * @returns A visible rect instance or `null`, if there's none.
 	 */
 	public getVisible(): Rect | null {
-		const source: RectSource & { parentNode?: Node | null; commonAncestorContainer?: Node | null } = this._source;
+		const source: RectSource = this._source;
 
 		let visibleRect = this.clone();
 
@@ -262,61 +271,40 @@ export default class Rect {
 		}
 
 		let child: any = source;
-		let parent = source.parentNode || source.commonAncestorContainer;
-		let absolutelyPositionedChildElement;
+		let parent: Node | null = null;
+
+		if ( isDomElement( source ) ) {
+			parent = getLayoutParentElement( source );
+		} else if ( isRange( source ) ) {
+			// A range spanning the top level of a shadow root has that root as its common ancestor. The root
+			// has no parent to continue from, so hop straight to the host instead.
+			const container = source.commonAncestorContainer;
+
+			parent = isShadowRoot( container ) ? container.host : container;
+		}
+
+		let lastPositionedChildElement;
 
 		// Check the ancestors all the way up to the <body>.
 		while ( parent && !isBody( parent ) ) {
-			const isParentOverflowVisible = getElementOverflow( parent as HTMLElement ) === 'visible';
+			const isNonClippingParent = getElementOverflow( parent as HTMLElement ) === 'visible';
 
-			if ( child instanceof HTMLElement && getElementPosition( child ) === 'absolute' ) {
-				absolutelyPositionedChildElement = child;
+			if ( isPositioned( child ) ) {
+				lastPositionedChildElement = child;
 			}
 
-			const parentElementPosition = getElementPosition( parent );
-
-			// The child will be cropped only if it has `position: absolute` and the parent has `position: relative` + some overflow.
-			// Otherwise there's no chance of visual clipping and the parent can be skipped
+			// 1. If a parent has overflow: visible, it can be safely skipped in consideration for any parent-child configuration.
+			// 2. If a parent has any other overflow (it clips), for the actual clipping to happen the following must be true:
+			// * the last positioned child must have `position: absolute`,
+			// * the parent must have a position other than `position: static`.
+			//
 			// https://github.com/ckeditor/ckeditor5/issues/14107.
-			//
-			// condition: isParentOverflowVisible
-			// 		+---------------------------+
-			//		| #parent					|
-			//		| (overflow: visible)		|
-			//		|				+-----------+---------------+
-			//		|				| child						|
-			//		|				+-----------+---------------+
-			//		+---------------------------+
-			//
-			// condition: absolutelyPositionedChildElement && parentElementPosition === 'relative' && isParentOverflowVisible
-			// 		+---------------------------+
-			//		| parent					|
-			//		| (position: relative;)		|
-			//		| (overflow: visible;)		|
-			//		|				+-----------+---------------+
-			//		|				| child  					|
-			//		|				| (position: absolute;)		|
-			//		|				+-----------+---------------+
-			//		+---------------------------+
-			//
-			// condition: absolutelyPositionedChildElement && parentElementPosition !== 'relative'
-			// 		+---------------------------+
-			//		| parent					|
-			//		| (position: static;)		|
-			//		|				+-----------+---------------+
-			//		|				| child  					|
-			//		|				| (position: absolute;)		|
-			//		|				+-----------+---------------+
-			//		+---------------------------+
 			if (
-				isParentOverflowVisible ||
-				absolutelyPositionedChildElement && (
-					( parentElementPosition === 'relative' && isParentOverflowVisible ) ||
-					parentElementPosition !== 'relative'
-				)
+				isNonClippingParent ||
+				( lastPositionedChildElement && getElementPosition( lastPositionedChildElement ) === 'absolute' && !isPositioned( parent ) )
 			) {
 				child = parent;
-				parent = parent.parentNode;
+				parent = getLayoutParentElement( parent );
 				continue;
 			}
 
@@ -334,7 +322,7 @@ export default class Rect {
 			}
 
 			child = parent;
-			parent = parent.parentNode;
+			parent = getLayoutParentElement( parent );
 		}
 
 		return visibleRect;
@@ -349,7 +337,7 @@ export default class Rect {
 	 * @returns `true` when Rects are equal. `false` otherwise.
 	 */
 	public isEqual( anotherRect: Rect ): boolean {
-		for ( const prop of rectProperties ) {
+		for ( const prop of RECT_PROPERTIES ) {
 			if ( this[ prop ] !== anotherRect[ prop ] ) {
 				return false;
 			}
@@ -374,15 +362,15 @@ export default class Rect {
 	 * Recalculates screen coordinates to coordinates relative to the positioned ancestor offset.
 	 */
 	public toAbsoluteRect(): Rect {
-		const { scrollX, scrollY } = global.window;
-		const absoluteRect = this.clone().moveBy( scrollX, scrollY );
+		const absoluteRect = this.clone();
+		const positionedAncestor = isDomElement( this._source ) ? getPositionedAncestor( this._source ) : null;
 
-		if ( isDomElement( absoluteRect._source ) ) {
-			const positionedAncestor = getPositionedAncestor( absoluteRect._source );
-
-			if ( positionedAncestor ) {
-				shiftRectToCompensatePositionedAncestor( absoluteRect, positionedAncestor );
-			}
+		// Both this rect and the positioned ancestor's rect are relative to the viewport, so the window scroll
+		// cancels out between them and must only be added when the element is laid out against the document.
+		if ( positionedAncestor ) {
+			shiftRectToCompensatePositionedAncestor( absoluteRect, positionedAncestor );
+		} else {
+			absoluteRect.moveBy( global.window.scrollX, global.window.scrollY );
 		}
 
 		return absoluteRect;
@@ -436,6 +424,8 @@ export default class Rect {
 	/**
 	 * Returns an array of rects of the given native DOM Range.
 	 *
+	 * Also see {@link module:utils/dom/rect~Rect.getDomElementRects}.
+	 *
 	 * @param range A native DOM range.
 	 * @returns DOM Range rects.
 	 */
@@ -446,7 +436,12 @@ export default class Rect {
 
 		if ( clientRects.length ) {
 			for ( const rect of clientRects ) {
-				rects.push( new Rect( rect ) );
+				const r = new Rect( rect );
+
+				// Point the rect source to the DOM range instead of of the DOM client rect to allow proper clipping,
+				// in `Rect#getVisible()` method.
+				r._source = range;
+				rects.push( r );
 			}
 		}
 		// If there's no client rects for the Range, use parent container's bounding rect
@@ -457,7 +452,7 @@ export default class Rect {
 			let startContainer = range.startContainer;
 
 			if ( isText( startContainer ) ) {
-				startContainer = startContainer.parentNode!;
+				startContainer = getParentElement( startContainer )!;
 			}
 
 			const rect = new Rect( ( startContainer as Element ).getBoundingClientRect() );
@@ -468,6 +463,23 @@ export default class Rect {
 		}
 
 		return rects;
+	}
+
+	/**
+	 * Returns an array of Rects of the given DOM Element based on its native `getClientRects()` method.
+	 *
+	 * Also see {@link module:utils/dom/rect~Rect.getDomRangeRects}.
+	 */
+	public static getDomElementRects( element: HTMLElement ): Array<Rect> {
+		return Array.from( element.getClientRects() ).map( clientRect => {
+			const rect = new Rect( clientRect );
+
+			// Point the rect source to the DOM element instead of of the DOM client rect to allow proper clipping,
+			// in `Rect#getVisible()` method.
+			rect._source = element;
+
+			return rect;
+		} );
 	}
 
 	/**
@@ -510,12 +522,12 @@ export default class Rect {
 /**
  * A source of {@link module:utils/dom/rect~Rect}.
  */
-export type RectSource = HTMLElement | Range | Window | RectLike;
+export type RectSource = HTMLElement | Range | Window | DomRectLike;
 
 /**
  * An object that describes properties of `ClientRect` object.
  */
-export interface RectLike {
+export interface DomRectLike {
 	readonly top: number;
 	readonly right: number;
 	readonly bottom: number;
@@ -527,8 +539,8 @@ export interface RectLike {
 /**
  * Acquires all the rect properties from the passed source.
  */
-function copyRectProperties( rect: Rect, source: RectLike ): void {
-	for ( const p of rectProperties ) {
+function copyRectProperties( rect: Rect, source: DomRectLike ): void {
+	for ( const p of RECT_PROPERTIES ) {
 		rect[ p ] = source[ p ];
 	}
 }
@@ -556,8 +568,8 @@ function isDomElement( value: any ): value is Element {
 /**
  * Returns the value of the `position` style of an `HTMLElement`.
  */
-function getElementPosition( element: HTMLElement | Node ): string {
-	return element instanceof HTMLElement ? element.ownerDocument.defaultView!.getComputedStyle( element ).position : 'static';
+function getElementPosition( element: HTMLElement ): string {
+	return element.ownerDocument.defaultView!.getComputedStyle( element ).position;
 }
 
 /**
@@ -568,7 +580,14 @@ function getElementOverflow( element: HTMLElement | Range ): string {
 }
 
 /**
- * For a given absolute Rect coordinates object and a positioned element ancestor, it updates its
+ * Checks if the given node is positioned in any other way than `position: static`.
+ */
+function isPositioned( node: Node ): boolean {
+	return node instanceof HTMLElement && POSITIONING_VALUES.has( getElementPosition( node ) );
+}
+
+/**
+ * For a given Rect relative to the viewport and a positioned element ancestor, it updates its
  * coordinates that make up for the position and the scroll of the ancestor.
  *
  * This is necessary because while Rects (and DOMRects) are relative to the browser's viewport, their coordinates

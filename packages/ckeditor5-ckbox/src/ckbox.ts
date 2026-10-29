@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ckbox/ckbox
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import CKBoxUI from './ckboxui';
-import CKBoxEditing from './ckboxediting';
+import { CKBoxUI } from './ckboxui.js';
+import { CKBoxEditing } from './ckboxediting.js';
 
 /**
  * The CKBox feature, a bridge between the CKEditor 5 WYSIWYG editor and the CKBox file manager and uploader.
@@ -25,7 +25,7 @@ import CKBoxEditing from './ckboxediting';
  * Check out the {@glink features/images/image-upload/image-upload Image upload} guide to learn about other ways to upload
  * images into CKEditor 5.
  */
-export default class CKBox extends Plugin {
+export class CKBox extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -36,7 +36,14 @@ export default class CKBox extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ CKBoxEditing, CKBoxUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ CKBoxEditing, CKBoxUI ]> {
+		return [ CKBoxEditing, CKBoxUI ];
 	}
 }

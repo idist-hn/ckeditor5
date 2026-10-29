@@ -1,0 +1,110 @@
+/*
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+:root,
+:host {
+	/* Size */
+	--ck-dialog-max-height: 90vh;
+	--ck-dialog-max-width: 100vw;
+
+	/* Radius */
+	--ck-dialog-border-radius: var(--ck-border-radius-surface);
+
+	/* Border */
+	--ck-dialog-border: var(--ck-border-width-surface) solid var(--ck-color-border-container);
+
+	/* Shadow */
+	--ck-dialog-shadow: var(--ck-shadow-surface-floating);
+
+	/* Color */
+	--ck-dialog-background-color: var(--ck-color-surface-container);
+	--ck-dialog-overlay-background-color: var(--ck-color-surface-overlay);
+	/* Dialog header background. Declared `initial` and read with `--ck-form-header-background` as fallback, so it
+	   follows the form header unless set on its own. */
+	--ck-dialog-header-background: initial;
+
+	/* Spacing */
+	/* Dialog-scoped header padding: the header's own (tight) vertical padding + the overlay inline padding,
+	   so its left/right aligns with the content and actions areas. */
+	--ck-dialog-header-padding: var(--ck-form-header-padding);
+	/* Padding for dialog content views. Consumed by padded content forms (e.g. .ck-media-form),
+	   not applied to the .ck-dialog__content container so full-bleed content stays flush. */
+	--ck-dialog-content-padding: var(--ck-spacing-padding-comfortable);
+	--ck-dialog-actions-padding: var(--ck-spacing-padding-compact) var(--ck-spacing-padding-comfortable) var(--ck-spacing-padding-comfortable) var(--ck-spacing-padding-comfortable);
+	/* Spacing between action (footer) buttons. */
+	--ck-dialog-actions-gap: var(--ck-spacing-gap-comfortable);
+}
+
+.ck.ck-dialog-overlay {
+	animation: ck-dialog-fade-in var(--ck-animation-duration-surface-entrance);
+	background: var(--ck-dialog-overlay-background-color);
+	/* The legacy --ck-z-dialog keeps working through --ck-layer-dialog. */
+	z-index: var(--ck-layer-dialog);
+	-webkit-user-select: none;
+	/*
+	 * Note: aisuggestionstreamablecontent.css and accessibilityhelp.css override this to `text` for
+	 * their own content and must keep the same -webkit- prefix pairing, otherwise selection would
+	 * silently break for them on Safari.
+	 */
+	user-select: none;
+	overscroll-behavior: none;
+
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	top: 0;
+
+	&.ck-dialog-overlay__transparent {
+		pointer-events: none;
+		animation: var(--ck-animation-none);
+		background: none;
+	}
+}
+
+.ck.ck-dialog {
+	border-radius: var(--ck-dialog-border-radius);
+	/* Backward compatibility: falls back to legacy --ck-dialog-drop-shadow if overridden. */
+	box-shadow: var(--ck-dialog-drop-shadow, var(--ck-dialog-shadow)), 0 0;
+
+	background: var(--ck-color-dialog-background, var(--ck-dialog-background-color));
+	max-height: var(--ck-dialog-max-height);
+	max-width: var(--ck-dialog-max-width);
+	border: var(--ck-dialog-border);
+	overscroll-behavior: none;
+	width: fit-content;
+	position: absolute;
+
+	& .ck.ck-form__header {
+		/* Backward compatibility: falls back to legacy --ck-color-dialog-form-header-border if overridden. */
+		border-bottom: var(--ck-color-dialog-form-header-border, var(--ck-border-divider));
+		/* Dialog-scoped header padding; defaults to the generic form-header padding. */
+		padding: var(--ck-dialog-header-padding);
+		background: var(--ck-dialog-header-background, var(--ck-form-header-background));
+		flex-shrink: 0;
+	}
+
+	/* Modals should not be draggable. */
+	&:not(.ck-dialog_modal) {
+		& .ck.ck-form__header,
+		& .ck.ck-form__header *:not(.ck-button, .ck-button *) {
+			cursor: grab;
+		}
+	}
+
+	.ck.ck-dialog-overlay.ck-dialog-overlay__transparent & {
+		pointer-events: all;
+	}
+}
+
+@keyframes ck-dialog-fade-in {
+	0% {
+		background: hsl(0 0% 0% / 0);
+	}
+
+	100% {
+		background: var(--ck-dialog-overlay-background-color);
+	}
+}

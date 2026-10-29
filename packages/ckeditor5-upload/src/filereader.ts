@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module upload/filereader
  */
 
-/* globals window */
-
-import { ObservableMixin } from '@ckeditor/ckeditor5-utils';
+import { ObservableMixin, type ObservableMixinConstructor } from '@ckeditor/ckeditor5-utils';
 
 type DomFileReader = globalThis.FileReader;
+
+const FileReaderBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * Wrapper over the native `FileReader`.
  */
-export default class FileReader extends ObservableMixin() {
+export class FileReader extends FileReaderBase {
 	public total!: number;
 
 	/**

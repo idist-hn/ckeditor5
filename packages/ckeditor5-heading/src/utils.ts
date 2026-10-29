@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module heading/utils
  */
 
-import type { Editor } from 'ckeditor5/src/core';
+import type { Editor } from '@ckeditor/ckeditor5-core';
 
-import type { HeadingOption } from './headingconfig';
+import type { HeadingOption } from './headingconfig.js';
 
 /**
  * Returns heading options as defined in `config.heading.options` but processed to consider
@@ -18,6 +18,8 @@ import type { HeadingOption } from './headingconfig';
  *
  * Note: The reason behind this method is that there is no way to use {@link module:utils/locale~Locale#t}
  * when the user configuration is defined because the editor does not exist yet.
+ *
+ * @internal
  */
 export function getLocalizedOptions( editor: Editor ): Array<HeadingOption> {
 	const t = editor.t;

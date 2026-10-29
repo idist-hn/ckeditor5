@@ -1,15 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import SearchInfoView from '../../src/search/searchinfoview';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { SearchInfoView } from '../../src/search/searchinfoview.js';
 
 describe( 'SearchInfoView', () => {
 	let view;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		view = new SearchInfoView();
@@ -22,43 +20,43 @@ describe( 'SearchInfoView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'creates and element from template with CSS classes', () => {
-			expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-search__info' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-hidden' ) ).to.be.true;
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-search__info' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-hidden' ) ).toBe( true );
 		} );
 
 		it( 'sets #isVisible and creates a DOM binding', () => {
-			expect( view.isVisible ).to.be.false;
+			expect( view.isVisible ).toBe( false );
 
 			view.isVisible = true;
 
-			expect( view.element.classList.contains( 'ck-hidden' ) ).to.be.false;
+			expect( view.element.classList.contains( 'ck-hidden' ) ).toBe( false );
 		} );
 
 		it( 'sets #primaryText and creates a DOM binding', () => {
-			expect( view.primaryText ).to.equal( '' );
+			expect( view.primaryText ).toBe( '' );
 
 			view.primaryText = 'foo';
 
-			expect( view.element.innerHTML ).to.equal( '<span>foo</span><span></span>' );
+			expect( view.element.innerHTML ).toBe( '<span>foo</span><span></span>' );
 		} );
 
 		it( 'sets #secondaryText', () => {
-			expect( view.secondaryText ).to.equal( '' );
+			expect( view.secondaryText ).toBe( '' );
 
 			view.secondaryText = 'bar';
 
-			expect( view.element.innerHTML ).to.equal( '<span></span><span>bar</span>' );
+			expect( view.element.innerHTML ).toBe( '<span></span><span>bar</span>' );
 		} );
 	} );
 
 	describe( 'focus()', () => {
 		it( 'should focus #element', () => {
-			const spy = sinon.spy( view.element, 'focus' );
+			const spy = vi.spyOn( view.element, 'focus' );
 
 			view.focus();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 } );

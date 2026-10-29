@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { DowncastWriter, ViewElement } from 'ckeditor5/src/engine';
 
 /**
  * @module html-support/integrations/integrationutils
  */
+
+import type { ViewDowncastWriter, ViewElement } from '@ckeditor/ckeditor5-engine';
 
 /**
  * Returns the first view element descendant matching the given view name.
@@ -16,7 +16,7 @@ import type { DowncastWriter, ViewElement } from 'ckeditor5/src/engine';
  * @internal
  */
 export function getDescendantElement(
-	writer: DowncastWriter,
+	writer: ViewDowncastWriter,
 	containerElement: ViewElement,
 	elementName: string
 ): ViewElement | undefined {

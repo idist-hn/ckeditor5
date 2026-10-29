@@ -1,0 +1,21 @@
+/*
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+
+figure {
+	background-color: hsl(0, 0%, 95.3%);
+	padding: 10px;
+
+	& figcaption {
+		background: hsl(0, 0%, 100%);
+		outline: none;
+
+		&.focused {
+			outline: none;
+			border: var(--ck-focus-ring);
+			box-shadow: var(--ck-inner-shadow), 0 0;
+		}
+	}
+}

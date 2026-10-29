@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,11 +8,11 @@
  */
 
 import { Command, type Editor } from '@ckeditor/ckeditor5-core';
-import type { Element, Position, Writer } from '@ckeditor/ckeditor5-engine';
+import type { ModelElement, ModelPosition, ModelWriter } from '@ckeditor/ckeditor5-engine';
 
 /**
  * The insert paragraph command. It inserts a new paragraph at a specific
- * {@link module:engine/model/position~Position document position}.
+ * {@link module:engine/model/position~ModelPosition document position}.
  *
  * ```ts
  * // Insert a new paragraph before an element in the document.
@@ -27,7 +27,7 @@ import type { Element, Position, Writer } from '@ckeditor/ckeditor5-engine';
  *
  * **Note**: This command moves the selection to the inserted paragraph.
  */
-export default class InsertParagraphCommand extends Command {
+export class InsertParagraphCommand extends Command {
 	public constructor( editor: Editor ) {
 		super( editor );
 
@@ -44,24 +44,24 @@ export default class InsertParagraphCommand extends Command {
 	 * @fires execute
 	 */
 	public override execute( options: {
-		position: Position;
-		attributes: Record<string, unknown>;
-	} ): void {
+		position: ModelPosition;
+		attributes?: Record<string, unknown>;
+	} ): ModelPosition | null {
 		const model = this.editor.model;
 		const attributes = options.attributes;
 
-		let position: Position | null = options.position;
+		let position: ModelPosition | null = options.position;
 
 		// Don't execute command if position is in non-editable place.
 		if ( !model.canEditAt( position ) ) {
-			return;
+			return null;
 		}
 
-		model.change( writer => {
+		return model.change( writer => {
 			position = this._findPositionToInsertParagraph( position!, writer );
 
 			if ( !position ) {
-				return;
+				return null;
 			}
 
 			const paragraph = writer.createElement( 'paragraph' );
@@ -72,13 +72,15 @@ export default class InsertParagraphCommand extends Command {
 
 			model.insertContent( paragraph, position );
 			writer.setSelection( paragraph, 'in' );
+
+			return writer.createPositionAt( paragraph, 0 );
 		} );
 	}
 
 	/**
 	 * Returns the best position to insert a new paragraph.
 	 */
-	private _findPositionToInsertParagraph( position: Position, writer: Writer ): Position | null {
+	private _findPositionToInsertParagraph( position: ModelPosition, writer: ModelWriter ): ModelPosition | null {
 		const model = this.editor.model;
 
 		if ( model.schema.checkChild( position, 'paragraph' ) ) {
@@ -93,7 +95,7 @@ export default class InsertParagraphCommand extends Command {
 			return null;
 		}
 
-		const positionParent = position.parent as Element;
+		const positionParent = position.parent as ModelElement;
 		const isTextAllowed = model.schema.checkChild( positionParent, '$text' );
 
 		// At empty $block or at the end of $block.

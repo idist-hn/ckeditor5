@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module highlight/highlightediting
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
 
-import HighlightCommand from './highlightcommand';
-import type { HighlightOption } from './highlightconfig';
+import { HighlightCommand } from './highlightcommand.js';
+import type { HighlightOption } from './highlightconfig.js';
 
 /**
  * The highlight editing feature. It introduces the {@link module:highlight/highlightcommand~HighlightCommand command} and the `highlight`
@@ -18,12 +18,19 @@ import type { HighlightOption } from './highlightconfig';
  * as a `<mark>` element with a `class` attribute (`<mark class="marker-green">...</mark>`) depending
  * on the {@link module:highlight/highlightconfig~HighlightConfig configuration}.
  */
-export default class HighlightEditing extends Plugin {
+export class HighlightEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'HighlightEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -38,42 +45,42 @@ export default class HighlightEditing extends Plugin {
 					model: 'yellowMarker',
 					class: 'marker-yellow',
 					title: 'Yellow marker',
-					color: 'var(--ck-highlight-marker-yellow)',
+					color: 'var(--ck-content-highlight-marker-yellow)',
 					type: 'marker'
 				},
 				{
 					model: 'greenMarker',
 					class: 'marker-green',
 					title: 'Green marker',
-					color: 'var(--ck-highlight-marker-green)',
+					color: 'var(--ck-content-highlight-marker-green)',
 					type: 'marker'
 				},
 				{
 					model: 'pinkMarker',
 					class: 'marker-pink',
 					title: 'Pink marker',
-					color: 'var(--ck-highlight-marker-pink)',
+					color: 'var(--ck-content-highlight-marker-pink)',
 					type: 'marker'
 				},
 				{
 					model: 'blueMarker',
 					class: 'marker-blue',
 					title: 'Blue marker',
-					color: 'var(--ck-highlight-marker-blue)',
+					color: 'var(--ck-content-highlight-marker-blue)',
 					type: 'marker'
 				},
 				{
 					model: 'redPen',
 					class: 'pen-red',
 					title: 'Red pen',
-					color: 'var(--ck-highlight-pen-red)',
+					color: 'var(--ck-content-highlight-pen-red)',
 					type: 'pen'
 				},
 				{
 					model: 'greenPen',
 					class: 'pen-green',
 					title: 'Green pen',
-					color: 'var(--ck-highlight-pen-green)',
+					color: 'var(--ck-content-highlight-pen-green)',
 					type: 'pen'
 				}
 			]

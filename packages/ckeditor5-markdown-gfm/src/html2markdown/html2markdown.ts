@@ -1,161 +1,125 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module markdown-gfm/html2markdown/html2markdown
  */
 
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { trustedHtml } from '@ckeditor/ckeditor5-utils';
+import { unified, type Plugin, type Processor } from 'unified';
+import rehypeRemark from 'rehype-remark';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
+import remarkStringify from 'remark-stringify';
+import { visit } from 'unist-util-visit';
+import { h } from 'hastscript';
+import { toHtml } from 'hast-util-to-html';
+import { fromDom } from 'hast-util-from-dom';
+import type { Handle, State } from 'hast-util-to-mdast';
+import type { Element, Node, Root } from 'hast';
 
-// Importing types for this package is problematic, so it's omitted.
-// @ts-ignore
-import TurndownService from 'turndown';
+export class MarkdownGfmHtmlToMd {
+	private _processor: any;
+	private _keepRawTags: Array<string> = [];
 
-// There no avaialble types for 'turndown-plugin-gfm' module and it's not worth to generate them on our own.
-// @ts-ignore
-import { gfm } from 'turndown-plugin-gfm';
-
-// Override the original escape method by not escaping links.
-const originalEscape = TurndownService.prototype.escape;
-
-function escape( string: string ): string {
-	string = originalEscape( string );
-
-	// Escape "<".
-	string = string.replace( /</g, '\\<' );
-
-	return string;
-}
-
-TurndownService.prototype.escape = function( string: string ): string {
-	// Urls should not be escaped. Our strategy is using a regex to find them and escape everything
-	// which is out of the matches parts.
-
-	let escaped = '';
-	let lastLinkEnd = 0;
-
-	for ( const match of matchAutolink( string ) ) {
-		const index = match.index!;
-
-		// Append the substring between the last match and the current one (if anything).
-		if ( index > lastLinkEnd ) {
-			escaped += escape( string.substring( lastLinkEnd, index ) );
-		}
-
-		const matchedURL = match[ 0 ];
-
-		escaped += matchedURL;
-
-		lastLinkEnd = index + matchedURL.length;
+	constructor() {
+		this._buildProcessor();
 	}
 
-	// Add text after the last link or at the string start if no matches.
-	if ( lastLinkEnd < string.length ) {
-		escaped += escape( string.substring( lastLinkEnd, string.length ) );
+	public keep( tagName: string ): void {
+		this._keepRawTags.push( tagName.toLowerCase() );
+		this._buildProcessor();
 	}
 
-	return escaped;
-};
+	public parse( html: string ): string {
+		return this._processor!
+			.processSync( html )
+			.toString()
+			.trim();
+	}
 
-const turndownService = new TurndownService( {
-	codeBlockStyle: 'fenced',
-	hr: '---',
-	headingStyle: 'atx'
-} );
+	/**
+	 * Returns handlers for raw HTML tags that should be kept in the Markdown output.
+	 */
+	private _getRawTagsHandlers(): Record<string, Handle> {
+		return this._keepRawTags.reduce( ( handlers: Record<string, Handle>, tagName: string ) => {
+			handlers[ tagName ] = ( state: State, node: Element ): any => {
+				const tag = toHtml( h( node.tagName, node.properties ), {
+					allowDangerousHtml: true,
+					closeSelfClosing: true
+				} );
 
-turndownService.use( [
-	gfm,
-	todoList
-] );
+				const endOfOpeningTagIndex = tag.indexOf( '>' );
+				const openingTag = tag.slice( 0, endOfOpeningTagIndex + 1 );
+				const closingTag = tag.slice( endOfOpeningTagIndex + 1 );
 
-/**
- * Parses HTML to a markdown.
- */
-export default function html2markdown( html: string ): string {
-	return turndownService.turndown( html );
-}
+				return [
+					{ type: 'html', value: openingTag },
+					...state.all( node ),
+					{ type: 'html', value: closingTag }
+				];
+			};
+			return handlers;
+		}, {} as Record<string, Handle> );
+	}
 
-export { turndownService };
-
-// This is a copy of the original taskListItems rule from turdown-plugin-gfm, with minor changes.
-function todoList( turndownService: TurndownService ): void {
-	turndownService.addRule( 'taskListItems', {
-		filter( node: any ) {
-			return node.type === 'checkbox' &&
-				// Changes here as CKEditor outputs a deeper structure.
-				( node.parentNode.nodeName === 'LI' || node.parentNode.parentNode.nodeName === 'LI' );
-		},
-		replacement( content: any, node: any ) {
-			return ( node.checked ? '[x]' : '[ ]' ) + ' ';
-		}
-	} );
-}
-
-// Autolink matcher.
-const regex = new RegExp(
-	// Prefix.
-	/\b(?:(?:https?|ftp):\/\/|www\.)/.source +
-
-	// Domain name.
-	/(?![-_])(?:[-_a-z0-9\u00a1-\uffff]{1,63}\.)+(?:[a-z\u00a1-\uffff]{2,63})/.source +
-
-	// The rest.
-	/(?:[^\s<>]*)/.source,
-	'gi'
-);
-
-/**
- * Trimming end of link.
- * https://github.github.com/gfm/#autolinks-extension-
- */
-function* matchAutolink( string: string ) {
-	for ( const match of string.matchAll( regex ) ) {
-		const matched = match[ 0 ];
-		const length = autolinkFindEnd( matched );
-
-		yield Object.assign(
-			[ matched.substring( 0, length ) ],
-			{ index: match.index }
-		);
-
-		// We could adjust regex.lastIndex but it's not needed because what we skipped is for sure not a valid URL.
+	private _buildProcessor() {
+		this._processor = unified()
+			// Parse HTML to an abstract syntax tree (AST).
+			.use( rehypeDomParse )
+			// Removes `<label>` element from TODO lists.
+			.use( removeLabelFromCheckboxes )
+			// Turns HTML syntax tree into Markdown syntax tree.
+			.use( rehypeRemark, {
+				// Keeps allowed HTML tags.
+				handlers: this._getRawTagsHandlers()
+			} )
+			// Adds support for GitHub Flavored Markdown (GFM).
+			.use( remarkGfm, {
+				singleTilde: true
+			} )
+			// Replaces line breaks with `<br>` tags.
+			.use( remarkBreaks )
+			// Serializes Markdown syntax tree to Markdown string.
+			.use( remarkStringify, {
+				resourceLink: true,
+				emphasis: '_',
+				rule: '-',
+				handlers: {
+					break: () => '\n'
+				},
+				unsafe: [
+					{ character: '<' }
+				]
+			} );
 	}
 }
 
 /**
- * Returns the new length of the link (after it would trim trailing characters).
+ * Rehype plugin that parses the HTML here rather than with a third-party plugin, so that the string passes through
+ * the Trusted Types policy of the editor.
  */
-function autolinkFindEnd( string: string ) {
-	let length = string.length;
+function rehypeDomParse( this: Processor ): void {
+	this.parser = ( html: string ): Root => {
+		const template = document.createElement( 'template' );
 
-	while ( length > 0 ) {
-		const char = string[ length - 1 ];
+		template.innerHTML = trustedHtml( html );
 
-		if ( '?!.,:*_~\'"'.includes( char ) ) {
-			length--;
-		} else if ( char == ')' ) {
-			let openBrackets = 0;
+		return fromDom( template.content ) as Root;
+	};
+}
 
-			for ( let i = 0; i < length; i++ ) {
-				if ( string[ i ] == '(' ) {
-					openBrackets++;
-				} else if ( string[ i ] == ')' ) {
-					openBrackets--;
-				}
+/**
+ * Removes `<label>` element from TODO lists, so that `<input>` and `text` are direct children of `<li>`.
+ */
+function removeLabelFromCheckboxes(): ReturnType<Plugin> {
+	return function( tree: Node ): void {
+		visit( tree, 'element', ( node: Element, index: number | null, parent: Root | Element ) => {
+			if ( index !== null && node.tagName === 'label' && parent.type === 'element' && parent.tagName === 'li' ) {
+				parent.children.splice( index, 1, ...node.children );
 			}
-
-			// If there is fewer opening brackets then closing ones we should remove a closing bracket.
-			if ( openBrackets < 0 ) {
-				length--;
-			} else {
-				break;
-			}
-		} else {
-			break;
-		}
-	}
-
-	return length;
+		} );
+	};
 }

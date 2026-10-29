@@ -1,26 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global window */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import Link from '@ckeditor/ckeditor5-link/src/link';
-import CKFinderUploadAdapter from '@ckeditor/ckeditor5-adapter-ckfinder/src/uploadadapter';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { Image } from '@ckeditor/ckeditor5-image';
+import { Link } from '@ckeditor/ckeditor5-link';
+import { CKFinderUploadAdapter } from '@ckeditor/ckeditor5-adapter-ckfinder';
+import { IconImageAssetManager, IconBrowseFiles } from '@ckeditor/ckeditor5-icons';
 
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
+import { ButtonView, MenuBarMenuListItemButtonView, UIModel } from '@ckeditor/ckeditor5-ui';
 
-import CKFinder from '../src/ckfinder';
-import browseFilesIcon from '../theme/icons/browse-files.svg';
+import { CKFinder } from '../src/ckfinder.js';
+import { CKFinderUI } from '../src/ckfinderui.js';
 
 describe( 'CKFinderUI', () => {
 	let editorElement, editor, button;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = global.document.createElement( 'div' );
@@ -33,7 +31,6 @@ describe( 'CKFinderUI', () => {
 			} )
 			.then( newEditor => {
 				editor = newEditor;
-				button = editor.ui.componentFactory.create( 'ckfinder' );
 			} );
 	} );
 
@@ -43,31 +40,150 @@ describe( 'CKFinderUI', () => {
 		return editor.destroy();
 	} );
 
-	it( 'should add the "ckfinder" component to the factory', () => {
-		expect( button ).to.be.instanceOf( ButtonView );
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( CKFinderUI.isOfficialPlugin ).toBe( true );
 	} );
 
-	describe( 'button', () => {
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( CKFinderUI.isPremiumPlugin ).toBe( false );
+	} );
+
+	describe( 'toolbar button', () => {
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'ckfinder' );
+		} );
+
+		testButton( 'Insert image or file' );
+
+		it( 'should enable tooltips for the #buttonView', () => {
+			expect( button.tooltip ).toBe( true );
+		} );
+
+		it( 'should add the "ckfinder" component to the factory', () => {
+			expect( button ).to.be.instanceOf( ButtonView );
+		} );
+	} );
+
+	describe( 'menu bar button', () => {
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'menuBar:ckfinder' );
+		} );
+
+		testButton( 'File' );
+
+		it( 'should add the "ckfinder" component to the factory', () => {
+			expect( button ).to.be.instanceOf( MenuBarMenuListItemButtonView );
+		} );
+	} );
+
+	describe( 'InsertImageUI integration', () => {
+		it( 'should create CKFinder button in split button dropdown button', () => {
+			mockAnotherIntegration();
+
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+			const dropdownButton = dropdown.buttonView.actionView;
+
+			expect( dropdownButton ).to.be.instanceOf( ButtonView );
+			expect( dropdownButton.withText ).toBe( false );
+			expect( dropdownButton.icon ).toEqual( IconImageAssetManager );
+			expect( dropdownButton.label ).toEqual( 'Insert image with file manager' );
+		} );
+
+		it( 'should create CKFinder button in dropdown panel', () => {
+			mockAnotherIntegration();
+
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+
+			dropdown.isOpen = true;
+
+			const formView = dropdown.panelView.children.get( 0 );
+			const buttonView = formView.children.get( 0 );
+
+			expect( buttonView ).to.be.instanceOf( ButtonView );
+			expect( buttonView.withText ).toBe( true );
+			expect( buttonView.icon ).toEqual( IconImageAssetManager );
+			expect( buttonView.label ).toEqual( 'Insert with file manager' );
+		} );
+
+		it( 'should create CKFinder button in menu bar', () => {
+			mockAnotherIntegration();
+
+			const submenu = editor.ui.componentFactory.create( 'menuBar:insertImage' );
+			const buttonView = submenu.panelView.children.first.items.first.children.first;
+
+			expect( buttonView ).to.be.instanceOf( MenuBarMenuListItemButtonView );
+			expect( buttonView.withText ).toBe( true );
+			expect( buttonView.icon ).toEqual( IconImageAssetManager );
+			expect( buttonView.label ).toEqual( 'With file manager' );
+		} );
+
+		it( 'should create CKFinder button in menu bar - only integration', () => {
+			const submenu = editor.ui.componentFactory.create( 'menuBar:insertImage' );
+			const buttonView = submenu.panelView.children.first.items.first.children.first;
+
+			expect( buttonView ).to.be.instanceOf( MenuBarMenuListItemButtonView );
+			expect( buttonView.withText ).toBe( true );
+			expect( buttonView.icon ).toEqual( IconImageAssetManager );
+			expect( buttonView.label ).toEqual( 'Image' );
+		} );
+
+		it( 'should bind to #isImageSelected', () => {
+			const insertImageUI = editor.plugins.get( 'ImageInsertUI' );
+
+			mockAnotherIntegration();
+
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+
+			dropdown.isOpen = true;
+
+			const dropdownButton = dropdown.buttonView.actionView;
+			const formView = dropdown.panelView.children.get( 0 );
+			const buttonView = formView.children.get( 0 );
+
+			insertImageUI.isImageSelected = false;
+			expect( dropdownButton.label ).toEqual( 'Insert image with file manager' );
+			expect( buttonView.label ).toEqual( 'Insert with file manager' );
+
+			insertImageUI.isImageSelected = true;
+			expect( dropdownButton.label ).toEqual( 'Replace image with file manager' );
+			expect( buttonView.label ).toEqual( 'Replace with file manager' );
+		} );
+
+		it( 'should close dropdown on execute', () => {
+			mockAnotherIntegration();
+
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+
+			dropdown.isOpen = true;
+
+			const formView = dropdown.panelView.children.get( 0 );
+			const buttonView = formView.children.get( 0 );
+
+			vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+
+			buttonView.fire( 'execute' );
+
+			expect( dropdown.isOpen ).toBe( false );
+		} );
+	} );
+
+	function testButton( label ) {
 		it( 'should bind #isEnabled to the command', () => {
 			const command = editor.commands.get( 'ckfinder' );
 
 			command.isEnabled = true;
-			expect( button.isEnabled ).to.be.true;
+			expect( button.isEnabled ).toBe( true );
 
 			command.isEnabled = false;
-			expect( button.isEnabled ).to.be.false;
+			expect( button.isEnabled ).toBe( false );
 		} );
 
 		it( 'should set a #label of the #buttonView', () => {
-			expect( button.label ).to.equal( 'Insert image or file' );
+			expect( button.label ).toEqual( label );
 		} );
 
 		it( 'should set an #icon of the #buttonView', () => {
-			expect( button.icon ).to.equal( browseFilesIcon );
-		} );
-
-		it( 'should enable tooltips for the #buttonView', () => {
-			expect( button.tooltip ).to.be.true;
+			expect( button.icon ).toEqual( IconBrowseFiles );
 		} );
 
 		it( 'should execute bold command on model execute event', () => {
@@ -75,11 +191,42 @@ describe( 'CKFinderUI', () => {
 				modal: () => {}
 			};
 
-			const executeStub = testUtils.sinon.spy( editor, 'execute' );
+			const executeStub = vi.spyOn( editor, 'execute' );
 
 			button.fire( 'execute' );
 
-			sinon.assert.calledOnce( executeStub );
+			expect( executeStub ).toHaveBeenCalledOnce();
 		} );
-	} );
+	}
+
+	function mockAnotherIntegration() {
+		const insertImageUI = editor.plugins.get( 'ImageInsertUI' );
+		const observable = new UIModel( { isEnabled: true } );
+
+		insertImageUI.registerIntegration( {
+			name: 'url',
+			observable,
+			buttonViewCreator() {
+				const button = new ButtonView( editor.locale );
+
+				button.label = 'foo';
+
+				return button;
+			},
+			formViewCreator() {
+				const button = new ButtonView( editor.locale );
+
+				button.label = 'bar';
+
+				return button;
+			},
+			menuBarButtonViewCreator() {
+				const button = new ButtonView( editor.locale );
+
+				button.label = 'bar';
+
+				return button;
+			}
+		} );
+	}
 } );

@@ -1,16 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import View from '../../src/view';
+import { View } from '../../src/view.js';
 
 /**
  * Test utils for CKEditor UI.
  */
-const utils = {
+export const testUtils = {
 	/**
 	 * Returns a view for a given region/DOM selector pairs, which {@link module:ui/view~View#element}
 	 * is `document.body`. It is useful for manual tests which engage various UI components and/or
@@ -58,5 +56,3 @@ const utils = {
 		return view;
 	}
 };
-
-export default utils;

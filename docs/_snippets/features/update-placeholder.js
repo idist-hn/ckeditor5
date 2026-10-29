@@ -1,34 +1,43 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document, ClassicEditor */
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { PlaceholderEditor } from './placeholder-build.js';
 
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-ClassicEditor
-	.create( document.querySelector( '#snippet-update-placeholder' ), {
-		cloudServices: CS_CONFIG,
+PlaceholderEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-update-placeholder' ),
+		root: {
+			placeholder: 'Type some content here!'
+		},
 		toolbar: [
 			'undo', 'redo', '|', 'heading',
 			'|', 'bold', 'italic',
-			'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
+			'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
 			'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 		],
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			forceDemoLabel: true
+		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
-		},
-		placeholder: 'Type some content here!'
+		}
 	} )
 	.then( editor => {
-		const button = document.getElementById( 'update-placeholder-button' );
 		window.editor = editor;
-
-		button.addEventListener( 'click', () => {
-			editor.editing.view.document.getRoot( 'main' ).placeholder = 'New placeholder';
+		window.umberto.afterReady( () => {
+			const button = document.getElementById( 'update-placeholder-button' );
+			button.addEventListener( 'click', () => {
+				editor.editing.view.document.getRoot( 'main' ).placeholder = 'Updated placeholder';
+			} );
 		} );
 	} )
 	.catch( err => {

@@ -1,41 +1,39 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tableselection
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { type EventInfo, first } from 'ckeditor5/src/utils';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { type EventInfo, first } from '@ckeditor/ckeditor5-utils';
 
 import type {
-	Element,
-	DocumentFragment,
-	Selection,
-	DowncastWriter,
+	ModelElement,
+	ModelDocumentFragment,
+	ModelSelection,
+	ViewDowncastWriter,
 	ViewElement,
 	ModelDeleteContentEvent
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
 import type {
 	ViewDocumentInsertTextEvent,
 	InsertTextEventData
-} from 'ckeditor5/src/typing';
+} from '@ckeditor/ckeditor5-typing';
 
-import TableWalker from './tablewalker';
-import TableUtils from './tableutils';
+import { TableWalker } from './tablewalker.js';
+import { TableUtils } from './tableutils.js';
 
-import { cropTableToDimensions, adjustLastRowIndex, adjustLastColumnIndex } from './utils/structure';
-
-import '../theme/tableselection.css';
+import { cropTableToDimensions, adjustLastRowIndex, adjustLastColumnIndex } from './utils/structure.js';
 
 /**
  * This plugin enables the advanced table cells, rows and columns selection.
  * It is loaded automatically by the {@link module:table/table~Table} plugin.
  */
-export default class TableSelection extends Plugin {
+export class TableSelection extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -46,8 +44,15 @@ export default class TableSelection extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ TableUtils, TableUtils ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ TableUtils, TableUtils ]> {
+		return [ TableUtils, TableUtils ];
 	}
 
 	/**
@@ -79,7 +84,7 @@ export default class TableSelection extends Plugin {
 	/**
 	 * Returns the currently selected table cells or `null` if it is not a table cells selection.
 	 */
-	public getSelectedTableCells(): Array<Element> | null {
+	public getSelectedTableCells(): Array<ModelElement> | null {
 		const tableUtils = this.editor.plugins.get( TableUtils );
 		const selection = this.editor.model.document.selection;
 
@@ -100,7 +105,7 @@ export default class TableSelection extends Plugin {
 	/**
 	 * Returns the selected table fragment as a document fragment.
 	 */
-	public getSelectionAsFragment(): DocumentFragment | null {
+	public getSelectionAsFragment(): ModelDocumentFragment | null {
 		const tableUtils = this.editor.plugins.get( TableUtils );
 		const selectedCells = this.getSelectedTableCells();
 
@@ -141,7 +146,6 @@ export default class TableSelection extends Plugin {
 			};
 
 			const table = cropTableToDimensions( sourceTable, cropDimensions, writer );
-
 			writer.insert( table, documentFragment, 0 );
 
 			return documentFragment;
@@ -161,7 +165,7 @@ export default class TableSelection extends Plugin {
 	 * tableSelection.setCellSelection( firstCell, lastCell );
 	 * ```
 	 */
-	public setCellSelection( anchorCell: Element, targetCell: Element ): void {
+	public setCellSelection( anchorCell: ModelElement, targetCell: ModelElement ): void {
 		const cellsToSelect = this._getCellsToSelect( anchorCell, targetCell );
 
 		this.editor.model.change( writer => {
@@ -175,7 +179,7 @@ export default class TableSelection extends Plugin {
 	/**
 	 * Returns the focus cell from the current selection.
 	 */
-	public getFocusCell(): Element | null {
+	public getFocusCell(): ModelElement | null {
 		const selection = this.editor.model.document.selection;
 		const focusCellRange = [ ...selection.getRanges() ].pop()!;
 		const element = focusCellRange.getContainedElement();
@@ -190,7 +194,7 @@ export default class TableSelection extends Plugin {
 	/**
 	 * Returns the anchor cell from the current selection.
 	 */
-	public getAnchorCell(): Element | null {
+	public getAnchorCell(): ModelElement | null {
 		const selection = this.editor.model.document.selection;
 		const anchorCellRange = first( selection.getRanges() )!;
 		const element = anchorCellRange.getContainedElement();
@@ -237,7 +241,7 @@ export default class TableSelection extends Plugin {
 			viewWriter.setSelection( lastViewCell, 0 );
 		}, { priority: 'lowest' } ) );
 
-		function clearHighlightedTableCells( viewWriter: DowncastWriter ) {
+		function clearHighlightedTableCells( viewWriter: ViewDowncastWriter ) {
 			for ( const previouslyHighlighted of highlighted ) {
 				viewWriter.removeClass( 'ck-editor__editable_selected', previouslyHighlighted );
 			}
@@ -281,7 +285,7 @@ export default class TableSelection extends Plugin {
 	 */
 	private _handleDeleteContent( event: EventInfo, args: Array<unknown> ) {
 		const tableUtils = this.editor.plugins.get( TableUtils );
-		const selection = args[ 0 ] as Selection;
+		const selection = args[ 0 ] as ModelSelection;
 		const options = args[ 1 ] as { direction?: string };
 		const model = this.editor.model;
 		const isBackward = !options || options.direction == 'backward';
@@ -322,7 +326,7 @@ export default class TableSelection extends Plugin {
 	 * yes, it's a hack).
 	 *
 	 * When multiple cells are selected in the model and the user starts to type, the
-	 * {@link module:engine/view/document~Document#event:insertText} event carries information provided by the
+	 * {@link module:engine/view/document~ViewDocument#event:insertText} event carries information provided by the
 	 * beforeinput DOM  event, that in turn only knows about this collapsed DOM selection in the last cell.
 	 *
 	 * As a result, the selected cells have no chance to be cleaned up. To fix this, this listener intercepts
@@ -344,6 +348,9 @@ export default class TableSelection extends Plugin {
 		const viewRanges = selectedCells.map( tableCell => view.createRangeOn( mapper.toViewElement( tableCell )! ) );
 
 		data.selection = view.createSelection( viewRanges );
+
+		// Do not let the browser handle it itself. We must modify the model and then apply changes to the view and DOM.
+		data.preventDefault();
 	}
 
 	/**
@@ -352,8 +359,9 @@ export default class TableSelection extends Plugin {
 	 *
 	 * The cells are returned in a reverse direction if the selection is backward.
 	 */
-	private _getCellsToSelect( anchorCell: Element, targetCell: Element ) {
+	private _getCellsToSelect( anchorCell: ModelElement, targetCell: ModelElement ) {
 		const tableUtils: TableUtils = this.editor.plugins.get( 'TableUtils' );
+
 		const startLocation = tableUtils.getCellLocation( anchorCell );
 		const endLocation = tableUtils.getCellLocation( targetCell );
 
@@ -361,11 +369,29 @@ export default class TableSelection extends Plugin {
 		const endRow = Math.max( startLocation.row, endLocation.row );
 
 		const startColumn = Math.min( startLocation.column, endLocation.column );
-		const endColumn = Math.max( startLocation.column, endLocation.column );
+
+		// Adjust the selection to include the entire row if a cell with colspan is selected.
+		// This ensures that the selection covers the full width of the colspan cell.
+		//
+		// Example:
+		// +---+---+---+---+
+		// | A | B | C | D |
+		// +---+---+---+---+
+		// | E             |
+		// +---+---+---+---+
+		//
+		// If the selection starts at `B` and ends at `E`, the entire first row should be selected.
+		//
+		// In other words, the selection will represent the following cells:
+		// 	* Without this adjustment, only `B`, `A` and `E` would be selected.
+		// 	* With this adjustment, `A`, `B`, `C`, `D`, and `E` are selected.
+		//
+		// See: https://github.com/ckeditor/ckeditor5/issues/17538
+		const endColumnExtraColspan = ( parseInt( targetCell.getAttribute( 'colspan' ) as string || '1' ) - 1 );
+		const endColumn = Math.max( startLocation.column, endLocation.column + endColumnExtraColspan );
 
 		// 2-dimensional array of the selected cells to ease flipping the order of cells for backward selections.
-		const selectionMap: Array<Array<Element>> = new Array( endRow - startRow + 1 ).fill( null ).map( () => [] );
-
+		const selectionMap: Array<Array<ModelElement>> = new Array( endRow - startRow + 1 ).fill( null ).map( () => [] );
 		const walkerOptions = {
 			startRow,
 			endRow,

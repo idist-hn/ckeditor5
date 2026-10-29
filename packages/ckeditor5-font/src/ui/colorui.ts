@@ -1,34 +1,35 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/ui/colorui
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import type { Batch } from 'ckeditor5/src/engine';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import type { Batch } from '@ckeditor/ckeditor5-engine';
 import {
 	createDropdown,
 	normalizeColorOptions,
 	getLocalizedColorOptions,
 	focusChildOnDropdownOpen,
-	type ColorSelectorView,
 	type ColorSelectorExecuteEvent,
 	type ColorSelectorColorPickerCancelEvent,
-	type ColorSelectorColorPickerShowEvent
-} from 'ckeditor5/src/ui';
+	type ColorSelectorColorPickerShowEvent,
+	MenuBarMenuView,
+	ColorSelectorView
+} from '@ckeditor/ckeditor5-ui';
 
 import {
 	addColorSelectorToDropdown,
-	type ColorSelectorDropdownView,
+	type FontColorSelectorDropdownView,
 	type FONT_BACKGROUND_COLOR,
 	type FONT_COLOR
-} from '../utils';
-import type FontColorCommand from '../fontcolor/fontcolorcommand';
-import type FontBackgroundColorCommand from '../fontbackgroundcolor/fontbackgroundcolorcommand';
-import type { FontColorConfig } from '../fontconfig';
+} from '../utils.js';
+import { type FontColorCommand } from '../fontcolor/fontcolorcommand.js';
+import { type FontBackgroundColorCommand } from '../fontbackgroundcolor/fontbackgroundcolorcommand.js';
+import type { FontColorConfig } from '../fontconfig.js';
 
 /**
  * The color UI plugin which isolates the common logic responsible for displaying dropdowns with color grids.
@@ -36,7 +37,7 @@ import type { FontColorConfig } from '../fontconfig';
  * It is used to create the `'fontBackgroundColor'` and `'fontColor'` dropdowns, each hosting
  * a {@link module:ui/colorselector/colorselectorview~ColorSelectorView}.
  */
-export default class ColorUI extends Plugin {
+export class FontColorUIBase extends Plugin {
 	/**
 	 * The name of the command which will be executed when a color tile is clicked.
 	 */
@@ -64,11 +65,6 @@ export default class ColorUI extends Plugin {
 	public columns: number;
 
 	/**
-	 * Keeps a reference to {@link module:ui/colorselector/colorselectorview~ColorSelectorView}.
-	 */
-	public colorSelectorView: ColorSelectorView | undefined;
-
-	/**
 	 * Keeps all changes in color picker in one batch while dropdown is open.
 	 */
 	declare private _undoStepBatch: Batch;
@@ -77,6 +73,7 @@ export default class ColorUI extends Plugin {
 	 * Creates a plugin which introduces a dropdown with a pre–configured
 	 * {@link module:ui/colorselector/colorselectorview~ColorSelectorView}.
 	 *
+	 * @param editor An editor instance.
 	 * @param config The configuration object.
 	 * @param config.commandName The name of the command which will be executed when a color tile is clicked.
 	 * @param config.componentName The name of the dropdown in the {@link module:ui/componentfactory~ComponentFactory}
@@ -100,7 +97,6 @@ export default class ColorUI extends Plugin {
 		this.icon = icon;
 		this.dropdownLabel = dropdownLabel;
 		this.columns = editor.config.get( `${ this.componentName }.columns` )!;
-		this.colorSelectorView = undefined;
 	}
 
 	/**
@@ -119,11 +115,12 @@ export default class ColorUI extends Plugin {
 
 		// Register the UI component.
 		editor.ui.componentFactory.add( this.componentName, locale => {
-			const dropdownView: ColorSelectorDropdownView = createDropdown( locale );
-			// Font color dropdown rendering is deferred once it gets open to improve performance (#6192).
+			const dropdownView: FontColorSelectorDropdownView = createDropdown( locale );
+			// Font color dropdown rendering is deferred once it gets open to improve performance.
+			// See https://github.com/ckeditor/ckeditor5/issues/6192.
 			let dropdownContentRendered = false;
 
-			this.colorSelectorView = addColorSelectorToDropdown( {
+			const colorSelectorView = addColorSelectorToDropdown( {
 				dropdownView,
 				colors: localizedColors.map( option => ( {
 					label: option.label,
@@ -140,7 +137,7 @@ export default class ColorUI extends Plugin {
 				colorPickerViewConfig: hasColorPicker ? ( componentConfig.colorPicker || {} ) : false
 			} );
 
-			this.colorSelectorView.bind( 'selectedColor' ).to( command, 'value' );
+			colorSelectorView.bind( 'selectedColor' ).to( command, 'value' );
 
 			dropdownView.buttonView.set( {
 				label: this.dropdownLabel,
@@ -154,9 +151,15 @@ export default class ColorUI extends Plugin {
 				}
 			} );
 
+			dropdownView.panelView.extendTemplate( {
+				attributes: {
+					class: 'ck-dropdown__panel_fit-content'
+				}
+			} );
+
 			dropdownView.bind( 'isEnabled' ).to( command );
 
-			this.colorSelectorView.on<ColorSelectorExecuteEvent>( 'execute', ( evt, data ) => {
+			colorSelectorView.on<ColorSelectorExecuteEvent>( 'execute', ( evt, data ) => {
 				if ( dropdownView.isOpen ) {
 					editor.execute( this.commandName, {
 						value: data.value,
@@ -173,14 +176,14 @@ export default class ColorUI extends Plugin {
 				}
 			} );
 
-			this.colorSelectorView.on<ColorSelectorColorPickerShowEvent>( 'colorPicker:show', () => {
+			colorSelectorView.on<ColorSelectorColorPickerShowEvent>( 'colorPicker:show', () => {
 				this._undoStepBatch = editor.model.createBatch();
 			} );
 
-			this.colorSelectorView.on<ColorSelectorColorPickerCancelEvent>( 'colorPicker:cancel', () => {
+			colorSelectorView.on<ColorSelectorColorPickerCancelEvent>( 'colorPicker:cancel', () => {
 				if ( this._undoStepBatch!.operations.length ) {
 					// We need to close the dropdown before the undo batch.
-					// Otherwise, ColorUI treats undo as a selected color change,
+					// Otherwise, FontColorUIBase treats undo as a selected color change,
 					// propagating the update to the whole selection.
 					// That's an issue if spans with various colors were selected.
 					dropdownView.isOpen = false;
@@ -199,11 +202,11 @@ export default class ColorUI extends Plugin {
 
 				if ( isVisible ) {
 					if ( documentColorsCount !== 0 ) {
-						this.colorSelectorView!.updateDocumentColors( editor.model, this.componentName );
+						colorSelectorView!.updateDocumentColors( editor.model, this.componentName );
 					}
 
-					this.colorSelectorView!.updateSelectedColors();
-					this.colorSelectorView!.showColorGridsFragment();
+					colorSelectorView!.updateSelectedColors();
+					colorSelectorView!.showColorGridsFragment();
 				}
 			} );
 
@@ -214,6 +217,77 @@ export default class ColorUI extends Plugin {
 			);
 
 			return dropdownView;
+		} );
+
+		// Register menu bar button..
+		editor.ui.componentFactory.add( `menuBar:${ this.componentName }`, locale => {
+			const menuView = new MenuBarMenuView( locale );
+
+			menuView.buttonView.set( {
+				label: this.dropdownLabel,
+				icon: this.icon
+			} );
+
+			menuView.bind( 'isEnabled' ).to( command );
+
+			// Font color sub-menu rendering is deferred once it gets open to improve performance.
+			// See https://github.com/ckeditor/ckeditor5/issues/6192.
+			let contentRendered = false;
+
+			const colorSelectorView = new ColorSelectorView( locale, {
+				colors: localizedColors.map( option => ( {
+					label: option.label,
+					color: option.model,
+					options: {
+						hasBorder: option.hasBorder
+					}
+				} ) ),
+				columns: this.columns,
+				removeButtonLabel: t( 'Remove color' ),
+				colorPickerLabel: t( 'Color picker' ),
+				documentColorsLabel: documentColorsCount !== 0 ? t( 'Document colors' ) : '',
+				documentColorsCount: documentColorsCount === undefined ? this.columns : documentColorsCount,
+				colorPickerViewConfig: false
+			} );
+
+			colorSelectorView.bind( 'selectedColor' ).to( command, 'value' );
+
+			colorSelectorView.delegate( 'execute' ).to( menuView );
+			colorSelectorView.on<ColorSelectorExecuteEvent>( 'execute', ( evt, data ) => {
+				editor.execute( this.commandName, {
+					value: data.value,
+					batch: this._undoStepBatch
+				} );
+
+				editor.editing.view.focus();
+			} );
+
+			menuView.on( 'change:isOpen', ( evt, name, isVisible ) => {
+				if ( !contentRendered ) {
+					contentRendered = true;
+
+					colorSelectorView!.appendUI();
+				}
+
+				if ( isVisible ) {
+					if ( documentColorsCount !== 0 ) {
+						colorSelectorView!.updateDocumentColors( editor.model, this.componentName );
+					}
+
+					colorSelectorView!.updateSelectedColors();
+					colorSelectorView!.showColorGridsFragment();
+				}
+			} );
+
+			menuView.panelView.extendTemplate( {
+				attributes: {
+					class: 'ck-menu-bar__menu__panel_fit-content'
+				}
+			} );
+
+			menuView.panelView.children.add( colorSelectorView );
+
+			return menuView;
 		} );
 	}
 }

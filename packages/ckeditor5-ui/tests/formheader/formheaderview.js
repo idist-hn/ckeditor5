@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import View from '../../src/view';
-import ViewCollection from '../../src/viewcollection';
-import FormHeaderView from '../../src/formheader/formheaderview';
-import { IconView } from '../../src';
-
-import checkIcon from '@ckeditor/ckeditor5-core/theme/icons/check.svg';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { IconCheck } from '@ckeditor/ckeditor5-icons';
+import { View } from '../../src/view.js';
+import { ViewCollection } from '../../src/viewcollection.js';
+import { FormHeaderView } from '../../src/formheader/formheaderview.js';
+import { IconView } from '../../src/index.js';
 
 describe( 'FormHeaderView', () => {
 	let view, locale;
@@ -25,29 +25,29 @@ describe( 'FormHeaderView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'should set view#locale', () => {
-			expect( view.locale ).to.equal( locale );
+			expect( view.locale ).toBe( locale );
 		} );
 
 		it( 'should create view#children collection', () => {
-			expect( view.children ).to.be.instanceOf( ViewCollection );
-			expect( view.children ).to.have.length( 1 );
+			expect( view.children ).toBeInstanceOf( ViewCollection );
+			expect( view.children ).toHaveLength( 1 );
 		} );
 
 		it( 'should set view#label', () => {
-			expect( view.label ).to.equal( '' );
+			expect( view.label ).toBe( '' );
 		} );
 
 		it( 'should set view#class', () => {
-			expect( view.class ).to.be.null;
+			expect( view.class ).toBeNull();
 		} );
 
 		it( 'should set the template', () => {
-			expect( view.template.attributes.class ).to.include( 'ck' );
-			expect( view.template.attributes.class ).to.include( 'ck-form__header' );
+			expect( view.template.attributes.class ).toContain( 'ck' );
+			expect( view.template.attributes.class ).toContain( 'ck-form__header' );
 		} );
 
 		it( 'should set view#tag', () => {
-			expect( view.children.first.template.tag ).to.equal( 'h2' );
+			expect( view.children.first.template.tag ).toBe( 'h2' );
 		} );
 
 		describe( 'options', () => {
@@ -55,7 +55,7 @@ describe( 'FormHeaderView', () => {
 				const view = new FormHeaderView( locale, {
 					class: 'foo'
 				} );
-				expect( view.class ).to.equal( 'foo' );
+				expect( view.class ).toBe( 'foo' );
 
 				view.destroy();
 			} );
@@ -67,9 +67,10 @@ describe( 'FormHeaderView', () => {
 
 				view.render();
 
-				expect( view.element.firstChild.classList.contains( 'ck' ) ).to.be.true;
-				expect( view.element.firstChild.classList.contains( 'ck-form__header__label' ) ).to.be.true;
-				expect( view.element.firstChild.textContent ).to.equal( 'foo' );
+				expect( view.element.firstChild.classList.contains( 'ck' ) ).toBe( true );
+				expect( view.element.firstChild.classList.contains( 'ck-form__header__label' ) ).toBe( true );
+				expect( view.element.firstChild.role ).toBe( 'presentation' );
+				expect( view.element.firstChild.textContent ).toBe( 'foo' );
 
 				view.destroy();
 			} );
@@ -77,21 +78,21 @@ describe( 'FormHeaderView', () => {
 			it( 'should allow passing an icon', () => {
 				const view = new FormHeaderView( locale, {
 					label: 'foo',
-					icon: checkIcon
+					icon: IconCheck
 				} );
 
 				view.render();
 
-				expect( view.element.lastChild.classList.contains( 'ck' ) ).to.be.true;
-				expect( view.element.lastChild.classList.contains( 'ck-form__header__label' ) ).to.be.true;
-				expect( view.element.lastChild.textContent ).to.equal( 'foo' );
+				expect( view.element.lastChild.classList.contains( 'ck' ) ).toBe( true );
+				expect( view.element.lastChild.classList.contains( 'ck-form__header__label' ) ).toBe( true );
+				expect( view.element.lastChild.textContent ).toBe( 'foo' );
 
-				expect( view.element.firstChild.classList.contains( 'ck' ) ).to.be.true;
-				expect( view.element.firstChild.classList.contains( 'ck-icon' ) ).to.be.true;
+				expect( view.element.firstChild.classList.contains( 'ck' ) ).toBe( true );
+				expect( view.element.firstChild.classList.contains( 'ck-icon' ) ).toBe( true );
 
-				expect( view.iconView ).to.be.instanceOf( IconView );
-				expect( view.iconView.content ).to.equal( checkIcon );
-				expect( view.iconView.element ).to.equal( view.element.firstChild );
+				expect( view.iconView ).toBeInstanceOf( IconView );
+				expect( view.iconView.content ).toBe( IconCheck );
+				expect( view.iconView.element ).toBe( view.element.firstChild );
 
 				view.destroy();
 			} );
@@ -100,15 +101,15 @@ describe( 'FormHeaderView', () => {
 		describe( 'template bindings', () => {
 			it( 'should bind #class to the template', () => {
 				view.class = 'foo';
-				expect( view.element.classList.contains( 'foo' ) ).to.be.true;
+				expect( view.element.classList.contains( 'foo' ) ).toBe( true );
 			} );
 
 			it( 'should bind #label to the template', () => {
 				view.label = 'bar';
-				expect( view.element.firstChild.textContent ).to.equal( 'bar' );
+				expect( view.element.firstChild.textContent ).toBe( 'bar' );
 
 				view.label = 'baz';
-				expect( view.element.firstChild.textContent ).to.equal( 'baz' );
+				expect( view.element.firstChild.textContent ).toBe( 'baz' );
 			} );
 
 			it( 'should bind #children to the template', () => {
@@ -117,7 +118,7 @@ describe( 'FormHeaderView', () => {
 
 				view.children.add( child );
 
-				expect( view.element.childNodes[ 1 ] ).to.equal( child.element );
+				expect( view.element.childNodes[ 1 ] ).toBe( child.element );
 
 				view.destroy();
 			} );

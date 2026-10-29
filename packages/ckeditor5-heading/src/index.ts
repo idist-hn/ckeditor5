@@ -1,19 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module heading
  */
 
-export { default as Heading } from './heading';
-export type { HeadingOption } from './headingconfig';
-export { default as HeadingEditing } from './headingediting';
-export { default as HeadingUI } from './headingui';
-export { default as HeadingButtonsUI } from './headingbuttonsui';
-export { default as Title, type TitleConfig } from './title';
-export type { HeadingConfig } from './headingconfig';
-export type { default as HeadingCommand } from './headingcommand';
+export { Heading } from './heading.js';
+export type { HeadingOption, HeadingElementOption } from './headingconfig.js';
+export { HeadingEditing } from './headingediting.js';
+export { HeadingUI } from './headingui.js';
+export { HeadingButtonsUI } from './headingbuttonsui.js';
+export { HeadingCommand } from './headingcommand.js';
+export { Title, type HeadingTitleConfig } from './title.js';
+export type { HeadingConfig, HeadingParagraphOption } from './headingconfig.js';
 
-import './augmentation';
+export { getLocalizedOptions as _getLocalizedHeadingOptions } from './utils.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

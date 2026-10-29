@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals HTMLElement */
-
-import ViewRawElement from '../../../src/view/rawelement';
-import ViewContainer from '../../../src/view/containerelement';
-import DomConverter from '../../../src/view/domconverter';
-import ViewDocument from '../../../src/view/document';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ViewRawElement } from '../../../src/view/rawelement.js';
+import { ViewContainerElement } from '../../../src/view/containerelement.js';
+import { ViewDomConverter } from '../../../src/view/domconverter.js';
+import { ViewDocument } from '../../../src/view/document.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'DOMConverter RawElement integration', () => {
 	let converter, viewDocument;
@@ -26,7 +25,7 @@ describe( 'DOMConverter RawElement integration', () => {
 
 	beforeEach( () => {
 		viewDocument = new ViewDocument( new StylesProcessor() );
-		converter = new DomConverter( viewDocument );
+		converter = new ViewDomConverter( viewDocument );
 	} );
 
 	describe( 'viewToDom()', () => {
@@ -35,15 +34,15 @@ describe( 'DOMConverter RawElement integration', () => {
 			rawElement.render = () => {};
 			const domElement = converter.viewToDom( rawElement );
 
-			expect( domElement ).to.be.instanceOf( HTMLElement );
+			expect( domElement ).toBeInstanceOf( HTMLElement );
 		} );
 
 		it( 'should create a DOM structure from a RawElement', () => {
 			const myElement = createRawElement( 'div' );
 			const domElement = converter.viewToDom( myElement );
 
-			expect( domElement ).to.be.instanceOf( HTMLElement );
-			expect( domElement.innerHTML ).to.equal( '<p><span>foo</span> bar</p>' );
+			expect( domElement ).toBeInstanceOf( HTMLElement );
+			expect( domElement.innerHTML ).toBe( '<p><span>foo</span> bar</p>' );
 		} );
 
 		it( 'should create a DOM structure entirely mapped to a single RawElement', () => {
@@ -51,9 +50,9 @@ describe( 'DOMConverter RawElement integration', () => {
 			const domElement = converter.viewToDom( myElement, { bind: true } );
 			const domParagraph = domElement.childNodes[ 0 ];
 
-			expect( converter.mapDomToView( domElement ) ).to.equal( myElement );
-			expect( converter.mapDomToView( domParagraph ) ).to.equal( myElement );
-			expect( converter.mapDomToView( domParagraph.childNodes[ 0 ] ) ).to.equal( myElement );
+			expect( converter.mapDomToView( domElement ) ).toBe( myElement );
+			expect( converter.mapDomToView( domParagraph ) ).toBe( myElement );
+			expect( converter.mapDomToView( domParagraph.childNodes[ 0 ] ) ).toBe( myElement );
 		} );
 	} );
 
@@ -62,7 +61,7 @@ describe( 'DOMConverter RawElement integration', () => {
 			const rawElement = createRawElement( 'div' );
 			const domElement = converter.viewToDom( rawElement, { bind: true } );
 
-			expect( converter.domToView( domElement ) ).to.equal( rawElement );
+			expect( converter.domToView( domElement ) ).toBe( rawElement );
 		} );
 
 		it( 'should return a RawElement for all nodes inside of it', () => {
@@ -72,34 +71,38 @@ describe( 'DOMConverter RawElement integration', () => {
 			const domParagraph = domElement.childNodes[ 0 ];
 			const domSpan = domParagraph.childNodes[ 0 ];
 
-			expect( converter.domToView( domParagraph ) ).to.equal( rawElement );
-			expect( converter.domToView( domSpan ) ).to.equal( rawElement );
-			expect( converter.domToView( domParagraph.childNodes[ 0 ] ) ).equal( rawElement );
-			expect( converter.domToView( domSpan.childNodes[ 0 ] ) ).equal( rawElement );
+			expect( converter.domToView( domParagraph ) ).toBe( rawElement );
+			expect( converter.domToView( domSpan ) ).toBe( rawElement );
+			expect( converter.domToView( domParagraph.childNodes[ 0 ] ) ).toBe( rawElement );
+			expect( converter.domToView( domSpan.childNodes[ 0 ] ) ).toBe( rawElement );
 		} );
 	} );
 
 	describe( 'domPositionToView()', () => {
 		it( 'should convert a position inside a RawElement to a position before it', () => {
 			const rawElement = createRawElement( 'h1' );
-			const container = new ViewContainer( viewDocument, 'div', null, [ new ViewContainer( viewDocument, 'div' ), rawElement ] );
+			const container = new ViewContainerElement(
+				viewDocument, 'div', null, [ new ViewContainerElement( viewDocument, 'div' ), rawElement ]
+			);
 			const domContainer = converter.viewToDom( container, { bind: true } );
 
 			const viewPosition = converter.domPositionToView( domContainer.childNodes[ 1 ], 0 );
 
-			expect( viewPosition.parent ).to.equal( container );
-			expect( viewPosition.offset ).to.equal( 1 );
+			expect( viewPosition.parent ).toBe( container );
+			expect( viewPosition.offset ).toBe( 1 );
 		} );
 
 		it( 'should convert a position inside RawElement children to a position before it', () => {
 			const rawElement = createRawElement( 'h1' );
-			const container = new ViewContainer( viewDocument, 'div', null, [ new ViewContainer( viewDocument, 'div' ), rawElement ] );
+			const container = new ViewContainerElement(
+				viewDocument, 'div', null, [ new ViewContainerElement( viewDocument, 'div' ), rawElement ]
+			);
 			const domContainer = converter.viewToDom( container, { bind: true } );
 
 			const viewPosition = converter.domPositionToView( domContainer.childNodes[ 1 ].childNodes[ 0 ], 1 );
 
-			expect( viewPosition.parent ).to.equal( container );
-			expect( viewPosition.offset ).to.equal( 1 );
+			expect( viewPosition.parent ).toBe( container );
+			expect( viewPosition.offset ).toBe( 1 );
 		} );
 	} );
 
@@ -108,13 +111,13 @@ describe( 'DOMConverter RawElement integration', () => {
 			const myElement = createRawElement( 'div' );
 			const domElement = converter.viewToDom( myElement, { bind: true } );
 
-			expect( converter.mapDomToView( domElement ) ).to.equal( myElement );
+			expect( converter.mapDomToView( domElement ) ).toBe( myElement );
 
 			const domParagraph = domElement.childNodes[ 0 ];
-			expect( converter.mapDomToView( domParagraph ) ).to.equal( myElement );
+			expect( converter.mapDomToView( domParagraph ) ).toBe( myElement );
 
 			const domSpan = domParagraph.childNodes[ 0 ];
-			expect( converter.mapDomToView( domSpan ) ).to.equal( myElement );
+			expect( converter.mapDomToView( domSpan ) ).toBe( myElement );
 		} );
 	} );
 
@@ -124,7 +127,7 @@ describe( 'DOMConverter RawElement integration', () => {
 			const domElement = converter.viewToDom( myElement, { bind: true } );
 
 			const domText = domElement.querySelector( 'span' ).childNodes[ 0 ];
-			expect( converter.findCorrespondingViewText( domText ) ).to.equal( myElement );
+			expect( converter.findCorrespondingViewText( domText ) ).toBe( myElement );
 		} );
 	} );
 
@@ -136,15 +139,15 @@ describe( 'DOMConverter RawElement integration', () => {
 			const domParagraph = domElement.childNodes[ 0 ];
 			const domSpan = domParagraph.childNodes[ 0 ];
 
-			expect( converter.getHostViewElement( domParagraph ) ).to.equal( rawElement );
-			expect( converter.getHostViewElement( domSpan ) ).to.equal( rawElement );
+			expect( converter.getHostViewElement( domParagraph ) ).toBe( rawElement );
+			expect( converter.getHostViewElement( domSpan ) ).toBe( rawElement );
 		} );
 
 		it( 'should return "null" for the parent itself', () => {
 			const rawElement = createRawElement( 'div' );
 			const domElement = converter.viewToDom( rawElement, { bind: true } );
 
-			expect( converter.getHostViewElement( domElement ) ).to.be.null;
+			expect( converter.getHostViewElement( domElement ) ).toBeNull();
 		} );
 	} );
 } );

@@ -1,27 +1,83 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-.ck.ck-table-cell-properties-form {
-	& .ck-form__row {
-		&.ck-table-cell-properties-form__alignment-row {
-			flex-wrap: wrap;
+:root,
+:host {
+	--ck-table-cell-properties-width: var(--ck-width-balloon-form);
+}
 
+.ck.ck-table-cell-properties-form {
+	width: var(--ck-table-cell-properties-width);
+
+	/*
+	 * The border row (equal thirds) and the dimensions row (two thirds) are inherited from the shared
+	 * `.ck-table-form` rules in tableform.css, so the cell form matches the table properties form.
+	 */
+	& .ck-form__row {
+		&.ck-table-cell-properties-form__padding-row {
+			/* One third of the row, aligned to the last column (padding sits under the Color column). */
+			--ck-table-cell-properties-padding-width: calc((100% - 2 * var(--ck-spacing-large, var(--ck-spacing-lg))) / 3);
+
+			align-self: flex-end;
+			padding: 0;
+			width: var(--ck-table-cell-properties-padding-width);
+			max-width: var(--ck-table-cell-properties-padding-width);
+			min-width: var(--ck-table-cell-properties-padding-width);
+		}
+
+		&.ck-table-cell-properties-form__alignment-row {
 			& .ck.ck-toolbar {
-				&:first-of-type {
-					/* 4 buttons out of 7 (h-alignment + v-alignment) = 0.57 */
-					flex-grow: 0.57;
+				background: none;
+
+				/* Compensate for missing input label that would push the margin (toolbar has no inputs). */
+				margin-top: var(--ck-spacing-standard, var(--ck-spacing-base));
+
+				&.ck-table-cell-properties-form__horizontal-alignment-toolbar {
+					/* Two thirds of the row, aligned to the first two columns above. */
+					--ck-table-cell-properties-horizontal-alignment-width: calc((100% - 2 * var(--ck-spacing-large, var(--ck-spacing-lg))) / 3 * 2 + var(--ck-spacing-large, var(--ck-spacing-lg)));
+
+					width: var(--ck-table-cell-properties-horizontal-alignment-width);
+					max-width: var(--ck-table-cell-properties-horizontal-alignment-width);
+					min-width: var(--ck-table-cell-properties-horizontal-alignment-width);
+					padding: 0;
 				}
 
-				&:last-of-type {
-					/* 3 buttons out of 7 (h-alignment + v-alignment) = 0.43 */
-					flex-grow: 0.43;
+				&.ck-table-cell-properties-form__vertical-alignment-toolbar {
+					/* Fill the row space remaining next to the two-thirds horizontal toolbar (the last third). */
+					flex-grow: 1;
 				}
 
 				& .ck-button {
 					flex-grow: 1;
 				}
+			}
+			flex-wrap: wrap
+		}
+
+		&.ck-form__row.ck-table-form__action-row {
+			& > .ck.ck-button {
+				flex-grow: initial;
+
+				& .ck-button__label {
+					color: currentColor;
+				}
+			}
+		}
+
+		&.ck-table-form__cell-type-row {
+			/* Two thirds of the row, aligned to the first two border columns; Background takes the last third. */
+			--ck-table-form-cell-type-width: calc((100% - 2 * var(--ck-spacing-large, var(--ck-spacing-lg))) / 3 * 2 + var(--ck-spacing-large, var(--ck-spacing-lg)));
+
+			width: var(--ck-table-form-cell-type-width);
+			max-width: var(--ck-table-form-cell-type-width);
+			min-width: var(--ck-table-form-cell-type-width);
+			padding: 0;
+
+			/* The cell-type control is a dropdown (inline-block by default); make it fill its column. */
+			& .ck-dropdown {
+				width: 100%;
 			}
 		}
 	}

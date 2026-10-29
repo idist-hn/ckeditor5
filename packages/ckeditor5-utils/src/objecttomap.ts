@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -20,7 +20,7 @@
  * @param obj Object to transform.
  * @returns Map created from object.
  */
-export default function objectToMap<T>( obj: { readonly [ key: string ]: T } | null | undefined ): Map<string, T> {
+export function objectToMap<T>( obj: { readonly [ key: string ]: T } | null | undefined ): Map<string, T> {
 	const map = new Map<string, T>();
 
 	for ( const key in obj ) {

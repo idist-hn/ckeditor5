@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, beforeEach, afterEach, expect } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { Clipboard } from '@ckeditor/ckeditor5-clipboard';
+import { Image } from '../src/image.js';
+import { ImageUpload } from '../src/imageupload.js';
+import { ImageUploadEditing } from '../src/imageupload/imageuploadediting.js';
+import { ImageUploadProgress } from '../src/imageupload/imageuploadprogress.js';
+import { ImageUploadUI } from '../src/imageupload/imageuploadui.js';
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import Clipboard from '@ckeditor/ckeditor5-clipboard/src/clipboard';
-import Image from '../src/image';
-import ImageUpload from '../src/imageupload';
-import ImageUploadEditing from '../src/imageupload/imageuploadediting';
-import ImageUploadProgress from '../src/imageupload/imageuploadprogress';
-import ImageUploadUI from '../src/imageupload/imageuploadui';
-
-import { UploadAdapterPluginMock } from '@ckeditor/ckeditor5-upload/tests/_utils/mocks';
+import { UploadAdapterPluginMock } from '@ckeditor/ckeditor5-upload/tests/_utils/mocks.js';
 
 describe( 'ImageUpload', () => {
 	let editor, editorElement;
@@ -37,15 +36,23 @@ describe( 'ImageUpload', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageUpload.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageUpload.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should include ImageUploadEditing', () => {
-		expect( editor.plugins.get( ImageUploadEditing ) ).to.be.instanceOf( ImageUploadEditing );
+		expect( editor.plugins.get( ImageUploadEditing ) ).toBeInstanceOf( ImageUploadEditing );
 	} );
 
 	it( 'should include ImageUploadProgress', () => {
-		expect( editor.plugins.get( ImageUploadProgress ) ).to.be.instanceOf( ImageUploadProgress );
+		expect( editor.plugins.get( ImageUploadProgress ) ).toBeInstanceOf( ImageUploadProgress );
 	} );
 
 	it( 'should include ImageUploadUI', () => {
-		expect( editor.plugins.get( ImageUploadUI ) ).to.be.instanceOf( ImageUploadUI );
+		expect( editor.plugins.get( ImageUploadUI ) ).toBeInstanceOf( ImageUploadUI );
 	} );
 } );

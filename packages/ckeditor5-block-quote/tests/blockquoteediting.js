@@ -1,17 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import BlockQuoteEditing from '../src/blockquoteediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ListEditing from '@ckeditor/ckeditor5-list/src/list/listediting';
-import BoldEditing from '@ckeditor/ckeditor5-basic-styles/src/bold/boldediting';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { BlockQuoteEditing } from '../src/blockquoteediting.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ListEditing } from '@ckeditor/ckeditor5-list';
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
 
-import BlockQuoteCommand from '../src/blockquotecommand';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
+
+import { BlockQuoteCommand } from '../src/blockquotecommand.js';
 
 describe( 'BlockQuoteEditing', () => {
 	let editor, model;
@@ -32,28 +34,36 @@ describe( 'BlockQuoteEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( BlockQuoteEditing.pluginName ).to.equal( 'BlockQuoteEditing' );
+		expect( BlockQuoteEditing.pluginName ).toBe( 'BlockQuoteEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( BlockQuoteEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( BlockQuoteEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'adds a blockQuote command', () => {
-		expect( editor.commands.get( 'blockQuote' ) ).to.be.instanceOf( BlockQuoteCommand );
+		expect( editor.commands.get( 'blockQuote' ) ).toBeInstanceOf( BlockQuoteCommand );
 	} );
 
 	it( 'allows for blockQuote in the $root', () => {
-		expect( model.schema.checkChild( [ '$root' ], 'blockQuote' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root' ], 'blockQuote' ) ).toBe( true );
 	} );
 
 	it( 'allows for $block in blockQuote', () => {
-		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], '$block' ) ).to.be.true;
-		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], 'paragraph' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], '$block' ) ).toBe( true );
+		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], 'paragraph' ) ).toBe( true );
 	} );
 
 	it( 'allows for blockQuote in blockQuote', () => {
-		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], 'blockQuote' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], 'blockQuote' ) ).toBe( true );
 	} );
 
 	it( 'does not break when checking an unregisterd item', () => {
-		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], 'foo' ) ).to.be.false;
+		expect( model.schema.checkChild( [ '$root', 'blockQuote' ], 'foo' ) ).toBe( false );
 	} );
 
 	it( 'inherits attributes from $container', () => {
@@ -61,7 +71,7 @@ describe( 'BlockQuoteEditing', () => {
 			allowAttributes: 'foo'
 		} );
 
-		expect( model.schema.checkAttribute( 'blockQuote', 'foo' ) ).to.be.true;
+		expect( model.schema.checkAttribute( 'blockQuote', 'foo' ) ).toBe( true );
 	} );
 
 	it( 'adds converters to the data pipeline', () => {
@@ -69,14 +79,14 @@ describe( 'BlockQuoteEditing', () => {
 
 		editor.setData( data );
 
-		expect( getModelData( model ) ).to.equal( '<blockQuote><paragraph>[]x</paragraph></blockQuote>' );
-		expect( editor.getData() ).to.equal( data );
+		expect( _getModelData( model ) ).toBe( '<blockQuote><paragraph>[]x</paragraph></blockQuote>' );
+		expect( editor.getData() ).toBe( data );
 	} );
 
 	it( 'adds a converter to the view pipeline', () => {
-		setModelData( model, '<blockQuote><paragraph>x</paragraph></blockQuote>' );
+		_setModelData( model, '<blockQuote><paragraph>x</paragraph></blockQuote>' );
 
-		expect( editor.getData() ).to.equal( '<blockquote><p>x</p></blockquote>' );
+		expect( editor.getData() ).toBe( '<blockquote><p>x</p></blockquote>' );
 	} );
 
 	it( 'allows list items inside blockQuote', () => {
@@ -87,18 +97,20 @@ describe( 'BlockQuoteEditing', () => {
 			.then( editor => {
 				editor.setData( '<blockquote><ul><li>xx</li></ul></blockquote>' );
 
-				expect( editor.getData() ).to.equal( '<blockquote><ul><li>xx</li></ul></blockquote>' );
+				expect( editor.getData( { skipListItemIds: true } ) ).toBe( '<blockquote><ul><li>xx</li></ul></blockquote>' );
+
+				return editor.destroy();
 			} );
 	} );
 
 	it( 'should remove empty blockQuote elements', () => {
-		setModelData( model, '<blockQuote></blockQuote><paragraph>Foo</paragraph>' );
+		_setModelData( model, '<blockQuote></blockQuote><paragraph>Foo</paragraph>' );
 
-		expect( editor.getData() ).to.equal( '<p>Foo</p>' );
+		expect( editor.getData() ).toBe( '<p>Foo</p>' );
 	} );
 
 	it( 'should remove blockQuotes which became empty', () => {
-		setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
+		_setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
 
 		model.change( writer => {
 			const root = model.document.getRoot();
@@ -107,11 +119,11 @@ describe( 'BlockQuoteEditing', () => {
 			writer.remove( writer.createRangeIn( bq ) );
 		} );
 
-		expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' ); // Autoparagraphed.
+		expect( editor.getData( { trim: 'none' } ) ).toBe( '<p>&nbsp;</p>' ); // Autoparagraphed.
 	} );
 
 	it( 'should not unwrap a blockQuote if it was inserted into another blockQuote', () => {
-		setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
+		_setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
 
 		model.change( writer => {
 			const root = model.document.getRoot();
@@ -123,11 +135,11 @@ describe( 'BlockQuoteEditing', () => {
 			writer.insert( bq, root.getChild( 0 ), 1 ); // Insert after <p>Foo</p>.
 		} );
 
-		expect( editor.getData() ).to.equal( '<blockquote><p>Foo</p><blockquote><p>Bar</p></blockquote></blockquote>' );
+		expect( editor.getData() ).toBe( '<blockquote><p>Foo</p><blockquote><p>Bar</p></blockquote></blockquote>' );
 	} );
 
 	it( 'should not unwrap nested blockQuote if it was wrapped into another blockQuote', () => {
-		setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote><paragraph>Bar</paragraph>' );
+		_setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote><paragraph>Bar</paragraph>' );
 
 		model.change( writer => {
 			const root = model.document.getRoot();
@@ -135,12 +147,12 @@ describe( 'BlockQuoteEditing', () => {
 			writer.wrap( writer.createRangeIn( root ), 'blockQuote' );
 		} );
 
-		expect( editor.getData() ).to.equal( '<blockquote><blockquote><p>Foo</p></blockquote><p>Bar</p></blockquote>' );
+		expect( editor.getData() ).toBe( '<blockquote><blockquote><p>Foo</p></blockquote><p>Bar</p></blockquote>' );
 	} );
 
 	it( 'postfixer should do nothing on attribute change', () => {
 		// This is strictly a 100% CC test.
-		setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
+		_setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
 
 		model.change( writer => {
 			const root = model.document.getRoot();
@@ -149,7 +161,7 @@ describe( 'BlockQuoteEditing', () => {
 			writer.setAttribute( 'bold', true, writer.createRangeIn( p ) );
 		} );
 
-		expect( editor.getData() ).to.equal( '<blockquote><p><strong>Foo</strong></p></blockquote>' );
+		expect( editor.getData() ).toBe( '<blockquote><p><strong>Foo</strong></p></blockquote>' );
 	} );
 
 	describe( 'nested blockQuote forbidden by custom rule', () => {
@@ -164,7 +176,7 @@ describe( 'BlockQuoteEditing', () => {
 		} );
 
 		it( 'should unwrap a blockQuote if it was inserted into another blockQuote', () => {
-			setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
+			_setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote>' );
 
 			model.change( writer => {
 				const root = model.document.getRoot();
@@ -176,11 +188,11 @@ describe( 'BlockQuoteEditing', () => {
 				writer.insert( bq, root.getChild( 0 ), 1 ); // Insert after <p>Foo</p>.
 			} );
 
-			expect( editor.getData() ).to.equal( '<blockquote><p>Foo</p><p>Bar</p></blockquote>' );
+			expect( editor.getData() ).toBe( '<blockquote><p>Foo</p><p>Bar</p></blockquote>' );
 		} );
 
 		it( 'should unwrap nested blockQuote if it was wrapped into another blockQuote', () => {
-			setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote><paragraph>Bar</paragraph>' );
+			_setModelData( model, '<blockQuote><paragraph>Foo</paragraph></blockQuote><paragraph>Bar</paragraph>' );
 
 			model.change( writer => {
 				const root = model.document.getRoot();
@@ -188,7 +200,7 @@ describe( 'BlockQuoteEditing', () => {
 				writer.wrap( writer.createRangeIn( root ), 'blockQuote' );
 			} );
 
-			expect( editor.getData() ).to.equal( '<blockquote><p>Foo</p><p>Bar</p></blockquote>' );
+			expect( editor.getData() ).toBe( '<blockquote><p>Foo</p><p>Bar</p></blockquote>' );
 		} );
 	} );
 } );

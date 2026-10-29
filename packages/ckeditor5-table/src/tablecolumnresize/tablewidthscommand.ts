@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecolumnresize/tablewidthscommand
  */
 
-import type { Element } from 'ckeditor5/src/engine';
-import { Command } from 'ckeditor5/src/core';
-import { normalizeColumnWidths } from './utils';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { normalizeColumnWidths, removeCellWidthsFromTable } from './utils.js';
 
 /**
  * Command used by the {@link module:table/tablecolumnresize~TableColumnResize Table column resize feature} that
  * updates the width of the whole table as well as its individual columns.
  */
-export default class TableWidthsCommand extends Command {
+export class TableWidthsCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -64,6 +64,9 @@ export default class TableWidthsCommand extends Command {
 
 			const widths = normalizeColumnWidths( columnWidths as Array<string> );
 
+			// A column resize makes per-cell widths obsolete (the column width governs the layout), so drop them.
+			removeCellWidthsFromTable( writer, table );
+
 			if ( !tableColumnGroup ) {
 				const colGroupElement = writer.createElement( 'tableColumnGroup' );
 
@@ -94,5 +97,5 @@ export interface TableWidthsCommandOptions {
 	/**
 	 * The table that is having the columns resized.
 	 */
-	table?: Element;
+	table?: ModelElement;
 }

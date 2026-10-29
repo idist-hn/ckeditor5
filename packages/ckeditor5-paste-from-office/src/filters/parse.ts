@@ -1,40 +1,50 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module paste-from-office/filters/parse
  */
 
-/* globals DOMParser */
-
 import {
-	DomConverter,
+	ViewDomConverter,
 	ViewDocument,
 	type StylesProcessor,
 	type ViewDocumentFragment
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
+import { trustedHtml } from '@ckeditor/ckeditor5-utils';
 
-import { normalizeSpacing, normalizeSpacerunSpans } from './space';
+import { normalizeSpacing, normalizeSpacerunSpans } from './space.js';
 
 /**
  * Parses the provided HTML extracting contents of `<body>` and `<style>` tags.
  *
  * @param htmlString HTML string to be parsed.
  */
-export function parseHtml( htmlString: string, stylesProcessor: StylesProcessor ): ParseHtmlResult {
+export function parsePasteOfficeHtml( htmlString: string, stylesProcessor: StylesProcessor ): PasteOfficeHtmlParseResult {
 	const domParser = new DOMParser();
 
 	// Remove Word specific "if comments" so content inside is not omitted by the parser.
 	htmlString = htmlString.replace( /<!--\[if gte vml 1]>/g, '' );
 
+	// Clean the <head> section of MS Windows specific tags. See https://github.com/ckeditor/ckeditor5/issues/15333.
+	// The regular expression matches the <o:SmartTagType> tag with optional attributes (with or without values).
+	htmlString = htmlString.replace( /<o:SmartTagType(?:\s+[^\s>=]+(?:="[^"]*")?)*\s*\/?>/gi, '' );
+
 	const normalizedHtml = normalizeSpacing( cleanContentAfterBody( htmlString ) );
 
 	// Parse htmlString as native Document object.
-	const htmlDocument = domParser.parseFromString( normalizedHtml, 'text/html' );
+	const htmlDocument = domParser.parseFromString( trustedHtml( normalizedHtml ), 'text/html' );
 
 	normalizeSpacerunSpans( htmlDocument );
+
+	// Remove `<style>` blocks that ended up inside the `<body>`. Some sources (e.g. Excel Online) wrap a whole
+	// `<html>` document inside a `<div>`, which makes the browser flatten the document's `<style>` into the body.
+	// Such a `<style>` is not a usable stylesheet there and would otherwise be pasted as visible text.
+	// See https://github.com/ckeditor/ckeditor5/issues/20188.
+	// In-`<head>` styles are left untouched and are still collected by `extractStyles()` below.
+	removeInBodyStyleBlocks( htmlDocument );
 
 	// Get `innerHTML` first as transforming to View modifies the source document.
 	const bodyString = htmlDocument.body.innerHTML;
@@ -54,9 +64,9 @@ export function parseHtml( htmlString: string, stylesProcessor: StylesProcessor 
 }
 
 /**
- * The result of {@link ~parseHtml}.
+ * The result of {@link ~parsePasteOfficeHtml}.
  */
-export interface ParseHtmlResult {
+export interface PasteOfficeHtmlParseResult {
 
 	/**
 	 * Parsed body content as a traversable structure.
@@ -80,13 +90,13 @@ export interface ParseHtmlResult {
 }
 
 /**
- * Transforms native `Document` object into {@link module:engine/view/documentfragment~DocumentFragment}. Comments are skipped.
+ * Transforms native `Document` object into {@link module:engine/view/documentfragment~ViewDocumentFragment}. Comments are skipped.
  *
  * @param htmlDocument Native `Document` object to be transformed.
  */
 function documentToView( htmlDocument: Document, stylesProcessor: StylesProcessor ) {
 	const viewDocument = new ViewDocument( stylesProcessor );
-	const domConverter = new DomConverter( viewDocument, { renderingMode: 'data' } );
+	const domConverter = new ViewDomConverter( viewDocument, { renderingMode: 'data' } );
 	const fragment = htmlDocument.createDocumentFragment();
 	const nodes = htmlDocument.body.childNodes;
 
@@ -94,7 +104,24 @@ function documentToView( htmlDocument: Document, stylesProcessor: StylesProcesso
 		fragment.appendChild( nodes[ 0 ] );
 	}
 
-	return domConverter.domToView( fragment, { skipComments: true } ) as ViewDocumentFragment;
+	return domConverter.domToView( fragment, {
+		skipComments: true,
+		skipProcessingInstructions: true
+	} ) as ViewDocumentFragment;
+}
+
+/**
+ * Removes all `<style>` elements found inside the `<body>` of the provided `htmlDocument`.
+ *
+ * This guards against sources that place (or flatten) a `<style>` block into the body, where its CSS text
+ * would otherwise be converted to visible text. Styles located in the `<head>` are not affected.
+ *
+ * @param htmlDocument Native `Document` object to be cleaned.
+ */
+function removeInBodyStyleBlocks( htmlDocument: Document ): void {
+	for ( const style of Array.from( htmlDocument.body.querySelectorAll( 'style' ) ) ) {
+		style.remove();
+	}
 }
 
 /**

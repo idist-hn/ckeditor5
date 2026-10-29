@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageblock
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { Widget } from 'ckeditor5/src/widget';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Widget } from '@ckeditor/ckeditor5-widget';
 
-import ImageTextAlternative from './imagetextalternative';
-import ImageBlockEditing from './image/imageblockediting';
-
-import '../theme/image.css';
+import { ImageTextAlternative } from './imagetextalternative.js';
+import { ImageBlockEditing } from './image/imageblockediting.js';
+import { ImageInsertUI } from './imageinsert/imageinsertui.js';
 
 /**
  * The image block plugin.
@@ -26,12 +25,12 @@ import '../theme/image.css';
  * Usually, it is used in conjunction with other plugins from this package. See the {@glink api/image package page}
  * for more information.
  */
-export default class ImageBlock extends Plugin {
+export class ImageBlock extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageBlockEditing, Widget, ImageTextAlternative ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageBlockEditing, Widget, ImageTextAlternative, ImageInsertUI ]> {
+		return [ ImageBlockEditing, Widget, ImageTextAlternative, ImageInsertUI ];
 	}
 
 	/**
@@ -39,5 +38,12 @@ export default class ImageBlock extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageBlock' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

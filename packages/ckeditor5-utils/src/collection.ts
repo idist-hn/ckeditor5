@@ -1,16 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/collection
  */
 
-import EmitterMixin from './emittermixin';
-import CKEditorError from './ckeditorerror';
-import uid from './uid';
-import isIterable from './isiterable';
+import { EmitterMixin, type EmitterMixinConstructor } from './emittermixin.js';
+import { CKEditorError } from './ckeditorerror.js';
+import { uid } from './uid.js';
+import { isIterable } from './isiterable.js';
+
+const CollectionBase: EmitterMixinConstructor = /* #__PURE__ */ EmitterMixin();
 
 /**
  * Collections are ordered sets of objects. Items in the collection can be retrieved by their indexes
@@ -24,7 +26,7 @@ import isIterable from './isiterable';
  *
  * @typeParam T The type of the collection element.
  */
-export default class Collection<T extends Record<string, any>> extends EmitterMixin() implements Iterable<T> {
+export class Collection<T extends Record<string, any>> extends CollectionBase implements Iterable<T> {
 	/**
 	 * The internal list of items in the collection.
 	 */
@@ -328,6 +330,18 @@ export default class Collection<T extends Record<string, any>> extends EmitterMi
 		ctx?: any
 	): Array<U> {
 		return this._items.map( callback, ctx );
+	}
+
+	/**
+	 * Performs the specified action for each item in the collection.
+	 *
+	 * @param ctx Context in which the `callback` will be called.
+	 */
+	public forEach(
+		callback: ( item: T, index: number ) => unknown,
+		ctx?: any
+	): void {
+		this._items.forEach( callback, ctx );
 	}
 
 	/**
@@ -695,7 +709,7 @@ export default class Collection<T extends Record<string, any>> extends EmitterMi
 	 */
 	private _remove( subject: T | number | string ): [ item: T, index: number ] {
 		let index: number, id: string, item: T;
-		let itemDoesNotExist = false;
+		let itemDoesNotExist;
 		const idProperty = this._idProperty;
 
 		if ( typeof subject == 'string' ) {

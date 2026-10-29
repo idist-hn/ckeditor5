@@ -1,19 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module list/listconfig
  */
 
+import { type ArrayOrItem } from '@ckeditor/ckeditor5-utils';
+
 /**
  * The configuration of the {@link module:list/list~List list} feature
- * and the {@link module:list/documentlist~DocumentList document list} feature.
+ * and the {@link module:list/legacylist~LegacyList legacy list} feature.
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
  * 		list:  ... // The list feature configuration.
  * 	} )
  * 	.then( ... )
@@ -28,7 +30,7 @@ export interface ListConfig {
 
 	/**
 	 * The configuration of the {@link module:list/listproperties~ListProperties} feature and the
-	 * {@link module:list/documentlistproperties~DocumentListProperties document list properties} feature.
+	 * {@link module:list/legacylistproperties~LegacyListProperties legacy list properties} feature.
 	 *
 	 * Read more in {@link module:list/listconfig~ListPropertiesConfig}.
 	 */
@@ -44,24 +46,57 @@ export interface ListConfig {
 	 * @default true
 	 */
 	multiBlock?: boolean;
+
+	/**
+	 * Enables list item marker formatting. Current list of integrated formatting plugins includes:
+	 * * {@link module:list/listformatting/listitemfontfamilyintegration~ListItemFontFamilyIntegration Font family}
+	 * * {@link module:list/listformatting/listitemfontsizeintegration~ListItemFontSizeIntegration Font size}
+	 * * {@link module:list/listformatting/listitemfontcolorintegration~ListItemFontColorIntegration Font color}
+	 * * {@link module:list/listformatting/listitemboldintegration~ListItemBoldIntegration Bold}
+	 * * {@link module:list/listformatting/listitemitalicintegration~ListItemItalicIntegration Italic}
+	 *
+	 * **Note:** This is enabled by default.
+	 *
+	 * @default true
+	 */
+	enableListItemMarkerFormatting?: boolean;
+
+	/**
+	 * When set to `true`, list items can be indented by more than one level relative to their parent.
+	 * By default, the editor enforces that each nested list item is only one level deeper than its parent.
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( editorElement, {
+	 * 		list: {
+	 * 			enableSkipLevelLists: true
+	 * 		}
+	 * 	} )
+	 * 	.then( ... )
+	 * 	.catch( ... );
+	 * ```
+	 *
+	 * @default false
+	 */
+	enableSkipLevelLists?: boolean;
 }
 
 /**
  * The configuration of the {@link module:list/listproperties~ListProperties list properties} feature and the
- * {@link module:list/documentlistproperties~DocumentListProperties document list properties} feature.
+ * {@link module:list/legacylistproperties~LegacyListProperties legacy list properties} feature.
  *
  * This configuration controls the individual list properties. For instance, it enables or disables specific editor commands
  * operating on lists ({@link module:list/listproperties/liststylecommand~ListStyleCommand `'listStyle'`},
  * {@link module:list/listproperties/liststartcommand~ListStartCommand `'listStart'`},
- * {@link module:list/listproperties/listreversedcommand~ListReversedCommand `'listReversed'`}, or on the document lists
- * {@link module:list/documentlistproperties/documentliststylecommand~DocumentListStyleCommand `'listStyle'`},
- * {@link module:list/documentlistproperties/documentliststartcommand~DocumentListStartCommand `'listStart'`},
- * {@link module:list/documentlistproperties/documentlistreversedcommand~DocumentListReversedCommand `'listReversed'`}), the look of the UI
+ * {@link module:list/listproperties/listreversedcommand~ListReversedCommand `'listReversed'`}, or on the legacy lists
+ * {@link module:list/legacylistproperties/legacyliststylecommand~LegacyListStyleCommand `'listStyle'`},
+ * {@link module:list/legacylistproperties/legacyliststartcommand~LegacyListStartCommand `'listStart'`},
+ * {@link module:list/legacylistproperties/legacylistreversedcommand~LegacyListReversedCommand `'listReversed'`}), the look of the UI
  * (`'numberedList'` and `'bulletedList'` dropdowns), and the editor data pipeline (allowed HTML attributes).
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
  * 		list: {
  * 			properties: {
  * 				styles: true,
@@ -81,12 +116,12 @@ export interface ListPropertiesConfig {
 	 * It allows changing the `list-style-type` style or the `type` HTML attribute of a list.
 	 *
 	 * **Note**: Styling using the `type` HTML attribute is only available in
-	 * {@link module:list/documentlistproperties~DocumentListProperties document list properties}
+	 * {@link module:list/listproperties~ListProperties list properties}
 	 * ({@link module:list/listconfig~ListPropertiesStyleConfig learn more}).
 	 *
 	 * @default true
 	 */
-	styles?: boolean | ListPropertiesStyleConfig;
+	styles?: boolean | ListPropertiesStyleConfig | ArrayOrItem<ListPropertiesStyleListType>;
 
 	/**
 	 * When set, the list start index feature will be enabled. It allows changing the `start` HTML attribute of the numbered lists. As a
@@ -112,6 +147,33 @@ export interface ListPropertiesConfig {
 export interface ListPropertiesStyleConfig {
 
 	/**
+	 * Enable style feature for the given list type only.
+	 *
+	 * ```ts
+	 * {
+	 * 	list: {
+	 * 		properties: {
+	 * 			styles: {
+	 * 				listTypes: 'numbered'
+	 * 			}
+	 *
+	 * 			// ...
+	 * 		}
+	 * 	},
+	 *
+	 * 	// ...
+	 * }
+	 * ```
+	 *
+     *
+	 * **Note**: This configuration works only with
+	 * {@link module:list/listproperties~ListProperties list properties}.
+	 *
+	 * @default ['bulleted','numbered']
+	 */
+	listTypes?: ArrayOrItem<ListPropertiesStyleListType>;
+
+	/**
 	 * When set `true`, the list style feature will use the `type` attribute of `<ul>` and `<ol>` elements instead of the `list-style-type`
 	 * style.
 	 *
@@ -134,9 +196,80 @@ export interface ListPropertiesStyleConfig {
 	 * **Note**: Due to limitations of HTML, the "Decimal with leading zero" style is impossible to set using the `type` attribute.
 	 *
 	 * **Note**: This configuration works only with
-	 * {@link module:list/documentlistproperties~DocumentListProperties document list properties}.
+	 * {@link module:list/listproperties~ListProperties list properties}.
 	 *
 	 * @default false
 	 */
 	useAttribute?: boolean;
+
+	/**
+	 * Defines which list styles should be available in the UI.
+	 * Accepts a configuration object with numbered and bulleted styles.
+	 *
+	 * ```ts
+	 * {
+	 *   list: {
+	 *     properties: {
+	 *       styles: {
+	 *         listStyleTypes: {
+	 *           numbered: [ 'decimal', 'lower-roman', 'upper-roman' ],
+	 *           bulleted: [ 'disc', 'circle' ]
+	 *         }
+	 *       }
+	 *     }
+	 *   }
+	 * }
+	 * ```
+	 *
+	 * When the `listTypes` configuration is set, `listStyleTypes` will only take effect for the enabled list types.
+	 * For example, with the following configuration:
+	 *
+	 * ```ts
+	 * {
+	 *   list: {
+	 *     properties: {
+	 *       styles: {
+	 *         listTypes: 'numbered',
+	 *         listStyleTypes: {
+	 *           numbered: [ 'decimal', 'lower-roman' ],
+	 *           bulleted: [ 'disc', 'circle' ]
+	 *         }
+	 *       }
+	 *     }
+	 *   }
+	 * }
+	 * ```
+	 *
+	 * Only the numbered list styles will be available in the UI, as the `listTypes` property limits style selection to numbered lists only.
+	 *
+	 * **Note**: This configuration works only with
+	 * {@link module:list/listproperties~ListProperties list properties}.
+	 *
+	 * @default `{
+	 *   numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ],
+	 *   bulleted: [ 'disc', 'circle', 'square' ]
+	 * }`
+	 */
+	listStyleTypes?: ListStyleTypesConfig;
 }
+
+export interface ListStyleTypesConfig {
+	numbered?: Array<NumberedListStyleType>;
+	bulleted?: Array<BulletedListStyleType>;
+}
+
+export type ListPropertiesStyleListType = 'numbered' | 'bulleted';
+
+export type NumberedListStyleType =
+	| 'decimal'
+	| 'decimal-leading-zero'
+	| 'lower-roman'
+	| 'upper-roman'
+	| 'lower-latin'
+	| 'upper-latin'
+	| 'arabic-indic';
+
+export type BulletedListStyleType =
+	| 'disc'
+	| 'circle'
+	| 'square';

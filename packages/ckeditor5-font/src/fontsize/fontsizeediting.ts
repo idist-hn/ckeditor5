@@ -1,19 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontsize/fontsizeediting
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import { CKEditorError } from 'ckeditor5/src/utils';
-import { isLength, isPercentage, type ViewElement } from 'ckeditor5/src/engine';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import { CKEditorError } from '@ckeditor/ckeditor5-utils';
+import {
+	isLengthStyleValue,
+	isPercentageStyleValue,
+	type ViewElement
+} from '@ckeditor/ckeditor5-engine';
 
-import FontSizeCommand from './fontsizecommand';
-import { normalizeOptions } from './utils';
-import { buildDefinition, FONT_SIZE, type FontConverterDefinition } from '../utils';
+import { FontSizeCommand } from './fontsizecommand.js';
+import { normalizeOptions } from './utils.js';
+import { buildDefinition, FONT_SIZE, type FontConverterDefinition } from '../utils.js';
 
 // Mapping of `<font size="..">` styling to CSS's `font-size` values.
 const styleFontSize = [
@@ -38,12 +42,19 @@ const styleFontSize = [
  *
  * depending on the {@link module:font/fontconfig~FontSizeConfig configuration}.
  */
-export default class FontSizeEditing extends Plugin {
+export class FontSizeEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'FontSizeEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -108,7 +119,7 @@ export default class FontSizeEditing extends Plugin {
 
 		// If `fontSize.supportAllValues=true`, we do not allow to use named presets in the plugin's configuration.
 		const presets = definition.model!.values.filter( ( value: any ) => {
-			return !isLength( String( value ) ) && !isPercentage( String( value ) );
+			return !isLengthStyleValue( String( value ) ) && !isPercentageStyleValue( String( value ) );
 		} );
 
 		if ( presets.length ) {
@@ -119,7 +130,7 @@ export default class FontSizeEditing extends Plugin {
 			 * See valid examples described in the {@link module:font/fontconfig~FontSizeConfig#options plugin configuration}.
 			 *
 			 * @error font-size-invalid-use-of-named-presets
-			 * @param {Array.<String>} presets Invalid values.
+			 * @param {Array.<string>} presets Invalid values.
 			 */
 			throw new CKEditorError(
 				'font-size-invalid-use-of-named-presets',

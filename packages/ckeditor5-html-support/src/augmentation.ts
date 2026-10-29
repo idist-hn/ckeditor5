@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 import type {
@@ -10,7 +10,7 @@ import type {
 	GeneralHtmlSupportConfig,
 	CodeBlockElementSupport,
 	CustomElementSupport,
-	DocumentListElementSupport,
+	ListElementSupport,
 	DualContentModelElementSupport,
 	HeadingElementSupport,
 	ImageElementSupport,
@@ -18,9 +18,11 @@ import type {
 	ScriptElementSupport,
 	StyleElementSupport,
 	TableElementSupport,
+	HorizontalLineElementSupport,
 	HtmlComment,
-	FullPage
-} from './index';
+	FullPage,
+	EmptyBlock
+} from './index.js';
 
 declare module '@ckeditor/ckeditor5-core' {
 	interface EditorConfig {
@@ -40,7 +42,7 @@ declare module '@ckeditor/ckeditor5-core' {
 		[ DataSchema.pluginName ]: DataSchema;
 		[ CodeBlockElementSupport.pluginName ]: CodeBlockElementSupport;
 		[ CustomElementSupport.pluginName ]: CustomElementSupport;
-		[ DocumentListElementSupport.pluginName ]: DocumentListElementSupport;
+		[ ListElementSupport.pluginName ]: ListElementSupport;
 		[ DualContentModelElementSupport.pluginName ]: DualContentModelElementSupport;
 		[ HeadingElementSupport.pluginName ]: HeadingElementSupport;
 		[ ImageElementSupport.pluginName ]: ImageElementSupport;
@@ -48,7 +50,9 @@ declare module '@ckeditor/ckeditor5-core' {
 		[ ScriptElementSupport.pluginName ]: ScriptElementSupport;
 		[ StyleElementSupport.pluginName ]: StyleElementSupport;
 		[ TableElementSupport.pluginName ]: TableElementSupport;
+		[ HorizontalLineElementSupport.pluginName ]: HorizontalLineElementSupport;
 		[ HtmlComment.pluginName ]: HtmlComment;
 		[ FullPage.pluginName ]: FullPage;
+		[ EmptyBlock.pluginName ]: EmptyBlock;
 	}
 }

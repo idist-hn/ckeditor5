@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global console:false */
+import { expect } from 'vitest';
 
-import EmitterMixin from '../../src/emittermixin';
-import CKEditorError from '../../src/ckeditorerror';
-import areConnectedThroughProperties from '../../src/areconnectedthroughproperties';
+import { EmitterMixin } from '../../src/emittermixin.js';
+import { CKEditorError } from '../../src/ckeditorerror.js';
+import { areConnectedThroughProperties } from '../../src/areconnectedthroughproperties.js';
 
 /**
  * Creates an instance inheriting from {@link module:utils/emittermixin~Emitter} with one additional method `observe()`.
@@ -67,7 +67,7 @@ export function assertBinding( observable, stateBefore, data, stateAfter ) {
 	let key, boundObservable, attrs;
 
 	for ( key in stateBefore ) {
-		expect( observable[ key ] ).to.equal( stateBefore[ key ] );
+		expect( observable[ key ] ).toEqual( stateBefore[ key ] );
 	}
 
 	// Change attributes of bound observables.
@@ -82,14 +82,14 @@ export function assertBinding( observable, stateBefore, data, stateAfter ) {
 	}
 
 	for ( key in stateAfter ) {
-		expect( observable[ key ] ).to.equal( stateAfter[ key ] );
+		expect( observable[ key ] ).toEqual( stateAfter[ key ] );
 	}
 }
 
 /**
  * An assertion util to test whether the given function throws error that has correct message,
  * data and whether the context of the error and the `editorThatShouldBeFindableFromContext`
- * have common props (So the watchdog will be able to find the correct editor instance and restart it).
+ * have common props (so error reporting is able to find the correct editor instance).
  *
  * @param {Function} fn Tested function that should throw a `CKEditorError`.
  * @param {RegExp|String} message Expected message of the error.
@@ -107,13 +107,35 @@ export function expectToThrowCKEditorError( fn, message, editorThatShouldBeFinda
 		assertCKEditorError( err, message, editorThatShouldBeFindableFromContext, data );
 	}
 
-	expect( err ).to.not.equal( null, 'Function did not throw any error' );
+	expect( err, 'Function did not throw any error' ).not.toBe( null );
+}
+
+/**
+ * An assertion util to test whether the given promise is failed with an error that has correct message,
+ * data and whether the context of the error and the `editorThatShouldBeFindableFromContext`
+ * have common props (so error reporting is able to find the correct editor instance).
+ *
+ * @param {Promise} promise Tested promise that should be rejected with a `CKEditorError`.
+ * @param {RegExp|String} message Expected message of the error.
+ * @param {*} editorThatShouldBeFindableFromContext An editor instance that should be findable from the error context.
+ * @param {Object} [data] Error data.
+ */
+export async function expectToRejectWithCKEditorError( promise, message, editorThatShouldBeFindableFromContext, data ) {
+	let err = null;
+
+	await promise.catch( _err => {
+		err = _err;
+	} );
+
+	assertCKEditorError( err, message, editorThatShouldBeFindableFromContext, data );
+
+	expect( err, 'Function did not throw any error' ).not.toBe( null );
 }
 
 /**
  * An assertion util to test whether a given error has correct message, data and whether the context of the
- * error and the `editorThatShouldBeFindableFromContext` have common props (So the watchdog will be able to
- * find the correct editor instance and restart it).
+ * error and the `editorThatShouldBeFindableFromContext` have common props (so error reporting is able to find
+ * the correct editor instance).
  *
  * @param {module:utils/ckeditorerror~CKEditorError} err The tested error.
  * @param {RegExp|String} message Expected message of the error.
@@ -127,17 +149,19 @@ export function assertCKEditorError( err, message, editorThatShouldBeFindableFro
 
 	expect( message ).to.be.a( 'regexp', 'Error message should be a string or a regexp.' );
 	expect( err ).to.be.instanceOf( CKEditorError );
-	expect( err.message ).to.match( message, 'Error message does not match the provided one.' );
+	expect( err.message, 'Error message does not match the provided one.' ).toMatch( message );
 
 	// TODO: The `editorThatShouldBeFindableFromContext` is optional but should be required in the future.
 	if ( editorThatShouldBeFindableFromContext === null ) {
-		expect( err.context ).to.equal( null, 'Error context was expected to be `null`' );
+		expect( err.context, 'Error context was expected to be `null`' ).toEqual( null );
 	} else if ( editorThatShouldBeFindableFromContext !== undefined ) {
-		expect( areConnectedThroughProperties( editorThatShouldBeFindableFromContext, err.context ) )
-			.to.equal( true, 'Editor cannot be found from the error context' );
+		expect(
+			areConnectedThroughProperties( editorThatShouldBeFindableFromContext, err.context ),
+			'Editor cannot be found from the error context'
+		).toEqual( true );
 	}
 
 	if ( data ) {
-		expect( err.data ).to.deep.equal( data );
+		expect( err.data ).toEqual( data );
 	}
 }

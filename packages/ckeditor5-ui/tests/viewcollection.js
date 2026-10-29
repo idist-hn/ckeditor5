@@ -1,27 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import View from '../src/view';
-import ViewCollection from '../src/viewcollection';
-import normalizeHtml from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { View } from '../src/view.js';
+import { ViewCollection } from '../src/viewcollection.js';
+import { normalizeHtml } from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 let collection;
 
 describe( 'ViewCollection', () => {
-	testUtils.createSinonSandbox();
-
 	beforeEach( createTestCollection );
 
 	describe( 'constructor()', () => {
 		it( 'sets basic properties and attributes', () => {
-			expect( collection._parentElement ).to.be.null;
-			expect( collection._idProperty ).to.equal( 'viewUid' );
+			expect( collection._parentElement ).toBeNull();
+			expect( collection._idProperty ).toBe( 'viewUid' );
 		} );
 
 		it( 'allows setting initial collection items', () => {
@@ -29,9 +25,9 @@ describe( 'ViewCollection', () => {
 			const view2 = new View();
 			const collection = new ViewCollection( [ view1, view2 ] );
 
-			expect( collection ).to.have.length( 2 );
-			expect( collection.get( 0 ) ).to.equal( view1 );
-			expect( collection.get( 1 ) ).to.equal( view2 );
+			expect( collection ).toHaveLength( 2 );
+			expect( collection.get( 0 ) ).toBe( view1 );
+			expect( collection.get( 1 ) ).toBe( view2 );
 		} );
 
 		describe( 'child view management in DOM', () => {
@@ -44,29 +40,29 @@ describe( 'ViewCollection', () => {
 				expect( () => {
 					collection.add( viewA );
 					collection.remove( viewA );
-				} ).to.not.throw();
+				} ).not.toThrow();
 
 				expect( () => {
 					collection.add( viewA );
 					collection.remove( viewA );
-				} ).to.not.throw();
+				} ).not.toThrow();
 
 				viewA.element = document.createElement( 'b' );
 				collection.add( viewA );
 
-				expect( normalizeHtml( parentElement.outerHTML ) ).to.equal( '<p><b></b></p>' );
+				expect( normalizeHtml( parentElement.outerHTML ) ).toBe( '<p><b></b></p>' );
 
 				const viewB = new View();
 				viewB.element = document.createElement( 'i' );
 
 				collection.add( viewB, 0 );
-				expect( normalizeHtml( parentElement.outerHTML ) ).to.equal( '<p><i></i><b></b></p>' );
+				expect( normalizeHtml( parentElement.outerHTML ) ).toBe( '<p><i></i><b></b></p>' );
 
 				collection.remove( viewA );
-				expect( normalizeHtml( parentElement.outerHTML ) ).to.equal( '<p><i></i></p>' );
+				expect( normalizeHtml( parentElement.outerHTML ) ).toBe( '<p><i></i></p>' );
 
 				collection.remove( viewB );
-				expect( normalizeHtml( parentElement.outerHTML ) ).to.equal( '<p></p>' );
+				expect( normalizeHtml( parentElement.outerHTML ) ).toBe( '<p></p>' );
 			} );
 
 			// #145
@@ -109,9 +105,9 @@ describe( 'ViewCollection', () => {
 
 				view.render();
 
-				expect( view.element.childNodes ).to.have.length( 2 );
-				expect( view.element.childNodes[ 0 ] ).to.equal( viewA.element );
-				expect( view.element.childNodes[ 1 ] ).to.equal( viewC.element );
+				expect( view.element.childNodes ).toHaveLength( 2 );
+				expect( view.element.childNodes[ 0 ] ).toBe( viewA.element );
+				expect( view.element.childNodes[ 1 ] ).toBe( viewC.element );
 			} );
 		} );
 	} );
@@ -121,29 +117,29 @@ describe( 'ViewCollection', () => {
 			const viewA = new View();
 			const viewB = new View();
 
-			const spyA = testUtils.sinon.spy( viewA, 'destroy' );
-			const spyB = testUtils.sinon.spy( viewB, 'destroy' );
+			const spyA = vi.spyOn( viewA, 'destroy' );
+			const spyB = vi.spyOn( viewB, 'destroy' );
 
 			collection.add( viewA );
 			collection.add( viewB );
 
 			collection.destroy();
-			sinon.assert.calledOnce( spyA );
-			sinon.assert.calledOnce( spyB );
-			sinon.assert.callOrder( spyA, spyB );
+			expect( spyA ).toHaveBeenCalledOnce();
+			expect( spyB ).toHaveBeenCalledOnce();
+			expect( spyA.mock.invocationCallOrder[ 0 ] ).toBeLessThan( spyB.mock.invocationCallOrder[ 0 ] );
 		} );
 	} );
 
 	describe( 'add()', () => {
 		it( 'renders the new view in the collection', () => {
 			const view = new View();
-			const spy = testUtils.sinon.spy( view, 'render' );
+			const spy = vi.spyOn( view, 'render' );
 
-			expect( view.isRendered ).to.be.false;
+			expect( view.isRendered ).toBe( false );
 
 			collection.add( view );
-			expect( view.isRendered ).to.be.true;
-			sinon.assert.calledOnce( spy );
+			expect( view.isRendered ).toBe( true );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'works for a view with a Number view#id attribute', () => {
@@ -152,40 +148,40 @@ describe( 'ViewCollection', () => {
 			view.set( 'id', 1 );
 
 			collection.add( view );
-			expect( view.id ).to.equal( 1 );
-			expect( view.viewUid ).to.be.a( 'string' );
+			expect( view.id ).toBe( 1 );
+			expect( view.viewUid ).toBeTypeOf( 'string' );
 		} );
 	} );
 
 	describe( 'setParent()', () => {
 		it( 'sets #_parentElement', () => {
 			const el = {};
-			expect( collection._parentElement ).to.be.null;
+			expect( collection._parentElement ).toBeNull();
 
 			collection.setParent( el );
-			expect( collection._parentElement ).to.equal( el );
+			expect( collection._parentElement ).toBe( el );
 		} );
 
 		it( 'udpates initial collection items in DOM', () => {
 			const view1 = new View();
 			view1.element = document.createElement( 'i' );
-			sinon.spy( view1, 'render' );
+			vi.spyOn( view1, 'render' );
 
 			const view2 = new View();
 			view2.element = document.createElement( 'b' );
-			sinon.spy( view2, 'render' );
+			vi.spyOn( view2, 'render' );
 
 			const collection = new ViewCollection( [ view1, view2 ] );
 			const parentElement = document.createElement( 'div' );
 
-			expect( collection ).to.have.length( 2 );
-			expect( collection.get( 0 ) ).to.equal( view1 );
-			expect( collection.get( 1 ) ).to.equal( view2 );
+			expect( collection ).toHaveLength( 2 );
+			expect( collection.get( 0 ) ).toBe( view1 );
+			expect( collection.get( 1 ) ).toBe( view2 );
 
 			collection.setParent( parentElement );
-			expect( normalizeHtml( parentElement.outerHTML ) ).to.equal( '<div><i></i><b></b></div>' );
-			sinon.assert.calledOnce( view1.render );
-			sinon.assert.calledOnce( view2.render );
+			expect( normalizeHtml( parentElement.outerHTML ) ).toBe( '<div><i></i><b></b></div>' );
+			expect( view1.render ).toHaveBeenCalledOnce();
+			expect( view2.render ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -205,63 +201,67 @@ describe( 'ViewCollection', () => {
 		} );
 
 		it( 'returns object', () => {
-			expect( collection.delegate( 'foo' ) ).to.be.an( 'object' );
+			expect( collection.delegate( 'foo' ) ).toBeTypeOf( 'object' );
 		} );
 
 		it( 'provides "to()" interface', () => {
 			const delegate = collection.delegate( 'foo' );
 
-			expect( delegate ).to.have.keys( 'to' );
-			expect( delegate.to ).to.be.a( 'function' );
+			expect( delegate ).toHaveProperty( 'to' );
+			expect( delegate.to ).toBeTypeOf( 'function' );
 		} );
 
 		describe( 'to()', () => {
 			it( 'does not chain', () => {
 				const returned = collection.delegate( 'foo' ).to( {} );
 
-				expect( returned ).to.be.undefined;
+				expect( returned ).toBeUndefined();
 			} );
 
-			it( 'forwards an event to another observable – existing view', done => {
+			it( 'forwards an event to another observable – existing view', () => {
 				const target = new View();
 				const view = new View();
+				let capturedArgs;
 
 				collection.add( view );
 				collection.delegate( 'foo' ).to( target );
 
 				target.on( 'foo', ( ...args ) => {
-					assertDelegated( args, {
-						expectedName: 'foo',
-						expectedSource: view,
-						expectedPath: [ view, target ],
-						expectedData: []
-					} );
-
-					done();
+					capturedArgs = args;
 				} );
 
 				view.fire( 'foo' );
+
+				expect( capturedArgs ).toBeDefined();
+				assertDelegated( capturedArgs, {
+					expectedName: 'foo',
+					expectedSource: view,
+					expectedPath: [ view, target ],
+					expectedData: []
+				} );
 			} );
 
-			it( 'forwards an event to another observable – new view', done => {
+			it( 'forwards an event to another observable – new view', () => {
 				const target = new View();
 				const view = new View();
+				let capturedArgs;
 
 				collection.delegate( 'foo' ).to( target );
 				collection.add( view );
 
 				target.on( 'foo', ( ...args ) => {
-					assertDelegated( args, {
-						expectedName: 'foo',
-						expectedSource: view,
-						expectedPath: [ view, target ],
-						expectedData: []
-					} );
-
-					done();
+					capturedArgs = args;
 				} );
 
 				view.fire( 'foo' );
+
+				expect( capturedArgs ).toBeDefined();
+				assertDelegated( capturedArgs, {
+					expectedName: 'foo',
+					expectedSource: view,
+					expectedPath: [ view, target ],
+					expectedData: []
+				} );
 			} );
 
 			it( 'forwards multiple events to another observable', () => {
@@ -269,9 +269,9 @@ describe( 'ViewCollection', () => {
 				const viewA = new View();
 				const viewB = new View();
 				const viewC = new View();
-				const spyFoo = sinon.spy();
-				const spyBar = sinon.spy();
-				const spyBaz = sinon.spy();
+				const spyFoo = vi.fn();
+				const spyBar = vi.fn();
+				const spyBaz = vi.fn();
 
 				collection.delegate( 'foo', 'bar', 'baz' ).to( target );
 				collection.add( viewA );
@@ -284,11 +284,11 @@ describe( 'ViewCollection', () => {
 
 				viewA.fire( 'foo' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.notCalled( spyBar );
-				sinon.assert.notCalled( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledOnce();
+				expect( spyBar ).not.toHaveBeenCalled();
+				expect( spyBaz ).not.toHaveBeenCalled();
 
-				assertDelegated( spyFoo.args[ 0 ], {
+				assertDelegated( spyFoo.mock.calls[ 0 ], {
 					expectedName: 'foo',
 					expectedSource: viewA,
 					expectedPath: [ viewA, target ],
@@ -297,11 +297,11 @@ describe( 'ViewCollection', () => {
 
 				viewB.fire( 'bar' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.calledOnce( spyBar );
-				sinon.assert.notCalled( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledOnce();
+				expect( spyBar ).toHaveBeenCalledOnce();
+				expect( spyBaz ).not.toHaveBeenCalled();
 
-				assertDelegated( spyBar.args[ 0 ], {
+				assertDelegated( spyBar.mock.calls[ 0 ], {
 					expectedName: 'bar',
 					expectedSource: viewB,
 					expectedPath: [ viewB, target ],
@@ -310,11 +310,11 @@ describe( 'ViewCollection', () => {
 
 				viewC.fire( 'baz' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.calledOnce( spyBar );
-				sinon.assert.calledOnce( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledOnce();
+				expect( spyBar ).toHaveBeenCalledOnce();
+				expect( spyBaz ).toHaveBeenCalledOnce();
 
-				assertDelegated( spyBaz.args[ 0 ], {
+				assertDelegated( spyBaz.mock.calls[ 0 ], {
 					expectedName: 'baz',
 					expectedSource: viewC,
 					expectedPath: [ viewC, target ],
@@ -323,17 +323,17 @@ describe( 'ViewCollection', () => {
 
 				viewC.fire( 'not-delegated' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.calledOnce( spyBar );
-				sinon.assert.calledOnce( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledOnce();
+				expect( spyBar ).toHaveBeenCalledOnce();
+				expect( spyBaz ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'does not forward events which are not supposed to be delegated', () => {
 				const target = new View();
 				const view = new View();
-				const spyFoo = sinon.spy();
-				const spyBar = sinon.spy();
-				const spyBaz = sinon.spy();
+				const spyFoo = vi.fn();
+				const spyBar = vi.fn();
+				const spyBaz = vi.fn();
 
 				collection.delegate( 'foo', 'bar', 'baz' ).to( target );
 				collection.add( view );
@@ -347,16 +347,17 @@ describe( 'ViewCollection', () => {
 				view.fire( 'baz' );
 				view.fire( 'not-delegated' );
 
-				sinon.assert.callOrder( spyFoo, spyBar, spyBaz );
-				sinon.assert.callCount( spyFoo, 1 );
-				sinon.assert.callCount( spyBar, 1 );
-				sinon.assert.callCount( spyBaz, 1 );
+				expect( spyFoo.mock.invocationCallOrder[ 0 ] ).toBeLessThan( spyBar.mock.invocationCallOrder[ 0 ] );
+				expect( spyBar.mock.invocationCallOrder[ 0 ] ).toBeLessThan( spyBaz.mock.invocationCallOrder[ 0 ] );
+				expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyBar ).toHaveBeenCalledTimes( 1 );
+				expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 			} );
 
 			it( 'stops forwarding when view removed from the collection', () => {
 				const target = new View();
 				const view = new View();
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				collection.delegate( 'foo' ).to( target );
 				target.on( 'foo', spy );
@@ -364,19 +365,20 @@ describe( 'ViewCollection', () => {
 				collection.add( view );
 				view.fire( 'foo' );
 
-				sinon.assert.callCount( spy, 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 
 				collection.remove( 0 );
 				view.fire( 'foo' );
 
-				sinon.assert.callCount( spy, 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 			} );
 
-			it( 'supports deep event delegation', done => {
+			it( 'supports deep event delegation', () => {
 				const target = new View();
 				const viewA = new View();
 				const viewAA = new View();
 				const data = {};
+				let capturedArgs;
 
 				const deepCollection = viewA.createCollection();
 
@@ -387,17 +389,18 @@ describe( 'ViewCollection', () => {
 				deepCollection.delegate( 'foo' ).to( viewA );
 
 				target.on( 'foo', ( ...args ) => {
-					assertDelegated( args, {
-						expectedName: 'foo',
-						expectedSource: viewAA,
-						expectedPath: [ viewAA, viewA, target ],
-						expectedData: [ data ]
-					} );
-
-					done();
+					capturedArgs = args;
 				} );
 
 				viewAA.fire( 'foo', data );
+
+				expect( capturedArgs ).toBeDefined();
+				assertDelegated( capturedArgs, {
+					expectedName: 'foo',
+					expectedSource: viewAA,
+					expectedPath: [ viewAA, viewA, target ],
+					expectedData: [ data ]
+				} );
 			} );
 		} );
 	} );
@@ -410,8 +413,8 @@ function createTestCollection() {
 function assertDelegated( evtArgs, { expectedName, expectedSource, expectedPath, expectedData } ) {
 	const evtInfo = evtArgs[ 0 ];
 
-	expect( evtInfo.name ).to.equal( expectedName );
-	expect( evtInfo.source ).to.equal( expectedSource );
-	expect( evtInfo.path ).to.deep.equal( expectedPath );
-	expect( evtArgs.slice( 1 ) ).to.deep.equal( expectedData );
+	expect( evtInfo.name ).toBe( expectedName );
+	expect( evtInfo.source ).toBe( expectedSource );
+	expect( evtInfo.path ).toEqual( expectedPath );
+	expect( evtArgs.slice( 1 ) ).toEqual( expectedData );
 }

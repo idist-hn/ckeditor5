@@ -1,24 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/underline/underlineui
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-import type AttributeCommand from '../attributecommand';
-
-import underlineIcon from '../../theme/icons/underline.svg';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { IconUnderline } from '@ckeditor/ckeditor5-icons';
+import { ButtonView, MenuBarMenuListItemButtonView } from '@ckeditor/ckeditor5-ui';
+import { getButtonCreator } from '../utils.js';
 
 const UNDERLINE = 'underline';
 
 /**
  * The underline UI feature. It introduces the Underline button.
  */
-export default class UnderlineUI extends Plugin {
+export class UnderlineUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -29,32 +28,27 @@ export default class UnderlineUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
-		const t = editor.t;
+		const t = editor.locale.t;
+		const createButton = getButtonCreator( {
+			editor,
+			commandName: UNDERLINE,
+			plugin: this,
+			icon: IconUnderline,
+			label: t( 'Underline' ),
+			keystroke: 'CTRL+U'
+		} );
 
 		// Add bold button to feature components.
-		editor.ui.componentFactory.add( UNDERLINE, locale => {
-			const command: AttributeCommand = editor.commands.get( UNDERLINE )!;
-			const view = new ButtonView( locale );
-
-			view.set( {
-				label: t( 'Underline' ),
-				icon: underlineIcon,
-				keystroke: 'CTRL+U',
-				tooltip: true,
-				isToggleable: true
-			} );
-
-			view.bind( 'isOn', 'isEnabled' ).to( command, 'value', 'isEnabled' );
-
-			// Execute command.
-			this.listenTo( view, 'execute', () => {
-				editor.execute( UNDERLINE );
-				editor.editing.view.focus();
-			} );
-
-			return view;
-		} );
+		editor.ui.componentFactory.add( UNDERLINE, () => createButton( ButtonView ) );
+		editor.ui.componentFactory.add( 'menuBar:' + UNDERLINE, () => createButton( MenuBarMenuListItemButtonView ) );
 	}
 }

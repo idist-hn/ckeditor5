@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/attributeelement
  */
 
-import Element, { type ElementAttributes } from './element';
+import { ViewElement, type ViewElementAttributes } from './element.js';
 import { CKEditorError } from '@ckeditor/ckeditor5-utils';
 
-import type DocumentFragment from './documentfragment';
-import type Document from './document';
-import type Node from './node';
+import { type ViewDocumentFragment } from './documentfragment.js';
+import { type ViewDocument } from './document.js';
+import { type ViewNode } from './node.js';
 
 // Default attribute priority.
 const DEFAULT_PRIORITY = 10;
@@ -22,17 +22,17 @@ const DEFAULT_PRIORITY = 10;
  * Most often they are created when downcasting model text attributes.
  *
  * Editing engine does not define a fixed HTML DTD. This is why a feature developer needs to choose between various
- * types (container element, {@link module:engine/view/attributeelement~AttributeElement attribute element},
- * {@link module:engine/view/emptyelement~EmptyElement empty element}, etc) when developing a feature.
+ * types (container element, {@link module:engine/view/attributeelement~ViewAttributeElement attribute element},
+ * {@link module:engine/view/emptyelement~ViewEmptyElement empty element}, etc) when developing a feature.
  *
  * To create a new attribute element instance use the
- * {@link module:engine/view/downcastwriter~DowncastWriter#createAttributeElement `DowncastWriter#createAttributeElement()`} method.
+ * {@link module:engine/view/downcastwriter~ViewDowncastWriter#createAttributeElement `ViewDowncastWriter#createAttributeElement()`} method.
  */
-export default class AttributeElement extends Element {
+export class ViewAttributeElement extends ViewElement {
 	public static readonly DEFAULT_PRIORITY: number = DEFAULT_PRIORITY;
 
 	/**
-	 * Element priority. Decides in what order elements are wrapped by {@link module:engine/view/downcastwriter~DowncastWriter}.
+	 * Element priority. Decides in what order elements are wrapped by {@link module:engine/view/downcastwriter~ViewDowncastWriter}.
 	 *
 	 * @internal
 	 * @readonly
@@ -40,7 +40,7 @@ export default class AttributeElement extends Element {
 	public _priority: number = DEFAULT_PRIORITY;
 
 	/**
-	 * Element identifier. If set, it is used by {@link module:engine/view/element~Element#isSimilar},
+	 * Element identifier. If set, it is used by {@link module:engine/view/element~ViewElement#isSimilar},
 	 * and then two elements are considered similar if, and only if they have the same `_id`.
 	 *
 	 * @internal
@@ -49,18 +49,18 @@ export default class AttributeElement extends Element {
 	public _id: string | number | null = null;
 
 	/**
-	 * Keeps all the attribute elements that have the same {@link module:engine/view/attributeelement~AttributeElement#id ids}
+	 * Keeps all the attribute elements that have the same {@link module:engine/view/attributeelement~ViewAttributeElement#id ids}
 	 * and still exist in the view tree.
 	 *
-	 * This property is managed by {@link module:engine/view/downcastwriter~DowncastWriter}.
+	 * This property is managed by {@link module:engine/view/downcastwriter~ViewDowncastWriter}.
 	 */
-	private readonly _clonesGroup: Set<AttributeElement> | null = null;
+	private readonly _clonesGroup: Set<ViewAttributeElement> | null = null;
 
 	/**
 	 * Creates an attribute element.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#createAttributeElement
-	 * @see module:engine/view/element~Element
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#createAttributeElement
+	 * @see module:engine/view/element~ViewElement
 	 * @protected
 	 * @param document The document instance to which this element belongs.
 	 * @param name Node name.
@@ -68,10 +68,10 @@ export default class AttributeElement extends Element {
 	 * @param children A list of nodes to be inserted into created element.
 	 */
 	constructor(
-		document: Document,
+		document: ViewDocument,
 		name: string,
-		attrs?: ElementAttributes,
-		children?: Node | Iterable<Node>
+		attrs?: ViewElementAttributes,
+		children?: ViewNode | Iterable<ViewNode>
 	) {
 		super( document, name, attrs, children );
 
@@ -79,14 +79,14 @@ export default class AttributeElement extends Element {
 	}
 
 	/**
-	 * Element priority. Decides in what order elements are wrapped by {@link module:engine/view/downcastwriter~DowncastWriter}.
+	 * Element priority. Decides in what order elements are wrapped by {@link module:engine/view/downcastwriter~ViewDowncastWriter}.
 	 */
 	public get priority(): number {
 		return this._priority;
 	}
 
 	/**
-	 * Element identifier. If set, it is used by {@link module:engine/view/element~Element#isSimilar},
+	 * Element identifier. If set, it is used by {@link module:engine/view/element~ViewElement#isSimilar},
 	 * and then two elements are considered similar if, and only if they have the same `id`.
 	 */
 	public get id(): string | number | null {
@@ -94,8 +94,8 @@ export default class AttributeElement extends Element {
 	}
 
 	/**
-	 * Returns all {@link module:engine/view/attributeelement~AttributeElement attribute elements} that has the
-	 * same {@link module:engine/view/attributeelement~AttributeElement#id id} and are in the view tree (were not removed).
+	 * Returns all {@link module:engine/view/attributeelement~ViewAttributeElement attribute elements} that has the
+	 * same {@link module:engine/view/attributeelement~ViewAttributeElement#id id} and are in the view tree (were not removed).
 	 *
 	 * Note: If this element has been removed from the tree, returned set will not include it.
 	 *
@@ -105,7 +105,7 @@ export default class AttributeElement extends Element {
 	 * @returns Set containing all the attribute elements
 	 * with the same `id` that were added and not removed from the view tree.
 	 */
-	public getElementsWithSameId(): Set<AttributeElement> {
+	public getElementsWithSameId(): Set<ViewAttributeElement> {
 		if ( this.id === null ) {
 			/**
 			 * Cannot get elements with the same id for an attribute element without id.
@@ -124,28 +124,41 @@ export default class AttributeElement extends Element {
 	/**
 	 * Checks if this element is similar to other element.
 	 *
-	 * If none of elements has set {@link module:engine/view/attributeelement~AttributeElement#id}, then both elements
+	 * If none of elements has set {@link module:engine/view/attributeelement~ViewAttributeElement#id}, then both elements
 	 * should have the same name, attributes and priority to be considered as similar. Two similar elements can contain
 	 * different set of children nodes.
 	 *
-	 * If at least one element has {@link module:engine/view/attributeelement~AttributeElement#id} set, then both
-	 * elements have to have the same {@link module:engine/view/attributeelement~AttributeElement#id} value to be
+	 * If at least one element has {@link module:engine/view/attributeelement~ViewAttributeElement#id} set, then both
+	 * elements have to have the same {@link module:engine/view/attributeelement~ViewAttributeElement#id} value to be
 	 * considered similar.
 	 *
-	 * Similarity is important for {@link module:engine/view/downcastwriter~DowncastWriter}. For example:
+	 * Similarity is important for {@link module:engine/view/downcastwriter~ViewDowncastWriter}. For example:
 	 *
 	 * * two following similar elements can be merged together into one, longer element,
-	 * * {@link module:engine/view/downcastwriter~DowncastWriter#unwrap} checks similarity of passed element and processed element to
+	 * * {@link module:engine/view/downcastwriter~ViewDowncastWriter#unwrap} checks similarity of passed element and processed element to
 	 * decide whether processed element should be unwrapped,
 	 * * etc.
 	 */
-	public override isSimilar( otherElement: Element ): boolean {
+	public override isSimilar( otherElement: ViewElement ): boolean {
 		// If any element has an `id` set, just compare the ids.
 		if ( this.id !== null || ( otherElement as any ).id !== null ) {
 			return this.id === ( otherElement as any ).id;
 		}
 
 		return super.isSimilar( otherElement ) && this.priority == ( otherElement as any ).priority;
+	}
+
+	/**
+	 * Converts `ViewAttributeElement` instance to plain object and returns it.
+	 *
+	 * @returns `ViewAttributeElement` instance converted to plain object.
+	 */
+	public override toJSON(): unknown {
+		const json: any = super.toJSON();
+
+		json.type = 'AttributeElement';
+
+		return json;
 	}
 
 	/**
@@ -167,31 +180,61 @@ export default class AttributeElement extends Element {
 
 		return cloned;
 	}
+
+	/**
+	 * Used by {@link module:engine/view/element~ViewElement#_mergeAttributesFrom} to verify if the given element can be merged without
+	 * conflicts into this element.
+	 *
+	 * @internal
+	 */
+	public override _canMergeAttributesFrom( otherElement: ViewAttributeElement ): boolean {
+		// Can't merge if any of elements have an id or a difference of priority.
+		if ( this.id !== null || otherElement.id !== null || this.priority !== otherElement.priority ) {
+			return false;
+		}
+
+		return super._canMergeAttributesFrom( otherElement );
+	}
+
+	/**
+	 * Used by {@link module:engine/view/element~ViewElement#_subtractAttributesOf} to verify if the given element attributes
+	 * can be fully subtracted from this element.
+	 *
+	 * @internal
+	 */
+	public override _canSubtractAttributesOf( otherElement: ViewAttributeElement ): boolean {
+		// Can't subtract if any of elements have an id or a difference of priority.
+		if ( this.id !== null || otherElement.id !== null || this.priority !== otherElement.priority ) {
+			return false;
+		}
+
+		return super._canSubtractAttributesOf( otherElement );
+	}
 }
 
 // The magic of type inference using `is` method is centralized in `TypeCheckable` class.
 // Proper overload would interfere with that.
-AttributeElement.prototype.is = function( type: string, name?: string ): boolean {
+ViewAttributeElement.prototype.is = function( this: ViewAttributeElement, type: string, name?: string ): boolean {
 	if ( !name ) {
 		return type === 'attributeElement' || type === 'view:attributeElement' ||
-			// From super.is(). This is highly utilised method and cannot call super. See ckeditor/ckeditor5#6529.
+			// From super.is(). This is highly utilised method and cannot call super. See https://github.com/ckeditor/ckeditor5/issues/6529.
 			type === 'element' || type === 'view:element' ||
 			type === 'node' || type === 'view:node';
 	} else {
 		return name === this.name && (
 			type === 'attributeElement' || type === 'view:attributeElement' ||
-			// From super.is(). This is highly utilised method and cannot call super. See ckeditor/ckeditor5#6529.
+			// From super.is(). This is highly utilised method and cannot call super. See https://github.com/ckeditor/ckeditor5/issues/6529.
 			type === 'element' || type === 'view:element'
 		);
 	}
-};
+} as any;
 
 /**
  * Returns block {@link module:engine/view/filler~Filler filler} offset or `null` if block filler is not needed.
  *
  * @returns Block filler offset or `null` if block filler is not needed.
  */
-function getFillerOffset( this: AttributeElement ): number | null {
+function getFillerOffset( this: ViewAttributeElement ): number | null {
 	// <b>foo</b> does not need filler.
 	if ( nonUiChildrenCount( this ) ) {
 		return null;
@@ -217,8 +260,8 @@ function getFillerOffset( this: AttributeElement ): number | null {
 }
 
 /**
- * Returns total count of children that are not {@link module:engine/view/uielement~UIElement UIElements}.
+ * Returns total count of children that are not {@link module:engine/view/uielement~ViewUIElement UIElements}.
  */
-function nonUiChildrenCount( element: Element | DocumentFragment ): number {
+function nonUiChildrenCount( element: ViewElement | ViewDocumentFragment ): number {
 	return Array.from( element.getChildren() ).filter( element => !element.is( 'uiElement' ) ).length;
 }

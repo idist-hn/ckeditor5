@@ -1,30 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { LinkEditing } from '@ckeditor/ckeditor5-link';
+import { PictureEditing, ImageUpload, ImageBlockEditing, ImageInlineEditing } from '@ckeditor/ckeditor5-image';
+import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { mockCreateToken } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/mockcloudservicescoretoken.js';
 
-import LinkEditing from '@ckeditor/ckeditor5-link/src/linkediting';
-import PictureEditing from '@ckeditor/ckeditor5-image/src/pictureediting';
-import ImageUpload from '@ckeditor/ckeditor5-image/src/imageupload';
-import ImageBlockEditing from '@ckeditor/ckeditor5-image/src/image/imageblockediting';
-import ImageInlineEditing from '@ckeditor/ckeditor5-image/src/image/imageinlineediting';
-import CloudServices from '@ckeditor/ckeditor5-cloud-services/src/cloudservices';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import CloudServicesCoreMock from './_utils/cloudservicescoremock';
-
-import CKBox from '../src/ckbox';
-import CKBoxUI from '../src/ckboxui';
-import CKBoxEditing from '../src/ckboxediting';
+import { CKBox } from '../src/ckbox.js';
+import { CKBoxUI } from '../src/ckboxui.js';
+import { CKBoxEditing } from '../src/ckboxediting.js';
+import { CKBoxUtils } from '../src/ckboxutils.js';
 
 describe( 'CKBox', () => {
 	let editorElement, editor;
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( async () => {
+		// `CKBoxEditing#init()` and `CKBoxUtils#init()` fire unawaited network requests (the upload permission
+		// check and the private categories authorization). Stub them out so they do not end up as unhandled
+		// rejections that fail the Vitest run.
+		vi.spyOn( window.XMLHttpRequest.prototype, 'send' ).mockImplementation( () => {} );
+		vi.spyOn( CKBoxUtils.prototype, '_authorizePrivateCategoriesAccess' ).mockResolvedValue();
+		mockCreateToken( 'ckbox-token' );
+
 		editorElement = document.createElement( 'div' );
 		document.body.appendChild( editorElement );
 
@@ -37,9 +38,6 @@ describe( 'CKBox', () => {
 				ImageUpload,
 				CloudServices,
 				CKBox
-			],
-			substitutePlugins: [
-				CloudServicesCoreMock
 			],
 			ckbox: {
 				tokenUrl: 'foo'
@@ -54,13 +52,20 @@ describe( 'CKBox', () => {
 	} );
 
 	it( 'should load CKBox, CKBoxUI and CKBoxEditing plugins', () => {
-		expect( editor.plugins.get( CKBox ) ).to.be.instanceOf( CKBox );
-		expect( editor.plugins.get( CKBoxUI ) ).to.instanceOf( CKBoxUI );
-		expect( editor.plugins.get( CKBoxEditing ) ).to.instanceOf( CKBoxEditing );
+		expect( editor.plugins.get( CKBox ) ).toBeInstanceOf( CKBox );
+		expect( editor.plugins.get( CKBoxUI ) ).toBeInstanceOf( CKBoxUI );
+		expect( editor.plugins.get( CKBoxEditing ) ).toBeInstanceOf( CKBoxEditing );
 	} );
 
 	it( 'should have proper name', () => {
-		expect( CKBox.pluginName ).to.equal( 'CKBox' );
+		expect( CKBox.pluginName ).toEqual( 'CKBox' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( CKBox.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( CKBox.isPremiumPlugin ).toBe( false );
 	} );
 } );
-

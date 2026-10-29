@@ -1,14 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* eslint-disable new-cap */
-
-import EmitterMixin, { _getEmitterListenedTo, _getEmitterId, _setEmitterId } from '../src/emittermixin';
-import EventInfo from '../src/eventinfo';
-import { expectToThrowCKEditorError } from './_utils/utils';
-import CKEditorError from '../src/ckeditorerror';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { EmitterMixin, _getEmitterListenedTo, _getEmitterId, _setEmitterId } from '../src/emittermixin.js';
+import { EventInfo } from '../src/eventinfo.js';
+import { expectToThrowCKEditorError } from './_utils/utils.js';
+import { CKEditorError } from '../src/ckeditorerror.js';
 
 describe( 'EmitterMixin', () => {
 	let emitter, listener;
@@ -30,14 +29,14 @@ describe( 'EmitterMixin', () => {
 		const emitter = new EmitterClass( 5 );
 
 		expect( emitter ).to.be.instanceOf( TestClass );
-		expect( emitter.value ).to.equal( 5 );
+		expect( emitter.value ).toEqual( 5 );
 	} );
 
 	describe( 'fire', () => {
 		it( 'should execute callbacks in the right order without priority', () => {
-			const spy1 = sinon.spy().named( 1 );
-			const spy2 = sinon.spy().named( 2 );
-			const spy3 = sinon.spy().named( 3 );
+			const spy1 = vi.fn().mockName( '1' );
+			const spy2 = vi.fn().mockName( '2' );
+			const spy3 = vi.fn().mockName( '3' );
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
@@ -45,15 +44,15 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'test' );
 
-			sinon.assert.callOrder( spy1, spy2, spy3 );
+			expectCallOrder( spy1, spy2, spy3 );
 		} );
 
 		it( 'should execute callbacks in the right order with priority defined', () => {
-			const spy1 = sinon.spy().named( 1 );
-			const spy2 = sinon.spy().named( 2 );
-			const spy3 = sinon.spy().named( 3 );
-			const spy4 = sinon.spy().named( 4 );
-			const spy5 = sinon.spy().named( 5 );
+			const spy1 = vi.fn().mockName( '1' );
+			const spy2 = vi.fn().mockName( '2' );
+			const spy3 = vi.fn().mockName( '3' );
+			const spy4 = vi.fn().mockName( '4' );
+			const spy5 = vi.fn().mockName( '5' );
 
 			emitter.on( 'test', spy2, { priority: 'high' } );
 			emitter.on( 'test', spy3 ); // Defaults to 'normal'.
@@ -63,37 +62,37 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'test' );
 
-			sinon.assert.callOrder( spy1, spy2, spy3, spy4, spy5 );
+			expectCallOrder( spy1, spy2, spy3, spy4, spy5 );
 		} );
 
 		it( 'should pass arguments to callbacks', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
 
 			emitter.fire( 'test', 1, 'b', true );
 
-			sinon.assert.calledWithExactly( spy1, sinon.match.instanceOf( EventInfo ), 1, 'b', true );
-			sinon.assert.calledWithExactly( spy2, sinon.match.instanceOf( EventInfo ), 1, 'b', true );
+			expect( spy1 ).toHaveBeenCalledWith( expect.any( EventInfo ), 1, 'b', true );
+			expect( spy2 ).toHaveBeenCalledWith( expect.any( EventInfo ), 1, 'b', true );
 		} );
 
 		it( 'should fire the right event', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
 
 			emitter.on( '1', spy1 );
 			emitter.on( '2', spy2 );
 
 			emitter.fire( '2' );
 
-			sinon.assert.notCalled( spy1 );
-			sinon.assert.called( spy2 );
+			expect( spy1 ).not.toHaveBeenCalled();
+			expect( spy2 ).toHaveBeenCalled();
 		} );
 
 		it( 'should execute callbacks many times', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			emitter.on( 'test', spy );
 
@@ -101,15 +100,17 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'test' );
 			emitter.fire( 'test' );
 
-			sinon.assert.calledThrice( spy );
+			expect( spy ).toHaveBeenCalledTimes( 3 );
 		} );
 
 		it( 'should do nothing for a non listened event', () => {
-			emitter.fire( 'test' );
+			expect( () => {
+				emitter.fire( 'test' );
+			} ).to.not.throw();
 		} );
 
 		it( 'should accept the same callback many times', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			emitter.on( 'test', spy );
 			emitter.on( 'test', spy );
@@ -117,11 +118,11 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'test' );
 
-			sinon.assert.calledThrice( spy );
+			expect( spy ).toHaveBeenCalledTimes( 3 );
 		} );
 
 		it( 'should not fire callbacks for an event that were added while firing that event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			emitter.on( 'test', () => {
 				emitter.on( 'test', spy );
@@ -129,14 +130,14 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'test' );
 
-			sinon.assert.notCalled( spy );
+			expect( spy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should correctly fire callbacks for namespaced events', () => {
-			const spyFoo = sinon.spy();
-			const spyBar = sinon.spy();
-			const spyAbc = sinon.spy();
-			const spyFoo2 = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyBar = vi.fn();
+			const spyAbc = vi.fn();
+			const spyFoo2 = vi.fn();
 
 			// Mess up with callbacks order to check whether they are called in adding order.
 			emitter.on( 'foo', spyFoo );
@@ -149,33 +150,46 @@ describe( 'EmitterMixin', () => {
 			// All four callbacks should be fired.
 			emitter.fire( 'foo:bar:abc' );
 
-			sinon.assert.callOrder( spyFoo, spyAbc, spyBar, spyFoo2 );
-			sinon.assert.calledOnce( spyFoo );
-			sinon.assert.calledOnce( spyAbc );
-			sinon.assert.calledOnce( spyBar );
-			sinon.assert.calledOnce( spyFoo2 );
+			expectCallOrder( spyFoo, spyAbc, spyBar, spyFoo2 );
+			expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyAbc ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).toHaveBeenCalledTimes( 1 );
+			expect( spyFoo2 ).toHaveBeenCalledTimes( 1 );
 
 			// Only callbacks for foo and foo:bar event should be called.
 			emitter.fire( 'foo:bar' );
 
-			sinon.assert.calledOnce( spyAbc );
-			sinon.assert.calledTwice( spyFoo );
-			sinon.assert.calledTwice( spyBar );
-			sinon.assert.calledTwice( spyFoo2 );
+			expect( spyAbc ).toHaveBeenCalledTimes( 1 );
+			expect( spyFoo ).toHaveBeenCalledTimes( 2 );
+			expect( spyBar ).toHaveBeenCalledTimes( 2 );
+			expect( spyFoo2 ).toHaveBeenCalledTimes( 2 );
 
 			// Only callback for foo should be called as foo:abc has not been registered.
 			// Still, foo is a valid, existing namespace.
 			emitter.fire( 'foo:abc' );
 
-			sinon.assert.calledOnce( spyAbc );
-			sinon.assert.calledTwice( spyBar );
-			sinon.assert.calledThrice( spyFoo );
-			sinon.assert.calledThrice( spyFoo2 );
+			expect( spyAbc ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).toHaveBeenCalledTimes( 2 );
+			expect( spyFoo ).toHaveBeenCalledTimes( 3 );
+			expect( spyFoo2 ).toHaveBeenCalledTimes( 3 );
+		} );
+
+		// See https://github.com/ckeditor/ckeditor5/issues/20237.
+		it( 'should not depend on String#substr() clamping a negative length', () => {
+			const originalSubstr = String.prototype.substr;
+
+			// Some JSC builds (Safari 27 on x86_64) miscompile `substr()` with a negative length
+			// and return the whole string instead of an empty one. Event names without a colon
+			// made the namespace node reference itself and recursion never ended.
+			vi.spyOn( String.prototype, 'substr' ).mockImplementation( function( start, length ) {
+				return length < 0 ? String( this ) : originalSubstr.call( this, start, length );
+			} );
+
+			expect( () => emitter.on( 'foo', () => {} ) ).not.toThrow();
 		} );
 
 		it( 'should rethrow the CKEditorError error', () => {
 			emitter.on( 'test', () => {
-				// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
 				throw new CKEditorError( 'foo', null );
 			} );
 
@@ -198,13 +212,13 @@ describe( 'EmitterMixin', () => {
 
 		describe( 'return value', () => {
 			it( 'is undefined by default', () => {
-				expect( emitter.fire( 'foo' ) ).to.be.undefined;
+				expect( emitter.fire( 'foo' ) ).toBeUndefined();
 			} );
 
 			it( 'is undefined if none of the listeners modified EventInfo#return', () => {
 				emitter.on( 'foo', () => {} );
 
-				expect( emitter.fire( 'foo' ) ).to.be.undefined;
+				expect( emitter.fire( 'foo' ) ).toBeUndefined();
 			} );
 
 			it( 'equals EventInfo#return\'s value', () => {
@@ -212,7 +226,7 @@ describe( 'EmitterMixin', () => {
 					evt.return = 1;
 				} );
 
-				expect( emitter.fire( 'foo' ) ).to.equal( 1 );
+				expect( emitter.fire( 'foo' ) ).toEqual( 1 );
 			} );
 
 			it( 'equals EventInfo#return\'s value even if the event was stopped', () => {
@@ -223,7 +237,7 @@ describe( 'EmitterMixin', () => {
 					evt.stop();
 				} );
 
-				expect( emitter.fire( 'foo' ) ).to.equal( 1 );
+				expect( emitter.fire( 'foo' ) ).toEqual( 1 );
 			} );
 
 			it( 'equals EventInfo#return\'s value when it was set in a namespaced event', () => {
@@ -231,7 +245,7 @@ describe( 'EmitterMixin', () => {
 					evt.return = 1;
 				} );
 
-				expect( emitter.fire( 'foo:bar' ) ).to.equal( 1 );
+				expect( emitter.fire( 'foo:bar' ) ).toEqual( 1 );
 			} );
 
 			// Rationale – delegation keeps the listeners of the two objects separate.
@@ -247,7 +261,7 @@ describe( 'EmitterMixin', () => {
 					evt.return = 1;
 				} );
 
-				expect( emitterB.fire( 'foo' ) ).to.be.undefined;
+				expect( emitterB.fire( 'foo' ) ).toBeUndefined();
 			} );
 
 			it( 'equals the value set by the last callback', () => {
@@ -258,38 +272,42 @@ describe( 'EmitterMixin', () => {
 					evt.return = 2;
 				}, { priority: 'high' } );
 
-				expect( emitter.fire( 'foo' ) ).to.equal( 1 );
+				expect( emitter.fire( 'foo' ) ).toEqual( 1 );
 			} );
 		} );
 	} );
 
 	describe( 'on', () => {
 		it( 'should stop()', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
-			const spy3 = sinon.spy( event => {
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
+			const spy3 = vi.fn( event => {
 				event.stop();
 			} );
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
 			emitter.on( 'test', spy3 );
-			emitter.on( 'test', sinon.stub().throws() );
-			emitter.on( 'test', sinon.stub().throws() );
+			emitter.on( 'test', vi.fn( () => {
+				throw new Error( 'Unexpected call' );
+			} ) );
+			emitter.on( 'test', vi.fn( () => {
+				throw new Error( 'Unexpected call' );
+			} ) );
 
 			emitter.fire( 'test' );
 
-			sinon.assert.called( spy1 );
-			sinon.assert.called( spy2 );
-			sinon.assert.called( spy3 );
+			expect( spy1 ).toHaveBeenCalled();
+			expect( spy2 ).toHaveBeenCalled();
+			expect( spy3 ).toHaveBeenCalled();
 		} );
 
 		it( 'should take a callback off()', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy( event => {
+			const spy1 = vi.fn();
+			const spy2 = vi.fn( event => {
 				event.off();
 			} );
-			const spy3 = sinon.spy();
+			const spy3 = vi.fn();
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
@@ -298,17 +316,17 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'test' );
 			emitter.fire( 'test' );
 
-			sinon.assert.calledTwice( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledTwice( spy3 );
+			expect( spy1 ).toHaveBeenCalledTimes( 2 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should take the callback off() even after stop()', () => {
-			const spy1 = sinon.spy( event => {
+			const spy1 = vi.fn( event => {
 				event.stop();
 				event.off();
 			} );
-			const spy2 = sinon.spy();
+			const spy2 = vi.fn();
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
@@ -316,16 +334,16 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'test' );
 			emitter.fire( 'test' );
 
-			sinon.assert.calledOnce( spy1 );
-			sinon.assert.calledOnce( spy2 );
+			expect( spy1 ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
 		} );
 	} );
 
 	describe( 'once', () => {
 		it( 'should be called just once for general event', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
-			const spy3 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
+			const spy3 = vi.fn();
 
 			emitter.on( 'test', spy1 );
 			emitter.once( 'test', spy2 );
@@ -334,15 +352,15 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'test' );
 			emitter.fire( 'test' );
 
-			sinon.assert.calledTwice( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledTwice( spy3 );
+			expect( spy1 ).toHaveBeenCalledTimes( 2 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should be called just once for namespaced event', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
-			const spy3 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
+			const spy3 = vi.fn();
 
 			emitter.on( 'foo:bar', spy1 );
 			emitter.once( 'foo:bar', spy2 );
@@ -351,34 +369,34 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'foo:bar' );
 			emitter.fire( 'foo:bar' );
 
-			sinon.assert.calledTwice( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledTwice( spy3 );
+			expect( spy1 ).toHaveBeenCalledTimes( 2 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should have proper arguments', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			emitter.once( 'test', spy );
 
 			emitter.fire( 'test', 1, 2, 3 );
 
-			sinon.assert.calledWithExactly( spy, sinon.match.instanceOf( EventInfo ), 1, 2, 3 );
+			expect( spy ).toHaveBeenCalledWith( expect.any( EventInfo ), 1, 2, 3 );
 		} );
 
 		it( 'should be removed also when fired through namespaced event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			emitter.once( 'foo', spy );
 
 			emitter.fire( 'foo:bar' );
 			emitter.fire( 'foo' );
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should be called only once and have infinite loop protection', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			emitter.once( 'foo', () => {
 				spy();
@@ -388,15 +406,15 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'foo' );
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 		} );
 	} );
 
 	describe( 'off', () => {
 		it( 'should get callbacks off()', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
-			const spy3 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
+			const spy3 = vi.fn();
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
@@ -409,14 +427,14 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'test' );
 			emitter.fire( 'test' );
 
-			sinon.assert.calledThrice( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledThrice( spy3 );
+			expect( spy1 ).toHaveBeenCalledTimes( 3 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 3 );
 		} );
 
 		it( 'should remove all callbacks for event', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
@@ -428,21 +446,23 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'test' );
 			emitter.fire( 'test' );
 
-			sinon.assert.calledOnce( spy1 );
-			sinon.assert.calledOnce( spy2 );
+			expect( spy1 ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should not fail with unknown events', () => {
-			emitter.off( 'foo', () => {} );
-			emitter.off( 'foo:bar', () => {} );
+			expect( () => {
+				emitter.off( 'foo', () => {} );
+				emitter.off( 'foo:bar', () => {} );
 
-			emitter.off( 'foo' );
-			emitter.off( 'foo:bar' );
+				emitter.off( 'foo' );
+				emitter.off( 'foo:bar' );
+			} ).to.not.throw();
 		} );
 
 		it( 'should remove all entries for the same callback', () => {
-			const spy1 = sinon.spy().named( 1 );
-			const spy2 = sinon.spy().named( 2 );
+			const spy1 = vi.fn().mockName( '1' );
+			const spy2 = vi.fn().mockName( '2' );
 
 			emitter.on( 'test', spy1 );
 			emitter.on( 'test', spy2 );
@@ -455,15 +475,15 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'test' );
 
-			sinon.assert.callCount( spy1, 2 );
-			sinon.assert.callCount( spy2, 4 );
+			expect( spy1 ).toHaveBeenCalledTimes( 2 );
+			expect( spy2 ).toHaveBeenCalledTimes( 4 );
 		} );
 
 		it( 'should not remove all namespaced entries when removing namespace inner group', () => {
-			const spy1 = sinon.spy().named( 'foo' );
-			const spy2 = sinon.spy().named( 'foo:bar' );
-			const spy3 = sinon.spy().named( 'foo:bar:baz' );
-			const spy4 = sinon.spy().named( 'foo:bar:baz:abc' );
+			const spy1 = vi.fn().mockName( 'foo' );
+			const spy2 = vi.fn().mockName( 'foo:bar' );
+			const spy3 = vi.fn().mockName( 'foo:bar:baz' );
+			const spy4 = vi.fn().mockName( 'foo:bar:baz:abc' );
 
 			emitter.on( 'foo', spy1 );
 			emitter.on( 'foo:bar', spy2 );
@@ -472,26 +492,26 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'foo:bar:baz:abc' );
 
-			sinon.assert.calledOnce( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledOnce( spy3 );
-			sinon.assert.calledOnce( spy4 );
+			expect( spy1 ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 1 );
+			expect( spy4 ).toHaveBeenCalledTimes( 1 );
 
 			emitter.off( 'foo:bar' );
 
 			emitter.fire( 'foo:bar:baz:abc' );
 
-			sinon.assert.calledTwice( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledTwice( spy3 );
-			sinon.assert.calledTwice( spy4 );
+			expect( spy1 ).toHaveBeenCalledTimes( 2 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 2 );
+			expect( spy4 ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should properly remove callbacks for namespaced events', () => {
-			const spyFoo = sinon.spy();
-			const spyAbc = sinon.spy();
-			const spyBar = sinon.spy();
-			const spyFoo2 = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyAbc = vi.fn();
+			const spyBar = vi.fn();
+			const spyFoo2 = vi.fn();
 
 			emitter.on( 'foo', spyFoo );
 			emitter.on( 'foo:bar:abc', spyAbc );
@@ -502,42 +522,42 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'foo:bar:abc' );
 
-			sinon.assert.calledOnce( spyAbc );
-			sinon.assert.calledOnce( spyBar );
-			sinon.assert.calledOnce( spyFoo2 );
-			sinon.assert.notCalled( spyFoo );
+			expect( spyAbc ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).toHaveBeenCalledTimes( 1 );
+			expect( spyFoo2 ).toHaveBeenCalledTimes( 1 );
+			expect( spyFoo ).not.toHaveBeenCalled();
 
 			emitter.fire( 'foo:bar' );
 
-			sinon.assert.notCalled( spyFoo );
-			sinon.assert.calledOnce( spyAbc );
-			sinon.assert.calledTwice( spyBar );
-			sinon.assert.calledTwice( spyFoo2 );
+			expect( spyFoo ).not.toHaveBeenCalled();
+			expect( spyAbc ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).toHaveBeenCalledTimes( 2 );
+			expect( spyFoo2 ).toHaveBeenCalledTimes( 2 );
 
 			emitter.fire( 'foo' );
 
-			sinon.assert.notCalled( spyFoo );
-			sinon.assert.calledOnce( spyAbc );
-			sinon.assert.calledTwice( spyBar );
-			sinon.assert.calledThrice( spyFoo2 );
+			expect( spyFoo ).not.toHaveBeenCalled();
+			expect( spyAbc ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).toHaveBeenCalledTimes( 2 );
+			expect( spyFoo2 ).toHaveBeenCalledTimes( 3 );
 		} );
 	} );
 
 	describe( 'listenTo', () => {
 		it( 'should properly register callbacks', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			listener.listenTo( emitter, 'test', spy );
 
 			emitter.fire( 'test' );
 
-			sinon.assert.called( spy );
+			expect( spy ).toHaveBeenCalled();
 		} );
 
 		it( 'should correctly listen to namespaced events', () => {
-			const spyFoo = sinon.spy();
-			const spyBar = sinon.spy();
-			const spyBaz = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyBar = vi.fn();
+			const spyBaz = vi.fn();
 
 			listener.listenTo( emitter, 'foo', spyFoo );
 			listener.listenTo( emitter, 'foo:bar', spyBar );
@@ -545,21 +565,21 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'foo:bar:baz' );
 
-			sinon.assert.calledOnce( spyFoo );
-			sinon.assert.calledOnce( spyBar );
-			sinon.assert.calledOnce( spyBaz );
+			expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).toHaveBeenCalledTimes( 1 );
+			expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 
 			emitter.fire( 'foo:bar' );
 
-			sinon.assert.calledTwice( spyFoo );
-			sinon.assert.calledTwice( spyBar );
-			sinon.assert.calledOnce( spyBaz );
+			expect( spyFoo ).toHaveBeenCalledTimes( 2 );
+			expect( spyBar ).toHaveBeenCalledTimes( 2 );
+			expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 
 			emitter.fire( 'foo' );
 
-			sinon.assert.calledThrice( spyFoo );
-			sinon.assert.calledTwice( spyBar );
-			sinon.assert.calledOnce( spyBaz );
+			expect( spyFoo ).toHaveBeenCalledTimes( 3 );
+			expect( spyBar ).toHaveBeenCalledTimes( 2 );
+			expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should use _addEventListener() on emitter object', () => {
@@ -567,38 +587,38 @@ describe( 'EmitterMixin', () => {
 				_addEventListener() {}
 			};
 
-			const spy = sinon.spy( emitter, '_addEventListener' );
+			const spy = vi.spyOn( emitter, '_addEventListener' );
 
 			const callbackFunc = () => {};
 			const optionsObj = {};
 
 			listener.listenTo( emitter, 'test', callbackFunc, optionsObj );
 
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledOn( spy, emitter );
-			sinon.assert.calledWithExactly( spy, 'test', callbackFunc, optionsObj );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+			expect( spy.mock.contexts[ 0 ] ).toBe( emitter );
+			expect( spy ).toHaveBeenCalledWith( 'test', callbackFunc, optionsObj );
 		} );
 
 		it( 'should use listener\'s _addEventListener() if emitter is not implementing it', () => {
 			const emitter = {};
 
-			const spy = sinon.spy( listener, '_addEventListener' );
+			const spy = vi.spyOn( listener, '_addEventListener' );
 
 			const callbackFunc = () => {};
 			const optionsObj = {};
 
 			listener.listenTo( emitter, 'test', callbackFunc, optionsObj );
 
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledOn( spy, emitter );
-			sinon.assert.calledWithExactly( spy, 'test', callbackFunc, optionsObj );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+			expect( spy.mock.contexts[ 0 ] ).toBe( emitter );
+			expect( spy ).toHaveBeenCalledWith( 'test', callbackFunc, optionsObj );
 		} );
 	} );
 
 	describe( 'stopListening', () => {
 		it( 'should stop listening to given event callback', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
 
 			listener.listenTo( emitter, 'event1', spy1 );
 			listener.listenTo( emitter, 'event2', spy2 );
@@ -611,14 +631,14 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'event1' );
 			emitter.fire( 'event2' );
 
-			sinon.assert.calledOnce( spy1 );
-			sinon.assert.calledTwice( spy2 );
+			expect( spy1 ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should stop listening to given event', () => {
-			const spy1a = sinon.spy();
-			const spy1b = sinon.spy();
-			const spy2 = sinon.spy();
+			const spy1a = vi.fn();
+			const spy1b = vi.fn();
+			const spy2 = vi.fn();
 
 			listener.listenTo( emitter, 'event1', spy1a );
 			listener.listenTo( emitter, 'event1', spy1b );
@@ -632,16 +652,16 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'event1' );
 			emitter.fire( 'event2' );
 
-			sinon.assert.calledOnce( spy1a );
-			sinon.assert.calledOnce( spy1b );
-			sinon.assert.calledTwice( spy2 );
+			expect( spy1a ).toHaveBeenCalledTimes( 1 );
+			expect( spy1b ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 2 );
 		} );
 
 		it( 'should stop listening to all events from given emitter', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
-			const spy3 = sinon.spy();
-			const spy4 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
+			const spy3 = vi.fn();
+			const spy4 = vi.fn();
 
 			listener.listenTo( emitter, 'event1', spy1 );
 			listener.listenTo( emitter, 'event2', spy2 );
@@ -658,17 +678,17 @@ describe( 'EmitterMixin', () => {
 			emitter.fire( 'event2' );
 			emitter.fire( 'foo:bar:baz' );
 
-			sinon.assert.calledOnce( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledOnce( spy3 );
-			sinon.assert.calledOnce( spy4 );
+			expect( spy1 ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 1 );
+			expect( spy4 ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should stop listening to everything', () => {
-			const spy1 = sinon.spy();
-			const spy2 = sinon.spy();
-			const spy3 = sinon.spy();
-			const spy4 = sinon.spy();
+			const spy1 = vi.fn();
+			const spy2 = vi.fn();
+			const spy3 = vi.fn();
+			const spy4 = vi.fn();
 
 			const emitter1 = getEmitterInstance();
 			const emitter2 = getEmitterInstance();
@@ -692,14 +712,14 @@ describe( 'EmitterMixin', () => {
 			emitter1.fire( 'foo:bar' );
 			emitter1.fire( 'foo:bar:baz' );
 
-			sinon.assert.calledOnce( spy1 );
-			sinon.assert.calledOnce( spy2 );
-			sinon.assert.calledThrice( spy3 );
-			sinon.assert.calledOnce( spy4 );
+			expect( spy1 ).toHaveBeenCalledTimes( 1 );
+			expect( spy2 ).toHaveBeenCalledTimes( 1 );
+			expect( spy3 ).toHaveBeenCalledTimes( 3 );
+			expect( spy4 ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should not stop other emitters when a non-listened emitter is provided', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			const emitter1 = getEmitterInstance();
 			const emitter2 = getEmitterInstance();
@@ -710,13 +730,13 @@ describe( 'EmitterMixin', () => {
 
 			emitter1.fire( 'test' );
 
-			sinon.assert.called( spy );
+			expect( spy ).toHaveBeenCalled();
 		} );
 
 		it( 'should correctly stop listening to namespaced events', () => {
-			const spyFoo = sinon.spy();
-			const spyBar = sinon.spy();
-			const spyBaz = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyBar = vi.fn();
+			const spyBaz = vi.fn();
 
 			listener.listenTo( emitter, 'foo', spyFoo );
 			listener.listenTo( emitter, 'foo:bar', spyBar );
@@ -726,15 +746,15 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'foo:bar:baz' );
 
-			sinon.assert.notCalled( spyFoo );
-			sinon.assert.calledOnce( spyBar );
-			sinon.assert.calledOnce( spyBaz );
+			expect( spyFoo ).not.toHaveBeenCalled();
+			expect( spyBar ).toHaveBeenCalledTimes( 1 );
+			expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should correctly stop listening to namespaced events when removing specialised event', () => {
-			const spyFoo = sinon.spy();
-			const spyBar = sinon.spy();
-			const spyBaz = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyBar = vi.fn();
+			const spyBaz = vi.fn();
 
 			listener.listenTo( emitter, 'foo', spyFoo );
 			listener.listenTo( emitter, 'foo:bar', spyBar );
@@ -744,37 +764,41 @@ describe( 'EmitterMixin', () => {
 
 			emitter.fire( 'foo:bar:baz' );
 
-			sinon.assert.calledOnce( spyFoo );
-			sinon.assert.notCalled( spyBar );
-			sinon.assert.calledOnce( spyBaz );
+			expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyBar ).not.toHaveBeenCalled();
+			expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should not fail with unknown events', () => {
-			listener.stopListening( emitter, 'foo', () => {} );
-			listener.stopListening( emitter, 'foo:bar', () => {} );
-			listener.stopListening( emitter, 'foo' );
-			listener.stopListening( emitter, 'foo:bar' );
+			expect( () => {
+				listener.stopListening( emitter, 'foo', () => {} );
+				listener.stopListening( emitter, 'foo:bar', () => {} );
+				listener.stopListening( emitter, 'foo' );
+				listener.stopListening( emitter, 'foo:bar' );
+			} ).to.not.throw();
 		} );
 
 		it( 'should not fail with unknown emitter', () => {
 			listener.listenTo( emitter, 'foo:bar', () => {} );
 
-			listener.stopListening( {}, 'foo', () => {} );
-			listener.stopListening( {}, 'foo:bar', () => {} );
-			listener.stopListening( {}, 'foo' );
-			listener.stopListening( {}, 'foo:bar' );
-			listener.stopListening( {} );
+			expect( () => {
+				listener.stopListening( {}, 'foo', () => {} );
+				listener.stopListening( {}, 'foo:bar', () => {} );
+				listener.stopListening( {}, 'foo' );
+				listener.stopListening( {}, 'foo:bar' );
+				listener.stopListening( {} );
+			} ).to.not.throw();
 		} );
 
 		it( 'should not fail with unknown callbacks', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			listener.listenTo( emitter, 'foo', spy );
 			listener.stopListening( emitter, 'foo', () => {} );
 
 			emitter.fire( 'foo' );
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should use _removeEventListener() on emitter object', () => {
@@ -782,31 +806,31 @@ describe( 'EmitterMixin', () => {
 				_removeEventListener() {}
 			};
 
-			const spy = sinon.spy( emitter, '_removeEventListener' );
+			const spy = vi.spyOn( emitter, '_removeEventListener' );
 
 			const callbackFunc = () => {};
 
 			listener.listenTo( emitter, 'test', callbackFunc );
 			listener.stopListening( emitter, 'test', callbackFunc );
 
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledOn( spy, emitter );
-			sinon.assert.calledWithExactly( spy, 'test', callbackFunc );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+			expect( spy.mock.contexts[ 0 ] ).toBe( emitter );
+			expect( spy ).toHaveBeenCalledWith( 'test', callbackFunc );
 		} );
 
 		it( 'should use listener\'s _removeEventListener() if emitter is not implementing it', () => {
 			const emitter = {};
 
-			const spy = sinon.spy( listener, '_removeEventListener' );
+			const spy = vi.spyOn( listener, '_removeEventListener' );
 
 			const callbackFunc = () => {};
 
 			listener.listenTo( emitter, 'test', callbackFunc );
 			listener.stopListening( emitter, 'test', callbackFunc );
 
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledOn( spy, emitter );
-			sinon.assert.calledWithExactly( spy, 'test', callbackFunc );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+			expect( spy.mock.contexts[ 0 ] ).toBe( emitter );
+			expect( spy ).toHaveBeenCalledWith( 'test', callbackFunc );
 		} );
 	} );
 
@@ -824,7 +848,7 @@ describe( 'EmitterMixin', () => {
 		} );
 
 		describe( 'to', () => {
-			it( 'forwards an event to another emitter', done => {
+			it( 'forwards an event to another emitter', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
 				const dataA = {};
@@ -839,8 +863,6 @@ describe( 'EmitterMixin', () => {
 						expectedPath: [ emitterB, emitterA ],
 						expectedData: [ dataA, dataB ]
 					} );
-
-					done();
 				} );
 
 				emitterB.fire( 'foo', dataA, dataB );
@@ -849,9 +871,9 @@ describe( 'EmitterMixin', () => {
 			it( 'forwards multiple events to another emitter', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyFoo = sinon.spy();
-				const spyBar = sinon.spy();
-				const spyBaz = sinon.spy();
+				const spyFoo = vi.fn();
+				const spyBar = vi.fn();
+				const spyBaz = vi.fn();
 				const dataA = {};
 				const dataB = {};
 
@@ -863,11 +885,11 @@ describe( 'EmitterMixin', () => {
 
 				emitterB.fire( 'foo', dataA, dataB );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.notCalled( spyBar );
-				sinon.assert.notCalled( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyBar ).not.toHaveBeenCalled();
+				expect( spyBaz ).not.toHaveBeenCalled();
 
-				assertDelegated( spyFoo.args[ 0 ], {
+				assertDelegated( spyFoo.mock.calls[ 0 ], {
 					expectedSource: emitterB,
 					expectedName: 'foo',
 					expectedPath: [ emitterB, emitterA ],
@@ -876,11 +898,11 @@ describe( 'EmitterMixin', () => {
 
 				emitterB.fire( 'bar' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.calledOnce( spyBar );
-				sinon.assert.notCalled( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyBar ).toHaveBeenCalledTimes( 1 );
+				expect( spyBaz ).not.toHaveBeenCalled();
 
-				assertDelegated( spyBar.args[ 0 ], {
+				assertDelegated( spyBar.mock.calls[ 0 ], {
 					expectedSource: emitterB,
 					expectedName: 'bar',
 					expectedPath: [ emitterB, emitterA ],
@@ -889,11 +911,11 @@ describe( 'EmitterMixin', () => {
 
 				emitterB.fire( 'baz' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.calledOnce( spyBar );
-				sinon.assert.calledOnce( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyBar ).toHaveBeenCalledTimes( 1 );
+				expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 
-				assertDelegated( spyBaz.args[ 0 ], {
+				assertDelegated( spyBaz.mock.calls[ 0 ], {
 					expectedSource: emitterB,
 					expectedName: 'baz',
 					expectedPath: [ emitterB, emitterA ],
@@ -902,17 +924,17 @@ describe( 'EmitterMixin', () => {
 
 				emitterB.fire( 'not-delegated' );
 
-				sinon.assert.calledOnce( spyFoo );
-				sinon.assert.calledOnce( spyBar );
-				sinon.assert.calledOnce( spyBaz );
+				expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyBar ).toHaveBeenCalledTimes( 1 );
+				expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 			} );
 
 			it( 'does not forward events which are not supposed to be delegated', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyFoo = sinon.spy();
-				const spyBar = sinon.spy();
-				const spyBaz = sinon.spy();
+				const spyFoo = vi.fn();
+				const spyBar = vi.fn();
+				const spyBaz = vi.fn();
 
 				emitterB.delegate( 'foo', 'bar', 'baz' ).to( emitterA );
 
@@ -925,13 +947,13 @@ describe( 'EmitterMixin', () => {
 				emitterB.fire( 'baz' );
 				emitterB.fire( 'not-delegated' );
 
-				sinon.assert.callOrder( spyFoo, spyBar, spyBaz );
-				sinon.assert.callCount( spyFoo, 1 );
-				sinon.assert.callCount( spyBar, 1 );
-				sinon.assert.callCount( spyBaz, 1 );
+				expectCallOrder( spyFoo, spyBar, spyBaz );
+				expect( spyFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyBar ).toHaveBeenCalledTimes( 1 );
+				expect( spyBaz ).toHaveBeenCalledTimes( 1 );
 			} );
 
-			it( 'supports deep chain event delegation', done => {
+			it( 'supports deep chain event delegation', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
 				const emitterC = getEmitterInstance();
@@ -947,14 +969,12 @@ describe( 'EmitterMixin', () => {
 						expectedPath: [ emitterC, emitterB, emitterA ],
 						expectedData: [ data ]
 					} );
-
-					done();
 				} );
 
 				emitterC.fire( 'foo', data );
 			} );
 
-			it( 'preserves path in event delegation', done => {
+			it( 'preserves path in event delegation', () => {
 				const data = {};
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
@@ -972,8 +992,6 @@ describe( 'EmitterMixin', () => {
 						expectedPath: [ emitterB, emitterD ],
 						expectedData: [ data ]
 					} );
-
-					done();
 				} );
 
 				emitterB.fire( 'foo', data );
@@ -983,8 +1001,8 @@ describe( 'EmitterMixin', () => {
 			it( 'executes callbacks first, then delegates further', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyA = sinon.spy();
-				const spyB = sinon.spy();
+				const spyA = vi.fn();
+				const spyB = vi.fn();
 
 				emitterB.delegate( 'foo' ).to( emitterA );
 
@@ -993,7 +1011,7 @@ describe( 'EmitterMixin', () => {
 
 				emitterB.fire( 'foo' );
 
-				sinon.assert.callOrder( spyB, spyA );
+				expectCallOrder( spyB, spyA );
 			} );
 
 			it( 'supports delegation under a different name', () => {
@@ -1001,10 +1019,10 @@ describe( 'EmitterMixin', () => {
 				const emitterB = getEmitterInstance();
 				const emitterC = getEmitterInstance();
 				const emitterD = getEmitterInstance();
-				const spyAFoo = sinon.spy();
-				const spyABar = sinon.spy();
-				const spyCBaz = sinon.spy();
-				const spyDFoo = sinon.spy();
+				const spyAFoo = vi.fn();
+				const spyABar = vi.fn();
+				const spyCBaz = vi.fn();
+				const spyDFoo = vi.fn();
 
 				emitterB.delegate( 'foo' ).to( emitterA, 'bar' );
 				emitterB.delegate( 'foo' ).to( emitterC, name => name + '-baz' );
@@ -1017,19 +1035,19 @@ describe( 'EmitterMixin', () => {
 
 				emitterB.fire( 'foo' );
 
-				sinon.assert.calledOnce( spyABar );
-				sinon.assert.calledOnce( spyCBaz );
-				sinon.assert.calledOnce( spyDFoo );
-				sinon.assert.notCalled( spyAFoo );
+				expect( spyABar ).toHaveBeenCalledTimes( 1 );
+				expect( spyCBaz ).toHaveBeenCalledTimes( 1 );
+				expect( spyDFoo ).toHaveBeenCalledTimes( 1 );
+				expect( spyAFoo ).not.toHaveBeenCalled();
 			} );
 
 			it( 'supports delegation under a different name with multiple events', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyAFoo = sinon.spy();
-				const spyABar = sinon.spy();
-				const spyABaz = sinon.spy();
-				const spyAQux = sinon.spy();
+				const spyAFoo = vi.fn();
+				const spyABar = vi.fn();
+				const spyABaz = vi.fn();
+				const spyAQux = vi.fn();
 
 				emitterB.delegate( 'foo', 'bar', 'baz' ).to( emitterA, 'qux' );
 
@@ -1042,22 +1060,22 @@ describe( 'EmitterMixin', () => {
 				emitterB.fire( 'baz' );
 				emitterB.fire( 'bar' );
 
-				sinon.assert.notCalled( spyAFoo );
-				sinon.assert.notCalled( spyABar );
-				sinon.assert.notCalled( spyABaz );
+				expect( spyAFoo ).not.toHaveBeenCalled();
+				expect( spyABar ).not.toHaveBeenCalled();
+				expect( spyABaz ).not.toHaveBeenCalled();
 
-				sinon.assert.calledThrice( spyAQux );
+				expect( spyAQux ).toHaveBeenCalledTimes( 3 );
 			} );
 
 			it( 'supports delegation with multiple events, each under a different name', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyAFoo = sinon.spy();
-				const spyABar = sinon.spy();
-				const spyABaz = sinon.spy();
-				const spyAFooQux = sinon.spy();
-				const spyABarQux = sinon.spy();
-				const spyABazQux = sinon.spy();
+				const spyAFoo = vi.fn();
+				const spyABar = vi.fn();
+				const spyABaz = vi.fn();
+				const spyAFooQux = vi.fn();
+				const spyABarQux = vi.fn();
+				const spyABazQux = vi.fn();
 
 				emitterB.delegate( 'foo', 'bar', 'baz' ).to( emitterA, name => name + '-qux' );
 
@@ -1073,18 +1091,18 @@ describe( 'EmitterMixin', () => {
 				emitterB.fire( 'baz' );
 				emitterB.fire( 'bar' );
 
-				sinon.assert.notCalled( spyAFoo );
-				sinon.assert.notCalled( spyABar );
-				sinon.assert.notCalled( spyABaz );
+				expect( spyAFoo ).not.toHaveBeenCalled();
+				expect( spyABar ).not.toHaveBeenCalled();
+				expect( spyABaz ).not.toHaveBeenCalled();
 
-				sinon.assert.calledOnce( spyAFooQux );
-				sinon.assert.calledOnce( spyABarQux );
-				sinon.assert.calledOnce( spyABazQux );
+				expect( spyAFooQux ).toHaveBeenCalledTimes( 1 );
+				expect( spyABarQux ).toHaveBeenCalledTimes( 1 );
+				expect( spyABazQux ).toHaveBeenCalledTimes( 1 );
 
-				sinon.assert.callOrder( spyAFooQux, spyABazQux, spyABarQux );
+				expectCallOrder( spyAFooQux, spyABazQux, spyABarQux );
 			} );
 
-			it( 'preserves path in delegation under a different name', done => {
+			it( 'preserves path in delegation under a different name', () => {
 				const data = {};
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
@@ -1102,8 +1120,6 @@ describe( 'EmitterMixin', () => {
 						expectedPath: [ emitterB, emitterD ],
 						expectedData: [ data ]
 					} );
-
-					done();
 				} );
 
 				emitterB.fire( 'foo', data );
@@ -1112,9 +1128,9 @@ describe( 'EmitterMixin', () => {
 			it( 'supports delegation of all events', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyAFoo = sinon.spy();
-				const spyABar = sinon.spy();
-				const spyABaz = sinon.spy();
+				const spyAFoo = vi.fn();
+				const spyABar = vi.fn();
+				const spyABaz = vi.fn();
 
 				emitterB.delegate( '*' ).to( emitterA );
 
@@ -1126,18 +1142,18 @@ describe( 'EmitterMixin', () => {
 				emitterB.fire( 'baz' );
 				emitterB.fire( 'bar' );
 
-				sinon.assert.callOrder( spyAFoo, spyABaz, spyABar );
+				expectCallOrder( spyAFoo, spyABaz, spyABar );
 			} );
 
 			it( 'supports delegation of all events under different names', () => {
 				const emitterA = getEmitterInstance();
 				const emitterB = getEmitterInstance();
-				const spyAFoo = sinon.spy();
-				const spyABar = sinon.spy();
-				const spyABaz = sinon.spy();
-				const spyAFooDel = sinon.spy();
-				const spyABarDel = sinon.spy();
-				const spyABazDel = sinon.spy();
+				const spyAFoo = vi.fn();
+				const spyABar = vi.fn();
+				const spyABaz = vi.fn();
+				const spyAFooDel = vi.fn();
+				const spyABarDel = vi.fn();
+				const spyABazDel = vi.fn();
 
 				emitterB.delegate( '*' ).to( emitterA, name => name + '-delegated' );
 
@@ -1153,11 +1169,11 @@ describe( 'EmitterMixin', () => {
 				emitterB.fire( 'baz' );
 				emitterB.fire( 'bar' );
 
-				sinon.assert.notCalled( spyAFoo );
-				sinon.assert.notCalled( spyABar );
-				sinon.assert.notCalled( spyABaz );
+				expect( spyAFoo ).not.toHaveBeenCalled();
+				expect( spyABar ).not.toHaveBeenCalled();
+				expect( spyABaz ).not.toHaveBeenCalled();
 
-				sinon.assert.callOrder( spyAFooDel, spyABazDel, spyABarDel );
+				expectCallOrder( spyAFooDel, spyABazDel, spyABarDel );
 			} );
 		} );
 	} );
@@ -1173,8 +1189,8 @@ describe( 'EmitterMixin', () => {
 			const emitterA = getEmitterInstance();
 			const emitterB = getEmitterInstance();
 			const emitterC = getEmitterInstance();
-			const spyFoo = sinon.spy();
-			const spyBar = sinon.spy();
+			const spyFoo = vi.fn();
+			const spyBar = vi.fn();
 
 			emitterA.delegate( 'foo' ).to( emitterB );
 			emitterA.delegate( 'bar' ).to( emitterC );
@@ -1185,23 +1201,23 @@ describe( 'EmitterMixin', () => {
 			emitterA.fire( 'foo' );
 			emitterA.fire( 'bar' );
 
-			sinon.assert.callOrder( spyFoo, spyBar );
+			expectCallOrder( spyFoo, spyBar );
 
 			emitterA.stopDelegating();
 
 			emitterA.fire( 'foo' );
 			emitterA.fire( 'bar' );
 
-			sinon.assert.callOrder( spyFoo, spyBar );
+			expectCallOrder( spyFoo, spyBar );
 		} );
 
 		it( 'stops delegating a specific event to all emitters', () => {
 			const emitterA = getEmitterInstance();
 			const emitterB = getEmitterInstance();
 			const emitterC = getEmitterInstance();
-			const spyFooB = sinon.spy();
-			const spyFooC = sinon.spy();
-			const spyBarC = sinon.spy();
+			const spyFooB = vi.fn();
+			const spyFooC = vi.fn();
+			const spyBarC = vi.fn();
 
 			emitterA.delegate( 'foo' ).to( emitterB );
 			emitterA.delegate( 'foo' ).to( emitterC );
@@ -1214,22 +1230,22 @@ describe( 'EmitterMixin', () => {
 			emitterA.fire( 'foo' );
 			emitterA.fire( 'bar' );
 
-			sinon.assert.callOrder( spyFooB, spyFooC, spyBarC );
+			expectCallOrder( spyFooB, spyFooC, spyBarC );
 
 			emitterA.stopDelegating( 'foo' );
 
 			emitterA.fire( 'foo' );
 			emitterA.fire( 'bar' );
 
-			sinon.assert.callOrder( spyFooB, spyFooC, spyBarC, spyBarC );
+			expectCallOrder( spyFooB, spyFooC, spyBarC, spyBarC );
 		} );
 
 		it( 'stops delegating a specific event to a specific emitter', () => {
 			const emitterA = getEmitterInstance();
 			const emitterB = getEmitterInstance();
 			const emitterC = getEmitterInstance();
-			const spyFooB = sinon.spy();
-			const spyFooC = sinon.spy();
+			const spyFooB = vi.fn();
+			const spyFooC = vi.fn();
 
 			emitterA.delegate( 'foo' ).to( emitterB );
 			emitterA.delegate( 'foo' ).to( emitterC );
@@ -1239,20 +1255,20 @@ describe( 'EmitterMixin', () => {
 
 			emitterA.fire( 'foo' );
 
-			sinon.assert.callOrder( spyFooB, spyFooC );
+			expectCallOrder( spyFooB, spyFooC );
 
 			emitterA.stopDelegating( 'foo', emitterC );
 			emitterA.fire( 'foo' );
 
-			sinon.assert.callOrder( spyFooB, spyFooC, spyFooB );
+			expectCallOrder( spyFooB, spyFooC, spyFooB );
 		} );
 
 		it( 'stops delegating a specific event under a different name to a specific emitter', () => {
 			const emitterA = getEmitterInstance();
 			const emitterB = getEmitterInstance();
 			const emitterC = getEmitterInstance();
-			const spyFooB = sinon.spy();
-			const spyFooC = sinon.spy();
+			const spyFooB = vi.fn();
+			const spyFooC = vi.fn();
 
 			emitterA.delegate( 'foo' ).to( emitterB );
 			emitterA.delegate( 'foo' ).to( emitterC, 'bar' );
@@ -1262,22 +1278,22 @@ describe( 'EmitterMixin', () => {
 
 			emitterA.fire( 'foo' );
 
-			sinon.assert.callOrder( spyFooB, spyFooC );
+			expectCallOrder( spyFooB, spyFooC );
 
 			emitterA.stopDelegating( 'foo', emitterC );
 			emitterA.fire( 'foo' );
 
-			sinon.assert.callOrder( spyFooB, spyFooC, spyFooB );
+			expectCallOrder( spyFooB, spyFooC, spyFooB );
 		} );
 
 		it( 'stops delegating all ("*")', () => {
 			const emitterA = getEmitterInstance();
 			const emitterB = getEmitterInstance();
 			const emitterC = getEmitterInstance();
-			const spyAFoo = sinon.spy();
-			const spyABar = sinon.spy();
-			const spyCFoo = sinon.spy();
-			const spyCBar = sinon.spy();
+			const spyAFoo = vi.fn();
+			const spyABar = vi.fn();
+			const spyCFoo = vi.fn();
+			const spyCBar = vi.fn();
 
 			emitterB.delegate( '*' ).to( emitterA );
 			emitterB.delegate( '*' ).to( emitterC );
@@ -1290,30 +1306,30 @@ describe( 'EmitterMixin', () => {
 			emitterB.fire( 'foo' );
 			emitterB.fire( 'bar' );
 
-			sinon.assert.calledOnce( spyAFoo );
-			sinon.assert.calledOnce( spyABar );
-			sinon.assert.calledOnce( spyCFoo );
-			sinon.assert.calledOnce( spyCBar );
+			expect( spyAFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyABar ).toHaveBeenCalledTimes( 1 );
+			expect( spyCFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyCBar ).toHaveBeenCalledTimes( 1 );
 
 			emitterB.stopDelegating( '*' );
 
 			emitterB.fire( 'foo' );
 			emitterB.fire( 'bar' );
 
-			sinon.assert.calledOnce( spyAFoo );
-			sinon.assert.calledOnce( spyABar );
-			sinon.assert.calledOnce( spyCFoo );
-			sinon.assert.calledOnce( spyCBar );
+			expect( spyAFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyABar ).toHaveBeenCalledTimes( 1 );
+			expect( spyCFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyCBar ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'stops delegating all ("*") to a specific emitter', () => {
 			const emitterA = getEmitterInstance();
 			const emitterB = getEmitterInstance();
 			const emitterC = getEmitterInstance();
-			const spyAFoo = sinon.spy();
-			const spyABar = sinon.spy();
-			const spyCFoo = sinon.spy();
-			const spyCBar = sinon.spy();
+			const spyAFoo = vi.fn();
+			const spyABar = vi.fn();
+			const spyCFoo = vi.fn();
+			const spyCBar = vi.fn();
 
 			emitterB.delegate( '*' ).to( emitterA );
 			emitterB.delegate( 'foo' ).to( emitterC );
@@ -1326,20 +1342,20 @@ describe( 'EmitterMixin', () => {
 			emitterB.fire( 'foo' );
 			emitterB.fire( 'bar' );
 
-			sinon.assert.calledOnce( spyAFoo );
-			sinon.assert.calledOnce( spyABar );
-			sinon.assert.calledOnce( spyCFoo );
-			sinon.assert.notCalled( spyCBar );
+			expect( spyAFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyABar ).toHaveBeenCalledTimes( 1 );
+			expect( spyCFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyCBar ).not.toHaveBeenCalled();
 
 			emitterB.stopDelegating( '*', emitterA );
 
 			emitterB.fire( 'foo' );
 			emitterB.fire( 'bar' );
 
-			sinon.assert.calledOnce( spyAFoo );
-			sinon.assert.calledOnce( spyABar );
-			sinon.assert.calledTwice( spyCFoo );
-			sinon.assert.notCalled( spyCBar );
+			expect( spyAFoo ).toHaveBeenCalledTimes( 1 );
+			expect( spyABar ).toHaveBeenCalledTimes( 1 );
+			expect( spyCFoo ).toHaveBeenCalledTimes( 2 );
+			expect( spyCBar ).not.toHaveBeenCalled();
 		} );
 
 		it( 'passes when stopping delegation of a specific event which has never been delegated', () => {
@@ -1380,10 +1396,10 @@ describe( 'EmitterMixin', () => {
 	function assertDelegated( evtArgs, { expectedName, expectedSource, expectedPath, expectedData } ) {
 		const evtInfo = evtArgs[ 0 ];
 
-		expect( evtInfo.name ).to.equal( expectedName );
-		expect( evtInfo.source ).to.equal( expectedSource );
-		expect( evtInfo.path ).to.deep.equal( expectedPath );
-		expect( evtArgs.slice( 1 ) ).to.deep.equal( expectedData );
+		expect( evtInfo.name ).toEqual( expectedName );
+		expect( evtInfo.source ).toEqual( expectedSource );
+		expect( evtInfo.path ).toEqual( expectedPath );
+		expect( evtArgs.slice( 1 ) ).toEqual( expectedData );
 	}
 } );
 
@@ -1395,17 +1411,17 @@ describe( 'emitter id', () => {
 	} );
 
 	it( 'should be undefined before it is set', () => {
-		expect( _getEmitterId( emitter ) ).to.be.undefined;
+		expect( _getEmitterId( emitter ) ).toBeUndefined();
 	} );
 
 	it( 'should be settable but only once', () => {
 		_setEmitterId( emitter, 'abc' );
 
-		expect( _getEmitterId( emitter ) ).to.equal( 'abc' );
+		expect( _getEmitterId( emitter ) ).toEqual( 'abc' );
 
 		_setEmitterId( emitter, 'xyz' );
 
-		expect( _getEmitterId( emitter ) ).to.equal( 'abc' );
+		expect( _getEmitterId( emitter ) ).toEqual( 'abc' );
 	} );
 } );
 
@@ -1418,14 +1434,14 @@ describe( '_getEmitterListenedTo', () => {
 	} );
 
 	it( 'should return null if listener do not listen to emitter with given id', () => {
-		expect( _getEmitterListenedTo( listener, 'abc' ) ).to.be.null;
+		expect( _getEmitterListenedTo( listener, 'abc' ) ).toBeNull();
 	} );
 
 	it( 'should return emitter with given id', () => {
 		listener.listenTo( emitter, 'eventName', () => {} );
 		const emitterId = _getEmitterId( emitter );
 
-		expect( _getEmitterListenedTo( listener, emitterId ) ).to.equal( emitter );
+		expect( _getEmitterListenedTo( listener, emitterId ) ).toEqual( emitter );
 	} );
 } );
 
@@ -1433,4 +1449,16 @@ function getEmitterInstance() {
 	class BrandNewClass {}
 
 	return new ( EmitterMixin( BrandNewClass ) )();
+}
+
+function expectCallOrder( ...spies ) {
+	let previousOrder = -Infinity;
+
+	for ( const spy of spies ) {
+		const nextOrder = spy.mock.invocationCallOrder.find( callOrder => callOrder > previousOrder );
+
+		expect( nextOrder ).toBeDefined();
+
+		previousOrder = nextOrder;
+	}
 }

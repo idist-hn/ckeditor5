@@ -1,11 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals DOMParser */
-
-import { normalizeSpacing, normalizeSpacerunSpans } from '../../src/filters/space';
+import { describe, it, expect, vi } from 'vitest';
+import { normalizeSpacing, normalizeSpacerunSpans } from '../../src/filters/space.js';
 
 describe( 'PasteFromOffice - filters', () => {
 	describe( 'space', () => {
@@ -14,63 +13,63 @@ describe( 'PasteFromOffice - filters', () => {
 				const input = '<p>Foo </p><p><span> Bar  </span> Baz </p>';
 				const expected = '<p>Foo\u00A0</p><p><span> Bar \u00A0</span> Baz\u00A0</p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should replace last space before special "o:p" tag with NBSP', () => {
 				const input = '<p>Foo  <o:p></o:p><span> <o:p></o:p> Bar</span></p>';
 				const expected = '<p>Foo \u00A0<o:p></o:p><span>\u00A0<o:p></o:p> Bar</span></p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should remove newlines from spacerun spans #1', () => {
 				const input = '<span style=\'mso-spacerun:yes\'>  \n</span>';
 				const expected = '<span style=\'mso-spacerun:yes\'> \u00A0</span>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should remove newlines from spacerun spans #2', () => {
 				const input = '<span style=\'mso-spacerun:yes\'> \r\n</span>';
 				const expected = '<span style=\'mso-spacerun:yes\'>\u00A0</span>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should remove newlines from spacerun spans #3', () => {
 				const input = '<span style=\'mso-spacerun:yes\'>  \r\n\n  </span>';
 				const expected = '<span style=\'mso-spacerun:yes\'>   \u00A0</span>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should remove newlines from spacerun spans #4', () => {
 				const input = '<span style=\'mso-spacerun:yes\'>\n\n\n  </span>';
 				const expected = '<span style=\'mso-spacerun:yes\'> \u00A0</span>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should remove newlines from spacerun spans #5', () => {
 				const input = '<span style=\'mso-spacerun:yes\'>\n\n</span>';
 				const expected = '';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should remove multiline sequences of whitespaces', () => {
 				const input = '<p>Foo</p> \n\n   \n<p>Bar</p>   \r\n\r\n  <p>Baz</p>';
 				const expected = '<p>Foo</p><p>Bar</p><p>Baz</p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should normalize Safari "space spans"', () => {
 				const input = '<p>Foo <span class="Apple-converted-space">   </span> Baz <span>  </span></p>';
 				const expected = '<p>Foo \u00A0 \u00A0 Baz \u00A0\u00A0</p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should normalize nested Safari "space spans"', () => {
@@ -79,10 +78,10 @@ describe( 'PasteFromOffice - filters', () => {
 
 				const expected = '<p> Foo \u00A0 \u00A0 \u00A0 Baz</p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
-			// ckeditor5#2095
+			// https://github.com/ckeditor/ckeditor5/issues/2095
 			it( 'should detect space spans which are split into multiple lines', () => {
 				const input =
 					'<p><span style=\'font-size:13.0pt;line-height:150%;\n' +
@@ -97,7 +96,7 @@ describe( 'PasteFromOffice - filters', () => {
 					'<span\nstyle=\'mso-spacerun:yes\'>    </span>' +
 					'<span style=\'mso-spacerun:yes\'> </span>Test<o:p></o:p></span></p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 
 			it( 'should detect span with new-line only', () => {
@@ -111,7 +110,7 @@ describe( 'PasteFromOffice - filters', () => {
 					'<span\nstyle="letter-spacing:-1.5pt">\u00A0</span>' +
 					'<span style=\'letter-spacing:.15pt\'>\u00A0</span></p>';
 
-				expect( normalizeSpacing( input ) ).to.equal( expected );
+				expect( normalizeSpacing( input ) ).toBe( expected );
 			} );
 		} );
 
@@ -126,14 +125,14 @@ describe( 'PasteFromOffice - filters', () => {
 				const domParser = new DOMParser();
 				const htmlDocument = domParser.parseFromString( input, 'text/html' );
 
-				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).to.not.equal( expected );
+				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).not.toBe( expected );
 
 				normalizeSpacerunSpans( htmlDocument );
 
-				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).to.equal( expected );
+				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).toBe( expected );
 			} );
 
-			// ckeditor5#5645
+			// https://github.com/ckeditor/ckeditor5/issues/5645
 			it( 'should normalize spaces inside special "span.spacerun" elements that contain no data', () => {
 				const input = '<p> <span style=\'mso-spacerun:yes\'>   </span>Foo</p>' +
 					'<p> Baz <span style=\'mso-spacerun:yes\'></span></p>';
@@ -144,11 +143,11 @@ describe( 'PasteFromOffice - filters', () => {
 				const domParser = new DOMParser();
 				const htmlDocument = domParser.parseFromString( input, 'text/html' );
 
-				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).to.not.equal( expected );
+				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).not.toBe( expected );
 
 				normalizeSpacerunSpans( htmlDocument );
 
-				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).to.equal( expected );
+				expect( htmlDocument.body.innerHTML.replace( /'/g, '"' ).replace( /: /g, ':' ) ).toBe( expected );
 			} );
 
 			it( 'should use innerText setter instead of innerHTML', () => {
@@ -158,13 +157,13 @@ describe( 'PasteFromOffice - filters', () => {
 				const htmlDocument = domParser.parseFromString( input, 'text/html' );
 
 				const spanElement = htmlDocument.getElementsByTagName( 'span' )[ 0 ];
-				const innerHTMLSpy = sinon.spy( spanElement, 'innerHTML', [ 'set' ] );
-				const innerTextSpy = sinon.spy( spanElement, 'innerText', [ 'set' ] );
+				const innerHTMLSpy = vi.spyOn( spanElement, 'innerHTML', 'set' );
+				const innerTextSpy = vi.spyOn( spanElement, 'innerText', 'set' );
 
 				normalizeSpacerunSpans( htmlDocument );
 
-				sinon.assert.notCalled( innerHTMLSpy.set );
-				sinon.assert.calledOnce( innerTextSpy.set );
+				expect( innerHTMLSpy ).not.toHaveBeenCalled();
+				expect( innerTextSpy ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );

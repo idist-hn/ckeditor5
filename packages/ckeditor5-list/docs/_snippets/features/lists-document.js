@@ -1,30 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, document, console, ClassicEditor, DocumentList, DocumentListProperties, ImageResize */
+import { ListProperties, TodoList, ImageResize } from 'ckeditor5';
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { ListEditor } from './lists-source.js';
 
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-/* import { DocumentList } from '@ckeditor/ckeditor5-list'; */
-
-ClassicEditor
-	.create( document.querySelector( '#snippet-lists-document' ), {
-		removePlugins: [ 'List' ],
-		extraPlugins: [ DocumentList, DocumentListProperties, ImageResize ],
+ListEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-lists-document' ),
+		extraPlugins: [ ListProperties, TodoList, ImageResize ],
 		toolbar: {
 			items: [
 				'undo', 'redo', '|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
-				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
+				'|', 'bulletedList', 'numberedList', 'todoList', 'outdent', 'indent'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		},
 		image: {
 			toolbar: [
@@ -33,7 +39,9 @@ ClassicEditor
 				'imageStyle:breakText',
 				'|',
 				'toggleImageCaption',
-				'imageTextAlternative'
+				'imageTextAlternative',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		table: {
@@ -41,12 +49,28 @@ ClassicEditor
 		},
 		list: {
 			properties: {
-				styles: true,
+				styles: {
+					listStyleTypes: {
+						numbered: [
+							'decimal',
+							'decimal-leading-zero',
+							'lower-roman',
+							'upper-roman',
+							'lower-latin',
+							'upper-latin',
+							'arabic-indic'
+						],
+						bulleted: [
+							'disc',
+							'circle',
+							'square'
+						]
+					}
+				},
 				startIndex: true,
 				reversed: true
 			}
-		},
-		cloudServices: CS_CONFIG
+		}
 	} )
 	.then( editor => {
 		window.editorStyles = editor;

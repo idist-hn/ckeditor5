@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module highlight/highlightcommand
  */
 
-import { Command } from 'ckeditor5/src/core';
-import type { TreeWalkerValue } from 'ckeditor5/src/engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { ModelDocumentSelection, type ModelTreeWalkerValue, type ModelRange, type ModelElement } from '@ckeditor/ckeditor5-engine';
 
 /**
  * The highlight command. It is used by the {@link module:highlight/highlightediting~HighlightEditing highlight feature}
@@ -22,7 +22,7 @@ import type { TreeWalkerValue } from 'ckeditor5/src/engine';
  * inside a text with the highlight attribute, the command will remove the attribute from the entire range
  * of that text.
  */
-export default class HighlightCommand extends Command {
+export class HighlightCommand extends Command {
 	/**
 	 * A value indicating whether the command is active. If the selection has some highlight attribute,
 	 * it corresponds to the value of that attribute.
@@ -65,7 +65,7 @@ export default class HighlightCommand extends Command {
 				// When selection is inside text with `highlight` attribute.
 				if ( selection.hasAttribute( 'highlight' ) ) {
 					// Find the full highlighted range.
-					const isSameHighlight = ( value: TreeWalkerValue ) => {
+					const isSameHighlight = ( value: ModelTreeWalkerValue ) => {
 						return value.item.hasAttribute( 'highlight' ) && value.item.getAttribute( 'highlight' ) === this.value;
 					};
 
@@ -98,13 +98,23 @@ export default class HighlightCommand extends Command {
 					writer.setSelectionAttribute( 'highlight', highlighter );
 				}
 			} else {
-				const ranges = model.schema.getValidRanges( selection.getRanges(), 'highlight' );
+				const ranges = model.schema.getValidRanges( selection.getRanges(), 'highlight', {
+					includeEmptyRanges: true
+				} );
 
 				for ( const range of ranges ) {
+					let itemOrRange: ModelRange | ModelElement = range;
+					let attributeKey = 'highlight';
+
+					if ( range.isCollapsed ) {
+						itemOrRange = range.start.parent as ModelElement;
+						attributeKey = ModelDocumentSelection._getStoreAttributeKey( 'highlight' );
+					}
+
 					if ( highlighter ) {
-						writer.setAttribute( 'highlight', highlighter, range );
+						writer.setAttribute( attributeKey, highlighter, itemOrRange );
 					} else {
-						writer.removeAttribute( 'highlight', range );
+						writer.removeAttribute( attributeKey, itemOrRange );
 					}
 				}
 			}

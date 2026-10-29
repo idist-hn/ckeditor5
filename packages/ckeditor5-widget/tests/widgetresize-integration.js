@@ -1,22 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, Event */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import ImageResize from '@ckeditor/ckeditor5-image/src/imageresize';
-import { waitForAllImagesLoaded } from '@ckeditor/ckeditor5-image/tests/imageresize/_utils/utils';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { Image, ImageResize } from '@ckeditor/ckeditor5-image';
+import { waitForAllImagesLoaded } from '@ckeditor/ckeditor5-image/tests/imageresize/_utils/utils.js';
 
 describe( 'WidgetResize - integration', () => {
 	let editor, model, view, viewDocument, editorElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
@@ -38,9 +33,9 @@ describe( 'WidgetResize - integration', () => {
 	} );
 
 	it( 'should not fire viewDocument#mousedown events after starting resizing', async () => {
-		const eventSpy = sinon.spy().named( 'ViewDocument#mousedown' );
+		const eventSpy = vi.fn();
 
-		setModelData( model, '[<imageBlock src="/assets/sample.png"></imageBlock>]' );
+		_setModelData( model, '[<imageBlock src="/sample.png"></imageBlock>]' );
 
 		await waitForAllImagesLoaded( editor );
 
@@ -53,6 +48,6 @@ describe( 'WidgetResize - integration', () => {
 
 		squareDomElement.dispatchEvent( new Event( 'mousedown' ) );
 
-		expect( eventSpy.called ).to.equal( false );
+		expect( eventSpy ).not.toHaveBeenCalled();
 	} );
 } );

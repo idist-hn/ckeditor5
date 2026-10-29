@@ -1,28 +1,69 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support
  */
 
-export { default as GeneralHtmlSupport } from './generalhtmlsupport';
-export { default as DataFilter } from './datafilter';
-export { default as DataSchema, type DataSchemaBlockElementDefinition } from './dataschema';
-export { default as HtmlComment } from './htmlcomment';
-export { default as FullPage } from './fullpage';
-export { default as HtmlPageDataProcessor } from './htmlpagedataprocessor';
-export type { GeneralHtmlSupportConfig } from './generalhtmlsupportconfig';
-export type { default as CodeBlockElementSupport } from './integrations/codeblock';
-export type { default as CustomElementSupport } from './integrations/customelement';
-export type { default as DocumentListElementSupport } from './integrations/documentlist';
-export type { default as DualContentModelElementSupport } from './integrations/dualcontent';
-export type { default as HeadingElementSupport } from './integrations/heading';
-export type { default as ImageElementSupport } from './integrations/image';
-export type { default as MediaEmbedElementSupport } from './integrations/mediaembed';
-export type { default as ScriptElementSupport } from './integrations/script';
-export type { default as StyleElementSupport } from './integrations/style';
-export type { default as TableElementSupport } from './integrations/table';
+export { GeneralHtmlSupport } from './generalhtmlsupport.js';
+export { DataFilter, type HtmlSupportDataFilterRegisterEvent } from './datafilter.js';
 
-import './augmentation';
+export {
+	DataSchema,
+	type HtmlSupportDataSchemaBlockElementDefinition,
+	type HtmlSupportDataSchemaDefinition,
+	type HtmlSupportDataSchemaInlineElementDefinition
+} from './dataschema.js';
+
+export { HtmlComment, type HtmlCommentData } from './htmlcomment.js';
+export { FullPage } from './fullpage.js';
+export { HtmlPageDataProcessor } from './htmlpagedataprocessor.js';
+export { EmptyBlock } from './emptyblock.js';
+export type {
+	GeneralHtmlSupportConfig,
+	GHSFullPageConfig,
+	GHSCssSanitizeOutput
+} from './generalhtmlsupportconfig.js';
+export { CodeBlockElementSupport } from './integrations/codeblock.js';
+export { CustomElementSupport } from './integrations/customelement.js';
+export { ListElementSupport } from './integrations/list.js';
+export { DualContentModelElementSupport } from './integrations/dualcontent.js';
+export { HeadingElementSupport } from './integrations/heading.js';
+export { ImageElementSupport } from './integrations/image.js';
+export { MediaEmbedElementSupport } from './integrations/mediaembed.js';
+export { ScriptElementSupport } from './integrations/script.js';
+export { StyleElementSupport } from './integrations/style.js';
+export { TableElementSupport } from './integrations/table.js';
+export { IframeElementSupport } from './integrations/iframe.js';
+export { HorizontalLineElementSupport } from './integrations/horizontalline.js';
+
+export {
+	viewToModelObjectConverter as _viewToModelObjectContentHtmlSupportConverter,
+	toObjectWidgetConverter as _toObjectWidgetHtmlSupportConverter,
+	createObjectView as _createObjectHtmlSupportView,
+	viewToAttributeInlineConverter as _viewToAttributeInlineHtmlSupportConverter,
+	emptyInlineModelElementToViewConverter as _emptyInlineModelElementToViewHtmlSupportConverter,
+	attributeToViewInlineConverter as _attributeToInlineHtmlSupportConverter,
+	viewToModelBlockAttributeConverter as _viewToModelBlockAttributeHtmlSupportConverter,
+	modelToViewBlockAttributeConverter as _modelToViewBlockAttributeHtmlSupportConverter
+} from './converters.js';
+
+export { getDescendantElement as _getHtmlSupportDescendantElement } from './integrations/integrationutils.js';
+export { defaultConfig as _HTML_SUPPORT_SCHEMA_DEFINITIONS } from './schemadefinitions.js';
+
+export {
+	updateViewAttributes as _updateHtmlSupportViewAttributes,
+	setViewAttributes as _setHtmlSupportViewAttributes,
+	removeViewAttributes as _removeHtmlSupportViewAttributes,
+	mergeViewElementAttributes as _mergeHtmlSupportViewElementAttributes,
+	modifyGhsAttribute as _modifyHtmlSupportGhsAttribute,
+	toPascalCase as _toHtmlSupportPascalCase,
+	getHtmlAttributeName as _getHtmlSupportAttributeName,
+	type GHSViewAttributes
+} from './utils.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

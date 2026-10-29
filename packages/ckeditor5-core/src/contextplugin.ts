@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,14 +12,17 @@ import {
 	type Collection,
 	type Config,
 	type Locale,
-	type LocaleTranslate
+	type LocaleTranslate,
+	type ObservableMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
-import type Editor from './editor/editor';
-import type { EditorConfig } from './editor/editorconfig';
-import type Context from './context';
-import type { PluginDependencies, PluginInterface } from './plugin';
-import type PluginCollection from './plugincollection';
+import { type Editor } from './editor/editor.js';
+import type { EditorConfig } from './editor/editorconfig.js';
+import { type Context } from './context.js';
+import type { PluginDependencies, PluginInterface } from './plugin.js';
+import { type PluginCollection } from './plugincollection.js';
+
+const ContextPluginBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * The base class for {@link module:core/context~Context} plugin classes.
@@ -35,7 +38,7 @@ import type PluginCollection from './plugincollection';
  * * An {@link module:core/plugin~Plugin editor plugin} can require a context plugin.
  * * A context plugin MUST NOT require an {@link module:core/plugin~Plugin editor plugin}.
  */
-export default class ContextPlugin extends ObservableMixin() implements PluginInterface {
+export class ContextPlugin extends ContextPluginBase implements PluginInterface {
 	/**
 	 * The context or editor instance.
 	 */
@@ -62,6 +65,20 @@ export default class ContextPlugin extends ObservableMixin() implements PluginIn
 	 */
 	public static get isContextPlugin(): true {
 		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get isOfficialPlugin(): boolean {
+		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get isPremiumPlugin(): boolean {
+		return false;
 	}
 }
 

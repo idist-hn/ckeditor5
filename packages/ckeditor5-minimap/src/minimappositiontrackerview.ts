@@ -1,24 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module minimap/minimappositiontrackerview
  */
 
-import { View } from 'ckeditor5/src/ui';
-import { toUnit, global, type Locale } from 'ckeditor5/src/utils';
-import type { MinimapDragEvent } from './minimapview';
+import { View } from '@ckeditor/ckeditor5-ui';
+import { toUnit, global, type Locale } from '@ckeditor/ckeditor5-utils';
+import type { MinimapDragEvent } from './minimapview.js';
 
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * The position tracker visualizing the visible subset of the content. Displayed over the minimap.
  *
  * @internal
  */
-export default class MinimapPositionTrackerView extends View {
+export class MinimapPositionTrackerView extends View {
 	/**
 	 * The CSS `height` of the tracker visualizing the subset of the content visible to the user.
 	 *

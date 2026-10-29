@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagestyle
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageStyleEditing from './imagestyle/imagestyleediting';
-import ImageStyleUI from './imagestyle/imagestyleui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageStyleEditing } from './imagestyle/imagestyleediting.js';
+import { ImageStyleUI } from './imagestyle/imagestyleui.js';
 
 /**
  * The image style plugin.
@@ -23,12 +23,12 @@ import ImageStyleUI from './imagestyle/imagestyleui';
  * It provides a default configuration, which can be extended or overwritten.
  * Read more about the {@link module:image/imageconfig~ImageConfig#styles image styles configuration}.
  */
-export default class ImageStyle extends Plugin {
+export class ImageStyle extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageStyleEditing, ImageStyleUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageStyleEditing, ImageStyleUI ]> {
+		return [ ImageStyleEditing, ImageStyleUI ];
 	}
 
 	/**
@@ -36,5 +36,12 @@ export default class ImageStyle extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageStyle' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

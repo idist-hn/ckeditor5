@@ -1,17 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/elementreplacer
  */
 
+import { getParentNode } from './dom/getparentnode.js';
+
 /**
  * Utility class allowing to hide existing HTML elements or replace them with given ones in a way that doesn't remove
  * the original elements from the DOM.
  */
-export default class ElementReplacer {
+export class ElementReplacer {
 	/**
 	 * The elements replaced by {@link #replace} and their replacements.
 	 */
@@ -35,7 +37,7 @@ export default class ElementReplacer {
 		element.style.display = 'none';
 
 		if ( newElement ) {
-			element.parentNode!.insertBefore( newElement, element.nextSibling );
+			getParentNode( element )!.insertBefore( newElement, element.nextSibling );
 		}
 	}
 

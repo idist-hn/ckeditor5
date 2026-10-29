@@ -1,16 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _getModelData, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
+import { Plugin } from '@ckeditor/ckeditor5-core';
 
-import TableCaptionEditing from '../../src/tablecaption/tablecaptionediting';
-import TableEditing from '../../src/tableediting';
+import { TableCaptionEditing } from '../../src/tablecaption/tablecaptionediting.js';
+import { TableEditing } from '../../src/tableediting.js';
+import { priorities } from '@ckeditor/ckeditor5-utils';
 
 describe( 'TableCaptionEditing', () => {
 	let editor, model, view;
@@ -62,20 +63,28 @@ describe( 'TableCaptionEditing', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( TableCaptionEditing.pluginName ).to.equal( 'TableCaptionEditing' );
+		expect( TableCaptionEditing.pluginName ).toEqual( 'TableCaptionEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TableCaptionEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TableCaptionEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should set proper schema rules', () => {
-		expect( model.schema.checkChild( [ '$root', 'table' ], 'caption' ) ).to.be.true;
-		expect( model.schema.checkChild( [ '$root', 'table', 'caption' ], '$text' ) ).to.be.true;
-		expect( model.schema.isLimit( 'caption' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root', 'table' ], 'caption' ) ).toBe( true );
+		expect( model.schema.checkChild( [ '$root', 'table', 'caption' ], '$text' ) ).toBe( true );
+		expect( model.schema.isLimit( 'caption' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root', 'table', 'caption' ], 'caption' ) ).to.be.false;
+		expect( model.schema.checkChild( [ '$root', 'table', 'caption' ], 'caption' ) ).toBe( false );
 	} );
 
 	it( 'should extend caption if schema for it is already registered', async () => {
@@ -84,9 +93,9 @@ describe( 'TableCaptionEditing', () => {
 				plugins: [ FakePlugin, TableEditing, TableCaptionEditing, Paragraph, TableCaptionEditing ]
 			} );
 
-		expect( model.schema.isRegistered( 'caption' ) ).to.be.true;
-		expect( model.schema.isLimit( 'caption' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'table' ], 'caption' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'caption' ) ).toBe( true );
+		expect( model.schema.isLimit( 'caption' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'table' ], 'caption' ) ).toBe( true );
 	} );
 
 	describe( 'data pipeline', () => {
@@ -97,21 +106,19 @@ describe( 'TableCaptionEditing', () => {
 						plugins: [ TableEditing, TableCaptionEditing, Paragraph, TableCaptionEditing, FakePlugin ]
 					} );
 
-				setModelData( editor.model,
+				_setModelData( editor.model,
 					'<foo>' +
 						'<caption>Foo caption</caption>' +
 					'</foo>'
 				);
 
-				expect( editor.getData() ).to.equal(
-					'<foo>' +
+				expect( editor.getData() ).toEqual( '<foo>' +
 						'<caption>Foo caption</caption>' +
-					'</foo>'
-				);
+					'</foo>' );
 			} );
 
 			it( 'should convert to figure > table + figcaption', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -122,8 +129,7 @@ describe( 'TableCaptionEditing', () => {
 					'</table>'
 				);
 
-				expect( editor.getData() ).to.equal(
-					'<figure class="table">' +
+				expect( editor.getData() ).toEqual( '<figure class="table">' +
 						'<table>' +
 							'<tbody>' +
 								'<tr>' +
@@ -132,12 +138,11 @@ describe( 'TableCaptionEditing', () => {
 							'</tbody>' +
 						'</table>' +
 						'<figcaption>Foo caption</figcaption>' +
-					'</figure>'
-				);
+					'</figure>' );
 			} );
 
 			it( 'should merge many captions into one', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -149,8 +154,7 @@ describe( 'TableCaptionEditing', () => {
 					'</table>'
 				);
 
-				expect( editor.getData() ).to.equal(
-					'<figure class="table">' +
+				expect( editor.getData() ).toEqual( '<figure class="table">' +
 						'<table>' +
 							'<tbody>' +
 								'<tr>' +
@@ -159,12 +163,11 @@ describe( 'TableCaptionEditing', () => {
 							'</tbody>' +
 						'</table>' +
 						'<figcaption>foobar</figcaption>' +
-					'</figure>'
-				);
+					'</figure>' );
 			} );
 
 			it( 'should place new caption at the end of the table model', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -183,8 +186,7 @@ describe( 'TableCaptionEditing', () => {
 					writer.insert( caption, writer.createPositionFromPath( editor.model.document.getRoot(), [ 0, 0 ] ) );
 				} );
 
-				expect( editor.getData() ).to.equal(
-					'<figure class="table">' +
+				expect( editor.getData() ).toEqual( '<figure class="table">' +
 						'<table>' +
 							'<tbody>' +
 								'<tr>' +
@@ -193,8 +195,7 @@ describe( 'TableCaptionEditing', () => {
 							'</tbody>' +
 						'</table>' +
 						'<figcaption>foobar</figcaption>' +
-					'</figure>'
-				);
+					'</figure>' );
 			} );
 		} );
 
@@ -213,9 +214,8 @@ describe( 'TableCaptionEditing', () => {
 					'</table>'
 				);
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( String(
-						'<table>' +
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( String(
+					'<table>' +
 							'<tableRow>' +
 								'<tableCell>' +
 									'<paragraph>foobar</paragraph>' +
@@ -223,7 +223,7 @@ describe( 'TableCaptionEditing', () => {
 							'</tableRow>' +
 							'<caption>Foo caption</caption>' +
 						'</table>'
-					)	);
+				) );
 			} );
 
 			it( 'should convert a table inside <figure> with <figcaption> preceding the table', () => {
@@ -242,9 +242,8 @@ describe( 'TableCaptionEditing', () => {
 					'</figure>'
 				);
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( String(
-						'<table>' +
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( String(
+					'<table>' +
 							'<tableRow>' +
 								'<tableCell>' +
 									'<paragraph>foobar</paragraph>' +
@@ -254,7 +253,7 @@ describe( 'TableCaptionEditing', () => {
 								'Foo caption' +
 							'</caption>' +
 						'</table>'
-					) );
+				) );
 			} );
 
 			it( 'should not convert a <figcaption> inside <figure> that has no class="table"', () => {
@@ -273,9 +272,8 @@ describe( 'TableCaptionEditing', () => {
 					'</figure>'
 				);
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( String(
-						'<table>' +
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( String(
+					'<table>' +
 							'<tableRow>' +
 								'<tableCell>' +
 									'<paragraph>foobar</paragraph>' +
@@ -283,7 +281,7 @@ describe( 'TableCaptionEditing', () => {
 							'</tableRow>' +
 						'</table>' +
 						'<paragraph>Foo caption</paragraph>'
-					) );
+				) );
 			} );
 		} );
 	} );
@@ -291,29 +289,294 @@ describe( 'TableCaptionEditing', () => {
 	describe( 'editing pipeline', () => {
 		describe( 'model to view', () => {
 			it( 'should convert caption element to figcaption contenteditable', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
 				);
 
-				expect( getViewData( view, { withoutSelection: true } ) ).to.equal(
-					'<figure class="ck-widget ck-widget_with-selection-handle table" contenteditable="false">' +
+				expect( maskUIDs( _getViewData( view, { withoutSelection: true } ) ) ).toEqual( '<figure ' +
+						'class="ck-widget ck-widget_with-selection-handle table" ' +
+						'contenteditable="false"' +
+					'>' +
 						'<div class="ck ck-widget__selection-handle"></div>' +
-						'<table>' +
+						'<table aria-labelledby="masked-uid-1">' +
 							'<tbody>' +
 								'<tr>' +
-									'<td class="ck-editor__editable ck-editor__nested-editable" contenteditable="true" role="textbox">' +
+									'<td class="ck-editor__editable ck-editor__nested-editable" contenteditable="true"' +
+										' tabindex="-1">' +
 										'<span class="ck-table-bogus-paragraph">xyz</span>' +
 									'</td>' +
 								'</tr>' +
 							'</tbody>' +
 						'</table>' +
-						'<figcaption class="ck-editor__editable ck-editor__nested-editable" ' +
-								'contenteditable="true" data-placeholder="Enter table caption" role="textbox">' +
+						'<figcaption ' +
+							'class="ck-editor__editable ck-editor__nested-editable" ' +
+							'contenteditable="true" ' +
+							'data-placeholder="Enter table caption" ' +
+							'id="masked-uid-1" ' +
+							'role="textbox" ' +
+							'tabindex="-1"' +
+						'>' +
 							'Foo caption' +
 						'</figcaption>' +
-					'</figure>'
+					'</figure>' );
+			} );
+
+			it( 'should set id on caption and aria-labelledby on table', () => {
+				_setModelData( model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
 				);
+
+				const viewFigure = view.document.getRoot().getChild( 0 );
+				const viewTable = viewFigure.getChild( 1 );
+				const viewCaption = viewFigure.getChild( 2 );
+
+				expect( viewCaption.hasAttribute( 'id' ) ).toBe( true );
+				expect( viewTable.hasAttribute( 'aria-labelledby' ) ).toBe( true );
+				expect( viewTable.getAttribute( 'aria-labelledby' ) ).toEqual( viewCaption.getAttribute( 'id' ) );
+			} );
+
+			it( 'should not crash when view does not contain a <table> element', () => {
+				editor.conversion.for( 'editingDowncast' ).add( dispatcher => {
+					dispatcher.on( 'insert:table', ( evt, data, { writer, mapper } ) => {
+						const viewFigure = mapper.toViewElement( data.item );
+
+						if ( !viewFigure ) {
+							return;
+						}
+
+						const viewTable = Array
+							.from( viewFigure.getChildren() )
+							.find( child => child.is( 'element', 'table' ) );
+
+						if ( viewTable ) {
+							writer.remove( viewTable );
+						}
+					}, { priority: priorities.low + 1 } );
+				} );
+
+				_setModelData( model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
+				);
+
+				const viewFigure = view.document.getRoot().getChild( 0 );
+				const viewCaption = Array
+					.from( viewFigure.getChildren() )
+					.find( child => child.is( 'element', 'figcaption' ) );
+
+				expect( viewCaption ).not.toBeUndefined();
+				expect( viewCaption.hasAttribute( 'id' ) ).toBe( false );
+			} );
+
+			it( 'should not set aria-labelledby on table when there is no caption', () => {
+				_setModelData( model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow></table>'
+				);
+
+				const viewFigure = view.document.getRoot().getChild( 0 );
+				const viewTable = viewFigure.getChild( 1 );
+
+				expect( viewTable.hasAttribute( 'aria-labelledby' ) ).toBe( false );
+			} );
+
+			it( 'should remove aria-labelledby when caption is removed', () => {
+				_setModelData( model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
+				);
+
+				const viewFigure = view.document.getRoot().getChild( 0 );
+				const viewTable = viewFigure.getChild( 1 );
+
+				expect( viewTable.hasAttribute( 'aria-labelledby' ) ).toBe( true );
+
+				model.change( writer => {
+					const table = model.document.getRoot().getChild( 0 );
+					const caption = table.getChild( 1 );
+
+					writer.remove( caption );
+				} );
+
+				const viewFigureAfter = view.document.getRoot().getChild( 0 );
+				const viewTableAfter = viewFigureAfter.getChild( 1 );
+
+				expect( viewTableAfter.hasAttribute( 'aria-labelledby' ) ).toBe( false );
+			} );
+
+			it( 'should reuse the same id for caption when table is re-rendered', () => {
+				_setModelData( model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
+				);
+
+				const viewFigure = view.document.getRoot().getChild( 0 );
+				const viewCaption = viewFigure.getChild( 2 );
+				const firstCaptionId = viewCaption.getAttribute( 'id' );
+
+				model.change( writer => {
+					const table = model.document.getRoot().getChild( 0 );
+
+					writer.remove( table );
+					writer.insert( table, model.document.getRoot(), 0 );
+				} );
+
+				const newViewFigure = view.document.getRoot().getChild( 0 );
+				const newViewCaption = newViewFigure.getChild( 2 );
+				const secondCaptionId = newViewCaption.getAttribute( 'id' );
+
+				expect( firstCaptionId ).toEqual( secondCaptionId );
+			} );
+
+			it( 'should not add aria-labelledby when caption is not bound to view', async () => {
+				editor.conversion.for( 'editingDowncast' ).add( dispatcher => {
+					dispatcher.on( 'insert:table', ( evt, data, { mapper } ) => {
+						const modelCaption = Array
+							.from( data.item.getChildren() )
+							.find( child => child.is( 'element', 'caption' ) );
+
+						const viewCaption = mapper.toViewElement( modelCaption );
+
+						mapper.unbindViewElement( viewCaption );
+					} );
+				} );
+
+				_setModelData( editor.model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
+				);
+
+				const viewFigure = editor.editing.view.document.getRoot().getChild( 0 );
+				const viewTable = viewFigure.getChild( 1 );
+
+				expect( viewTable.hasAttribute( 'aria-labelledby' ) ).toBe( false );
+			} );
+
+			it( 'should reuse id when caption already has id attribute in view', async () => {
+				editor.conversion.for( 'editingDowncast' ).add( dispatcher => {
+					dispatcher.on( 'insert:table', ( evt, data, { writer, mapper } ) => {
+						const modelCaption = Array
+							.from( data.item.getChildren() )
+							.find( child => child.is( 'element', 'caption' ) );
+
+						const viewCaption = mapper.toViewElement( modelCaption );
+
+						writer.setAttribute( 'id', 'custom-id-123', viewCaption );
+					} );
+				} );
+
+				_setModelData( editor.model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
+				);
+
+				const viewFigure = editor.editing.view.document.getRoot().getChild( 0 );
+				const viewTable = viewFigure.getChild( 1 );
+				const viewCaption = viewFigure.getChild( 2 );
+
+				expect( viewCaption.getAttribute( 'id' ) ).toEqual( 'custom-id-123' );
+				expect( viewTable.getAttribute( 'aria-labelledby' ) ).toEqual( 'custom-id-123' );
 			} );
 		} );
 	} );
 } );
+
+describe( 'TableCaptionEditing - useCaptionElement = true', () => {
+	let editor, model, view;
+
+	beforeEach( () => {
+		return VirtualTestEditor
+			.create( {
+				plugins: [ TableEditing, TableCaptionEditing, Paragraph, TableCaptionEditing ],
+				table: {
+					tableCaption: {
+						useCaptionElement: true
+					}
+				}
+			} )
+			.then( newEditor => {
+				editor = newEditor;
+				view = editor.editing.view;
+				model = editor.model;
+			} );
+	} );
+
+	afterEach( async () => {
+		await editor.destroy();
+	} );
+
+	describe( 'data pipeline', () => {
+		describe( 'model to view', () => {
+			it( 'should convert to figure > table + figcaption', () => {
+				_setModelData( model,
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>foobar</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<caption>Foo caption</caption>' +
+					'</table>'
+				);
+
+				expect( editor.getData() ).toEqual( '<figure class="table">' +
+						'<table>' +
+							'<tbody>' +
+								'<tr>' +
+									'<td>foobar</td>' +
+								'</tr>' +
+							'</tbody>' +
+							'<caption>Foo caption</caption>' +
+						'</table>' +
+					'</figure>' );
+			} );
+		} );
+	} );
+
+	describe( 'editing pipeline', () => {
+		describe( 'model to view', () => {
+			it( 'should convert caption element to figcaption contenteditable', () => {
+				_setModelData( model,
+					'<table><tableRow><tableCell><paragraph>xyz</paragraph></tableCell></tableRow><caption>Foo caption</caption></table>'
+				);
+
+				expect( maskUIDs( _getViewData( view, { withoutSelection: true } ) ) ).toEqual( '<figure ' +
+						'class="ck-widget ck-widget_with-selection-handle table" ' +
+						'contenteditable="false"' +
+					'>' +
+						'<div class="ck ck-widget__selection-handle"></div>' +
+						'<table aria-labelledby="masked-uid-1">' +
+							'<tbody>' +
+								'<tr>' +
+									'<td class="ck-editor__editable ck-editor__nested-editable" contenteditable="true"' +
+										' tabindex="-1">' +
+										'<span class="ck-table-bogus-paragraph">xyz</span>' +
+									'</td>' +
+								'</tr>' +
+							'</tbody>' +
+							'<caption ' +
+								'class="ck-editor__editable ck-editor__nested-editable" ' +
+								'contenteditable="true" ' +
+								'data-placeholder="Enter table caption" ' +
+								'id="masked-uid-1" ' +
+								'role="textbox" ' +
+								'tabindex="-1"' +
+							'>' +
+								'Foo caption' +
+							'</caption>' +
+						'</table>' +
+					'</figure>' );
+			} );
+		} );
+	} );
+} );
+
+function maskUIDs( str ) {
+	const uidMap = new Map();
+
+	return str.replace( /ck-editor__caption_e[0-9a-f]{32}/g, uid => {
+		if ( !uidMap.has( uid ) ) {
+			uidMap.set( uid, maskedUID( uidMap.size + 1 ) );
+		}
+
+		return uidMap.get( uid );
+	} );
+}
+
+function maskedUID( offset = 1 ) {
+	return `masked-uid-${ offset }`;
+}

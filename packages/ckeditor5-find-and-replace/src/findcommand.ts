@@ -1,24 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module find-and-replace/findcommand
 */
 
-import type { Item } from 'ckeditor5/src/engine';
-import { Command, type Editor } from 'ckeditor5/src/core';
-import type { Collection } from 'ckeditor5/src/utils';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import type { Collection } from '@ckeditor/ckeditor5-utils';
 
-import type FindAndReplaceState from './findandreplacestate';
-import type { ResultType } from './findandreplace';
-import type FindAndReplaceUtils from './findandreplaceutils';
+import type { FindAndReplaceState, FindCallback } from './findandreplacestate.js';
+import type { FindResultType } from './findandreplace.js';
+import { type FindAndReplaceUtils } from './findandreplaceutils.js';
 
 /**
  * The find command. It is used by the {@link module:find-and-replace/findandreplace~FindAndReplace find and replace feature}.
  */
-export default class FindCommand extends Command {
+export class FindCommand extends Command {
 	/**
 	 * The find and replace state object used for command operations.
 	 */
@@ -53,27 +52,42 @@ export default class FindCommand extends Command {
 	 * @fires execute
 	 */
 	public override execute(
-		callbackOrText: string | ( ( { item, text }: { item: Item; text: string } ) => Array<ResultType> ),
-		{ matchCase, wholeWords }: { matchCase?: boolean; wholeWords?: boolean } = {}
-	): { results: Collection<ResultType>; findCallback: ( ( { item, text }: { item: Item; text: string } ) => Array<ResultType> ) } {
+		callbackOrText: string | FindCallback,
+		{ matchCase, wholeWords }: FindAttributes = {}
+	): { results: Collection<FindResultType>; findCallback: FindCallback } {
 		const { editor } = this;
 		const { model } = editor;
 		const findAndReplaceUtils: FindAndReplaceUtils = editor.plugins.get( 'FindAndReplaceUtils' );
 
-		let findCallback: ( ( { item, text }: { item: Item; text: string } ) => Array<ResultType> ) | undefined;
+		let findCallback: FindCallback | undefined;
+		let callbackSearchText: string = '';
 
 		// Allow to execute `find()` on a plugin with a keyword only.
 		if ( typeof callbackOrText === 'string' ) {
-			findCallback = findAndReplaceUtils.findByTextCallback( callbackOrText, { matchCase, wholeWords } );
-
-			this._state.searchText = callbackOrText;
+			findCallback = ( ...args ) => ( {
+				results: findAndReplaceUtils.findByTextCallback( callbackOrText, { matchCase, wholeWords } )( ...args ),
+				searchText: callbackOrText
+			} );
 		} else {
 			findCallback = callbackOrText;
 		}
 
+		// Wrap the callback to get the search text that will be assigned to the state.
+		const oldCallback = findCallback;
+
+		findCallback = ( ...args ) => {
+			const result = oldCallback( ...args );
+
+			if ( result && 'searchText' in result ) {
+				callbackSearchText = result.searchText;
+			}
+
+			return result;
+		};
+
 		// Initial search is done on all nodes in all roots inside the content.
 		const results = model.document.getRootNames()
-			.reduce( ( ( currentResults: Collection<ResultType> | null, rootName ) => findAndReplaceUtils.updateFindResultFromRange(
+			.reduce( ( ( currentResults: Collection<FindResultType> | null, rootName ) => findAndReplaceUtils.updateFindResultFromRange(
 				model.createRangeIn( model.document.getRoot( rootName )! ),
 				model,
 				findCallback!,
@@ -83,9 +97,11 @@ export default class FindCommand extends Command {
 		this._state.clear( model );
 		this._state.results.addMany( results );
 		this._state.highlightedResult = results.get( 0 );
+		this._state.searchText = callbackSearchText;
 
-		if ( typeof callbackOrText === 'string' ) {
-			this._state.searchText = callbackOrText;
+		/* v8 ignore next -- @preserve */
+		if ( findCallback ) {
+			this._state.lastSearchCallback = findCallback;
 		}
 
 		this._state.matchCase = !!matchCase;
@@ -97,3 +113,8 @@ export default class FindCommand extends Command {
 		};
 	}
 }
+
+/**
+ * The options object for the find command.
+ */
+export type FindAttributes = { matchCase?: boolean; wholeWords?: boolean };

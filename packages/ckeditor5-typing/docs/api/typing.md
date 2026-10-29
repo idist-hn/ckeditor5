@@ -4,8 +4,6 @@ category: api-reference
 
 # CKEditor&nbsp;5 typing feature
 
-[![npm version](https://badge.fury.io/js/%40ckeditor%2Fckeditor5-typing.svg)](https://www.npmjs.com/package/@ckeditor/ckeditor5-typing)
-
 This package implements support for typing (inputting and deleting text) in CKEditor&nbsp;5. It also includes the automatic text transformations (autocorrect) feature that lets you automatically turn predefined snippets into their improved forms.
 
 ## Documentation
@@ -16,8 +14,10 @@ This plugin is usually enabled by the {@link module:essentials/essentials~Essent
 
 ## Installation
 
+This package is part of our open-source aggregate package.
+
 ```bash
-npm install --save @ckeditor/ckeditor5-typing
+npm install ckeditor5
 ```
 
 ## Contribute

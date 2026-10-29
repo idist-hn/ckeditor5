@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module find-and-replace/replacecommandbase
 */
 
-import { Command, type Editor } from 'ckeditor5/src/core';
-import type { ResultType } from './findandreplace';
-import type FindAndReplaceState from './findandreplacestate';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import type { FindResultType } from './findandreplace.js';
+import { type FindAndReplaceState } from './findandreplacestate.js';
 
-export abstract class ReplaceCommandBase extends Command {
+export abstract class FindReplaceCommandBase extends Command {
 	/**
 	 * The find and replace state object used for command operations.
 	 */
@@ -43,7 +43,7 @@ export abstract class ReplaceCommandBase extends Command {
 	 *
 	 * @param result A single result from the find command.
 	 */
-	protected _replace( replacementText: string, result: ResultType ): void {
+	protected _replace( replacementText: string, result: FindResultType ): void {
 		const { model } = this.editor;
 
 		const range = result.marker!.getRange();

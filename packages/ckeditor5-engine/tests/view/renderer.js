@@ -1,69 +1,65 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, window, NodeFilter, MutationObserver, HTMLImageElement, console */
+import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
 
-import View from '../../src/view/view';
-import ViewElement from '../../src/view/element';
-import ViewEditableElement from '../../src/view/editableelement';
-import ViewContainerElement from '../../src/view/containerelement';
-import ViewAttributeElement from '../../src/view/attributeelement';
-import ViewRawElement from '../../src/view/rawelement';
-import ViewUIElement from '../../src/view/uielement';
-import ViewText from '../../src/view/text';
-import ViewRange from '../../src/view/range';
-import ViewPosition from '../../src/view/position';
-import DocumentSelection from '../../src/view/documentselection';
-import DomConverter from '../../src/view/domconverter';
-import Renderer from '../../src/view/renderer';
-import DocumentFragment from '../../src/view/documentfragment';
-import ViewDocument from '../../src/view/document';
-import DowncastWriter from '../../src/view/downcastwriter';
+import { EditingView } from '../../src/view/view.js';
+import { ViewElement } from '../../src/view/element.js';
+import { ViewEditableElement } from '../../src/view/editableelement.js';
+import { ViewContainerElement } from '../../src/view/containerelement.js';
+import { ViewAttributeElement } from '../../src/view/attributeelement.js';
+import { ViewRawElement } from '../../src/view/rawelement.js';
+import { ViewUIElement } from '../../src/view/uielement.js';
+import { ViewText } from '../../src/view/text.js';
+import { ViewRange } from '../../src/view/range.js';
+import { ViewPosition } from '../../src/view/position.js';
+import { ViewDocumentSelection } from '../../src/view/documentselection.js';
+import { ViewDomConverter } from '../../src/view/domconverter.js';
+import { ViewRenderer } from '../../src/view/renderer.js';
+import { ViewDocumentFragment } from '../../src/view/documentfragment.js';
+import { ViewDocument } from '../../src/view/document.js';
+import { ViewDowncastWriter } from '../../src/view/downcastwriter.js';
 
-import { parse, stringify, setData as setViewData, getData as getViewData } from '../../src/dev-utils/view';
-import { BR_FILLER, INLINE_FILLER, INLINE_FILLER_LENGTH } from '../../src/view/filler';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import createViewRoot from './_utils/createroot';
-import createElement from '@ckeditor/ckeditor5-utils/src/dom/createelement';
-import normalizeHtml from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml';
-import env from '@ckeditor/ckeditor5-utils/src/env';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import { StylesProcessor } from '../../src/view/stylesmap';
+import { _parseView, _stringifyView, _setViewData, _getViewData } from '../../src/dev-utils/view.js';
+import { BR_FILLER, INLINE_FILLER, INLINE_FILLER_LENGTH } from '../../src/view/filler.js';
+import { testUtils } from '@ckeditor/ckeditor5-core/tests/_utils/utils.js';
+import { createViewRoot } from './_utils/createroot.js';
+import { createElement, env, getSelection } from '@ckeditor/ckeditor5-utils';
+import { normalizeHtml } from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
 
 describe( 'Renderer', () => {
 	let selection, domConverter, renderer, viewDocument;
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( () => {
 		viewDocument = new ViewDocument( new StylesProcessor() );
-		selection = new DocumentSelection();
-		domConverter = new DomConverter( viewDocument );
-		renderer = new Renderer( domConverter, selection );
-		renderer.domDocuments.add( document );
+		selection = new ViewDocumentSelection();
+		domConverter = new ViewDomConverter( viewDocument );
+		renderer = new ViewRenderer( domConverter, selection );
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'should set the observable #isFocused property', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
-			expect( renderer.isFocused ).to.be.false;
+			expect( renderer.isFocused ).toBe( false );
 
 			renderer.on( 'change:isFocused', spy );
 			renderer.isFocused = true;
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should set the observable #isSelecting property', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
-			expect( renderer.isSelecting ).to.be.false;
+			expect( renderer.isSelecting ).toBe( false );
 
 			renderer.on( 'change:isSelecting', spy );
 			renderer.isSelecting = true;
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -87,7 +83,7 @@ describe( 'Renderer', () => {
 
 			renderer.markToSync( 'attributes', viewRoot );
 
-			expect( renderer.markedAttributes.has( viewRoot ) ).to.be.true;
+			expect( renderer.markedAttributes.has( viewRoot ) ).toBe( true );
 		} );
 
 		it( 'should mark children which need update', () => {
@@ -95,7 +91,7 @@ describe( 'Renderer', () => {
 
 			renderer.markToSync( 'children', viewRoot );
 
-			expect( renderer.markedChildren.has( viewRoot ) ).to.be.true;
+			expect( renderer.markedChildren.has( viewRoot ) ).toBe( true );
 		} );
 
 		it( 'should not mark children if element has no corresponding node', () => {
@@ -106,7 +102,7 @@ describe( 'Renderer', () => {
 
 			renderer.markToSync( 'children', viewRoot );
 
-			expect( renderer.markedTexts.has( viewRoot ) ).to.be.false;
+			expect( renderer.markedTexts.has( viewRoot ) ).toBe( false );
 		} );
 
 		it( 'should mark text which need update', () => {
@@ -116,7 +112,7 @@ describe( 'Renderer', () => {
 
 			renderer.markToSync( 'text', viewText );
 
-			expect( renderer.markedTexts.has( viewText ) ).to.be.true;
+			expect( renderer.markedTexts.has( viewText ) ).toBe( true );
 		} );
 
 		it( 'should not mark text if parent has no corresponding node', () => {
@@ -129,7 +125,7 @@ describe( 'Renderer', () => {
 
 			renderer.markToSync( 'text', viewText );
 
-			expect( renderer.markedTexts.has( viewText ) ).to.be.false;
+			expect( renderer.markedTexts.has( viewText ) ).toBe( false );
 		} );
 
 		it( 'should throw if the type is unknown', () => {
@@ -150,6 +146,7 @@ describe( 'Renderer', () => {
 			document.body.appendChild( domRoot );
 
 			domConverter.bindElements( domRoot, viewRoot );
+			renderer.addDomRoot( domRoot );
 
 			renderer.markedTexts.clear();
 			renderer.markedAttributes.clear();
@@ -170,9 +167,9 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'attributes', viewRoot );
 			renderer.render();
 
-			expect( domRoot.getAttribute( 'class' ) ).to.equal( 'foo' );
+			expect( domRoot.getAttribute( 'class' ) ).toBe( 'foo' );
 
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
 		} );
 
 		it( 'should remove attributes', () => {
@@ -183,10 +180,23 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'attributes', viewRoot );
 			renderer.render();
 
-			expect( domRoot.getAttribute( 'class' ) ).to.equal( 'foo' );
-			expect( domRoot.getAttribute( 'id' ) ).to.be.not.ok;
+			expect( domRoot.getAttribute( 'class' ) ).toBe( 'foo' );
+			expect( domRoot.getAttribute( 'id' ) ).toBeFalsy();
 
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
+		} );
+
+		it( 'should remove all attributes', () => {
+			domRoot.setAttribute( 'style', 'border:1px solid red' );
+			domRoot.setAttribute( 'class', 'bar' );
+
+			renderer.markToSync( 'attributes', viewRoot );
+			renderer.render();
+
+			expect( domRoot.getAttribute( 'class' ) ).toBeFalsy();
+			expect( domRoot.getAttribute( 'style' ) ).toBeFalsy();
+
+			expect( renderer.markedAttributes.size ).toBe( 0 );
 		} );
 
 		it( 'should add children', () => {
@@ -195,10 +205,10 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
 		} );
 
 		it( 'should remove children', () => {
@@ -207,17 +217,17 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			viewRoot._removeChildren( 0, 1 );
 
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 0 );
+			expect( domRoot.childNodes.length ).toBe( 0 );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
 		} );
 
 		it( 'should update text', () => {
@@ -227,18 +237,18 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			viewText._data = 'bar';
 
 			renderer.markToSync( 'text', viewText );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'bar' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'bar' );
 
-			expect( renderer.markedTexts.size ).to.equal( 0 );
+			expect( renderer.markedTexts.size ).toBe( 0 );
 		} );
 
 		it( 'should not update same text', () => {
@@ -248,8 +258,8 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			viewText._data = 'foo';
 
@@ -257,10 +267,10 @@ describe( 'Renderer', () => {
 
 			renderAndExpectNoChanges( renderer, domRoot );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( renderer.markedTexts.size ).to.equal( 0 );
+			expect( renderer.markedTexts.size ).toBe( 0 );
 		} );
 
 		it( 'should not update text parent child list changed', () => {
@@ -272,9 +282,9 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'text', viewText );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 2 );
-			expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'IMG' );
-			expect( domRoot.childNodes[ 1 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 2 );
+			expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'IMG' );
+			expect( domRoot.childNodes[ 1 ].data ).toBe( 'foo' );
 		} );
 
 		it( 'should not change text if it is the same during text rendering', () => {
@@ -290,8 +300,8 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'text', viewText );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ] ).to.equal( domText );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ] ).toBe( domText );
 		} );
 
 		it( 'should not change text if it is the same during children rendering', () => {
@@ -307,8 +317,8 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ] ).to.equal( domText );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ] ).toBe( domText );
 		} );
 
 		it( 'should not change element if it is the same', () => {
@@ -324,8 +334,36 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ] ).to.equal( domImg );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ] ).toBe( domImg );
+		} );
+
+		it( 'should change element if it is the same but requested to not reuse', () => {
+			const viewImg = new ViewElement( viewDocument, 'img' );
+			viewRoot._appendChild( viewImg );
+
+			// This should not be changed during the render.
+			const domImg = document.createElement( 'img' );
+			domRoot.appendChild( domImg );
+
+			domConverter.bindElements( domImg, viewImg );
+
+			viewImg._setCustomProperty( 'editingPipeline:doNotReuseOnce', true );
+
+			renderer.markToSync( 'children', viewRoot );
+			renderer.render();
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ] ).not.toBe( domImg );
+
+			// Verify if only once.
+			const newDomImg = domRoot.childNodes[ 0 ];
+
+			renderer.markToSync( 'children', viewRoot );
+			renderer.render();
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ] ).toBe( newDomImg );
 		} );
 
 		it( 'should remove any comment from the DOM element', () => {
@@ -336,7 +374,7 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 0 );
+			expect( domRoot.childNodes.length ).toBe( 0 );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/5734
@@ -351,8 +389,45 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
+			expect( domRoot.childNodes.length ).toBe( 1 );
 			expect( domRoot.childNodes[ 0 ] ).to.be.an.instanceof( HTMLImageElement );
+		} );
+
+		it( 'should remove the processing instruction and add a child element', () => {
+			// A processing instruction in the DOM is compared against an element expected in its place.
+			// Without a dedicated check it would be treated as an element and have its `tagName` read.
+			const viewImg = new ViewElement( viewDocument, 'img' );
+			viewRoot._appendChild( viewImg );
+
+			const domInstruction = document.createProcessingInstruction( 'instruction', 'from the user-land' );
+			domRoot.appendChild( domInstruction );
+
+			renderer.markToSync( 'children', viewRoot );
+
+			expect( () => renderer.render() ).not.toThrow();
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ] ).toBeInstanceOf( HTMLImageElement );
+		} );
+
+		it( 'should render a processing instruction coming from the view in place of an element', () => {
+			// The mirrored case - the processing instruction is the expected node, not the actual one.
+			const viewInstruction = new ViewUIElement( viewDocument, '$processingInstruction' );
+
+			viewInstruction._setCustomProperty( '$processingTarget', 'instruction' );
+			viewInstruction._setCustomProperty( '$processingData', 'from the view' );
+
+			viewRoot._appendChild( viewInstruction );
+
+			domRoot.appendChild( document.createElement( 'p' ) );
+
+			renderer.markToSync( 'children', viewRoot );
+
+			expect( () => renderer.render() ).not.toThrow();
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].nodeType ).toBe( Node.PROCESSING_INSTRUCTION_NODE );
+			expect( domRoot.childNodes[ 0 ].target ).toBe( 'instruction' );
 		} );
 
 		it( 'should change element if it is different', () => {
@@ -369,8 +444,8 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'P' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'P' );
 		} );
 
 		it( 'should update removed item when it is reinserted', () => {
@@ -393,17 +468,17 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewDiv );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
+			expect( domRoot.childNodes.length ).toBe( 1 );
 
 			const domDiv = domRoot.childNodes[ 0 ];
 
-			expect( domDiv.tagName ).to.equal( 'DIV' );
-			expect( domDiv.childNodes.length ).to.equal( 1 );
+			expect( domDiv.tagName ).toBe( 'DIV' );
+			expect( domDiv.childNodes.length ).toBe( 1 );
 
 			const domP = domDiv.childNodes[ 0 ];
 
-			expect( domP.tagName ).to.equal( 'P' );
-			expect( domP.childNodes.length ).to.equal( 0 );
+			expect( domP.tagName ).toBe( 'P' );
+			expect( domP.childNodes.length ).toBe( 0 );
 		} );
 
 		it( 'should update removed item when it is reinserted #2', () => {
@@ -432,17 +507,17 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			// Same is expected in DOM.
-			expect( domRoot.childNodes.length ).to.equal( 1 );
+			expect( domRoot.childNodes.length ).toBe( 1 );
 
 			const domDivOuter = domRoot.childNodes[ 0 ];
-			expect( renderer.domConverter.viewToDom( viewDivOuter ) ).to.equal( domDivOuter );
-			expect( domDivOuter.tagName ).to.equal( 'DIV' );
-			expect( domDivOuter.childNodes.length ).to.equal( 1 );
+			expect( renderer.domConverter.viewToDom( viewDivOuter ) ).toBe( domDivOuter );
+			expect( domDivOuter.tagName ).toBe( 'DIV' );
+			expect( domDivOuter.childNodes.length ).toBe( 1 );
 
 			const domDivInner = domDivOuter.childNodes[ 0 ];
-			expect( renderer.domConverter.viewToDom( viewDivInner ) ).to.equal( domDivInner );
-			expect( domDivInner.tagName ).to.equal( 'DIV' );
-			expect( domDivInner.childNodes.length ).to.equal( 0 );
+			expect( renderer.domConverter.viewToDom( viewDivInner ) ).toBe( domDivInner );
+			expect( domDivInner.tagName ).toBe( 'DIV' );
+			expect( domDivInner.childNodes.length ).toBe( 0 );
 		} );
 
 		it( 'should not throw when trying to update children of view element that got removed and lost its binding', () => {
@@ -466,11 +541,11 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 0 );
+			expect( domRoot.childNodes.length ).toBe( 0 );
 		} );
 
 		it( 'should not care about filler if there is no DOM', () => {
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
 
 			const viewRoot = new ViewElement( viewDocument, 'p' );
@@ -481,11 +556,11 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			// Expect no error on render.
-			expect( viewRoot ).to.be.ok;
+			expect( viewRoot ).toBeTruthy();
 		} );
 
 		it( 'should not add filler when inside contenteditable=false parent', () => {
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>foo<attribute:b contenteditable="false">[]</attribute:b>bar</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -494,20 +569,20 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'p' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'p' );
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 2 ].data ).to.equal( 'bar' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 0 );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 2 ].data ).toBe( 'bar' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 0 );
 		} );
 
 		it( 'should not add filler when inside contenteditable=false ancestor', () => {
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p contenteditable="false">foo<attribute:b>[]</attribute:b>bar</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -516,23 +591,23 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'p' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'p' );
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 2 ].data ).to.equal( 'bar' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 0 );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 2 ].data ).toBe( 'bar' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 0 );
 		} );
 
 		it( 'should add and remove inline filler in case <p>foo<b>[]</b>bar</p>', () => {
 			const domSelection = document.getSelection();
 
 			// Step 1: <p>foo<b>"FILLER{}"</b></p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -541,22 +616,22 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'p' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'p' );
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 2 ].data ).to.equal( 'bar' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 2 ].data ).toBe( 'bar' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 1 ].childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 1 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 2: No mutation on second render
 			renderer.markToSync( 'children', viewRoot );
@@ -569,16 +644,16 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 2 ].data ).to.equal( 'bar' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 0 );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 2 ].data ).toBe( 'bar' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 0 );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 3 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 3 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 4: No mutation on second render
 			renderer.markToSync( 'children', viewRoot );
@@ -591,7 +666,7 @@ describe( 'Renderer', () => {
 			const domSelection = document.getSelection();
 
 			// Step 1: <p>"FILLER{}"<b>foo</b></p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -602,16 +677,16 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 2: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -623,15 +698,15 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ].childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 4: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -639,12 +714,12 @@ describe( 'Renderer', () => {
 		} );
 
 		it( 'should not add inline filler in case <p>[]<b>foo</b></p> on Android', () => {
-			testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+			vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 			const domSelection = document.getSelection();
 
 			// Step 1: <p>"FILLER{}"<b>foo</b></p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -655,15 +730,15 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 2: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -675,15 +750,15 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ].childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 4: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -694,7 +769,7 @@ describe( 'Renderer', () => {
 			const domSelection = document.getSelection();
 
 			// Step 1: <p>"FILLER{}"<b>foo</b></p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>foo</attribute:b>[]</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -705,16 +780,16 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].data ).toBe( INLINE_FILLER );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 1 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 1 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 2: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -726,15 +801,65 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ].childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 3 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 3 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
+
+			// Step 4: No mutation on second render
+			renderer.markToSync( 'children', viewP );
+			renderAndExpectNoChanges( renderer, domRoot );
+		} );
+
+		// See https://github.com/ckeditor/ckeditor5/issues/14028.
+		it( 'should add and remove inline filler in case <p><br>[]</p>', () => {
+			const domSelection = document.getSelection();
+
+			// Step 1: <p><br>{}</p>
+			const { view: viewP, selection: newSelection } = _parseView(
+				'<container:p><empty:br/>[]</container:p>' );
+
+			viewRoot._appendChild( viewP );
+			selection._setTo( newSelection );
+
+			renderer.markToSync( 'children', viewRoot );
+			renderer.render();
+
+			const domP = domRoot.childNodes[ 0 ];
+
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'br' );
+			expect( domP.childNodes[ 1 ].data ).toBe( INLINE_FILLER );
+			expect( domConverter.isBlockFiller( domP.childNodes[ 2 ] ) ).toBe( true );
+
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 1 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
+
+			// Step 2: No mutation on second render
+			renderer.markToSync( 'children', viewP );
+			renderAndExpectNoChanges( renderer, domRoot );
+
+			// Step 3: <p>{}<br></p>
+			selection._setTo( ViewRange._createFromParentsAndOffsets(
+				viewP.getChild( 0 ), 0, viewP.getChild( 0 ), 0 ) );
+
+			renderer.render();
+
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'br' );
+			expect( domConverter.isBlockFiller( domP.childNodes[ 1 ] ) ).toBe( true );
+
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 4: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -742,12 +867,12 @@ describe( 'Renderer', () => {
 		} );
 
 		it( 'should not add inline filler in case <p><b>foo</b>[]</p> on Android', () => {
-			testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+			vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 			const domSelection = document.getSelection();
 
 			// Step 1: <p>"FILLER{}"<b>foo</b></p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>foo</attribute:b>[]</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -758,15 +883,15 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 2: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -778,15 +903,15 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ].childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 3 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 3 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Step 4: No mutation on second render
 			renderer.markToSync( 'children', viewP );
@@ -796,7 +921,7 @@ describe( 'Renderer', () => {
 		it( 'should add and remove inline filler in case <p><b>foo</b>[]<b>bar</b></p>', () => {
 			const domSelection = document.getSelection();
 
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>foo</attribute:b>[]<attribute:b>bar</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -807,24 +932,24 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( INLINE_FILLER );
-			expect( domP.childNodes[ 2 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 2 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 2 ].childNodes[ 0 ].data ).to.equal( 'bar' );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].data ).toBe( INLINE_FILLER );
+			expect( domP.childNodes[ 2 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 2 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 2 ].childNodes[ 0 ].data ).toBe( 'bar' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 1 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 1 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 		} );
 
 		it( 'should move filler when selection is moved', () => {
 			// Step 1: <p>foo<b>"FILLER{}"</b></p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>foo<attribute:b>[]</attribute:b><attribute:i></attribute:i></container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -836,13 +961,13 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-			expect( domP.childNodes[ 2 ].tagName.toLowerCase() ).to.equal( 'i' );
-			expect( domP.childNodes[ 2 ].childNodes.length ).to.equal( 0 );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+			expect( domP.childNodes[ 2 ].tagName.toLowerCase() ).toBe( 'i' );
+			expect( domP.childNodes[ 2 ].childNodes.length ).toBe( 0 );
 
 			// Step 2: <p>foo<b></b><i>"FILLER{}"</i></p>
 			const viewI = viewP.getChild( 2 );
@@ -850,18 +975,18 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 0 );
-			expect( domP.childNodes[ 2 ].tagName.toLowerCase() ).to.equal( 'i' );
-			expect( domP.childNodes[ 2 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 2 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 0 );
+			expect( domP.childNodes[ 2 ].tagName.toLowerCase() ).toBe( 'i' );
+			expect( domP.childNodes[ 2 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 2 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 		} );
 
 		it( 'should remove filler when text is added and selection removed', () => {
 			// Step 1: <p>foo<b>"FILLER{}"</b></p>
-			const { view: viewP, selection: newSelection } = parse( '<container:p>foo<attribute:b>[]</attribute:b></container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>foo<attribute:b>[]</attribute:b></container:p>' );
 			const viewB = viewP.getChild( 1 );
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
@@ -870,11 +995,11 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			const domP = domRoot.childNodes[ 0 ];
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
 			// Step 2: Add text node.
 			const viewText = new ViewText( viewDocument, 'x' );
@@ -889,11 +1014,11 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( 'x' );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( 'x' );
 		} );
 
 		// #659
@@ -901,7 +1026,7 @@ describe( 'Renderer', () => {
 		// cannot be remembered as parent+offset.
 		it( 'should remove filler from a modified DOM in case <p>bar<b>foo</b>[]</p>', () => {
 			// Step 1: <p>bar<b>foo</b>"FILLER{}"</p>
-			const { view: viewP, selection: newSelection } = parse( '<container:p>bar<attribute:b>foo</attribute:b>[]</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>bar<attribute:b>foo</attribute:b>[]</container:p>' );
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
 
@@ -909,8 +1034,8 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			const domP = domRoot.childNodes[ 0 ];
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 2 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 2 ].data ).toBe( INLINE_FILLER );
 
 			// Step 2: Remove the <b> and update the selection (<p>bar[]</p>).
 			viewP._removeChildren( 1 );
@@ -921,14 +1046,14 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			// Step 3: Check whether there's no filler in the DOM.
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'bar' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'bar' );
 		} );
 
 		// #659
 		it( 'should remove filler from a modified DOM when children moved', () => {
 			// Step 1: <p><b>foo</b>"FILLER{}"<b>bar</b></p><p></p>
-			const { view: viewFragment, selection: newSelection } = parse(
+			const { view: viewFragment, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>foo</attribute:b>[]<attribute:b>bar</attribute:b></container:p><container:p></container:p>'
 			);
 			viewRoot._appendChild( viewFragment );
@@ -937,12 +1062,12 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 2 );
+			expect( domRoot.childNodes.length ).toBe( 2 );
 
 			const domP = domRoot.childNodes[ 0 ];
 			const domP2 = domRoot.childNodes[ 1 ];
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 1 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 1 ].data ).toBe( INLINE_FILLER );
 
 			// Step 2: Move <b>foo</b><b>bar</b> to the second paragraph and leave collapsed selection in the first one.
 			// <p>[]</p><p><b>foo</b><b>bar</b></p>
@@ -960,19 +1085,19 @@ describe( 'Renderer', () => {
 
 			// Step 3: Check whether in the first paragraph there's a <br> filler and that
 			// in the second one there are two <b> tags.
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domConverter.isBlockFiller( domP.childNodes[ 0 ] ) ).to.be.true;
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domConverter.isBlockFiller( domP.childNodes[ 0 ] ) ).toBe( true );
 
-			expect( domP2.childNodes.length ).to.equal( 2 );
-			expect( domP2.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP2.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
+			expect( domP2.childNodes.length ).toBe( 2 );
+			expect( domP2.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP2.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
 		} );
 
 		// Test for an edge case in the _isSelectionInInlineFiller which can be triggered like
 		// in one of ckeditor/ckeditor5-typing#59 automated tests.
 		it( 'should not break when selection is moved to a new element, when filler exists', () => {
 			// Step 1: <p>bar<b>"FILLER{}"</b></p>
-			const { view: viewP, selection: newSelection } = parse( '<container:p>bar<attribute:b>[]</attribute:b></container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>bar<attribute:b>[]</attribute:b></container:p>' );
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
 
@@ -980,13 +1105,13 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			const domP = domRoot.childNodes[ 0 ];
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
 			// Step 2: Move selection to a new attribute element and remove the previous one
 			viewP._removeChildren( 1 ); // Remove <b>.
 
-			const viewI = parse( '<attribute:i></attribute:i>' );
+			const viewI = _parseView( '<attribute:i></attribute:i>' );
 			viewP._appendChild( viewI );
 
 			selection._setTo( ViewRange._createFromParentsAndOffsets( viewI, 0, viewI, 0 ) );
@@ -995,16 +1120,16 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			// Step 3: Check whether new filler was created in the <i> element.
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'i' );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'i' );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 		} );
 
 		// Test for an edge case in the _isSelectionInInlineFiller, when selection is before a view element
 		// that has not been yet rendered/bound to DOM.
 		it( 'should remove inline filler if selection is before a view element not bound to dom', () => {
 			// Step 1: <p>bar<b>abc</b>"FILLER"{}</p>
-			const { view: viewP, selection: newSelection } = parse( '<container:p>bar<attribute:b>abc</attribute:b>[]</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>bar<attribute:b>abc</attribute:b>[]</container:p>' );
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
 
@@ -1012,11 +1137,11 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			const domP = domRoot.childNodes[ 0 ];
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.childNodes[ 2 ].data ).to.equal( INLINE_FILLER );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.childNodes[ 2 ].data ).toBe( INLINE_FILLER );
 
 			// Step 2: Move selection to a new attribute element.
-			const viewAbc = parse( 'abc' );
+			const viewAbc = _parseView( 'abc' );
 			viewP._appendChild( viewAbc );
 
 			selection._setTo( ViewRange._createFromParentsAndOffsets( viewP, 3, viewP, 3 ) );
@@ -1025,14 +1150,14 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			// Step 3: Check whether old filler was removed.
-			expect( domP.childNodes.length ).to.equal( 3 );
-			expect( domP.textContent.indexOf( INLINE_FILLER ) ).to.equal( -1 );
+			expect( domP.childNodes.length ).toBe( 3 );
+			expect( domP.textContent.indexOf( INLINE_FILLER ) ).toBe( -1 );
 		} );
 
 		it( 'should handle typing in empty block, do nothing if changes are already applied', () => {
 			const domSelection = document.getSelection();
 
-			const { view: viewP, selection: newSelection } = parse( '<container:p>[]</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>[]</container:p>' );
 
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
@@ -1042,13 +1167,13 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domConverter.isBlockFiller( domP.childNodes[ 0 ] ) ).to.be.true;
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domConverter.isBlockFiller( domP.childNodes[ 0 ] ) ).toBe( true );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Remove filler and add text node to both DOM and View <p>x{}</p>
 			domP.removeChild( domP.childNodes[ 0 ] );
@@ -1071,7 +1196,7 @@ describe( 'Renderer', () => {
 		it( 'should handle typing in empty block, render if needed', () => {
 			const domSelection = document.getSelection();
 
-			const { view: viewP, selection: newSelection } = parse( '<container:p>[]</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>[]</container:p>' );
 
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
@@ -1081,13 +1206,13 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domConverter.isBlockFiller( domP.childNodes[ 0 ] ) ).to.be.true;
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domConverter.isBlockFiller( domP.childNodes[ 0 ] ) ).toBe( true );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Add text node only in View <p>x{}</p>
 			const viewText = new ViewText( viewDocument, 'x' );
@@ -1097,19 +1222,19 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 		} );
 
 		it( 'should handle removing last character', () => {
 			const domSelection = document.getSelection();
 
-			const { view: viewP, selection: newSelection } = parse( '<container:p>x{}</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>x{}</container:p>' );
 
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
@@ -1119,13 +1244,13 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x' );
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// Remove text and add filler to both DOM and View <p>{}</p>
 			domP.removeChild( domP.childNodes[ 0 ] );
@@ -1150,7 +1275,7 @@ describe( 'Renderer', () => {
 
 			// 1. Render <p><b>FILLER{}</b>foo</p>.
 
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>[]</attribute:b>foo</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -1163,20 +1288,20 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].data ).toBe( 'foo' );
 
 			const domB = domP.childNodes[ 0 ];
 			const viewB = viewP.getChild( 0 );
 
-			expect( domB.childNodes.length ).to.equal( 1 );
-			expect( domB.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domB.childNodes.length ).toBe( 1 );
+			expect( domB.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// 3. Add text node to both the DOM and the view: <p><b>FILLERx</b>foo</p>.
 
@@ -1201,7 +1326,7 @@ describe( 'Renderer', () => {
 
 			// 1. Render <p><b>FILLER{}</b>foo</p>.
 
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>[]</attribute:b>foo</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -1213,20 +1338,20 @@ describe( 'Renderer', () => {
 			// 2. Check the DOM.
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].data ).toBe( 'foo' );
 
 			const domB = domP.childNodes[ 0 ];
 			const viewB = viewP.getChild( 0 );
 
-			expect( domB.childNodes.length ).to.equal( 1 );
-			expect( domB.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domB.childNodes.length ).toBe( 1 );
+			expect( domB.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			domSelection.removeAllRanges();
 			// 3. Add text node only to the view: <p><b>x{}</b>foo</p>.
@@ -1238,25 +1363,25 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewB );
 			renderer.render();
 
-			expect( domB.childNodes.length ).to.equal( 1 );
-			expect( domB.childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'x' );
+			expect( domB.childNodes.length ).toBe( 1 );
+			expect( domB.childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'x' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
+			expect( domSelection.rangeCount ).toBe( 1 );
 
 			// Depending on the browser selection may end up at the end of the text node or after the text node.
 			const firstRange = domSelection.getRangeAt( 0 );
 
 			const assertSelectionAtEndOfTextNode = () => {
-				expect( firstRange.startOffset ).to.equal( INLINE_FILLER_LENGTH + 1 );
+				expect( firstRange.startOffset ).toBe( INLINE_FILLER_LENGTH + 1 );
 			};
 
 			const assertSelectionInsideTextNode = () => {
-				expect( firstRange.startContainer ).to.equal( domB );
-				expect( firstRange.startOffset ).to.equal( 1 );
+				expect( firstRange.startContainer ).toBe( domB );
+				expect( firstRange.startOffset ).toBe( 1 );
 			};
 
 			testUtils.checkAssertions( assertSelectionAtEndOfTextNode, assertSelectionInsideTextNode );
-			expect( firstRange.collapsed ).to.be.true;
+			expect( firstRange.collapsed ).toBe( true );
 		} );
 
 		it( 'should handle typing in empty attribute as a text change, render if needed', () => {
@@ -1264,7 +1389,7 @@ describe( 'Renderer', () => {
 
 			// 1. Render <p><b>FILLER{}</b>foo</p>.
 
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p><attribute:b>[]</attribute:b>foo</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -1277,20 +1402,20 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( 'foo' );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].data ).toBe( 'foo' );
 
 			const domB = domP.childNodes[ 0 ];
 			const viewB = viewP.getChild( 0 );
 
-			expect( domB.childNodes.length ).to.equal( 1 );
-			expect( domB.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domB.childNodes.length ).toBe( 1 );
+			expect( domB.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 			// 3. Add text node only to the view: <p><b>x{}</b>foo</p>.
 
@@ -1303,19 +1428,19 @@ describe( 'Renderer', () => {
 
 			// 4. Check the DOM.
 
-			expect( domB.childNodes.length ).to.equal( 1 );
-			expect( domB.childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'x' );
+			expect( domB.childNodes.length ).toBe( 1 );
+			expect( domB.childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'x' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH + 1 );
-			expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH + 1 );
+			expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 		} );
 
 		it( 'should handle not collapsed range', () => {
 			const domSelection = document.getSelection();
 
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>fo{o<attribute:b>b}ar</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -1326,17 +1451,17 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.childNodes.length ).to.equal( 2 );
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'foo' );
-			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).to.equal( 'b' );
-			expect( domP.childNodes[ 1 ].childNodes.length ).to.equal( 1 );
-			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).to.equal( 'bar' );
+			expect( domP.childNodes.length ).toBe( 2 );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'foo' );
+			expect( domP.childNodes[ 1 ].tagName.toLowerCase() ).toBe( 'b' );
+			expect( domP.childNodes[ 1 ].childNodes.length ).toBe( 1 );
+			expect( domP.childNodes[ 1 ].childNodes[ 0 ].data ).toBe( 'bar' );
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-			expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domP.childNodes[ 1 ].childNodes[ 0 ] );
-			expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 1 );
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+			expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domP.childNodes[ 1 ].childNodes[ 0 ] );
+			expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 1 );
 
 			renderer.markToSync( 'children', viewP );
 			renderAndExpectNoChanges( renderer, domRoot );
@@ -1353,30 +1478,30 @@ describe( 'Renderer', () => {
 			domSelection.collapse( domDiv, 0 );
 
 			const viewDiv = new ViewElement( viewDocument, 'div' );
-			const { view: viewP, selection: newSelection } = parse( '<container:p>fo{o}</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>fo{o}</container:p>' );
 
 			viewDiv._appendChild( viewP );
 			selection._setTo( newSelection );
 
 			renderer.render();
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
+			expect( domSelection.rangeCount ).toBe( 1 );
 
 			// Depending on the browser selection may end up before the text node or at the beginning of it.
 			const domRange = domSelection.getRangeAt( 0 );
 
 			const assertSelectionAtEndOfTextNode = () => {
-				expect( domRange.startContainer ).to.equal( domDiv );
+				expect( domRange.startContainer ).toBe( domDiv );
 			};
 
 			const assertSelectionInsideTextNode = () => {
-				expect( domRange.startContainer ).to.equal( domDiv.childNodes[ 0 ] );
+				expect( domRange.startContainer ).toBe( domDiv.childNodes[ 0 ] );
 			};
 
 			testUtils.checkAssertions( assertSelectionAtEndOfTextNode, assertSelectionInsideTextNode );
 
-			expect( domRange.startOffset ).to.equal( 0 );
-			expect( domRange.collapsed ).to.be.true;
+			expect( domRange.startOffset ).toBe( 0 );
+			expect( domRange.collapsed ).toBe( true );
 
 			domDiv.remove();
 		} );
@@ -1395,36 +1520,84 @@ describe( 'Renderer', () => {
 
 			renderer.isFocused = false;
 
-			const { view: viewP, selection: newSelection } = parse( '<container:p>fo{o}</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>fo{o}</container:p>' );
 
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
 
 			renderer.render();
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
+			expect( domSelection.rangeCount ).toBe( 1 );
 
 			// Depending on the browser selection may end up before the text node or at the beginning of it.
 			const domSelectionRange = domSelection.getRangeAt( 0 );
 
 			const assertSelectionAtEndOfTextNode = () => {
-				expect( domSelectionRange.startContainer ).to.equal( domDiv );
+				expect( domSelectionRange.startContainer ).toBe( domDiv );
 			};
 
 			const assertSelectionInsideTextNode = () => {
-				expect( domSelectionRange.startContainer ).to.equal( domDiv.childNodes[ 0 ] );
+				expect( domSelectionRange.startContainer ).toBe( domDiv.childNodes[ 0 ] );
 			};
 
 			testUtils.checkAssertions( assertSelectionAtEndOfTextNode, assertSelectionInsideTextNode );
 
-			expect( domSelectionRange.startOffset ).to.equal( 0 );
-			expect( domSelectionRange.collapsed ).to.be.true;
+			expect( domSelectionRange.startOffset ).toBe( 0 );
+			expect( domSelectionRange.collapsed ).toBe( true );
 
 			domDiv.remove();
 		} );
 
+		it( 'should remove the DOM selection from a shadow tree when the root was attached before insertion', () => {
+			// Reproduces the `ClassicEditor` init order: the editing root is registered (attachDomRoot) before
+			// it is inserted into its shadow tree. The tree must be resolved lazily, so the native selection
+			// inside the shadow root is cleared - not the host-retargeted document selection, which would leave
+			// the shadow selection in place.
+			const host = document.createElement( 'div' );
+
+			document.body.appendChild( host );
+
+			const shadowRoot = host.attachShadow( { mode: 'open' } );
+
+			const shadowViewRoot = new ViewEditableElement( viewDocument, 'div' );
+			shadowViewRoot.getFillerOffset = () => null;
+
+			const shadowDomRoot = document.createElement( 'div' );
+
+			shadowDomRoot.contentEditable = 'true';
+			shadowDomRoot.textContent = 'foo';
+
+			domConverter.bindElements( shadowDomRoot, shadowViewRoot );
+
+			// Register the root while disconnected, then insert it into the shadow tree.
+			renderer.addDomRoot( shadowDomRoot );
+			shadowRoot.appendChild( shadowDomRoot );
+
+			shadowDomRoot.focus();
+
+			// Put a native selection on nodes inside the shadow editable. On Blink this keeps the selection
+			// shadow-scoped, which is what the renderer resolves against.
+			const shadowSelection = window.getSelection();
+			const domRange = document.createRange();
+
+			domRange.selectNodeContents( shadowDomRoot );
+			shadowSelection.removeAllRanges();
+			shadowSelection.addRange( domRange );
+
+			expect( window.getSelection().rangeCount ).toBe( 1 );
+
+			// Empty view selection while focused -> render() clears the DOM selection.
+			renderer.isFocused = true;
+			selection._setTo( null );
+			renderer.render();
+
+			expect( window.getSelection().rangeCount ).toBe( 0 );
+
+			host.remove();
+		} );
+
 		it( 'should not add inline filler after text node', () => {
-			const { view: viewP, selection: newSelection } = parse( '<container:p>foo[]</container:p>' );
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>foo[]</container:p>' );
 
 			viewRoot._appendChild( viewP );
 			selection._setTo( newSelection );
@@ -1434,11 +1607,11 @@ describe( 'Renderer', () => {
 
 			const domP = domRoot.childNodes[ 0 ];
 
-			expect( domP.innerHTML.indexOf( INLINE_FILLER ) ).to.equal( -1 );
+			expect( domP.innerHTML.indexOf( INLINE_FILLER ) ).toBe( -1 );
 		} );
 
 		it( 'should throw if there is no filler in expected position', () => {
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>foo<attribute:b>[]</attribute:b>bar</container:p>' );
 
 			viewRoot._appendChild( viewP );
@@ -1450,7 +1623,7 @@ describe( 'Renderer', () => {
 			const domB = domRoot.childNodes[ 0 ].childNodes[ 1 ];
 			const viewB = viewP.getChild( 1 );
 
-			expect( domB.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domB.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
 			// Remove filler.
 			domB.childNodes[ 0 ].data = '';
@@ -1472,7 +1645,7 @@ describe( 'Renderer', () => {
 					'<container:li>[]<container:div></container:div></container:li>' +
 				'</container:ul>';
 
-			const { view: view, selection: newSelection } = parse( inputView );
+			const { view: view, selection: newSelection } = _parseView( inputView );
 
 			viewRoot._appendChild( view );
 			selection._setTo( newSelection );
@@ -1481,7 +1654,7 @@ describe( 'Renderer', () => {
 			renderer.render();
 
 			// 2. Check if filler element has been (correctly) created.
-			expect( domRoot.innerHTML.indexOf( INLINE_FILLER ) ).not.to.equal( -1 );
+			expect( domRoot.innerHTML.indexOf( INLINE_FILLER ) ).not.toBe( -1 );
 
 			// 3. Move the inline filler parent to a newly created element.
 			const viewLi = view.getChild( 0 );
@@ -1494,44 +1667,44 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewLi );
 			renderer.render();
 
-			expect( domRoot.innerHTML.indexOf( INLINE_FILLER ) ).not.to.equal( -1 );
+			expect( domRoot.innerHTML.indexOf( INLINE_FILLER ) ).not.toBe( -1 );
 
 			const domSelection = document.getSelection();
 
-			expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 7 ); // After inline filler.
+			expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 7 ); // After inline filler.
 		} );
 
 		it( 'should handle focusing element', () => {
 			selection._setTo( viewRoot, 0 );
 
-			const domFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
+			const domFocusSpy = vi.spyOn( domRoot, 'focus' );
 
 			renderer.render();
 
-			expect( domFocusSpy.called ).to.be.true;
+			expect( domFocusSpy ).toHaveBeenCalled();
 		} );
 
 		it( 'should not focus editable if isFocues is set to false', () => {
-			const domFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
+			const domFocusSpy = vi.spyOn( domRoot, 'focus' );
 
 			renderer.isFocused = false;
 			renderer.render();
 
-			expect( domFocusSpy.calledOnce ).to.be.false;
+			expect( domFocusSpy ).not.toHaveBeenCalledOnce();
 		} );
 
 		it( 'should not focus already focused DOM element', () => {
 			domRoot.setAttribute( 'contentEditable', true );
 			domRoot.focus();
-			const domFocusSpy = testUtils.sinon.spy( domRoot, 'focus' );
+			const domFocusSpy = vi.spyOn( domRoot, 'focus' );
 
 			renderer.render();
 
-			expect( domFocusSpy.called ).to.be.false;
+			expect( domFocusSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should render NBSP as last space in the previous inline element', () => {
-			const viewP = parse( '<container:p>x <attribute:b>y</attribute:b></container:p>' );
+			const viewP = _parseView( '<container:p>x <attribute:b>y</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
@@ -1541,9 +1714,9 @@ describe( 'Renderer', () => {
 			const domP = domRoot.childNodes[ 0 ];
 			const domB = domP.childNodes[ 1 ];
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x ' );
-			expect( domB.childNodes[ 0 ].data ).to.equal( 'y' );
-			expect( domP.innerHTML ).to.equal( 'x <b>y</b>' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x ' );
+			expect( domB.childNodes[ 0 ].data ).toBe( 'y' );
+			expect( domP.innerHTML ).toBe( 'x <b>y</b>' );
 
 			// Insert space resulting in '<p>x <b> y</b></p>'.
 			const viewB = viewP.getChild( 1 );
@@ -1553,13 +1726,13 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x\u00A0' );
-			expect( domB.childNodes[ 0 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( 'x&nbsp;<b> y</b>' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x\u00A0' );
+			expect( domB.childNodes[ 0 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( 'x&nbsp;<b> y</b>' );
 		} );
 
 		it( 'should update sibling after, when node before is removed', () => {
-			const viewP = parse( '<container:p>x<attribute:b> y</attribute:b></container:p>' );
+			const viewP = _parseView( '<container:p>x<attribute:b> y</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
@@ -1569,9 +1742,9 @@ describe( 'Renderer', () => {
 			const domP = domRoot.childNodes[ 0 ];
 			const domB = domP.childNodes[ 1 ];
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x' );
-			expect( domB.childNodes[ 0 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( 'x<b> y</b>' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x' );
+			expect( domB.childNodes[ 0 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( 'x<b> y</b>' );
 
 			// Remove 'x' resulting in '<p><b> y</b></p>'.
 			viewP._removeChildren( 0 );
@@ -1579,12 +1752,12 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domB.childNodes[ 0 ].data ).to.equal( '\u00A0y' );
-			expect( domP.innerHTML ).to.equal( '<b>&nbsp;y</b>' );
+			expect( domB.childNodes[ 0 ].data ).toBe( '\u00A0y' );
+			expect( domP.innerHTML ).toBe( '<b>&nbsp;y</b>' );
 		} );
 
 		it( 'should update sibling before, when node after is removed', () => {
-			const viewP = parse( '<container:p>x <attribute:b>y</attribute:b></container:p>' );
+			const viewP = _parseView( '<container:p>x <attribute:b>y</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
@@ -1594,9 +1767,9 @@ describe( 'Renderer', () => {
 			const domP = domRoot.childNodes[ 0 ];
 			const domB = domP.childNodes[ 1 ];
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x ' );
-			expect( domB.childNodes[ 0 ].data ).to.equal( 'y' );
-			expect( domP.innerHTML ).to.equal( 'x <b>y</b>' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x ' );
+			expect( domB.childNodes[ 0 ].data ).toBe( 'y' );
+			expect( domP.innerHTML ).toBe( 'x <b>y</b>' );
 
 			// Remove '<b>y</b>' resulting in '<p>x </p>'.
 			viewP._removeChildren( 1 );
@@ -1604,13 +1777,13 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x\u00A0' );
-			expect( domP.innerHTML ).to.equal( 'x&nbsp;' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x\u00A0' );
+			expect( domP.innerHTML ).toBe( 'x&nbsp;' );
 		} );
 
 		// #1093
 		it( 'should update siblings after space is inserted in element before - text-element', () => {
-			const viewP = parse( '<container:p>x<attribute:b> y</attribute:b></container:p>' );
+			const viewP = _parseView( '<container:p>x<attribute:b> y</attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
@@ -1620,9 +1793,9 @@ describe( 'Renderer', () => {
 			const domP = domRoot.childNodes[ 0 ];
 			const domB = domP.childNodes[ 1 ];
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x' );
-			expect( domB.childNodes[ 0 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( 'x<b> y</b>' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x' );
+			expect( domB.childNodes[ 0 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( 'x<b> y</b>' );
 
 			// Insert space resulting in '<p>x <b> y</b></p>'.
 			viewP._removeChildren( 0 );
@@ -1631,14 +1804,14 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domP.childNodes[ 0 ].data ).to.equal( 'x\u00A0' );
-			expect( domB.childNodes[ 0 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( 'x&nbsp;<b> y</b>' );
+			expect( domP.childNodes[ 0 ].data ).toBe( 'x\u00A0' );
+			expect( domB.childNodes[ 0 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( 'x&nbsp;<b> y</b>' );
 		} );
 
 		// #1093
 		it( 'should update siblings after space is inserted in element before - element-text', () => {
-			const viewP = parse( '<container:p><attribute:b>x</attribute:b> y</container:p>' );
+			const viewP = _parseView( '<container:p><attribute:b>x</attribute:b> y</container:p>' );
 
 			viewRoot._appendChild( viewP );
 
@@ -1648,9 +1821,9 @@ describe( 'Renderer', () => {
 			const domP = domRoot.childNodes[ 0 ];
 			const domB = domP.childNodes[ 0 ];
 
-			expect( domB.childNodes[ 0 ].data ).to.equal( 'x' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( '<b>x</b> y' );
+			expect( domB.childNodes[ 0 ].data ).toBe( 'x' );
+			expect( domP.childNodes[ 1 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( '<b>x</b> y' );
 
 			// Insert space resulting in '<p><b>x </b> y</p>'.
 			const viewB = viewP.getChild( 0 );
@@ -1660,14 +1833,14 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domB.childNodes[ 0 ].data ).to.equal( 'x\u00A0' );
-			expect( domP.childNodes[ 1 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( '<b>x&nbsp;</b> y' );
+			expect( domB.childNodes[ 0 ].data ).toBe( 'x\u00A0' );
+			expect( domP.childNodes[ 1 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( '<b>x&nbsp;</b> y' );
 		} );
 
 		// #1093
 		it( 'should update siblings after space is inserted in element before - element-element', () => {
-			const viewP = parse( '<container:p><attribute:b>x</attribute:b><attribute:i> y</attribute:i></container:p>' );
+			const viewP = _parseView( '<container:p><attribute:b>x</attribute:b><attribute:i> y</attribute:i></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
@@ -1678,9 +1851,9 @@ describe( 'Renderer', () => {
 			const domB = domP.childNodes[ 0 ];
 			const domI = domP.childNodes[ 1 ];
 
-			expect( domB.childNodes[ 0 ].data ).to.equal( 'x' );
-			expect( domI.childNodes[ 0 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( '<b>x</b><i> y</i>' );
+			expect( domB.childNodes[ 0 ].data ).toBe( 'x' );
+			expect( domI.childNodes[ 0 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( '<b>x</b><i> y</i>' );
 
 			// Insert space resulting in '<p><b>x </b><i> y</i></p>'.
 			const viewB = viewP.getChild( 0 );
@@ -1690,9 +1863,9 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewP );
 			renderer.render();
 
-			expect( domB.childNodes[ 0 ].data ).to.equal( 'x\u00A0' );
-			expect( domI.childNodes[ 0 ].data ).to.equal( ' y' );
-			expect( domP.innerHTML ).to.equal( '<b>x&nbsp;</b><i> y</i>' );
+			expect( domB.childNodes[ 0 ].data ).toBe( 'x\u00A0' );
+			expect( domI.childNodes[ 0 ].data ).toBe( ' y' );
+			expect( domP.innerHTML ).toBe( '<b>x&nbsp;</b><i> y</i>' );
 		} );
 
 		// #1125
@@ -1710,7 +1883,7 @@ describe( 'Renderer', () => {
 			//		<blockquote><p>Qu<strong>ote</strong></p><ul><li><strong>Quoted item 1</strong></li></ul></blockquote>
 			//
 			// during one rerender to check if complex structure changes are rerendered correctly.
-			const viewContent = parse( '' +
+			const viewContent = _parseView( '' +
 				'<container:h2>He' +
 					'<attribute:i>ading 1</attribute:i>' +
 				'</container:h2>' +
@@ -1751,7 +1924,7 @@ describe( 'Renderer', () => {
 			viewP._removeChildren( 0, viewP.childCount );
 			viewP._insertChild(
 				0,
-				parse(
+				_parseView(
 					'Ph <attribute:i><attribute:strong>Italic</attribute:strong></attribute:i> ' +
 					'<attribute:a href="https://ckeditor.com"><attribute:strong>L</attribute:strong>ink 1</attribute:a>'
 				)
@@ -1770,7 +1943,7 @@ describe( 'Renderer', () => {
 			viewBq._removeChildren( 0, viewBq.childCount );
 			viewBq._insertChild(
 				0,
-				parse(
+				_parseView(
 					'<container:p>Qu<attribute:strong>ote</attribute:strong></container:p>' +
 					'<container:ul><container:li><attribute:strong>Quoted item 1</attribute:strong></container:li></container:ul>'
 				)
@@ -1783,7 +1956,7 @@ describe( 'Renderer', () => {
 
 			renderer.render();
 
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal(
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe(
 				'<h2>Heading 2</h2>' +
 				'<p>Ph <i><strong>Italic</strong></i> <a href="https://ckeditor.com"><strong>L</strong>ink 1</a></p>' +
 				'<blockquote><p>Qu<strong>ote</strong></p><ul><li><strong>Quoted item 1</strong></li></ul></blockquote>'
@@ -1803,7 +1976,7 @@ describe( 'Renderer', () => {
 			//		<p>Not Quoted <strong>item 1</strong> and item 2</p>
 			//
 			// during one rerender to check if complex structure changes are rerendered correctly.
-			const viewContent = parse(
+			const viewContent = _parseView(
 				'<container:h1>Header</container:h1>' +
 				'<container:blockquote>' +
 					'<container:ul>' +
@@ -1818,7 +1991,7 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			const newViewContent = parse(
+			const newViewContent = _parseView(
 				'<container:h2>Header</container:h2>' +
 				'<container:p>Not Quoted <attribute:strong>item 1</attribute:strong> and item 2</container:p>'
 			);
@@ -1829,7 +2002,7 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal(
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe(
 				'<h2>Header</h2><p>Not Quoted <strong>item 1</strong> and item 2</p>'
 			);
 		} );
@@ -1842,18 +2015,18 @@ describe( 'Renderer', () => {
 					'<container:li><attribute:b>Bar</attribute:b></container:li>' +
 				'</container:ul>';
 
-			const view = parse( inputView );
+			const view = _parseView( inputView );
 
 			viewRoot._appendChild( view );
 
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.innerHTML ).to.equal( '<ul><li>Foo</li><li><b>Bar</b></li></ul>' );
+			expect( domRoot.innerHTML ).toBe( '<ul><li>Foo</li><li><b>Bar</b></li></ul>' );
 
 			const viewLi = view.getChild( 0 );
 			const viewLiIndented = view._removeChildren( 1, 1 ); // Array with one element.
-			viewLiIndented[ 0 ]._appendChild( parse( '<attribute:i>Baz</attribute:i>' ) );
+			viewLiIndented[ 0 ]._appendChild( _parseView( '<attribute:i>Baz</attribute:i>' ) );
 			const viewUl = new ViewContainerElement( viewDocument, 'ul', null, viewLiIndented );
 			viewLi._appendChild( viewUl );
 
@@ -1861,18 +2034,18 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewLi );
 			renderer.render();
 
-			expect( domRoot.innerHTML ).to.equal( '<ul><li>Foo<ul><li><b>Bar</b><i>Baz</i></li></ul></li></ul>' );
+			expect( domRoot.innerHTML ).toBe( '<ul><li>Foo<ul><li><b>Bar</b><i>Baz</i></li></ul></li></ul>' );
 		} );
 
 		// #1439
 		it( 'should not force–refresh the selection in non–Gecko browsers after a soft break', () => {
 			const domSelection = domRoot.ownerDocument.defaultView.getSelection();
 
-			testUtils.sinon.stub( env, 'isGecko' ).get( () => false );
-			const spy = testUtils.sinon.stub( domSelection, 'addRange' );
+			vi.spyOn( env, 'isGecko', 'get' ).mockReturnValue( false );
+			const spy = vi.spyOn( domSelection, 'addRange' );
 
 			// <p>foo<br/>[]</p>
-			const { view: viewP, selection: newSelection } = parse(
+			const { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>' +
 					'foo[]' +
 					'<empty:br></empty:br>[]' +
@@ -1883,18 +2056,18 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			sinon.assert.notCalled( spy );
+			expect( spy ).not.toHaveBeenCalled();
 		} );
 
 		// #1439
 		it( 'should force–refresh the selection in Gecko browsers after a soft break to nudge the caret', () => {
 			const domSelection = domRoot.ownerDocument.defaultView.getSelection();
 
-			testUtils.sinon.stub( env, 'isGecko' ).get( () => true );
-			const spy = testUtils.sinon.stub( domSelection, 'addRange' );
+			vi.spyOn( env, 'isGecko', 'get' ).mockReturnValue( true );
+			const spy = vi.spyOn( domSelection, 'addRange' );
 
 			// <p>foo[]<b>bar</b></p>
-			let { view: viewP, selection: newSelection } = parse(
+			let { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>' +
 					'foo[]' +
 					'<attribute:b>bar</attribute:b>' +
@@ -1905,10 +2078,10 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			sinon.assert.notCalled( spy );
+			expect( spy ).not.toHaveBeenCalled();
 
 			// <p>foo<b>bar</b></p><p>foo[]<br/></p>
-			( { view: viewP, selection: newSelection } = parse(
+			( { view: viewP, selection: newSelection } = _parseView(
 				'<container:p>' +
 					'foo[]' +
 					'<empty:br></empty:br>' +
@@ -1919,7 +2092,7 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			sinon.assert.notCalled( spy );
+			expect( spy ).not.toHaveBeenCalled();
 
 			// <p>foo<b>bar</b></p><p>foo<br/>[]</p>
 			selection._setTo( [
@@ -1929,12 +2102,31 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'does not throw updating the selection when the editable is detached (no resolvable selection)', () => {
+			const { view: viewP, selection: newSelection } = _parseView( '<container:p>foo{}bar</container:p>' );
+
+			viewRoot._appendChild( viewP );
+			selection._setTo( newSelection );
+			renderer.markToSync( 'children', viewRoot );
+			renderer.render();
+
+			// Detach the editable from the document, then change the selection so it needs updating. A
+			// detached editable has no resolvable DOM selection, so the render must be a no-op, not a crash.
+			domRoot.remove();
+			selection._setTo( [ new ViewRange(
+				new ViewPosition( viewP.getChild( 0 ), 1 ),
+				new ViewPosition( viewP.getChild( 0 ), 1 )
+			) ] );
+
+			expect( () => renderer.render() ).not.toThrow();
 		} );
 
 		describe( 'fake selection', () => {
 			beforeEach( () => {
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>[foo bar]</container:p>'
 				);
 				viewRoot._appendChild( viewP );
@@ -1948,23 +2140,38 @@ describe( 'Renderer', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
-				expect( domConverter.mapDomToView( container ) ).to.be.undefined;
-				expect( container.childNodes.length ).to.equal( 1 );
+				expect( domConverter.mapDomToView( container ) ).toBeUndefined();
+				expect( container.childNodes.length ).toBe( 1 );
 
 				const textNode = container.childNodes[ 0 ];
-				expect( textNode.textContent ).to.equal( label );
+				expect( textNode.textContent ).toBe( label );
 
 				const domSelection = domRoot.ownerDocument.getSelection();
 				assertDomSelectionContents( domSelection, container, /^fake selection label$/ );
 			} );
 
+			it( 'does not throw when the editable is detached (no resolvable selection)', () => {
+				// Render a fake selection first so the fake selection container is created and attached
+				// to the editable.
+				selection._setTo( selection.getRanges(), { fake: true, label: 'label A' } );
+				renderer.render();
+
+				// Detach the editable from the document, then request another fake-selection render with a
+				// changed label so the fake selection is considered in need of an update. A detached
+				// editable has no resolvable DOM selection, so the render must be a no-op, not a crash.
+				domRoot.remove();
+				selection._setTo( selection.getRanges(), { fake: true, label: 'label B' } );
+
+				expect( () => renderer.render() ).not.toThrow();
+			} );
+
 			describe( 'subsequent call optimization', () => {
 				// https://github.com/ckeditor/ckeditor5-engine/issues/1791
 				it( 'doesn\'t render the same selection multiple times', () => {
-					const createRangeSpy = sinon.spy( document, 'createRange' );
+					const createRangeSpy = vi.spyOn( document, 'createRange' );
 					const label = 'subsequent fake selection calls';
 
 					selection._setTo( selection.getRanges(), { fake: true, label } );
@@ -1972,18 +2179,18 @@ describe( 'Renderer', () => {
 					selection._setTo( selection.getRanges(), { fake: true, label } );
 					renderer.render();
 
-					expect( createRangeSpy.callCount ).to.equal( 1 );
+					expect( createRangeSpy ).toHaveBeenCalledTimes( 1 );
 				} );
 
 				it( 'different subsequent fake selections sets do change native selection', () => {
-					const createRangeSpy = sinon.spy( document, 'createRange' );
+					const createRangeSpy = vi.spyOn( document, 'createRange' );
 
 					selection._setTo( selection.getRanges(), { fake: true, label: 'selection 1' } );
 					renderer.render();
 					selection._setTo( selection.getRanges(), { fake: true, label: 'selection 2' } );
 					renderer.render();
 
-					expect( createRangeSpy.callCount ).to.equal( 2 );
+					expect( createRangeSpy ).toHaveBeenCalledTimes( 2 );
 				} );
 
 				it( 'rerenders selection if disturbed externally', () => {
@@ -1991,7 +2198,7 @@ describe( 'Renderer', () => {
 					interruptingRange.setStartBefore( domRoot.children[ 0 ] );
 					interruptingRange.setEndAfter( domRoot.children[ 0 ] );
 
-					const createRangeSpy = sinon.spy( document, 'createRange' );
+					const createRangeSpy = vi.spyOn( document, 'createRange' );
 					const label = 'selection 1';
 
 					selection._setTo( selection.getRanges(), { fake: true, label } );
@@ -2003,13 +2210,13 @@ describe( 'Renderer', () => {
 					selection._setTo( selection.getRanges(), { fake: true, label } );
 					renderer.render();
 
-					expect( createRangeSpy.callCount ).to.equal( 2 );
+					expect( createRangeSpy ).toHaveBeenCalledTimes( 2 );
 				} );
 
-				it( 'correctly maps fake selection ', () => {
+				it( 'correctly maps fake selection', () => {
 					// See https://github.com/ckeditor/ckeditor5-engine/pull/1792#issuecomment-529814641
 					const label = 'subsequent fake selection calls';
-					const { view: newParagraph, selection: newSelection } = parse( '<container:p>[baz]</container:p>' );
+					const { view: newParagraph, selection: newSelection } = _parseView( '<container:p>[baz]</container:p>' );
 
 					viewRoot._appendChild( newParagraph );
 
@@ -2022,7 +2229,7 @@ describe( 'Renderer', () => {
 					const fakeSelectionContainer = domRoot.childNodes[ 1 ];
 					const mappedSelection = renderer.domConverter.fakeSelectionToView( fakeSelectionContainer );
 
-					expect( stringify( viewRoot, mappedSelection ) ).to.equal( '<div><p>foo bar</p><p>[baz]</p></div>' );
+					expect( _stringifyView( viewRoot, mappedSelection ) ).toBe( '<div><p>foo bar</p><p>[baz]</p></div>' );
 				} );
 			} );
 
@@ -2030,13 +2237,13 @@ describe( 'Renderer', () => {
 				selection._setTo( selection.getRanges(), { fake: true } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
-				expect( container.childNodes.length ).to.equal( 1 );
+				expect( container.childNodes.length ).toBe( 1 );
 
 				const textNode = container.childNodes[ 0 ];
-				expect( textNode.textContent ).to.equal( '\u00A0' );
+				expect( textNode.textContent ).toBe( '\u00A0' );
 
 				const domSelection = domRoot.ownerDocument.getSelection();
 				assertDomSelectionContents( domSelection, container, /^[ \u00A0]$/ );
@@ -2049,14 +2256,30 @@ describe( 'Renderer', () => {
 				selection._setTo( selection.getRanges(), { fake: false } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 1 );
+				expect( domRoot.childNodes.length ).toBe( 1 );
 
 				const domParagraph = domRoot.childNodes[ 0 ];
-				expect( domParagraph.childNodes.length ).to.equal( 1 );
-				expect( domParagraph.tagName.toLowerCase() ).to.equal( 'p' );
+				expect( domParagraph.childNodes.length ).toBe( 1 );
+				expect( domParagraph.tagName.toLowerCase() ).toBe( 'p' );
 
 				const domSelection = domRoot.ownerDocument.getSelection();
 				assertDomSelectionContents( domSelection, domParagraph, /^foo bar$/ );
+			} );
+
+			it( 'should remove fake selection container when selection is no longer fake even if editor is not focused', () => {
+				selection._setTo( selection.getRanges(), { fake: true } );
+				renderer.render();
+
+				renderer.isFocused = false;
+
+				selection._setTo( selection.getRanges(), { fake: false } );
+				renderer.render();
+
+				expect( domRoot.childNodes.length ).toBe( 1 );
+
+				const domParagraph = domRoot.childNodes[ 0 ];
+				expect( domParagraph.childNodes.length ).toBe( 1 );
+				expect( domParagraph.tagName.toLowerCase() ).toBe( 'p' );
 			} );
 
 			it( 'should reuse fake selection container #1', () => {
@@ -2065,87 +2288,87 @@ describe( 'Renderer', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
 
 				selection._setTo( selection.getRanges(), { fake: true, label } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const newContainer = domRoot.childNodes[ 1 ];
-				expect( newContainer ).equals( container );
-				expect( newContainer.childNodes.length ).to.equal( 1 );
+				expect( newContainer ).toEqual( container );
+				expect( newContainer.childNodes.length ).toBe( 1 );
 
 				const textNode = newContainer.childNodes[ 0 ];
-				expect( textNode.textContent ).to.equal( label );
+				expect( textNode.textContent ).toBe( label );
 			} );
 
 			it( 'should reuse fake selection container #2', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label: 'label 1' } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
 
 				selection._setTo( selection.getRanges(), { fake: false } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 1 );
+				expect( domRoot.childNodes.length ).toBe( 1 );
 
 				selection._setTo( selection.getRanges(), { fake: true, label: 'label 2' } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const newContainer = domRoot.childNodes[ 1 ];
-				expect( newContainer ).equals( container );
-				expect( newContainer.childNodes.length ).to.equal( 1 );
+				expect( newContainer ).toEqual( container );
+				expect( newContainer.childNodes.length ).toBe( 1 );
 
 				const textNode = newContainer.childNodes[ 0 ];
-				expect( textNode.textContent ).to.equal( 'label 2' );
+				expect( textNode.textContent ).toBe( 'label 2' );
 			} );
 
 			it( 'should reuse fake selection container #3', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label: 'label 1' } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
 
 				selection._setTo( selection.getRanges(), { fake: true, label: 'label 2' } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const newContainer = domRoot.childNodes[ 1 ];
-				expect( newContainer ).equals( container );
-				expect( newContainer.childNodes.length ).to.equal( 1 );
+				expect( newContainer ).toEqual( container );
+				expect( newContainer.childNodes.length ).toBe( 1 );
 
 				const textNode = newContainer.childNodes[ 0 ];
-				expect( textNode.textContent ).to.equal( 'label 2' );
+				expect( textNode.textContent ).toBe( 'label 2' );
 			} );
 
 			it( 'should style fake selection container properly', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label: 'fake selection' } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
 
-				expect( container.style.position ).to.equal( 'fixed' );
-				expect( container.style.top ).to.equal( '0px' );
-				expect( container.style.left ).to.equal( '-9999px' );
-				expect( container.className ).to.equal( 'ck-fake-selection-container' );
+				expect( container.style.position ).toBe( 'fixed' );
+				expect( container.style.top ).toBe( '0px' );
+				expect( container.style.left ).toBe( '-9999px' );
+				expect( container.className ).toBe( 'ck-fake-selection-container' );
 			} );
 
 			it( 'should move fake selection container between editables', () => {
 				const viewEditable = new ViewEditableElement( viewDocument, 'div' );
-				viewEditable._appendChild( parse( '<container:p>abc xyz</container:p>' ) );
+				viewEditable._appendChild( _parseView( '<container:p>abc xyz</container:p>' ) );
 
 				const domEditable = document.createElement( 'div' );
 
@@ -2159,14 +2382,14 @@ describe( 'Renderer', () => {
 
 				let container = document.getSelection().anchorNode;
 
-				expect( domRoot.contains( container ) ).to.be.true;
+				expect( domRoot.contains( container ) ).toBe( true );
 
 				selection._setTo( viewEditable, 'in', { fake: true, label: 'fake selection' } );
 				renderer.render();
 
 				container = document.getSelection().anchorNode;
 
-				expect( domEditable.contains( container ) ).to.be.true;
+				expect( domEditable.contains( container ) ).toBe( true );
 
 				domEditable.remove();
 			} );
@@ -2175,13 +2398,13 @@ describe( 'Renderer', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label: 'fake selection' } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
 
 				const bindSelection = renderer.domConverter.fakeSelectionToView( container );
-				expect( bindSelection ).to.not.be.undefined;
-				expect( bindSelection.isEqual( selection ) ).to.be.true;
+				expect( bindSelection ).not.toBeUndefined();
+				expect( bindSelection.isEqual( selection ) ).toBe( true );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5-engine/issues/1714.
@@ -2190,14 +2413,14 @@ describe( 'Renderer', () => {
 				selection._setTo( selection.getRanges(), { fake: true, label } );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
+				expect( domRoot.childNodes.length ).toBe( 2 );
 
 				const container = domRoot.childNodes[ 1 ];
-				expect( domConverter.mapDomToView( container ) ).to.be.undefined;
-				expect( container.childNodes.length ).to.equal( 1 );
+				expect( domConverter.mapDomToView( container ) ).toBeUndefined();
+				expect( container.childNodes.length ).toBe( 1 );
 
 				const textNode = container.childNodes[ 0 ];
-				expect( textNode.textContent ).to.equal( label );
+				expect( textNode.textContent ).toBe( label );
 
 				// Remove a text node (label) from the fake selection container.
 				// It can be done by pressing backspace while the delete command is disabled and selection is on the widget.
@@ -2215,10 +2438,10 @@ describe( 'Renderer', () => {
 			function assertDomSelectionContents( domSelection, expectedContainer, expectedText ) {
 				const domSelectionContainer = domSelection.getRangeAt( 0 ).commonAncestorContainer;
 
-				expect( domSelection.toString() ).to.match( expectedText );
+				expect( domSelection.toString() ).toMatch( expectedText );
 				expect(
 					domSelectionContainer == expectedContainer.firstChild || domSelectionContainer == expectedContainer
-				).to.be.true;
+				).toBe( true );
 			}
 		} );
 
@@ -2230,14 +2453,23 @@ describe( 'Renderer', () => {
 
 			afterEach( () => {
 				if ( selectionSpy ) {
-					selectionSpy.restore();
+					selectionSpy.mockRestore();
+					selectionSpy = null;
+				}
+				if ( selectionCollapseSpy ) {
+					selectionCollapseSpy.mockRestore();
+					selectionCollapseSpy = null;
+				}
+				if ( selectionExtendSpy ) {
+					selectionExtendSpy.mockRestore();
+					selectionExtendSpy = null;
 				}
 			} );
 
 			it( 'should always render collapsed selection even if it is similar', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>foo{}<attribute:b>bar</attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2250,14 +2482,14 @@ describe( 'Renderer', () => {
 				const domB = domP.childNodes[ 1 ];
 				const viewB = viewRoot.getChild( 0 ).getChild( 1 );
 
-				expect( domSelection.isCollapsed ).to.true;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 3 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+				expect( domSelection.isCollapsed ).toBe( true );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 3 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>foo<attribute:b>{}bar</attribute:b></container:p>
 				selection._setTo( [
@@ -2267,14 +2499,14 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionSpy.calledOnce ).to.true;
-				expect( selectionSpy.calledWith( domB.childNodes[ 0 ], 0, domB.childNodes[ 0 ], 0 ) ).to.true;
+				expect( selectionSpy ).toHaveBeenCalledOnce();
+				expect( selectionSpy ).toHaveBeenCalledWith( domB.childNodes[ 0 ], 0, domB.childNodes[ 0 ], 0 );
 			} );
 
 			it( 'should always render collapsed selection even if it is similar (with empty element)', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>foo<attribute:b>[]</attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2286,14 +2518,14 @@ describe( 'Renderer', () => {
 				const domP = domRoot.childNodes[ 0 ];
 				const domB = domP.childNodes[ 1 ];
 
-				expect( domSelection.isCollapsed ).to.true;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domB.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( INLINE_FILLER_LENGTH );
+				expect( domSelection.isCollapsed ).toBe( true );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domB.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( INLINE_FILLER_LENGTH );
 
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>foo{}<attribute:b></attribute:b></container:p>
 				selection._setTo( [
@@ -2303,14 +2535,14 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionSpy.calledOnce ).to.true;
-				expect( selectionSpy.calledWith( domP.childNodes[ 0 ], 3, domP.childNodes[ 0 ], 3 ) ).to.true;
+				expect( selectionSpy ).toHaveBeenCalledOnce();
+				expect( selectionSpy ).toHaveBeenCalledWith( domP.childNodes[ 0 ], 3, domP.childNodes[ 0 ], 3 );
 			} );
 
 			it( 'should always render non-collapsed selection if it not is similar', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>fo{o}<attribute:b>bar</attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2323,14 +2555,14 @@ describe( 'Renderer', () => {
 				const domB = domP.childNodes[ 1 ];
 				const viewB = viewRoot.getChild( 0 ).getChild( 1 );
 
-				expect( domSelection.isCollapsed ).to.false;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+				expect( domSelection.isCollapsed ).toBe( false );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>fo{o<attribute:b>b}ar</attribute:b></container:p>
 				selection._setTo( [
@@ -2340,14 +2572,14 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionSpy.calledOnce ).to.true;
-				expect( selectionSpy.calledWith( domP.childNodes[ 0 ], 2, domB.childNodes[ 0 ], 1 ) ).to.true;
+				expect( selectionSpy ).toHaveBeenCalledOnce();
+				expect( selectionSpy ).toHaveBeenCalledWith( domP.childNodes[ 0 ], 2, domB.childNodes[ 0 ], 1 );
 			} );
 
 			it( 'should always render selection (even if it is same in view) if current dom selection is in incorrect place', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse( '<container:p>foo[]<ui:span></ui:span></container:p>' );
+				const { view: viewP, selection: newSelection } = _parseView( '<container:p>foo[]<ui:span></ui:span></container:p>' );
 
 				viewRoot._appendChild( viewP );
 				selection._setTo( newSelection );
@@ -2370,25 +2602,25 @@ describe( 'Renderer', () => {
 				// Depending on the browser selection may end up at the end of the text node or after the text node.
 
 				const assertSelectionAtEndOfTextNode = () => {
-					expect( domSelection.anchorNode ).to.equal( domP );
-					expect( domSelection.anchorOffset ).to.equal( 1 );
+					expect( domSelection.anchorNode ).toBe( domP );
+					expect( domSelection.anchorOffset ).toBe( 1 );
 				};
 
 				const assertSelectionInsideTextNode = () => {
 					const textNode = domP.childNodes[ 0 ];
-					expect( domSelection.anchorNode ).to.equal( textNode );
-					expect( domSelection.anchorOffset ).to.equal( 3 );
+					expect( domSelection.anchorNode ).toBe( textNode );
+					expect( domSelection.anchorOffset ).toBe( 3 );
 				};
 
 				testUtils.checkAssertions( assertSelectionAtEndOfTextNode, assertSelectionInsideTextNode );
 
-				expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+				expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 			} );
 
 			it( 'should not render non-collapsed selection it is similar (element start)', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>foo<attribute:b>{ba}r</attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2401,16 +2633,16 @@ describe( 'Renderer', () => {
 				const domB = domP.childNodes[ 1 ];
 				const viewB = viewRoot.getChild( 0 ).getChild( 1 );
 
-				expect( domSelection.isCollapsed ).to.false;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domB.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+				expect( domSelection.isCollapsed ).toBe( false );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domB.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
-				selectionCollapseSpy = sinon.spy( window.Selection.prototype, 'collapse' );
-				selectionExtendSpy = sinon.spy( window.Selection.prototype, 'extend' );
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionCollapseSpy = vi.spyOn( window.Selection.prototype, 'collapse' );
+				selectionExtendSpy = vi.spyOn( window.Selection.prototype, 'extend' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>foo{<attribute:b>ba}r</attribute:b></container:p>
 				selection._setTo( [
@@ -2420,15 +2652,15 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionCollapseSpy.notCalled ).to.true;
-				expect( selectionExtendSpy.notCalled ).to.true;
-				expect( selectionSpy.notCalled ).to.be.true;
+				expect( selectionCollapseSpy ).not.toHaveBeenCalled();
+				expect( selectionExtendSpy ).not.toHaveBeenCalled();
+				expect( selectionSpy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not render non-collapsed selection it is similar (element end)', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>foo<attribute:b>b{ar}</attribute:b>baz</container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2441,16 +2673,16 @@ describe( 'Renderer', () => {
 				const domB = domP.childNodes[ 1 ];
 				const viewB = viewRoot.getChild( 0 ).getChild( 1 );
 
-				expect( domSelection.isCollapsed ).to.false;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domB.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+				expect( domSelection.isCollapsed ).toBe( false );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domB.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 
-				selectionCollapseSpy = sinon.spy( window.Selection.prototype, 'collapse' );
-				selectionExtendSpy = sinon.spy( window.Selection.prototype, 'extend' );
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionCollapseSpy = vi.spyOn( window.Selection.prototype, 'collapse' );
+				selectionExtendSpy = vi.spyOn( window.Selection.prototype, 'extend' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>foo<attribute:b>b{ar</attribute:b>}baz</container:p>
 				selection._setTo( [
@@ -2460,15 +2692,15 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionCollapseSpy.notCalled ).to.true;
-				expect( selectionExtendSpy.notCalled ).to.true;
-				expect( selectionSpy.notCalled ).to.be.true;
+				expect( selectionCollapseSpy ).not.toHaveBeenCalled();
+				expect( selectionExtendSpy ).not.toHaveBeenCalled();
+				expect( selectionSpy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not render non-collapsed selection it is similar (element start - nested)', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>foo<attribute:b><attribute:i>{ba}r</attribute:i></attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2481,16 +2713,16 @@ describe( 'Renderer', () => {
 				const domB = domP.childNodes[ 1 ];
 				const viewI = viewRoot.getChild( 0 ).getChild( 1 ).getChild( 0 );
 
-				expect( domSelection.isCollapsed ).to.false;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domB.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domB.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+				expect( domSelection.isCollapsed ).toBe( false );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domB.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domB.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
-				selectionCollapseSpy = sinon.spy( window.Selection.prototype, 'collapse' );
-				selectionExtendSpy = sinon.spy( window.Selection.prototype, 'extend' );
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionCollapseSpy = vi.spyOn( window.Selection.prototype, 'collapse' );
+				selectionExtendSpy = vi.spyOn( window.Selection.prototype, 'extend' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>foo{<attribute:b><attribute:i>ba}r</attribute:i></attribute:b></container:p>
 				selection._setTo( [
@@ -2500,15 +2732,15 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionCollapseSpy.notCalled ).to.true;
-				expect( selectionExtendSpy.notCalled ).to.true;
-				expect( selectionSpy.notCalled ).to.true;
+				expect( selectionCollapseSpy ).not.toHaveBeenCalled();
+				expect( selectionExtendSpy ).not.toHaveBeenCalled();
+				expect( selectionSpy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not render non-collapsed selection it is similar (element end - nested)', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse(
+				const { view: viewP, selection: newSelection } = _parseView(
 					'<container:p>f{oo<attribute:b><attribute:i>bar}</attribute:i></attribute:b>baz</container:p>' );
 
 				viewRoot._appendChild( viewP );
@@ -2520,16 +2752,16 @@ describe( 'Renderer', () => {
 				const domP = domRoot.childNodes[ 0 ];
 				const domB = domP.childNodes[ 1 ];
 
-				expect( domSelection.isCollapsed ).to.false;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domB.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+				expect( domSelection.isCollapsed ).toBe( false );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domB.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 
-				selectionCollapseSpy = sinon.spy( window.Selection.prototype, 'collapse' );
-				selectionExtendSpy = sinon.spy( window.Selection.prototype, 'extend' );
-				selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				selectionCollapseSpy = vi.spyOn( window.Selection.prototype, 'collapse' );
+				selectionExtendSpy = vi.spyOn( window.Selection.prototype, 'extend' );
+				selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				// <container:p>f{oo<attribute:b><attribute:i>bar</attribute:i></attribute:b>}baz</container:p>
 				selection._setTo( [
@@ -2539,25 +2771,25 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( selectionCollapseSpy.notCalled ).to.true;
-				expect( selectionExtendSpy.notCalled ).to.true;
-				expect( selectionSpy.notCalled ).to.true;
+				expect( selectionCollapseSpy ).not.toHaveBeenCalled();
+				expect( selectionExtendSpy ).not.toHaveBeenCalled();
+				expect( selectionSpy ).not.toHaveBeenCalled();
 			} );
 		} );
 
 		// #1417
 		describe( 'optimal rendering – reusing existing nodes', () => {
 			it( 'should render inline element replacement (before text)', () => {
-				viewRoot._appendChild( parse( '<container:p><attribute:i>A</attribute:i>1</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p><attribute:i>A</attribute:i>1</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p><i>A</i>1</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p><i>A</i>1</p>' );
 
 				const viewP = viewRoot.getChild( 0 );
 				viewP._removeChildren( 0, 2 );
-				viewP._insertChild( 0, parse( '<attribute:i>B</attribute:i>2' ) );
+				viewP._insertChild( 0, _parseView( '<attribute:i>B</attribute:i>2' ) );
 
 				const domI = domRoot.childNodes[ 0 ].childNodes[ 0 ];
 
@@ -2565,21 +2797,21 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p><i>B</i>2</p>' );
-				expect( domI ).to.equal( domRoot.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domRoot.innerHTML ).toBe( '<p><i>B</i>2</p>' );
+				expect( domI ).toBe( domRoot.childNodes[ 0 ].childNodes[ 0 ] );
 			} );
 
 			it( 'should render inline element replacement (after text)', () => {
-				viewRoot._appendChild( parse( '<container:p>1<attribute:i>A</attribute:i></container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1<attribute:i>A</attribute:i></container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1<i>A</i></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1<i>A</i></p>' );
 
 				const viewP = viewRoot.getChild( 0 );
 				viewP._removeChildren( 0, 2 );
-				viewP._insertChild( 0, parse( '2<attribute:i>B</attribute:i>' ) );
+				viewP._insertChild( 0, _parseView( '2<attribute:i>B</attribute:i>' ) );
 
 				const domI = domRoot.childNodes[ 0 ].childNodes[ 1 ];
 
@@ -2587,21 +2819,21 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>2<i>B</i></p>' );
-				expect( domI ).to.equal( domRoot.childNodes[ 0 ].childNodes[ 1 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>2<i>B</i></p>' );
+				expect( domI ).toBe( domRoot.childNodes[ 0 ].childNodes[ 1 ] );
 			} );
 
 			it( 'should render inline element replacement (before text swapped order)', () => {
-				viewRoot._appendChild( parse( '<container:p><attribute:i>A</attribute:i>1</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p><attribute:i>A</attribute:i>1</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p><i>A</i>1</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p><i>A</i>1</p>' );
 
 				const viewP = viewRoot.getChild( 0 );
 				viewP._removeChildren( 0, 2 );
-				viewP._insertChild( 0, parse( '2<attribute:i>B</attribute:i>' ) );
+				viewP._insertChild( 0, _parseView( '2<attribute:i>B</attribute:i>' ) );
 
 				const domI = domRoot.childNodes[ 0 ].childNodes[ 0 ];
 
@@ -2609,21 +2841,21 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>2<i>B</i></p>' );
-				expect( domI ).to.equal( domRoot.childNodes[ 0 ].childNodes[ 1 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>2<i>B</i></p>' );
+				expect( domI ).toBe( domRoot.childNodes[ 0 ].childNodes[ 1 ] );
 			} );
 
 			it( 'should render inline element replacement (after text swapped order)', () => {
-				viewRoot._appendChild( parse( '<container:p>1<attribute:i>A</attribute:i></container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1<attribute:i>A</attribute:i></container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1<i>A</i></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1<i>A</i></p>' );
 
 				const viewP = viewRoot.getChild( 0 );
 				viewP._removeChildren( 0, 2 );
-				viewP._insertChild( 0, parse( '<attribute:i>B</attribute:i>2' ) );
+				viewP._insertChild( 0, _parseView( '<attribute:i>B</attribute:i>2' ) );
 
 				const domI = domRoot.childNodes[ 0 ].childNodes[ 1 ];
 
@@ -2631,8 +2863,8 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p><i>B</i>2</p>' );
-				expect( domI ).to.equal( domRoot.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domRoot.innerHTML ).toBe( '<p><i>B</i>2</p>' );
+				expect( domI ).toBe( domRoot.childNodes[ 0 ].childNodes[ 0 ] );
 			} );
 
 			it( 'should render single replacement in p group', () => {
@@ -2641,23 +2873,23 @@ describe( 'Renderer', () => {
 					'<container:p>2</container:p>' +
 					'<container:p>3</container:p>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p>2</p><p>3</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p>2</p><p>3</p>' );
 
 				viewRoot._removeChildren( 1 );
-				viewRoot._insertChild( 1, parse( '<container:p>4</container:p>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p>4</container:p>' ) );
 
 				const domP = domRoot.childNodes[ 1 ];
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p>4</p><p>3</p>' );
-				expect( domP ).to.equal( domRoot.childNodes[ 1 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p>4</p><p>3</p>' );
+				expect( domP ).toBe( domRoot.childNodes[ 1 ] );
 			} );
 
 			it( 'should render replacement and insertion in p group', () => {
@@ -2670,15 +2902,15 @@ describe( 'Renderer', () => {
 					'<container:p><attribute:i>D</attribute:i></container:p>' +
 					'<container:p>5<attribute:i>E</attribute:i></container:p>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1<i>A</i></p><p>2<i>B</i></p><p>3<i>C</i></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1<i>A</i></p><p>2<i>B</i></p><p>3<i>C</i></p>' );
 
 				viewRoot._removeChildren( 1 );
-				viewRoot._insertChild( 1, parse( replacement ) );
+				viewRoot._insertChild( 1, _parseView( replacement ) );
 
 				const domP2 = domRoot.childNodes[ 1 ];
 				const domP3 = domRoot.childNodes[ 2 ];
@@ -2686,9 +2918,9 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1<i>A</i></p><p><i>D</i></p><p>5<i>E</i></p><p>3<i>C</i></p>' );
-				expect( domP2 ).to.equal( domRoot.childNodes[ 1 ] );
-				expect( domP3 ).to.equal( domRoot.childNodes[ 3 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>1<i>A</i></p><p><i>D</i></p><p>5<i>E</i></p><p>3<i>C</i></p>' );
+				expect( domP2 ).toBe( domRoot.childNodes[ 1 ] );
+				expect( domP3 ).toBe( domRoot.childNodes[ 3 ] );
 			} );
 
 			it( 'should render replacement and deletion in p group', () => {
@@ -2697,15 +2929,15 @@ describe( 'Renderer', () => {
 					'<container:p><attribute:i>B</attribute:i>2</container:p>' +
 					'<container:p><attribute:i>C</attribute:i>3</container:p>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p><i>A</i>1</p><p><i>B</i>2</p><p><i>C</i>3</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p><i>A</i>1</p><p><i>B</i>2</p><p><i>C</i>3</p>' );
 
 				viewRoot._removeChildren( 0, 2 );
-				viewRoot._insertChild( 0, parse( '<container:p>4</container:p>' ) );
+				viewRoot._insertChild( 0, _parseView( '<container:p>4</container:p>' ) );
 
 				const domP0 = domRoot.childNodes[ 0 ];
 				const domP2 = domRoot.childNodes[ 2 ];
@@ -2713,9 +2945,9 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>4</p><p><i>C</i>3</p>' );
-				expect( domP0 ).to.equal( domRoot.childNodes[ 0 ] );
-				expect( domP2 ).to.equal( domRoot.childNodes[ 1 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>4</p><p><i>C</i>3</p>' );
+				expect( domP0 ).toBe( domRoot.childNodes[ 0 ] );
+				expect( domP2 ).toBe( domRoot.childNodes[ 1 ] );
 			} );
 
 			it( 'should render multiple continuous replacement in p group', () => {
@@ -2726,15 +2958,17 @@ describe( 'Renderer', () => {
 					'<container:p>4</container:p>' +
 					'<container:p>5</container:p>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p>2</p><p>3</p><p>4</p><p>5</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p>2</p><p>3</p><p>4</p><p>5</p>' );
 
 				viewRoot._removeChildren( 0, 3 );
-				viewRoot._insertChild( 0, parse( '<container:p>6<attribute:i>A</attribute:i></container:p><container:p>7</container:p>' ) );
+				viewRoot._insertChild( 0, _parseView(
+					'<container:p>6<attribute:i>A</attribute:i></container:p><container:p>7</container:p>'
+				) );
 
 				const domP1 = domRoot.childNodes[ 0 ];
 				const domP2 = domRoot.childNodes[ 1 ];
@@ -2744,11 +2978,11 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>6<i>A</i></p><p>7</p><p>4</p><p>5</p>' );
-				expect( domP1 ).to.equal( domRoot.childNodes[ 0 ] );
-				expect( domP2 ).to.equal( domRoot.childNodes[ 1 ] );
-				expect( domP4 ).to.equal( domRoot.childNodes[ 2 ] );
-				expect( domP5 ).to.equal( domRoot.childNodes[ 3 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>6<i>A</i></p><p>7</p><p>4</p><p>5</p>' );
+				expect( domP1 ).toBe( domRoot.childNodes[ 0 ] );
+				expect( domP2 ).toBe( domRoot.childNodes[ 1 ] );
+				expect( domP4 ).toBe( domRoot.childNodes[ 2 ] );
+				expect( domP5 ).toBe( domRoot.childNodes[ 3 ] );
 			} );
 
 			it( 'should render multiple replacement in p group', () => {
@@ -2759,17 +2993,17 @@ describe( 'Renderer', () => {
 					'<container:p>4</container:p>' +
 					'<container:p>5</container:p>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p>2</p><p>3</p><p>4</p><p>5</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p>2</p><p>3</p><p>4</p><p>5</p>' );
 
 				viewRoot._removeChildren( 4 );
 				viewRoot._removeChildren( 1, 2 );
-				viewRoot._insertChild( 2, parse( '<container:p>6</container:p>' ) );
-				viewRoot._insertChild( 1, parse( '<container:p><attribute:i>A</attribute:i>7</container:p>' ) );
+				viewRoot._insertChild( 2, _parseView( '<container:p>6</container:p>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p><attribute:i>A</attribute:i>7</container:p>' ) );
 
 				const domP1 = domRoot.childNodes[ 0 ];
 				const domP2 = domRoot.childNodes[ 1 ];
@@ -2779,11 +3013,11 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p><i>A</i>7</p><p>4</p><p>6</p>' );
-				expect( domP1 ).to.equal( domRoot.childNodes[ 0 ] );
-				expect( domP2 ).to.equal( domRoot.childNodes[ 1 ] );
-				expect( domP4 ).to.equal( domRoot.childNodes[ 2 ] );
-				expect( domP5 ).to.equal( domRoot.childNodes[ 3 ] );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p><i>A</i>7</p><p>4</p><p>6</p>' );
+				expect( domP1 ).toBe( domRoot.childNodes[ 0 ] );
+				expect( domP2 ).toBe( domRoot.childNodes[ 1 ] );
+				expect( domP4 ).toBe( domRoot.childNodes[ 2 ] );
+				expect( domP5 ).toBe( domRoot.childNodes[ 3 ] );
 			} );
 
 			it( 'should not rerender DOM when view replaced with the same structure', () => {
@@ -2803,17 +3037,17 @@ describe( 'Renderer', () => {
 						'</container:ul>' +
 					'</container:blockquote>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
+				expect( domRoot.innerHTML ).toBe( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
 					'<a href="https://ckeditor.com"><strong>Lin<i>k</i></strong></a></p><blockquote><ul><li>' +
 					'Quoted <strong>item 1</strong></li></ul></blockquote>' );
 
 				viewRoot._removeChildren( 0, viewRoot.childCount );
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				const viewH = viewRoot.getChild( 0 );
 				const viewP = viewRoot.getChild( 1 );
@@ -2831,27 +3065,27 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// Assert content.
-				expect( domRoot.innerHTML ).to.equal( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
+				expect( domRoot.innerHTML ).toBe( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
 					'<a href="https://ckeditor.com"><strong>Lin<i>k</i></strong></a></p><blockquote><ul><li>' +
 					'Quoted <strong>item 1</strong></li></ul></blockquote>' );
 
 				// Assert if DOM elements did not change.
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domH );
-				expect( domH.childNodes[ 1 ] ).to.equal( domHI );
-				expect( domRoot.childNodes[ 1 ] ).to.equal( domP );
-				expect( domP.childNodes[ 0 ] ).to.equal( domPT );
-				expect( domP.childNodes[ 2 ].childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domPABI );
-				expect( domRoot.childNodes[ 2 ] ).to.equal( domQ );
-				expect( domQ.childNodes[ 0 ].childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domQULB );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domH );
+				expect( domH.childNodes[ 1 ] ).toBe( domHI );
+				expect( domRoot.childNodes[ 1 ] ).toBe( domP );
+				expect( domP.childNodes[ 0 ] ).toBe( domPT );
+				expect( domP.childNodes[ 2 ].childNodes[ 0 ].childNodes[ 1 ] ).toBe( domPABI );
+				expect( domRoot.childNodes[ 2 ] ).toBe( domQ );
+				expect( domQ.childNodes[ 0 ].childNodes[ 0 ].childNodes[ 1 ] ).toBe( domQULB );
 
 				// Assert mappings.
 				const mappings = renderer.domConverter._domToViewMapping;
-				expect( mappings.get( domH ) ).to.equal( viewH );
-				expect( mappings.get( domHI ) ).to.equal( viewH.getChild( 1 ) );
-				expect( mappings.get( domP ) ).to.equal( viewP );
-				expect( mappings.get( domPABI ) ).to.equal( viewP.getChild( 2 ).getChild( 0 ).getChild( 1 ) );
-				expect( mappings.get( domQ ) ).to.equal( viewQ );
-				expect( mappings.get( domQULB ) ).to.equal( viewQ.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
+				expect( mappings.get( domH ) ).toBe( viewH );
+				expect( mappings.get( domHI ) ).toBe( viewH.getChild( 1 ) );
+				expect( mappings.get( domP ) ).toBe( viewP );
+				expect( mappings.get( domPABI ) ).toBe( viewP.getChild( 2 ).getChild( 0 ).getChild( 1 ) );
+				expect( mappings.get( domQ ) ).toBe( viewQ );
+				expect( mappings.get( domQULB ) ).toBe( viewQ.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5/issues/5734
@@ -2880,7 +3114,7 @@ describe( 'Renderer', () => {
 					'</container:blockquote>';
 
 				domRoot.innerHTML = domContent;
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				const viewH = viewRoot.getChild( 0 );
 				const viewP = viewRoot.getChild( 1 );
@@ -2899,31 +3133,31 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// Assert the comment is no longer in the content.
-				expect( domRoot.contains( domC ), 'domRoot should not contain the comment' ).to.be.false;
+				expect( domRoot.contains( domC ), 'domRoot should not contain the comment' ).toBe( false );
 
 				// Assert content, without the comment.
-				expect( domRoot.innerHTML ).to.equal( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
+				expect( domRoot.innerHTML ).toBe( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
 					'<a href="https://ckeditor.com"><strong>Lin<i>k</i></strong></a></p><blockquote><ul><li>' +
 					'Quoted <strong>item 1</strong></li></ul></blockquote>' );
 
 				// Assert if other DOM elements did not change.
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domH );
-				expect( domH.childNodes[ 1 ] ).to.equal( domHI );
-				expect( domRoot.childNodes[ 1 ] ).to.equal( domP );
-				expect( domP.childNodes[ 0 ] ).to.equal( domPT );
-				expect( domP.childNodes[ 2 ].childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domPABI );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domH );
+				expect( domH.childNodes[ 1 ] ).toBe( domHI );
+				expect( domRoot.childNodes[ 1 ] ).toBe( domP );
+				expect( domP.childNodes[ 0 ] ).toBe( domPT );
+				expect( domP.childNodes[ 2 ].childNodes[ 0 ].childNodes[ 1 ] ).toBe( domPABI );
 				// Note the shifted index of domQ, from 3 to 2.
-				expect( domRoot.childNodes[ 2 ] ).to.equal( domQ );
-				expect( domQ.childNodes[ 0 ].childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domQULB );
+				expect( domRoot.childNodes[ 2 ] ).toBe( domQ );
+				expect( domQ.childNodes[ 0 ].childNodes[ 0 ].childNodes[ 1 ] ).toBe( domQULB );
 
 				// Assert mappings.
 				const mappings = renderer.domConverter._domToViewMapping;
-				expect( mappings.get( domH ) ).to.equal( viewH );
-				expect( mappings.get( domHI ) ).to.equal( viewH.getChild( 1 ) );
-				expect( mappings.get( domP ) ).to.equal( viewP );
-				expect( mappings.get( domPABI ) ).to.equal( viewP.getChild( 2 ).getChild( 0 ).getChild( 1 ) );
-				expect( mappings.get( domQ ) ).to.equal( viewQ );
-				expect( mappings.get( domQULB ) ).to.equal( viewQ.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
+				expect( mappings.get( domH ) ).toBe( viewH );
+				expect( mappings.get( domHI ) ).toBe( viewH.getChild( 1 ) );
+				expect( mappings.get( domP ) ).toBe( viewP );
+				expect( mappings.get( domPABI ) ).toBe( viewP.getChild( 2 ).getChild( 0 ).getChild( 1 ) );
+				expect( mappings.get( domQ ) ).toBe( viewQ );
+				expect( mappings.get( domQULB ) ).toBe( viewQ.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
 			} );
 
 			it( 'should not rerender DOM when view replaced with the same structure without first node', () => {
@@ -2956,17 +3190,17 @@ describe( 'Renderer', () => {
 						'</container:ul>' +
 					'</container:blockquote>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
+				expect( domRoot.innerHTML ).toBe( '<h2>He<i>ading 1</i></h2><p>Ph <strong>Bold</strong>' +
 					'<a href="https://ckeditor.com"><strong>Lin<i>k</i></strong></a></p><blockquote><ul><li>' +
 					'Quoted <strong>item 1</strong></li></ul></blockquote>' );
 
 				viewRoot._removeChildren( 0, viewRoot.childCount );
-				viewRoot._appendChild( parse( content2 ) );
+				viewRoot._appendChild( _parseView( content2 ) );
 
 				const viewP = viewRoot.getChild( 0 );
 				const viewQ = viewRoot.getChild( 1 );
@@ -2981,38 +3215,38 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// Assert content.
-				expect( domRoot.innerHTML ).to.equal( '<p>Ph <strong>Bold</strong>' +
+				expect( domRoot.innerHTML ).toBe( '<p>Ph <strong>Bold</strong>' +
 					'<a href="https://ckeditor.com"><strong>Lin<i>k</i></strong></a></p><blockquote><ul><li>' +
 					'Quoted <strong>item 1</strong></li></ul></blockquote>' );
 
 				// Assert if DOM elements did not change.
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domP );
-				expect( domP.childNodes[ 0 ] ).to.equal( domPT );
-				expect( domP.childNodes[ 2 ].childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domPABI );
-				expect( domRoot.childNodes[ 1 ] ).to.equal( domQ );
-				expect( domQ.childNodes[ 0 ].childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domQULB );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domP );
+				expect( domP.childNodes[ 0 ] ).toBe( domPT );
+				expect( domP.childNodes[ 2 ].childNodes[ 0 ].childNodes[ 1 ] ).toBe( domPABI );
+				expect( domRoot.childNodes[ 1 ] ).toBe( domQ );
+				expect( domQ.childNodes[ 0 ].childNodes[ 0 ].childNodes[ 1 ] ).toBe( domQULB );
 
 				// Assert mappings.
 				const mappings = renderer.domConverter._domToViewMapping;
-				expect( mappings.get( domP ) ).to.equal( viewP );
-				expect( mappings.get( domPABI ) ).to.equal( viewP.getChild( 2 ).getChild( 0 ).getChild( 1 ) );
-				expect( mappings.get( domQ ) ).to.equal( viewQ );
-				expect( mappings.get( domQULB ) ).to.equal( viewQ.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
+				expect( mappings.get( domP ) ).toBe( viewP );
+				expect( mappings.get( domPABI ) ).toBe( viewP.getChild( 2 ).getChild( 0 ).getChild( 1 ) );
+				expect( mappings.get( domQ ) ).toBe( viewQ );
+				expect( mappings.get( domQULB ) ).toBe( viewQ.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
 			} );
 
 			it( 'should not rerender DOM when typing inside empty inline element', () => {
-				const view = parse( '<container:p>Foo Bar<attribute:strong></attribute:strong></container:p>' );
+				const view = _parseView( '<container:p>Foo Bar<attribute:strong></attribute:strong></container:p>' );
 
 				viewRoot._appendChild( view );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>Foo Bar<strong></strong></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>Foo Bar<strong></strong></p>' );
 
 				const viewP = viewRoot.getChild( 0 );
 				viewP._removeChildren( 1 );
-				viewP._insertChild( 1, parse( '<attribute:strong>a</attribute:strong>' ) );
+				viewP._insertChild( 1, _parseView( '<attribute:strong>a</attribute:strong>' ) );
 
 				const domP = domRoot.childNodes[ 0 ];
 				const domText = domP.childNodes[ 0 ];
@@ -3025,17 +3259,17 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// Assert content.
-				expect( domRoot.innerHTML ).to.equal( '<p>Foo Bar<strong>a</strong></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>Foo Bar<strong>a</strong></p>' );
 
 				// Assert if DOM elements did not change.
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domP );
-				expect( domRoot.childNodes[ 0 ].childNodes[ 0 ] ).to.equal( domText );
-				expect( domRoot.childNodes[ 0 ].childNodes[ 1 ] ).to.equal( domB );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domP );
+				expect( domRoot.childNodes[ 0 ].childNodes[ 0 ] ).toBe( domText );
+				expect( domRoot.childNodes[ 0 ].childNodes[ 1 ] ).toBe( domB );
 
 				// Assert mappings.
 				const mappings = renderer.domConverter._domToViewMapping;
-				expect( mappings.get( domP ) ).to.equal( viewP );
-				expect( mappings.get( domB ) ).to.equal( viewP.getChild( 1 ) );
+				expect( mappings.get( domP ) ).toBe( viewP );
+				expect( mappings.get( domB ) ).toBe( viewP.getChild( 1 ) );
 			} );
 
 			it( 'should handle complex view duplication', () => {
@@ -3059,15 +3293,15 @@ describe( 'Renderer', () => {
 						'</ul>' +
 					'</blockquote>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( expected );
+				expect( domRoot.innerHTML ).toBe( expected );
 
 				viewRoot._removeChildren( 0, viewRoot.childCount );
-				viewRoot._appendChild( parse( content + content ) );
+				viewRoot._appendChild( _parseView( content + content ) );
 
 				const domBQ = domRoot.childNodes[ 0 ];
 				const domUL = domBQ.childNodes[ 0 ];
@@ -3079,30 +3313,30 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// Assert content.
-				expect( domRoot.innerHTML ).to.equal( expected + expected );
+				expect( domRoot.innerHTML ).toBe( expected + expected );
 
 				// Assert if DOM elements did not change.
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domBQ );
-				expect( domBQ.childNodes[ 0 ] ).to.equal( domUL );
-				expect( domUL.childNodes[ 0 ] ).to.equal( domLI1 );
-				expect( domUL.childNodes[ 1 ] ).to.equal( domLI2 );
-				expect( domUL.childNodes[ 2 ] ).to.equal( domLI3 );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domBQ );
+				expect( domBQ.childNodes[ 0 ] ).toBe( domUL );
+				expect( domUL.childNodes[ 0 ] ).toBe( domLI1 );
+				expect( domUL.childNodes[ 1 ] ).toBe( domLI2 );
+				expect( domUL.childNodes[ 2 ] ).toBe( domLI3 );
 
 				// Assert mappings.
 				const domMappings = renderer.domConverter._domToViewMapping;
-				expect( domMappings.get( domBQ ) ).to.equal( viewRoot.getChild( 0 ) );
-				expect( domMappings.get( domUL ) ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( domMappings.get( domLI1 ) ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 0 ) );
-				expect( domMappings.get( domLI2 ) ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
-				expect( domMappings.get( domLI3 ) ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 2 ) );
+				expect( domMappings.get( domBQ ) ).toBe( viewRoot.getChild( 0 ) );
+				expect( domMappings.get( domUL ) ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( domMappings.get( domLI1 ) ).toBe( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 0 ) );
+				expect( domMappings.get( domLI2 ) ).toBe( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 1 ) );
+				expect( domMappings.get( domLI3 ) ).toBe( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 2 ) );
 
 				// Assert if new view elements are bind to new DOM elements.
 				const viewMappings = renderer.domConverter._domToViewMapping;
-				expect( viewMappings.get( viewRoot.getChild( 1 ) ) ).not.equal( domBQ );
-				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ) ) ).not.equal( domUL );
-				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ).getChild( 0 ) ) ).not.equal( domLI1 );
-				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ).getChild( 1 ) ) ).not.equal( domLI2 );
-				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ).getChild( 2 ) ) ).not.equal( domLI3 );
+				expect( viewMappings.get( viewRoot.getChild( 1 ) ) ).not.toBe( domBQ );
+				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ) ) ).not.toBe( domUL );
+				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ).getChild( 0 ) ) ).not.toBe( domLI1 );
+				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ).getChild( 1 ) ) ).not.toBe( domLI2 );
+				expect( viewMappings.get( viewRoot.getChild( 1 ).getChild( 0 ).getChild( 2 ) ) ).not.toBe( domLI3 );
 			} );
 
 			it( 'should handle complex view replace', () => {
@@ -3162,12 +3396,12 @@ describe( 'Renderer', () => {
 						'</container:li>' +
 					'</container:ul>';
 
-				viewRoot._appendChild( parse( content ) );
+				viewRoot._appendChild( _parseView( content ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '' +
+				expect( domRoot.innerHTML ).toBe( '' +
 					'<h2>He<i>ading 1</i></h2>' +
 					'<p>Ph <strong>Bold</strong><a href="https://ckeditor.com"><strong>Lin<i>k</i></strong></a></p>' +
 					'<blockquote><ul>' +
@@ -3176,13 +3410,13 @@ describe( 'Renderer', () => {
 					'</ul></blockquote>' );
 
 				viewRoot._removeChildren( 0, viewRoot.childCount );
-				viewRoot._appendChild( parse( replacement ) );
+				viewRoot._appendChild( _parseView( replacement ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
 				// Here we just check if new DOM structure was properly rendered.
-				expect( domRoot.innerHTML ).to.equal( '' +
+				expect( domRoot.innerHTML ).toBe( '' +
 					'<p>1<i>A</i></p>' +
 					'<p><a href="https://cksource.com">Li<strong>nk</strong></a></p>' +
 					'<h1>Heading <strong>1</strong></h1>' +
@@ -3195,25 +3429,25 @@ describe( 'Renderer', () => {
 			it( 'should handle br elements while refreshing bindings', () => {
 				const expected = `<p>Foo Bar</p><p>${ BR_FILLER( document ).outerHTML }</p>`; // eslint-disable-line new-cap
 
-				viewRoot._appendChild( parse( '<container:p>Foo Bar</container:p><container:p></container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>Foo Bar</container:p><container:p></container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( expected );
+				expect( domRoot.innerHTML ).toBe( expected );
 
 				// There is a case in Safari that during accent panel navigation on macOS our 'BR_FILLER' is replaced with
 				// just '<br>' element which breaks accent composition in an empty paragraph. It also throws an error while
-				// refreshing mappings in a renderer. Simulate such behaviour (#1354).
+				// refreshing mappings in a renderer. Simulate such behaviour (https://github.com/ckeditor/ckeditor5-engine/issues/1354).
 				domRoot.childNodes[ 1 ].innerHTML = '<br>';
 
 				viewRoot._removeChildren( 1 );
-				viewRoot._insertChild( 1, parse( '<container:p></container:p>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p></container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( expected );
+				expect( domRoot.innerHTML ).toBe( expected );
 			} );
 
 			it( 'should handle list to paragraph conversion', () => {
@@ -3234,20 +3468,20 @@ describe( 'Renderer', () => {
 						'</container:li>' +
 					'</container:ol>';
 
-				viewRoot._appendChild( parse( view ) );
+				viewRoot._appendChild( _parseView( view ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal(
+				expect( domRoot.innerHTML ).toBe(
 					'<ol><li>Item 1<ol><li>Item 2</li></ol></li></ol><p>Paragraph</p><ol><li>Item 3<ol><li>Item 4</li></ol></li></ol>' );
 
 				const viewOL1 = viewRoot.getChild( 0 );
 				viewOL1.getChild( 0 )._removeChildren( 1 );
 				viewRoot._removeChildren( 2 );
-				viewRoot._insertChild( 1, parse( '<container:p>Item 2</container:p>' ) );
-				viewRoot._insertChild( 3, parse( '<container:p>Item 3</container:p>' ) );
-				viewRoot._insertChild( 4, parse( '<container:ol><container:li>Item 4</container:li></container:ol>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p>Item 2</container:p>' ) );
+				viewRoot._insertChild( 3, _parseView( '<container:p>Item 3</container:p>' ) );
+				viewRoot._insertChild( 4, _parseView( '<container:ol><container:li>Item 4</container:li></container:ol>' ) );
 
 				const domOL1 = domRoot.childNodes[ 0 ];
 				const domOL2 = domRoot.childNodes[ 2 ];
@@ -3257,12 +3491,12 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewOL1.getChild( 0 ) );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal(
+				expect( domRoot.innerHTML ).toBe(
 					'<ol><li>Item 1</li></ol><p>Item 2</p><p>Paragraph</p><p>Item 3</p><ol><li>Item 4</li></ol>' );
 
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domOL1 );
-				expect( domRoot.childNodes[ 2 ] ).to.equal( domP );
-				expect( domRoot.childNodes[ 4 ] ).to.equal( domOL2 );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domOL1 );
+				expect( domRoot.childNodes[ 2 ] ).toBe( domP );
+				expect( domRoot.childNodes[ 4 ] ).toBe( domOL2 );
 			} );
 
 			it( 'should handle attributes change in replaced elements', () => {
@@ -3275,32 +3509,32 @@ describe( 'Renderer', () => {
 					'</container:p>' +
 					'<container:p id="p1"><attribute:i>Bar</attribute:i>Baz</container:p>';
 
-				viewRoot._appendChild( parse( view ) );
+				viewRoot._appendChild( _parseView( view ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<ol><li data-index="1" align="left">Item 1</li></ol>' +
 					'<p>Paragraph <a href="123">Link</a></p><p id="p1"><i>Bar</i>Baz</p>' ) );
 
 				const viewOL = viewRoot.getChild( 0 );
 				viewOL._removeChildren( 0 );
-				viewOL._insertChild( 0, parse( '<container:li data-index="2" data-attr="foo">Item 1</container:li>' ) );
+				viewOL._insertChild( 0, _parseView( '<container:li data-index="2" data-attr="foo">Item 1</container:li>' ) );
 
 				const viewP1 = viewRoot.getChild( 1 );
 				viewP1._removeChildren( 1 );
-				viewP1._insertChild( 1, parse( '<attribute:a href="456" class="cke">Foo</attribute:a>' ) );
+				viewP1._insertChild( 1, _parseView( '<attribute:a href="456" class="cke">Foo</attribute:a>' ) );
 
 				viewRoot._removeChildren( 2 );
-				viewRoot._insertChild( 2, parse( '<container:p>Bar</container:p>' ) );
+				viewRoot._insertChild( 2, _parseView( '<container:p>Bar</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.markToSync( 'children', viewOL );
 				renderer.markToSync( 'children', viewP1 );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<ol><li data-index="2" data-attr="foo">Item 1</li></ol>' +
 					'<p>Paragraph <a href="456" class="cke">Foo</a></p><p>Bar</p>' ) );
 			} );
@@ -3312,22 +3546,22 @@ describe( 'Renderer', () => {
 					'</container:ol>' +
 					'<container:p><attribute:i class="i1 i2">Bar</attribute:i>Baz</container:p>';
 
-				viewRoot._appendChild( parse( view ) );
+				viewRoot._appendChild( _parseView( view ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<ol><li class="foo1 bar2 baz3">Item 1</li></ol><p><i class="i1 i2">Bar</i>Baz</p>' ) );
 
 				const viewOL = viewRoot.getChild( 0 );
 				const oldViewLI = viewOL.getChild( 0 );
 				viewOL._removeChildren( 0 );
-				viewOL._insertChild( 0, parse( '<container:li class="bar2 baz4 bax5">Item 1</container:li>' ) );
+				viewOL._insertChild( 0, _parseView( '<container:li class="bar2 baz4 bax5">Item 1</container:li>' ) );
 
 				const oldViewP = viewRoot.getChild( 1 );
 				viewRoot._removeChildren( 1 );
-				viewRoot._insertChild( 1, parse( '<container:p class="p1 p2"><attribute:i>Foo</attribute:i></container:p>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p class="p1 p2"><attribute:i>Foo</attribute:i></container:p>' ) );
 
 				renderer.markToSync( 'attributes', oldViewLI );
 				renderer.markToSync( 'attributes', oldViewP );
@@ -3335,7 +3569,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewOL );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<ol><li class="bar2 baz4 bax5">Item 1</li></ol><p class="p1 p2"><i>Foo</i></p>' ) );
 			} );
 
@@ -3350,12 +3584,12 @@ describe( 'Renderer', () => {
 						'</container:li>' +
 					'</container:ol>';
 
-				viewRoot._appendChild( parse( view ) );
+				viewRoot._appendChild( _parseView( view ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<ol><li style="color:#000;font-weight:bold;">Foo</li>' +
 					'<li>Bar <i><b style="color:#00F;background-color:#000;font-size:12px;">Baz</b> Bax</i></li></ol>' ) );
 
@@ -3368,7 +3602,7 @@ describe( 'Renderer', () => {
 				viewLI2._setStyle( { 'font-weight': 'bold' } );
 
 				viewLI2._removeChildren( 0, viewLI2.childCount );
-				viewLI2._insertChild( 0, parse( 'Ba1 <attribute:i style="color:#000;border-width:1px;">Ba3 ' +
+				viewLI2._insertChild( 0, _parseView( 'Ba1 <attribute:i style="color:#000;border-width:1px;">Ba3 ' +
 					'<attribute:b style="font-size:15px;">Ba2</attribute:b></attribute:i>' ) );
 
 				renderer.markToSync( 'attributes', viewLI1 );
@@ -3377,7 +3611,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewLI2 );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<ol><li style="color:#FFF;">Foo</li>' +
 					'<li style="font-weight:bold;">Ba1 <i style="color:#000;border-width:1px;">Ba3 ' +
 					'<b style="font-size:15px;">Ba2</b></i></li></ol>' ) );
@@ -3407,7 +3641,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<p>Foo <span><span id="id1"><b>UI1</b></span></span>Bar</p>' ) );
 
 				viewP._removeChildren( 0, viewP.childCount );
@@ -3417,7 +3651,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<p>Foo<span><span id="id2"><b>UI2</b></span></span> Bar</p>' ) );
 			} );
 
@@ -3443,7 +3677,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<p>Foo <span><span id="id1"><b>RAW1</b></span></span>Bar</p>' ) );
 
 				viewP._removeChildren( 0, viewP.childCount );
@@ -3453,7 +3687,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<p>Foo<span><span id="id2"><b>RAW2</b></span></span> Bar</p>' ) );
 			} );
 
@@ -3473,7 +3707,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<p><span baz="baz1" foo="foo1"><b>foo</b></span></p>' ) );
 
 				rawElement._setAttribute( 'foo', 'foo2' );
@@ -3483,17 +3717,17 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'attributes', rawElement );
 				renderer.render();
 
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( normalizeHtml(
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( normalizeHtml(
 					'<p><span foo="foo2" new="new-value"><b>foo</b></span></p>' ) );
 			} );
 
 			it( 'should handle linking entire content', () => {
-				viewRoot._appendChild( parse( '<container:p>Foo<attribute:i>Bar</attribute:i></container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>Foo<attribute:i>Bar</attribute:i></container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>Foo<i>Bar</i></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>Foo<i>Bar</i></p>' );
 
 				const viewP = viewRoot.getChild( 0 );
 				// While linking, the existing DOM children are moved to a new `a` element during binding
@@ -3511,31 +3745,31 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p><a href="#href">Foo<i>Bar</i></a></p>' );
+				expect( domRoot.innerHTML ).toBe( '<p><a href="#href">Foo<i>Bar</i></a></p>' );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5/issues/6367.
 			it( 'should correctly handle moving a DOM element when rendering children', () => {
-				viewRoot._insertChild( 0, parse( 'y<attribute:span>x</attribute:span>' ) );
+				viewRoot._insertChild( 0, _parseView( 'y<attribute:span>x</attribute:span>' ) );
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
 				const viewSpan = viewRoot._removeChildren( 1, 1 )[ 0 ];
 				viewRoot._insertChild( 0, viewSpan );
-				viewRoot._insertChild( 2, parse( '<attribute:strong>z</attribute:strong>' ) );
+				viewRoot._insertChild( 2, _parseView( '<attribute:strong>z</attribute:strong>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 
 				// This would throw without a fix.
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<span>x</span>y<strong>z</strong>' );
+				expect( domRoot.innerHTML ).toBe( '<span>x</span>y<strong>z</strong>' );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5/issues/6367, but more complex
 			it( 'should correctly handle moving a DOM element when rendering children (more complex case)', () => {
 				viewRoot._insertChild( 0,
-					parse( '1<attribute:span>2</attribute:span><attribute:span>3</attribute:span>4<attribute:span>5</attribute:span>' )
+					_parseView( '1<attribute:span>2</attribute:span><attribute:span>3</attribute:span>4<attribute:span>5</attribute:span>' )
 				);
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
@@ -3543,8 +3777,8 @@ describe( 'Renderer', () => {
 				const viewSpan5 = viewRoot._removeChildren( 4, 1 )[ 0 ];
 				const viewSpan2 = viewRoot._removeChildren( 1, 1 )[ 0 ];
 				viewRoot._insertChild( 0, viewSpan2 );
-				viewRoot._insertChild( 1, parse( '<attribute:strong>6</attribute:strong>' ) );
-				viewRoot._insertChild( 4, parse( '<attribute:strong>7</attribute:strong>' ) );
+				viewRoot._insertChild( 1, _parseView( '<attribute:strong>6</attribute:strong>' ) );
+				viewRoot._insertChild( 4, _parseView( '<attribute:strong>7</attribute:strong>' ) );
 				viewRoot._insertChild( 2, viewSpan5 );
 
 				renderer.markToSync( 'children', viewRoot );
@@ -3552,7 +3786,7 @@ describe( 'Renderer', () => {
 				// This would throw without a fix.
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<span>2</span><strong>6</strong><span>5</span>1<span>3</span><strong>7</strong>4' );
+				expect( domRoot.innerHTML ).toBe( '<span>2</span><strong>6</strong><span>5</span>1<span>3</span><strong>7</strong>4' );
 			} );
 
 			it( 'should correctly handle multiple changes when using fastDiff', () => {
@@ -3562,7 +3796,7 @@ describe( 'Renderer', () => {
 					str += `${ i }<attribute:span>${ i }</attribute:span>`;
 				}
 
-				viewRoot._insertChild( 0, parse( str ) );
+				viewRoot._insertChild( 0, _parseView( str ) );
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
@@ -3571,7 +3805,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal(
+				expect( domRoot.innerHTML ).toBe(
 					str.slice( 1 ).replaceAll( 'attribute:span', 'span' ).replace( '<span>2</span>', '' )
 				);
 			} );
@@ -3595,93 +3829,93 @@ describe( 'Renderer', () => {
 			} );
 
 			it( 'should add only one child (at the beginning)', () => {
-				viewRoot._appendChild( parse( '<container:p>1</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 				cleanObserver( observer );
 
-				viewRoot._insertChild( 0, parse( '<container:p>2</container:p>' ) );
+				viewRoot._insertChild( 0, _parseView( '<container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+				expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 					'added: [ <p> ], removed: []'
 				] );
 			} );
 
 			it( 'should add only one child (at the end)', () => {
-				viewRoot._appendChild( parse( '<container:p>1</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 				cleanObserver( observer );
 
-				viewRoot._appendChild( parse( '<container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+				expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 					'added: [ <p> ], removed: []'
 				] );
 			} );
 
 			it( 'should add only one child (in the middle)', () => {
-				viewRoot._appendChild( parse( '<container:p>1</container:p><container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p><container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 				cleanObserver( observer );
 
-				viewRoot._insertChild( 1, parse( '<container:p>3</container:p>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p>3</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+				expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 					'added: [ <p> ], removed: []'
 				] );
 			} );
 
 			it( 'should not touch elements at all (rendering texts is enough)', () => {
-				viewRoot._appendChild( parse( '<container:p>1</container:p><container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p><container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 				cleanObserver( observer );
 
-				viewRoot._insertChild( 1, parse( '<container:p>3</container:p>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:p>3</container:p>' ) );
 				viewRoot._removeChildren( 0, 1 );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.be.empty;
+				expect( getMutationStats( observer.takeRecords() ) ).toHaveLength( 0 );
 			} );
 
 			it( 'should remove and add one', () => {
-				viewRoot._appendChild( parse( '<container:p>1</container:p><container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p><container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 				cleanObserver( observer );
 
-				viewRoot._insertChild( 1, parse( '<container:h1>3</container:h1>' ) );
+				viewRoot._insertChild( 1, _parseView( '<container:h1>3</container:h1>' ) );
 				viewRoot._removeChildren( 0, 1 );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+				expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 					'added: [], removed: [ <p> ]',
 					'added: [ <h1> ], removed: []'
 				] );
 			} );
 
 			it( 'should update existing text node', () => {
-				viewRoot._appendChild( parse( '<container:p>foo</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>foo</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
@@ -3703,22 +3937,22 @@ describe( 'Renderer', () => {
 
 				const mutationRecords = observer.takeRecords();
 
-				expect( mutationRecords.length ).to.equal( 1 );
-				expect( mutationRecords[ 0 ].type ).to.equal( 'characterData' );
-				expect( getMutationStats( mutationRecords ) ).to.deep.equal( [
+				expect( mutationRecords.length ).toBe( 1 );
+				expect( mutationRecords[ 0 ].type ).toBe( 'characterData' );
+				expect( getMutationStats( mutationRecords ) ).toEqual( [
 					'updated text: "foo" to "foobar"'
 				] );
 			} );
 
 			it( 'should update existing text node on split by an inline element', () => {
-				viewRoot._appendChild( parse( '<container:p>foobar</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>foobar</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 				cleanObserver( observer );
 
 				viewRoot.getChild( 0 ).getChild( 0 )._textData = 'foo';
-				viewRoot.getChild( 0 )._insertChild( 1, parse( '<attribute:strong>123</attribute:strong>bar' ) );
+				viewRoot.getChild( 0 )._insertChild( 1, _parseView( '<attribute:strong>123</attribute:strong>bar' ) );
 
 				observer.disconnect();
 				observer.observe( domRoot, {
@@ -3734,11 +3968,11 @@ describe( 'Renderer', () => {
 
 				const mutationRecords = observer.takeRecords();
 
-				expect( mutationRecords.length ).to.equal( 3 );
-				expect( mutationRecords[ 0 ].type ).to.equal( 'characterData' );
-				expect( mutationRecords[ 1 ].type ).to.equal( 'childList' );
-				expect( mutationRecords[ 2 ].type ).to.equal( 'childList' );
-				expect( getMutationStats( mutationRecords ) ).to.deep.equal( [
+				expect( mutationRecords.length ).toBe( 3 );
+				expect( mutationRecords[ 0 ].type ).toBe( 'characterData' );
+				expect( mutationRecords[ 1 ].type ).toBe( 'childList' );
+				expect( mutationRecords[ 2 ].type ).toBe( 'childList' );
+				expect( getMutationStats( mutationRecords ) ).toEqual( [
 					'updated text: "foobar" to "foo"',
 					'added: [ <strong> ], removed: []',
 					'added: [ text: "bar" ], removed: []'
@@ -3747,9 +3981,9 @@ describe( 'Renderer', () => {
 
 			// https://github.com/ckeditor/ckeditor5/issues/12574.
 			it( 'should normalize text nodes (on Android)', () => {
-				testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+				vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
-				viewRoot._appendChild( parse( '<container:p>foo</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>foo</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
@@ -3771,17 +4005,17 @@ describe( 'Renderer', () => {
 
 				const mutationRecords = observer.takeRecords();
 
-				expect( mutationRecords.length ).to.equal( 2 );
-				expect( mutationRecords[ 0 ].type ).to.equal( 'characterData' );
-				expect( mutationRecords[ 1 ].type ).to.equal( 'childList' );
-				expect( mutationRecords[ 1 ].removedNodes[ 0 ].data ).to.equal( 'foo' );
+				expect( mutationRecords.length ).toBe( 2 );
+				expect( mutationRecords[ 0 ].type ).toBe( 'characterData' );
+				expect( mutationRecords[ 1 ].type ).toBe( 'childList' );
+				expect( mutationRecords[ 1 ].removedNodes[ 0 ].data ).toBe( 'foo' );
 
-				expect( domRoot.firstChild.childNodes.length ).to.equal( 1 );
-				expect( domRoot.firstChild.firstChild.data ).to.equal( 'xfoo' );
+				expect( domRoot.firstChild.childNodes.length ).toBe( 1 );
+				expect( domRoot.firstChild.firstChild.data ).toBe( 'xfoo' );
 			} );
 
 			it( 'should update existing text node (mixed content)', () => {
-				viewRoot._appendChild( parse( '<container:p>foo<container:b>123</container:b>456</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>foo<container:b>123</container:b>456</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
@@ -3803,15 +4037,15 @@ describe( 'Renderer', () => {
 
 				const mutationRecords = observer.takeRecords();
 
-				expect( mutationRecords.length ).to.equal( 1 );
-				expect( mutationRecords[ 0 ].type ).to.equal( 'characterData' );
-				expect( getMutationStats( mutationRecords ) ).to.deep.equal( [
+				expect( mutationRecords.length ).toBe( 1 );
+				expect( mutationRecords[ 0 ].type ).toBe( 'characterData' );
+				expect( getMutationStats( mutationRecords ) ).toEqual( [
 					'updated text: "foo" to "foobar"'
 				] );
 			} );
 
 			it( 'should not touch the FSC when rendering children', () => {
-				viewRoot._appendChild( parse( '<container:p>1</container:p><container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p><container:p>2</container:p>' ) );
 
 				// Set fake selection on the second paragraph.
 				selection._setTo( viewRoot.getChild( 1 ), 'on', { fake: true } );
@@ -3828,7 +4062,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+				expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 					'added: [], removed: [ <p> ]'
 				] );
 			} );
@@ -3837,7 +4071,9 @@ describe( 'Renderer', () => {
 				// This test's purpose is mostly reaching 100% CC.
 				observer = new MutationObserver( () => {} );
 
-				viewRoot._appendChild( parse( '<container:div><container:p>1</container:p><container:p>2</container:p></container:div>' ) );
+				viewRoot._appendChild( _parseView(
+					'<container:div><container:p>1</container:p><container:p>2</container:p></container:div>'
+				) );
 
 				const viewDiv = viewRoot.getChild( 0 );
 
@@ -3863,7 +4099,7 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+				expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 					'added: [], removed: [ <p> ]'
 				] );
 
@@ -3872,93 +4108,93 @@ describe( 'Renderer', () => {
 
 			describe( 'using fastDiff() - significant number of nodes in the editor', () => {
 				it( 'should add only one child (at the beginning)', () => {
-					viewRoot._appendChild( parse( makeContainers( 151 ) ) );
+					viewRoot._appendChild( _parseView( makeContainers( 151 ) ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 					cleanObserver( observer );
 
-					viewRoot._insertChild( 0, parse( '<container:p>x</container:p>' ) );
+					viewRoot._insertChild( 0, _parseView( '<container:p>x</container:p>' ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 
-					expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+					expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 						'added: [ <p> ], removed: []'
 					] );
 				} );
 
 				it( 'should add only one child (at the end)', () => {
-					viewRoot._appendChild( parse( makeContainers( 151 ) ) );
+					viewRoot._appendChild( _parseView( makeContainers( 151 ) ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 					cleanObserver( observer );
 
-					viewRoot._appendChild( parse( '<container:p>x</container:p>' ) );
+					viewRoot._appendChild( _parseView( '<container:p>x</container:p>' ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 
-					expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+					expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 						'added: [ <p> ], removed: []'
 					] );
 				} );
 
 				it( 'should add only one child (in the middle)', () => {
-					viewRoot._appendChild( parse( makeContainers( 151 ) ) );
+					viewRoot._appendChild( _parseView( makeContainers( 151 ) ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 					cleanObserver( observer );
 
-					viewRoot._insertChild( 75, parse( '<container:p>x</container:p>' ) );
+					viewRoot._insertChild( 75, _parseView( '<container:p>x</container:p>' ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 
-					expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+					expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 						'added: [ <p> ], removed: []'
 					] );
 				} );
 
 				it( 'should not touch elements at all (rendering texts is enough)', () => {
-					viewRoot._appendChild( parse( makeContainers( 151 ) ) );
+					viewRoot._appendChild( _parseView( makeContainers( 151 ) ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 					cleanObserver( observer );
 
-					viewRoot._insertChild( 1, parse( '<container:p>x</container:p>' ) );
+					viewRoot._insertChild( 1, _parseView( '<container:p>x</container:p>' ) );
 					viewRoot._removeChildren( 0, 1 );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 
-					expect( getMutationStats( observer.takeRecords() ) ).to.be.empty;
+					expect( getMutationStats( observer.takeRecords() ) ).toHaveLength( 0 );
 				} );
 
 				it( 'should remove and add one', () => {
-					viewRoot._appendChild( parse( makeContainers( 151 ) ) );
+					viewRoot._appendChild( _parseView( makeContainers( 151 ) ) );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 					cleanObserver( observer );
 
-					viewRoot._insertChild( 1, parse( '<container:h1>x</container:h1>' ) );
+					viewRoot._insertChild( 1, _parseView( '<container:h1>x</container:h1>' ) );
 					viewRoot._removeChildren( 0, 1 );
 
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 
-					expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+					expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 						'added: [], removed: [ <p> ]',
 						'added: [ <h1> ], removed: []'
 					] );
 				} );
 
 				it( 'should not touch the FSC when rendering children', () => {
-					viewRoot._appendChild( parse( makeContainers( 151 ) ) );
+					viewRoot._appendChild( _parseView( makeContainers( 151 ) ) );
 
 					// Set fake selection on the second paragraph.
 					selection._setTo( viewRoot.getChild( 1 ), 'on', { fake: true } );
@@ -3975,7 +4211,7 @@ describe( 'Renderer', () => {
 					renderer.markToSync( 'children', viewRoot );
 					renderer.render();
 
-					expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+					expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 						'added: [], removed: [ <p> ]'
 					] );
 				} );
@@ -3995,10 +4231,10 @@ describe( 'Renderer', () => {
 		// #1560
 		describe( 'attributes manipulation on replaced element', () => {
 			it( 'should rerender element if it was removed after having its attributes removed (attribute)', () => {
-				const writer = new DowncastWriter( viewDocument );
+				const writer = new ViewDowncastWriter( viewDocument );
 
 				// 1. Setup initial view/DOM.
-				viewRoot._appendChild( parse( '<container:p>1</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p>' ) );
 
 				const viewP = viewRoot.getChild( 0 );
 
@@ -4007,27 +4243,27 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p data-placeholder="Body">1</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p data-placeholder="Body">1</p>' );
 
 				// 2. Modify view.
 				writer.removeAttribute( 'data-placeholder', viewP );
 
 				viewRoot._removeChildren( 0, viewRoot.childCount );
 
-				viewRoot._appendChild( parse( '<container:p>1</container:p><container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p><container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'attributes', viewP );
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p>2</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p>2</p>' );
 			} );
 
 			it( 'should rerender element if it was removed after having its attributes removed (classes)', () => {
-				const writer = new DowncastWriter( viewDocument );
+				const writer = new ViewDowncastWriter( viewDocument );
 
 				// 1. Setup initial view/DOM.
-				viewRoot._appendChild( parse( '<container:h1>h1</container:h1><container:p>p</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:h1>h1</container:h1><container:p>p</container:p>' ) );
 
 				const viewP = viewRoot.getChild( 1 );
 
@@ -4036,28 +4272,28 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<h1>h1</h1><p class="cke-test1 cke-test2">p</p>' );
+				expect( domRoot.innerHTML ).toBe( '<h1>h1</h1><p class="cke-test1 cke-test2">p</p>' );
 
 				// 2. Modify view.
 				writer.removeClass( 'cke-test2', viewP );
 
 				viewRoot._removeChildren( 0, viewRoot.childCount );
 
-				viewRoot._appendChild( parse( '<container:h1>h1</container:h1>' +
+				viewRoot._appendChild( _parseView( '<container:h1>h1</container:h1>' +
 					'<container:p class="cke-test1">p</container:p><container:p>p2</container:p>' ) );
 
 				renderer.markToSync( 'attributes', viewP );
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<h1>h1</h1><p class="cke-test1">p</p><p>p2</p>' );
+				expect( domRoot.innerHTML ).toBe( '<h1>h1</h1><p class="cke-test1">p</p><p>p2</p>' );
 			} );
 
 			it( 'should rerender element if it was removed and have its attributes removed after', () => {
-				const writer = new DowncastWriter( viewDocument );
+				const writer = new ViewDowncastWriter( viewDocument );
 
 				// 1. Setup initial view/DOM.
-				viewRoot._appendChild( parse( '<container:p>1</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p>' ) );
 
 				const viewP = viewRoot.getChild( 0 );
 
@@ -4066,19 +4302,19 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p data-placeholder="Body">1</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p data-placeholder="Body">1</p>' );
 
 				// 2. Modify view.
 				viewRoot._removeChildren( 0, viewRoot.childCount );
 
 				writer.removeAttribute( 'data-placeholder', viewP );
 
-				viewRoot._appendChild( parse( '<container:p>1</container:p><container:p>2</container:p>' ) );
+				viewRoot._appendChild( _parseView( '<container:p>1</container:p><container:p>2</container:p>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.innerHTML ).to.equal( '<p>1</p><p>2</p>' );
+				expect( domRoot.innerHTML ).toBe( '<p>1</p><p>2</p>' );
 			} );
 		} );
 
@@ -4088,52 +4324,55 @@ describe( 'Renderer', () => {
 		// However, for larger data sets the difference between using `diff()` and `fastDiff()` (see above issue for context)
 		// is more than 10x in execution time so it is clearly visible in these tests when something goes wrong.
 		describe( 'rendering performance', () => {
-			before( function() {
-				// Ignore on Edge browser where performance is quite poor.
-				if ( env.isEdge ) {
-					this.skip();
-				}
+			beforeAll( () => {
+				// Ignore on Edge browser where performance is quite poor (env.isEdge not relevant in Vitest).
 			} );
 
 			it( 'should not take more than 350ms to render around 300 element nodes (same html)', () => {
 				const renderingTime = measureRenderingTime( viewRoot, generateViewData1( 65 ), generateViewData1( 55 ) );
-				expect( renderingTime ).to.be.within( 0, 350 );
+				expect( renderingTime ).toBeGreaterThanOrEqual( 0 );
+				expect( renderingTime ).toBeLessThanOrEqual( 350 );
 			} );
 
 			it( 'should not take more than 350ms to render around 300 element nodes (different html)', () => {
 				const renderingTime = measureRenderingTime( viewRoot, generateViewData1( 55 ), generateViewData2( 65 ) );
-				expect( renderingTime ).to.be.within( 0, 350 );
+				expect( renderingTime ).toBeGreaterThanOrEqual( 0 );
+				expect( renderingTime ).toBeLessThanOrEqual( 350 );
 			} );
 
 			it( 'should not take more than 350ms to render around 500 element nodes (same html)', () => {
 				const renderingTime = measureRenderingTime( viewRoot, generateViewData1( 105 ), generateViewData1( 95 ) );
-				expect( renderingTime ).to.be.within( 0, 350 );
+				expect( renderingTime ).toBeGreaterThanOrEqual( 0 );
+				expect( renderingTime ).toBeLessThanOrEqual( 350 );
 			} );
 
 			it( 'should not take more than 350ms to render around 500 element nodes (different html)', () => {
 				const renderingTime = measureRenderingTime( viewRoot, generateViewData1( 95 ), generateViewData2( 105 ) );
-				expect( renderingTime ).to.be.within( 0, 350 );
+				expect( renderingTime ).toBeGreaterThanOrEqual( 0 );
+				expect( renderingTime ).toBeLessThanOrEqual( 350 );
 			} );
 
 			it( 'should not take more than 400ms to render around 1000 element nodes (same html)', () => {
 				const renderingTime = measureRenderingTime( viewRoot, generateViewData1( 195 ), generateViewData1( 205 ) );
-				expect( renderingTime ).to.be.within( 0, 400 );
+				expect( renderingTime ).toBeGreaterThanOrEqual( 0 );
+				expect( renderingTime ).toBeLessThanOrEqual( 400 );
 			} );
 
 			it( 'should not take more than 400ms to render around 1000 element nodes (different html)', () => {
 				const renderingTime = measureRenderingTime( viewRoot, generateViewData1( 205 ), generateViewData2( 195 ) );
-				expect( renderingTime ).to.be.within( 0, 400 );
+				expect( renderingTime ).toBeGreaterThanOrEqual( 0 );
+				expect( renderingTime ).toBeLessThanOrEqual( 400 );
 			} );
 
 			function measureRenderingTime( viewRoot, initialData, newData ) {
 				// Set initial data.
-				const initialView = parse( initialData );
+				const initialView = _parseView( initialData );
 				viewRoot._appendChild( initialView );
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
 				// Set new data.
-				const newView = parse( newData );
+				const newView = _parseView( newData );
 				viewRoot._removeChildren( 0, viewRoot.childCount );
 				viewRoot._appendChild( newView );
 				renderer.markToSync( 'children', viewRoot );
@@ -4191,21 +4430,9 @@ describe( 'Renderer', () => {
 			let view, viewDoc, viewRoot, domRoot;
 
 			beforeEach( () => {
-				view = new View( new StylesProcessor() );
+				view = new EditingView( new StylesProcessor() );
 
-				testUtils.sinon.stub( console, 'warn' )
-					.withArgs( sinon.match( /^domconverter-unsafe-attribute-detected/ ) )
-					.callsFake( () => {} );
-
-				console.warn
-					.withArgs( sinon.match( /^domconverter-unsafe-script-element-detected/ ) )
-					.callsFake( () => {} );
-
-				console.warn
-					.withArgs( sinon.match( /^domconverter-unsafe-style-element-detected/ ) )
-					.callsFake( () => {} );
-
-				console.warn.callThrough();
+				vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
 				viewDoc = view.document;
 				domRoot = document.createElement( 'div' );
@@ -4220,36 +4447,36 @@ describe( 'Renderer', () => {
 			} );
 
 			it( 'should handle script tag rendering', () => {
-				window.spy = sinon.spy();
+				window.spy = vi.fn();
 
-				viewRoot._appendChild( parse( '<container:script>spy()</container:script>' ) );
+				viewRoot._appendChild( _parseView( '<container:script>spy()</container:script>' ) );
 
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( window.spy.calledOnce ).to.be.false;
+				expect( window.spy ).not.toHaveBeenCalledOnce();
 
 				delete window.spy;
 			} );
 
 			it( 'should replace script element with span and custom data attribute', () => {
-				window.spy = sinon.spy();
+				window.spy = vi.fn();
 
-				setViewData( view,
+				_setViewData( view,
 					'<container:script>spy()</container:script>'
 				);
 
 				view.forceRender();
 
-				expect( window.spy.calledOnce ).to.be.false;
-				expect( getViewData( view ) ).to.equal( '<script>spy()</script>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<span data-ck-unsafe-element="script">spy()</span>' );
+				expect( window.spy ).not.toHaveBeenCalledOnce();
+				expect( _getViewData( view ) ).toBe( '<script>spy()</script>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<span data-ck-unsafe-element="script">spy()</span>' );
 
 				delete window.spy;
 			} );
 
 			it( 'should replace style element with span and custom data attribute', () => {
-				window.spy = sinon.spy();
+				window.spy = vi.fn();
 
 				const viewA = new ViewElement( viewDoc, 'style' );
 
@@ -4259,15 +4486,15 @@ describe( 'Renderer', () => {
 
 				view.forceRender();
 
-				expect( window.spy.calledOnce ).to.be.false;
-				expect( getViewData( view ) ).to.equal( '<style>.foo { color: red; }</style>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<span data-ck-unsafe-element="style">.foo { color: red; }</span>' );
+				expect( window.spy ).not.toHaveBeenCalledOnce();
+				expect( _getViewData( view ) ).toBe( '<style>.foo { color: red; }</style>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<span data-ck-unsafe-element="style">.foo { color: red; }</span>' );
 
 				delete window.spy;
 			} );
 
 			it( 'should rename attributes that can affect editing pipeline', () => {
-				setViewData( view,
+				_setViewData( view,
 					'<container:p onclick="test">' +
 						'foo' +
 					'</container:p>'
@@ -4275,8 +4502,8 @@ describe( 'Renderer', () => {
 
 				view.forceRender();
 
-				expect( getViewData( view ) ).to.equal( '<p onclick="test">foo</p>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p data-ck-unsafe-attribute-onclick="test">foo</p>' );
+				expect( _getViewData( view ) ).toBe( '<p onclick="test">foo</p>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p data-ck-unsafe-attribute-onclick="test">foo</p>' );
 			} );
 
 			it( 'should rename attributes that can affect editing pipeline unless permitted when the container element was created', () => {
@@ -4294,8 +4521,8 @@ describe( 'Renderer', () => {
 
 				view.forceRender();
 
-				expect( getViewData( view ) ).to.equal( '<p onclick="foo" onkeydown="bar">baz</p>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal(
+				expect( _getViewData( view ) ).toBe( '<p onclick="foo" onkeydown="bar">baz</p>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe(
 					'<p data-ck-unsafe-attribute-onkeydown="bar" onclick="foo">baz</p>'
 				);
 			} );
@@ -4315,14 +4542,14 @@ describe( 'Renderer', () => {
 
 				view.forceRender();
 
-				expect( getViewData( view ) ).to.equal( '<span onclick="foo" onkeydown="bar">baz</span>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal(
+				expect( _getViewData( view ) ).toBe( '<span onclick="foo" onkeydown="bar">baz</span>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe(
 					'<span data-ck-unsafe-attribute-onkeydown="bar" onclick="foo">baz</span>'
 				);
 			} );
 
-			it( 'should rename attributes that can not be rendered in the editing pipeline', () => {
-				setViewData( view,
+			it( 'should rename attributes that cannot be rendered in the editing pipeline', () => {
+				_setViewData( view,
 					'<container:p>' +
 						'bar' +
 					'</container:p>'
@@ -4336,12 +4563,12 @@ describe( 'Renderer', () => {
 
 				view.forceRender();
 
-				expect( getViewData( view ) ).to.equal( '<p onclick="foo">bar</p>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p data-ck-unsafe-attribute-onclick="foo">bar</p>' );
+				expect( _getViewData( view ) ).toBe( '<p onclick="foo">bar</p>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p data-ck-unsafe-attribute-onclick="foo">bar</p>' );
 			} );
 
 			it( 'should remove attributes not present in the DOM if the view node is just a script element', () => {
-				setViewData( view,
+				_setViewData( view,
 					'<container:script data-attribute-to-remove-from-dom="foo">' +
 						'bar' +
 					'</container:script>'
@@ -4355,8 +4582,8 @@ describe( 'Renderer', () => {
 
 				view.forceRender();
 
-				expect( getViewData( view ) ).to.equal( '<script>bar</script>' );
-				expect( normalizeHtml( domRoot.innerHTML ) ).to.equal(
+				expect( _getViewData( view ) ).toBe( '<script>bar</script>' );
+				expect( normalizeHtml( domRoot.innerHTML ) ).toBe(
 					'<span data-ck-unsafe-element="script">bar</span>'
 				);
 			} );
@@ -4368,7 +4595,7 @@ describe( 'Renderer', () => {
 		let view, viewDoc, viewRoot, domRoot, converter, observer;
 
 		beforeEach( () => {
-			view = new View( new StylesProcessor() );
+			view = new EditingView( new StylesProcessor() );
 			viewDoc = view.document;
 			domRoot = document.createElement( 'div' );
 			document.body.appendChild( domRoot );
@@ -4394,7 +4621,7 @@ describe( 'Renderer', () => {
 		} );
 
 		it( 'should properly render unwrapped attributes #1', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>' +
 					'[<attribute:italic>' +
 						'<attribute:strong>f</attribute:strong>' +
@@ -4411,18 +4638,18 @@ describe( 'Renderer', () => {
 				writer.unwrap( viewDoc.selection.getFirstRange(), new ViewAttributeElement( viewDocument, 'italic' ) );
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p>[<strong>foo</strong>]</p>' );
+			expect( _getViewData( view ) ).toBe( '<p>[<strong>foo</strong>]</p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p><strong>foo</strong></p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p><strong>foo</strong></p>' );
+			expect( checkMappings() ).toBe( true );
 		} );
 
 		it( 'should properly render unwrapped attributes #2', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>' +
 					'[<attribute:italic>' +
 						'<attribute:strong>foo</attribute:strong>' +
@@ -4438,18 +4665,18 @@ describe( 'Renderer', () => {
 			} );
 
 			viewRoot.getChild( 0 ).getChild( 0 ).getChild( 0 )._data = 'bar';
-			expect( getViewData( view ) ).to.equal( '<p>[<strong>bar</strong>]</p>' );
+			expect( _getViewData( view ) ).toBe( '<p>[<strong>bar</strong>]</p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p><strong>bar</strong></p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p><strong>bar</strong></p>' );
+			expect( checkMappings() ).toBe( true );
 		} );
 
 		it( 'should properly render if text is changed and element is inserted into same node #1', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>foo</container:p>'
 			);
 
@@ -4464,18 +4691,18 @@ describe( 'Renderer', () => {
 				writer.insert( ViewPosition._createAfter( textNode ), new ViewAttributeElement( viewDocument, 'img' ) );
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p>foobar<img></img></p>' );
+			expect( _getViewData( view ) ).toBe( '<p>foobar<img></img></p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p>foobar<img></img></p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p>foobar<img></img></p>' );
+			expect( checkMappings() ).toBe( true );
 		} );
 
 		it( 'should properly render if text is changed and element is inserted into same node #2', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>foo</container:p>'
 			);
 
@@ -4490,18 +4717,18 @@ describe( 'Renderer', () => {
 				writer.insert( ViewPosition._createBefore( textNode ), new ViewAttributeElement( viewDocument, 'img' ) );
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p><img></img>foobar</p>' );
+			expect( _getViewData( view ) ).toBe( '<p><img></img>foobar</p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p><img></img>foobar</p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p><img></img>foobar</p>' );
+			expect( checkMappings() ).toBe( true );
 		} );
 
 		it( 'should properly render if text is changed and text and element is inserted into same node', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>foo<attribute:strong>123</attribute:strong>456</container:p>'
 			);
 
@@ -4513,27 +4740,27 @@ describe( 'Renderer', () => {
 			view.change( writer => {
 				writer.insert(
 					writer.createPositionAfter( viewRoot.getChild( 0 ).getChild( 0 ) ),
-					parse( 'bar<attribute:strong>abc</attribute:strong>' )
+					_parseView( 'bar<attribute:strong>abc</attribute:strong>' )
 				);
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p>foobar<strong>abc123</strong>456</p>' );
+			expect( _getViewData( view ) ).toBe( '<p>foobar<strong>abc123</strong>456</p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p>foobar<strong>abc123</strong>456</p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p>foobar<strong>abc123</strong>456</p>' );
+			expect( checkMappings() ).toBe( true );
 
-			expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+			expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 				'updated text: "foo" to "foobar"',
 				'updated text: "123" to "abc123"'
 			] );
 		} );
 
 		it( 'should properly render if text is replaced by similar element and following text', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>foo<attribute:strong>123</attribute:strong>456</container:p>'
 			);
 
@@ -4546,7 +4773,7 @@ describe( 'Renderer', () => {
 				writer.remove( viewRoot.getChild( 0 ).getChild( 0 ) );
 				writer.insert(
 					writer.createPositionAt( viewRoot.getChild( 0 ), 0 ),
-					parse(
+					_parseView(
 						'<attribute:strong>abc</attribute:strong>' +
 						'bar' +
 						'<attribute:strong>xyz</attribute:strong>'
@@ -4554,16 +4781,16 @@ describe( 'Renderer', () => {
 				);
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p><strong>abc</strong>bar<strong>xyz123</strong>456</p>' );
+			expect( _getViewData( view ) ).toBe( '<p><strong>abc</strong>bar<strong>xyz123</strong>456</p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p><strong>abc</strong>bar<strong>xyz123</strong>456</p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p><strong>abc</strong>bar<strong>xyz123</strong>456</p>' );
+			expect( checkMappings() ).toBe( true );
 
-			expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+			expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 				// Delete node "foo".
 				'added: [], removed: [ text: "foo" ]',	// <p><strong>123</strong>456</p>
 
@@ -4571,18 +4798,18 @@ describe( 'Renderer', () => {
 				'added: [ text: "bar" ], removed: []',	// <p><strong>123</strong>bar456</p>
 
 				// Insert <strong>xyz123</strong>.
-				'added: [ <strong> ], removed: []',		// <p><strong>123</strong>bar<strong>xyz123</strong>456</p>
+				'added: [ <strong> ], removed: []', // <p><strong>123</strong>bar<strong>xyz123</strong>456</p>
 
 				// Insert "abc". Note that "abc" is a final result of all changes in the mutation result.
-				'updated text: "123" to "abc"',			// <p><strong>abc123</strong>bar<strong>xyz123</strong>456</p>
+				'updated text: "123" to "abc"', // <p><strong>abc123</strong>bar<strong>xyz123</strong>456</p>
 
 				// Delete "123". Note that "abc" is a final result of all changes in the mutation result.
-				'updated text: "abc123" to "abc"'		// <p><strong>abc</strong>bar<strong>xyz123</strong>456</p>
+				'updated text: "abc123" to "abc"' // <p><strong>abc</strong>bar<strong>xyz123</strong>456</p>
 			] );
 		} );
 
 		it( 'should properly render if text is replaced by an element and following text', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>foo<attribute:strong>123</attribute:strong>456</container:p>'
 			);
 
@@ -4595,7 +4822,7 @@ describe( 'Renderer', () => {
 				writer.remove( viewRoot.getChild( 0 ).getChild( 0 ) );
 				writer.insert(
 					writer.createPositionAt( viewRoot.getChild( 0 ), 0 ),
-					parse(
+					_parseView(
 						'<attribute:em>abc</attribute:em>' +
 						'bar' +
 						'<attribute:strong>xyz</attribute:strong>'
@@ -4603,21 +4830,21 @@ describe( 'Renderer', () => {
 				);
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p><em>abc</em>bar<strong>xyz123</strong>456</p>' );
+			expect( _getViewData( view ) ).toBe( '<p><em>abc</em>bar<strong>xyz123</strong>456</p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p><em>abc</em>bar<strong>xyz123</strong>456</p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p><em>abc</em>bar<strong>xyz123</strong>456</p>' );
+			expect( checkMappings() ).toBe( true );
 
-			expect( getMutationStats( observer.takeRecords() ) ).to.deep.equal( [
+			expect( getMutationStats( observer.takeRecords() ) ).toEqual( [
 				// Insert `<em>abc<em>`.
-				'added: [ <em> ], removed: []',		// <p><em>abc</em>foo<strong>123</strong>456</p>
+				'added: [ <em> ], removed: []', // <p><em>abc</em>foo<strong>123</strong>456</p>
 
 				// Insert "bar". Note that "bar" is a final result of all changes in the mutation result.
-				'updated text: "foo" to "bar"',		// <p><em>abc</em>barfoo<strong>123</strong>456</p>
+				'updated text: "foo" to "bar"', // <p><em>abc</em>barfoo<strong>123</strong>456</p>
 
 				// Delete "foo". Note that "bar" is a final result of all changes in the mutation result.
 				'updated text: "barfoo" to "bar"',	// <p><em>abc</em>bar<strong>123</strong>456</p>
@@ -4628,7 +4855,7 @@ describe( 'Renderer', () => {
 		} );
 
 		it( 'should not unbind elements that are removed and reinserted to DOM', () => {
-			setViewData( view,
+			_setViewData( view,
 				'<container:p>' +
 					'<attribute:b></attribute:b>' +
 					'<attribute:i></attribute:i>' +
@@ -4648,14 +4875,14 @@ describe( 'Renderer', () => {
 				writer.insert( new ViewPosition( container, 2 ), firstElement );
 			} );
 
-			expect( getViewData( view ) ).to.equal( '<p><i></i><span></span><b></b></p>' );
+			expect( _getViewData( view ) ).toBe( '<p><i></i><span></span><b></b></p>' );
 
 			// Re-render changes in view to DOM.
 			view.forceRender();
 
 			// Check if DOM is rendered correctly.
-			expect( normalizeHtml( domRoot.innerHTML ) ).to.equal( '<p><i></i><span></span><b></b></p>' );
-			expect( checkMappings() ).to.be.true;
+			expect( normalizeHtml( domRoot.innerHTML ) ).toBe( '<p><i></i><span></span><b></b></p>' );
+			expect( checkMappings() ).toBe( true );
 		} );
 
 		// Checks if every node in DOM tree is mapped to the view.
@@ -4681,61 +4908,58 @@ describe( 'Renderer', () => {
 			let viewDocument, selection, domConverter, renderer;
 
 			it( 'should call #render() as soon as the user stops selecting in the document in Blink', () => {
-				testUtils.sinon.stub( env, 'isBlink' ).get( () => true );
+				vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( true );
 
 				viewDocument = new ViewDocument( new StylesProcessor() );
-				selection = new DocumentSelection();
-				domConverter = new DomConverter( viewDocument, { renderingMode: 'editing' } );
-				renderer = new Renderer( domConverter, selection );
-				renderer.domDocuments.add( document );
+				selection = new ViewDocumentSelection();
+				domConverter = new ViewDomConverter( viewDocument, { renderingMode: 'editing' } );
+				renderer = new ViewRenderer( domConverter, selection );
 
-				const renderSpy = sinon.spy( renderer, 'render' );
+				const renderSpy = vi.spyOn( renderer, 'render' );
 
-				expect( renderer.isSelecting ).to.be.false;
+				expect( renderer.isSelecting ).toBe( false );
 
 				renderer.isSelecting = true;
 				renderer.isSelecting = false;
 
-				sinon.assert.calledOnce( renderSpy );
+				expect( renderSpy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should not call #render() as soon as the user stops selecting in Blink on Android', () => {
-				testUtils.sinon.stub( env, 'isBlink' ).get( () => true );
-				testUtils.sinon.stub( env, 'isAndroid' ).get( () => true );
+				vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( true );
+				vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 				viewDocument = new ViewDocument( new StylesProcessor() );
-				selection = new DocumentSelection();
-				domConverter = new DomConverter( viewDocument, { renderingMode: 'editing' } );
-				renderer = new Renderer( domConverter, selection );
-				renderer.domDocuments.add( document );
+				selection = new ViewDocumentSelection();
+				domConverter = new ViewDomConverter( viewDocument, { renderingMode: 'editing' } );
+				renderer = new ViewRenderer( domConverter, selection );
 
-				const renderSpy = sinon.spy( renderer, 'render' );
+				const renderSpy = vi.spyOn( renderer, 'render' );
 
-				expect( renderer.isSelecting ).to.be.false;
+				expect( renderer.isSelecting ).toBe( false );
 
 				renderer.isSelecting = true;
 				renderer.isSelecting = false;
 
-				sinon.assert.notCalled( renderSpy );
+				expect( renderSpy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not call #render() as soon as the user stops selecting in browsers other than Blink', () => {
-				testUtils.sinon.stub( env, 'isBlink' ).get( () => false );
+				vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( false );
 
 				viewDocument = new ViewDocument( new StylesProcessor() );
-				selection = new DocumentSelection();
-				domConverter = new DomConverter( viewDocument, { renderingMode: 'editing' } );
-				renderer = new Renderer( domConverter, selection );
-				renderer.domDocuments.add( document );
+				selection = new ViewDocumentSelection();
+				domConverter = new ViewDomConverter( viewDocument, { renderingMode: 'editing' } );
+				renderer = new ViewRenderer( domConverter, selection );
 
-				const renderSpy = sinon.spy( renderer, 'render' );
+				const renderSpy = vi.spyOn( renderer, 'render' );
 
-				expect( renderer.isSelecting ).to.be.false;
+				expect( renderer.isSelecting ).toBe( false );
 
 				renderer.isSelecting = true;
 				renderer.isSelecting = false;
 
-				sinon.assert.notCalled( renderSpy );
+				expect( renderSpy ).not.toHaveBeenCalled();
 			} );
 
 			afterEach( () => {
@@ -4766,7 +4990,7 @@ describe( 'Renderer', () => {
 
 			describe( 'in Blink (non-Android)', () => {
 				beforeEach( () => {
-					testUtils.sinon.stub( env, 'isBlink' ).get( () => true );
+					vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( true );
 					renderer.isSelecting = false;
 				} );
 
@@ -4776,7 +5000,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
+					} = _parseView( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -4789,14 +5013,14 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>"FILLER{}"<b>foo</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -4818,17 +5042,17 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler is still there <p>"FILLER"{}<b>foo</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
 					// The selection remains after the filler. Note: We're not refreshing the DOM selection when
 					// the user is selecting in Blink (see #_updateSelection() tests), that's why it's
 					// <p>"FILLER"{}<b>foo</b></p> and not <p>"FILLER"<b>f{o}o</b></p>.
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 				} );
 
 				it( 'should not remove the inline filler while the user is making selection and re-collapsing it', () => {
@@ -4837,7 +5061,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
+					} = _parseView( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -4850,14 +5074,14 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>"FILLER{}"<b>foo</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -4879,15 +5103,15 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler is still there <p>"FILLER"<b>[]foo</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
 					// The selection remains after the filler.
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 1 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 1 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 				} );
 
 				it( 'should not add the inline filler while the user is making selection', () => {
@@ -4896,7 +5120,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+					} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -4909,13 +5133,13 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// There is no filler <p><b>f{o}o</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection to a problematic place before <b></b> while isSelecting = true.
@@ -4929,24 +5153,24 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// There's no inline filler, just <b>...</b>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.innerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.innerHTML ).toBe( '<b>foo</b>' );
 
 					// Rendering selection is blocked in Blink while isSelecting = true. The selection should remain the same.
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 				} );
 
 				// https://github.com/ckeditor/ckeditor5/issues/11472.
-				it( 'should not remove the inline filler while the user is making selection', () => {
+				it( 'should not remove the inline filler while the user is making selection (#11472)', () => {
 					const domSelection = document.getSelection();
 
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p><attribute:b>foo<attribute:i>[]</attribute:i></attribute:b></container:p>' );
+					} = _parseView( '<container:p><attribute:b>foo<attribute:i>[]</attribute:i></attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -4959,15 +5183,15 @@ describe( 'Renderer', () => {
 					const domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p><b>foo<i>FILLER{}</i></b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( `<b>foo<i>${ INLINE_FILLER }</i></b>` );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( `<b>foo<i>${ INLINE_FILLER }</i></b>` );
 
 					let domItalic = domParagraph.childNodes[ 0 ].childNodes[ 1 ];
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domItalic.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domItalic.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now typing in the same node as an inline filler.
@@ -4992,15 +5216,15 @@ describe( 'Renderer', () => {
 					renderer.render();
 
 					// The filler was still at the beginning of a text node <p><b>foo<i>FILLER{}bar</i></b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( `<b>foo<i>${ INLINE_FILLER }bar</i></b>` );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( `<b>foo<i>${ INLINE_FILLER }bar</i></b>` );
 
 					domItalic = domParagraph.childNodes[ 0 ].childNodes[ 1 ];
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domItalic.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH + viewText.data.length );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domItalic.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH + viewText.data.length );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #3: Now we're moving the selection somewhere else while isSelecting = true
@@ -5023,13 +5247,13 @@ describe( 'Renderer', () => {
 					renderer.render();
 
 					// The inline filler should be removed without crashing <p><b>foo{}<i>bar</i></b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( '<b>foo<i>bar</i></b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( '<b>foo<i>bar</i></b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 3 );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 3 );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 				} );
 
 				it( 'should not crash if document selection attribute was removed while making a selection', () => {
@@ -5038,7 +5262,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p>foo<attribute:b>[]</attribute:b></container:p>' );
+					} = _parseView( '<container:p>foo<attribute:b>[]</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5051,14 +5275,14 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>foo<b>"FILLER{}"</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( 'foo' );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( `<b>${ INLINE_FILLER }</b>` );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( 'foo' );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( `<b>${ INLINE_FILLER }</b>` );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 1 ].firstChild );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 1 ].firstChild );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -5080,22 +5304,22 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler and empty attribute element is removed <p>[foo]</p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( 'foo' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( 'foo' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 0 );
-					expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domParagraph );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.false;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 0 );
+					expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domParagraph );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( false );
 				} );
 			} );
 
 			describe( 'in Blink (Android)', () => {
 				beforeEach( () => {
-					testUtils.sinon.stub( env, 'isBlink' ).get( () => true );
-					testUtils.sinon.stub( env, 'isAndroid' ).get( () => true );
+					vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( true );
+					vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 					renderer.isSelecting = false;
 				} );
 
@@ -5109,7 +5333,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
+					} = _parseView( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5122,14 +5346,14 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>"FILLER{}"<b>foo</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -5150,13 +5374,13 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler is gone <p><b>f{o}o</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 				} );
 
 				// This test is skipped because on Android we disabled inline filler at the edge of an element.
@@ -5169,7 +5393,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+					} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5182,13 +5406,13 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// There is no filler <p><b>f{o}o</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection to a problematic place before <b></b> while isSelecting = true.
@@ -5202,21 +5426,21 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>"FILLER{}"<b>foo</b></p> despite isSelecting = true.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
 					// And the selection is after the inline filler.
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 				} );
 			} );
 
 			describe( 'in browsers other than Blink', () => {
 				beforeEach( () => {
-					testUtils.sinon.stub( env, 'isBlink' ).get( () => false );
+					vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( false );
 					renderer.isSelecting = false;
 				} );
 
@@ -5226,7 +5450,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
+					} = _parseView( '<container:p>[]<attribute:b>foo</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5239,14 +5463,14 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>"FILLER{}"<b>foo</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -5267,13 +5491,13 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler is gone <p><b>f{o}o</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 				} );
 
 				it( 'should add the inline filler despite the user making selection', () => {
@@ -5282,7 +5506,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+					} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5295,13 +5519,13 @@ describe( 'Renderer', () => {
 					let domParagraph = domRoot.childNodes[ 0 ];
 
 					// There is no filler <p><b>f{o}o</b></p>.
-					expect( domParagraph.childNodes.length ).to.equal( 1 );
-					expect( domParagraph.childNodes[ 0 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 1 );
+					expect( domParagraph.childNodes[ 0 ].outerHTML ).toBe( '<b>foo</b>' );
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection to a problematic place before <b></b> while isSelecting = true.
@@ -5315,15 +5539,15 @@ describe( 'Renderer', () => {
 					domParagraph = domRoot.childNodes[ 0 ];
 
 					// The filler was inserted <p>"FILLER{}"<b>foo</b></p> despite isSelecting = true.
-					expect( domParagraph.childNodes.length ).to.equal( 2 );
-					expect( domParagraph.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
-					expect( domParagraph.childNodes[ 1 ].outerHTML ).to.equal( '<b>foo</b>' );
+					expect( domParagraph.childNodes.length ).toBe( 2 );
+					expect( domParagraph.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
+					expect( domParagraph.childNodes[ 1 ].outerHTML ).toBe( '<b>foo</b>' );
 
 					// And the selection is after the inline filler.
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( INLINE_FILLER_LENGTH );
-					expect( domSelection.getRangeAt( 0 ).collapsed ).to.be.true;
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( INLINE_FILLER_LENGTH );
+					expect( domSelection.getRangeAt( 0 ).collapsed ).toBe( true );
 				} );
 			} );
 		} );
@@ -5351,7 +5575,7 @@ describe( 'Renderer', () => {
 
 			describe( 'in Blink (non-Android)', () => {
 				beforeEach( () => {
-					testUtils.sinon.stub( env, 'isBlink' ).get( () => true );
+					vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( true );
 					renderer.isSelecting = false;
 				} );
 
@@ -5361,7 +5585,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+					} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5373,10 +5597,10 @@ describe( 'Renderer', () => {
 
 					const domParagraph = domRoot.childNodes[ 0 ];
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -5396,10 +5620,10 @@ describe( 'Renderer', () => {
 					renderer.render();
 
 					// <p><b>f{o}o</b></p>
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 				} );
 
 				it( 'should update despite the selection being made if there were some children marked to render', () => {
@@ -5408,7 +5632,7 @@ describe( 'Renderer', () => {
 					const {
 						view: viewParagraph,
 						selection: viewSelection
-					} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+					} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 					viewRoot._appendChild( viewParagraph );
 					selection._setTo( viewSelection );
@@ -5420,10 +5644,10 @@ describe( 'Renderer', () => {
 
 					const domParagraph = domRoot.childNodes[ 0 ];
 
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 					// -----------------------------------------------------------------------------------------------
 					// STEP #2: Now we're moving the selection somewhere else while isSelecting = true. But this time,
@@ -5445,16 +5669,16 @@ describe( 'Renderer', () => {
 					renderer.render();
 
 					// <p><b>fo{o}</b></p>
-					expect( domSelection.rangeCount ).to.equal( 1 );
-					expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-					expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-					expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+					expect( domSelection.rangeCount ).toBe( 1 );
+					expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+					expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+					expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 				} );
 			} );
 
 			it( 'should update despite the selection being made in Blink on Android', () => {
-				testUtils.sinon.stub( env, 'isBlink' ).get( () => true );
-				testUtils.sinon.stub( env, 'isAndroid' ).get( () => true );
+				vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( true );
+				vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 				renderer.isSelecting = false;
 
 				const domSelection = document.getSelection();
@@ -5462,7 +5686,7 @@ describe( 'Renderer', () => {
 				const {
 					view: viewParagraph,
 					selection: viewSelection
-				} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+				} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewParagraph );
 				selection._setTo( viewSelection );
@@ -5474,10 +5698,10 @@ describe( 'Renderer', () => {
 
 				const domParagraph = domRoot.childNodes[ 0 ];
 
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 				// -----------------------------------------------------------------------------------------------
 				// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -5496,14 +5720,14 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// <p><b>fo{o}</b></p>
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 			} );
 
 			it( 'should update despite the selection being made in browsers other than Blink', () => {
-				testUtils.sinon.stub( env, 'isBlink' ).get( () => false );
+				vi.spyOn( env, 'isBlink', 'get' ).mockReturnValue( false );
 				renderer.isSelecting = false;
 
 				const domSelection = document.getSelection();
@@ -5511,7 +5735,7 @@ describe( 'Renderer', () => {
 				const {
 					view: viewParagraph,
 					selection: viewSelection
-				} = parse( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
+				} = _parseView( '<container:p><attribute:b>f{o}o</attribute:b></container:p>' );
 
 				viewRoot._appendChild( viewParagraph );
 				selection._setTo( viewSelection );
@@ -5523,10 +5747,10 @@ describe( 'Renderer', () => {
 
 				const domParagraph = domRoot.childNodes[ 0 ];
 
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
 				// -----------------------------------------------------------------------------------------------
 				// STEP #2: Now we're moving the selection somewhere else while isSelecting = true.
@@ -5545,38 +5769,15 @@ describe( 'Renderer', () => {
 				renderer.render();
 
 				// <p><b>fo{o}</b></p>
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 3 );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domParagraph.childNodes[ 0 ].childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 3 );
 			} );
 		} );
 	} );
 
 	describe( 'Blocking rendering while composing (IME)', () => {
-		it( 'should call #render() as soon as the user end composition in the document', () => {
-			const viewDocument = new ViewDocument( new StylesProcessor() );
-			const selection = new DocumentSelection();
-			const domConverter = new DomConverter( viewDocument, { renderingMode: 'editing' } );
-			const renderer = new Renderer( domConverter, selection );
-
-			renderer.domDocuments.add( document );
-
-			const renderSpy = sinon.spy( renderer, 'render' );
-
-			expect( renderer.isComposing ).to.be.false;
-
-			renderer.isComposing = true;
-
-			sinon.assert.notCalled( renderSpy );
-
-			renderer.isComposing = false;
-
-			sinon.assert.calledOnce( renderSpy );
-
-			viewDocument.destroy();
-		} );
-
 		describe( 'render()', () => {
 			let viewRoot, domRoot;
 
@@ -5605,8 +5806,8 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 1 );
-				expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+				expect( domRoot.childNodes.length ).toBe( 1 );
+				expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 				renderer.isComposing = true;
 
@@ -5615,10 +5816,10 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'text', viewText );
 				renderAndExpectNoChanges( renderer, domRoot );
 
-				expect( domRoot.childNodes.length ).to.equal( 1 );
-				expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foobar' );
+				expect( domRoot.childNodes.length ).toBe( 1 );
+				expect( domRoot.childNodes[ 0 ].data ).toBe( 'foobar' );
 
-				expect( renderer.markedTexts.size ).to.equal( 1 );
+				expect( renderer.markedTexts.size ).toBe( 1 );
 			} );
 
 			it( 'should not update text (parent child list changed)', () => {
@@ -5629,9 +5830,9 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderer.render();
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
-				expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'IMG' );
-				expect( domRoot.childNodes[ 1 ].data ).to.equal( 'foo' );
+				expect( domRoot.childNodes.length ).toBe( 2 );
+				expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'IMG' );
+				expect( domRoot.childNodes[ 1 ].data ).toBe( 'foo' );
 
 				renderer.isComposing = true;
 
@@ -5641,9 +5842,9 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'text', viewText );
 				renderAndExpectNoChanges( renderer, domRoot );
 
-				expect( domRoot.childNodes.length ).to.equal( 2 );
-				expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'IMG' );
-				expect( domRoot.childNodes[ 1 ].data ).to.equal( 'foobar' );
+				expect( domRoot.childNodes.length ).toBe( 2 );
+				expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'IMG' );
+				expect( domRoot.childNodes[ 1 ].data ).toBe( 'foobar' );
 			} );
 
 			it( 'should not change text if it is the same during children rendering', () => {
@@ -5662,14 +5863,14 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewRoot );
 				renderAndExpectNoChanges( renderer, domRoot );
 
-				expect( domRoot.childNodes.length ).to.equal( 1 );
-				expect( domRoot.childNodes[ 0 ] ).to.equal( domText );
+				expect( domRoot.childNodes.length ).toBe( 1 );
+				expect( domRoot.childNodes[ 0 ] ).toBe( domText );
 			} );
 
 			it( 'should not modify selection', () => {
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse( '<container:p>fo{}o</container:p>' );
+				const { view: viewP, selection: newSelection } = _parseView( '<container:p>fo{}o</container:p>' );
 
 				viewRoot._appendChild( viewP );
 				selection._setTo( newSelection );
@@ -5679,16 +5880,16 @@ describe( 'Renderer', () => {
 
 				const domP = domRoot.childNodes[ 0 ];
 
-				expect( domSelection.isCollapsed ).to.true;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+				expect( domSelection.isCollapsed ).toBe( true );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
-				const selectionCollapseSpy = sinon.spy( window.Selection.prototype, 'collapse' );
-				const selectionExtendSpy = sinon.spy( window.Selection.prototype, 'extend' );
-				const selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				const selectionCollapseSpy = vi.spyOn( window.Selection.prototype, 'collapse' );
+				const selectionExtendSpy = vi.spyOn( window.Selection.prototype, 'extend' );
+				const selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				selection._setTo( [
 					new ViewRange( new ViewPosition( viewP.getChild( 0 ), 3 ), new ViewPosition( viewP.getChild( 0 ), 3 ) )
@@ -5698,17 +5899,17 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderAndExpectNoChanges( renderer, domRoot );
 
-				expect( selectionCollapseSpy.notCalled ).to.true;
-				expect( selectionExtendSpy.notCalled ).to.true;
-				expect( selectionSpy.notCalled ).to.true;
+				expect( selectionCollapseSpy ).not.toHaveBeenCalled();
+				expect( selectionExtendSpy ).not.toHaveBeenCalled();
+				expect( selectionSpy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not modify selection on Android', () => {
-				testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+				vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 				const domSelection = document.getSelection();
 
-				const { view: viewP, selection: newSelection } = parse( '<container:p>fo{}o</container:p>' );
+				const { view: viewP, selection: newSelection } = _parseView( '<container:p>fo{}o</container:p>' );
 
 				viewRoot._appendChild( viewP );
 				selection._setTo( newSelection );
@@ -5718,16 +5919,16 @@ describe( 'Renderer', () => {
 
 				const domP = domRoot.childNodes[ 0 ];
 
-				expect( domSelection.isCollapsed ).to.true;
-				expect( domSelection.rangeCount ).to.equal( 1 );
-				expect( domSelection.getRangeAt( 0 ).startContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).startOffset ).to.equal( 2 );
-				expect( domSelection.getRangeAt( 0 ).endContainer ).to.equal( domP.childNodes[ 0 ] );
-				expect( domSelection.getRangeAt( 0 ).endOffset ).to.equal( 2 );
+				expect( domSelection.isCollapsed ).toBe( true );
+				expect( domSelection.rangeCount ).toBe( 1 );
+				expect( domSelection.getRangeAt( 0 ).startContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).startOffset ).toBe( 2 );
+				expect( domSelection.getRangeAt( 0 ).endContainer ).toBe( domP.childNodes[ 0 ] );
+				expect( domSelection.getRangeAt( 0 ).endOffset ).toBe( 2 );
 
-				const selectionCollapseSpy = sinon.spy( window.Selection.prototype, 'collapse' );
-				const selectionExtendSpy = sinon.spy( window.Selection.prototype, 'extend' );
-				const selectionSpy = sinon.spy( window.Selection.prototype, 'setBaseAndExtent' );
+				const selectionCollapseSpy = vi.spyOn( window.Selection.prototype, 'collapse' );
+				const selectionExtendSpy = vi.spyOn( window.Selection.prototype, 'extend' );
+				const selectionSpy = vi.spyOn( window.Selection.prototype, 'setBaseAndExtent' );
 
 				selection._setTo( [
 					new ViewRange( new ViewPosition( viewP.getChild( 0 ), 3 ), new ViewPosition( viewP.getChild( 0 ), 3 ) )
@@ -5737,9 +5938,9 @@ describe( 'Renderer', () => {
 				renderer.markToSync( 'children', viewP );
 				renderAndExpectNoChanges( renderer, domRoot );
 
-				expect( selectionCollapseSpy.notCalled ).to.true;
-				expect( selectionExtendSpy.notCalled ).to.true;
-				expect( selectionSpy.notCalled ).to.true;
+				expect( selectionCollapseSpy ).not.toHaveBeenCalled();
+				expect( selectionExtendSpy ).not.toHaveBeenCalled();
+				expect( selectionSpy ).not.toHaveBeenCalled();
 			} );
 		} );
 	} );
@@ -5759,55 +5960,55 @@ describe( 'Renderer', () => {
 			// Such situation occurs when renderer encounters inline filler in 'renderer._updateChildren'.
 			renderer._markDescendantTextToSync( null );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
-			expect( renderer.markedTexts.size ).to.equal( 0 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
+			expect( renderer.markedTexts.size ).toBe( 0 );
 		} );
 
 		it( 'should handle element nodes', () => {
-			const viewP = parse( '<container:p>foo<attribute:b>bar<attribute:i>baz</attribute:i></attribute:b></container:p>' );
+			const viewP = _parseView( '<container:p>foo<attribute:b>bar<attribute:i>baz</attribute:i></attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
 			renderer._markDescendantTextToSync( viewP );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
-			expect( renderer.markedTexts.size ).to.equal( 3 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
+			expect( renderer.markedTexts.size ).toBe( 3 );
 		} );
 
 		it( 'should handle text nodes', () => {
-			const viewP = parse( '<container:p><attribute:b>bar<attribute:i>baz</attribute:i></attribute:b></container:p>' );
+			const viewP = _parseView( '<container:p><attribute:b>bar<attribute:i>baz</attribute:i></attribute:b></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
 			renderer._markDescendantTextToSync( viewP.getChild( 0 ).getChild( 0 ) );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
-			expect( renderer.markedTexts.size ).to.equal( 1 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
+			expect( renderer.markedTexts.size ).toBe( 1 );
 		} );
 
 		it( 'should handle document fragment', () => {
-			const fragment = new DocumentFragment();
+			const fragment = new ViewDocumentFragment();
 
 			renderer._markDescendantTextToSync( fragment );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
-			expect( renderer.markedTexts.size ).to.equal( 0 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
+			expect( renderer.markedTexts.size ).toBe( 0 );
 		} );
 
 		it( 'should handle empty element nodes', () => {
-			const viewP = parse( '<container:p></container:p>' );
+			const viewP = _parseView( '<container:p></container:p>' );
 
 			viewRoot._appendChild( viewP );
 
 			renderer._markDescendantTextToSync( viewP );
 
-			expect( renderer.markedChildren.size ).to.equal( 0 );
-			expect( renderer.markedAttributes.size ).to.equal( 0 );
-			expect( renderer.markedTexts.size ).to.equal( 0 );
+			expect( renderer.markedChildren.size ).toBe( 0 );
+			expect( renderer.markedAttributes.size ).toBe( 0 );
+			expect( renderer.markedTexts.size ).toBe( 0 );
 		} );
 	} );
 
@@ -5839,15 +6040,15 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			viewText._data = 'fobar';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'fobar' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'fobar' );
 		} );
 
 		it( 'should update text - change on start', () => {
@@ -5857,15 +6058,15 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			viewText._data = 'baro';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'baro' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'baro' );
 		} );
 
 		it( 'should update text - change in the middle', () => {
@@ -5875,15 +6076,15 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foobar' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foobar' );
 
 			viewText._data = 'fobazr';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'fobazr' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'fobazr' );
 		} );
 
 		it( 'should update text - empty expected', () => {
@@ -5893,15 +6094,15 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			viewText._data = '';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( '' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( '' );
 		} );
 
 		it( 'should update text - empty actual', () => {
@@ -5911,15 +6112,15 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( '' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( '' );
 
 			viewText._data = 'fobar';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'fobar' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'fobar' );
 		} );
 
 		it( 'should handle filler during text modifications', () => {
@@ -5929,8 +6130,8 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo' );
 
 			// 1. Insert filler.
 			renderer._updateText( viewText, {
@@ -5940,8 +6141,8 @@ describe( 'Renderer', () => {
 				}
 			} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'foo' );
 
 			// 2. Edit text - filler should be preserved.
 			viewText._data = 'barfoo';
@@ -5953,14 +6154,14 @@ describe( 'Renderer', () => {
 				}
 			} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'barfoo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'barfoo' );
 
 			// 3. Remove filler.
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( 'barfoo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'barfoo' );
 		} );
 
 		it( 'should handle filler during text modifications - empty text', () => {
@@ -5970,8 +6171,8 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( '' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( '' );
 
 			// 1. Insert filler.
 			renderer._updateText( viewText, {
@@ -5981,8 +6182,8 @@ describe( 'Renderer', () => {
 				}
 			} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( INLINE_FILLER );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( INLINE_FILLER );
 
 			// 2. Edit text - filler should be preserved.
 			viewText._data = 'foo';
@@ -5994,16 +6195,16 @@ describe( 'Renderer', () => {
 				}
 			} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'foo' );
 
 			// 3. Remove filler.
 			viewText._data = '';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].data ).to.equal( '' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( '' );
 		} );
 
 		it( 'should handle filler during text modifications inside inline element', () => {
@@ -6016,10 +6217,10 @@ describe( 'Renderer', () => {
 			renderer.markToSync( 'children', viewRoot );
 			renderer.render();
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'B' );
-			expect( domRoot.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'B' );
+			expect( domRoot.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'foo' );
 
 			// 1. Insert filler.
 			renderer._updateText( viewText, {
@@ -6029,10 +6230,10 @@ describe( 'Renderer', () => {
 				}
 			} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'B' );
-			expect( domRoot.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'foo' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'B' );
+			expect( domRoot.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'foo' );
 
 			// 2. Edit text - filler should be preserved.
 			viewText._data = 'bar';
@@ -6044,20 +6245,48 @@ describe( 'Renderer', () => {
 				}
 			} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'B' );
-			expect( domRoot.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( INLINE_FILLER + 'bar' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'B' );
+			expect( domRoot.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( INLINE_FILLER + 'bar' );
 
 			// 3. Remove filler.
 			viewText._data = 'bar';
 
 			renderer._updateText( viewText, {} );
 
-			expect( domRoot.childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].tagName ).to.equal( 'B' );
-			expect( domRoot.childNodes[ 0 ].childNodes.length ).to.equal( 1 );
-			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).to.equal( 'bar' );
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].tagName ).toBe( 'B' );
+			expect( domRoot.childNodes[ 0 ].childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].childNodes[ 0 ].data ).toBe( 'bar' );
+		} );
+
+		it( 'should not update text on Android if only NBSPs are changed while composing', () => {
+			vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
+
+			const viewText = new ViewText( viewDocument, 'foo  bar' );
+			viewRoot._appendChild( viewText );
+
+			renderer.markToSync( 'children', viewRoot );
+			renderer.render();
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo \u00A0bar' );
+
+			// Browser modified NBSP while composing.
+			renderer.isComposing = true;
+			domRoot.childNodes[ 0 ].data = 'foo\u00A0 bar';
+			renderer._updateText( viewText, {} );
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo\u00A0 bar' );
+
+			// Rendering after composition.
+			renderer.isComposing = false;
+			renderer._updateText( viewText, {} );
+
+			expect( domRoot.childNodes.length ).toBe( 1 );
+			expect( domRoot.childNodes[ 0 ].data ).toBe( 'foo \u00A0bar' );
 		} );
 	} );
 
@@ -6066,11 +6295,12 @@ describe( 'Renderer', () => {
 			if ( mutation.type == 'characterData' ) {
 				return `updated text: ${ JSON.stringify( mutation.oldValue ) } to ${ JSON.stringify( mutation.target.data ) }`;
 			} else {
-				return `added: ${ stringifyNodeList( mutation.addedNodes ) }, removed: ${ stringifyNodeList( mutation.removedNodes ) }`;
+				return `added: ${ _stringifyViewNodeList( mutation.addedNodes ) },` +
+						` removed: ${ _stringifyViewNodeList( mutation.removedNodes ) }`;
 			}
 		} );
 
-		function stringifyNode( node ) {
+		function _stringifyViewNode( node ) {
 			if ( node.nodeType == 1 ) {
 				return `<${ node.nodeName.toLowerCase() }>`;
 			} else if ( node.nodeType == 3 ) {
@@ -6080,9 +6310,9 @@ describe( 'Renderer', () => {
 			}
 		}
 
-		function stringifyNodeList( nodeList ) {
+		function _stringifyViewNodeList( nodeList ) {
 			const nodeArray = Array.from( nodeList );
-			const stringified = nodeArray.map( node => stringifyNode( node ) ).join( ', ' );
+			const stringified = nodeArray.map( node => _stringifyViewNode( node ) ).join( ', ' );
 
 			return stringified ? `[ ${ stringified } ]` : '[]';
 		}
@@ -6091,6 +6321,53 @@ describe( 'Renderer', () => {
 	function cleanObserver( observer ) {
 		observer.takeRecords();
 	}
+
+	describe( 'selection rendering in a shadow root', () => {
+		let host, shadowRoot, domRoot, viewRoot;
+
+		for ( const mode of [ 'open', 'closed' ] ) {
+			describe( `${ mode } shadow root`, () => {
+				beforeEach( () => {
+					host = document.createElement( 'div' );
+					document.body.appendChild( host );
+					shadowRoot = host.attachShadow( { mode } );
+
+					viewRoot = new ViewEditableElement( viewDocument, 'div' );
+					viewRoot.getFillerOffset = () => null;
+
+					domRoot = document.createElement( 'div' );
+					shadowRoot.appendChild( domRoot );
+					domConverter.bindElements( domRoot, viewRoot );
+
+					selection._setTo( null );
+					renderer.isFocused = true;
+				} );
+
+				afterEach( () => {
+					host.remove();
+				} );
+
+				it( 'renders a collapsed selection into the shadow tree', () => {
+					const { view: viewP, selection: newSelection } = _parseView( '<container:p>foo{}bar</container:p>' );
+
+					viewRoot._appendChild( viewP );
+					selection._setTo( newSelection );
+
+					renderer.markToSync( 'children', viewRoot );
+					renderer.render();
+
+					// The editable and its content live inside the shadow root, so the selection has to be
+					// resolved through the shadow root rather than the retargeting document selection.
+					const domText = domRoot.childNodes[ 0 ].childNodes[ 0 ];
+					const domSelection = getSelection( domRoot );
+
+					expect( domSelection.anchorNode ).toBe( domText );
+					expect( domSelection.anchorOffset ).toBe( 3 );
+					expect( domSelection.isCollapsed ).toBe( true );
+				} );
+			} );
+		}
+	} );
 } );
 
 function renderAndExpectNoChanges( renderer, domRoot ) {
@@ -6110,5 +6387,5 @@ function renderAndExpectNoChanges( renderer, domRoot ) {
 
 	const records = mutationObserver.takeRecords();
 	mutationObserver.disconnect();
-	expect( records.length ).to.equal( 0 );
+	expect( records.length ).toBe( 0 );
 }

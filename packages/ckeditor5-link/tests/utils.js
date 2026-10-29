@@ -1,17 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global window */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import {
+	_setModelData,
+	ModelElement,
+	ModelSchema,
+	ViewAttributeElement,
+	ViewContainerElement,
+	ViewDocument,
+	ViewDowncastWriter,
+	ViewText
+} from '@ckeditor/ckeditor5-engine';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
 
-import ViewDocument from '@ckeditor/ckeditor5-engine/src/view/document';
-import ViewDowncastWriter from '@ckeditor/ckeditor5-engine/src/view/downcastwriter';
-import AttributeElement from '@ckeditor/ckeditor5-engine/src/view/attributeelement';
-import ContainerElement from '@ckeditor/ckeditor5-engine/src/view/containerelement';
-import Text from '@ckeditor/ckeditor5-engine/src/view/text';
-import Schema from '@ckeditor/ckeditor5-engine/src/model/schema';
-import ModelElement from '@ckeditor/ckeditor5-engine/src/model/element';
 import {
 	createLinkElement,
 	isLinkElement,
@@ -20,8 +26,9 @@ import {
 	isLinkableElement,
 	isEmail,
 	addLinkProtocolIfApplicable,
-	openLink
-} from '../src/utils';
+	openLink,
+	extractTextFromLinkRange
+} from '../src/utils.js';
 
 describe( 'utils', () => {
 	describe( 'isLinkElement()', () => {
@@ -29,31 +36,31 @@ describe( 'utils', () => {
 			const writer = new ViewDowncastWriter( new ViewDocument() );
 			const element = createLinkElement( 'http://ckeditor.com', { writer } );
 
-			expect( isLinkElement( element ) ).to.be.true;
+			expect( isLinkElement( element ) ).toBe( true );
 		} );
 
-		it( 'should return false for other AttributeElements', () => {
-			expect( isLinkElement( new AttributeElement( 'a' ) ) ).to.be.false;
+		it( 'should return false for other ViewAttributeElements', () => {
+			expect( isLinkElement( new ViewAttributeElement( 'a' ) ) ).toBe( false );
 		} );
 
-		it( 'should return false for ContainerElements', () => {
-			expect( isLinkElement( new ContainerElement( 'p' ) ) ).to.be.false;
+		it( 'should return false for ViewContainerElements', () => {
+			expect( isLinkElement( new ViewContainerElement( 'p' ) ) ).toBe( false );
 		} );
 
 		it( 'should return false for text nodes', () => {
-			expect( isLinkElement( new Text( 'foo' ) ) ).to.be.false;
+			expect( isLinkElement( new ViewText( 'foo' ) ) ).toBe( false );
 		} );
 	} );
 
 	describe( 'createLinkElement()', () => {
-		it( 'should create link AttributeElement', () => {
+		it( 'should create link ViewAttributeElement', () => {
 			const writer = new ViewDowncastWriter( new ViewDocument() );
 			const element = createLinkElement( 'http://cksource.com', { writer } );
 
-			expect( isLinkElement( element ) ).to.be.true;
-			expect( element.priority ).to.equal( 5 );
-			expect( element.getAttribute( 'href' ) ).to.equal( 'http://cksource.com' );
-			expect( element.name ).to.equal( 'a' );
+			expect( isLinkElement( element ) ).toBe( true );
+			expect( element.priority ).toBe( 5 );
+			expect( element.getAttribute( 'href' ) ).toBe( 'http://cksource.com' );
+			expect( element.name ).toBe( 'a' );
 		} );
 	} );
 
@@ -61,114 +68,154 @@ describe( 'utils', () => {
 		it( 'returns the same absolute http URL', () => {
 			const url = 'http://xx.yy/zz#foo';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same absolute https URL', () => {
 			const url = 'https://xx.yy/zz';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same absolute ftp URL', () => {
 			const url = 'ftp://xx.yy/zz';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same absolute ftps URL', () => {
 			const url = 'ftps://xx.yy/zz';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same absolute mailto URL', () => {
 			const url = 'mailto://foo@bar.com';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
+		} );
+
+		it( 'returns the same absolute tel URL (if allowed in config)', () => {
+			const url = 'tel:+48123456789';
+			const allowedCustomProtocols = [ 'tel' ];
+
+			expect( ensureSafeUrl( url, allowedCustomProtocols ) ).toBe( url );
+		} );
+
+		it( 'returns the same absolute sms URL (if allowed in config)', () => {
+			const url = 'sms:+48987654321';
+			const allowedCustomProtocols = [ 'sms' ];
+
+			expect( ensureSafeUrl( url, allowedCustomProtocols ) ).toBe( url );
+		} );
+
+		it( 'returns the same absolute sftp URL (if allowed in config)', () => {
+			const url = 'sftp://xx.yy/zz';
+			const allowedCustomProtocols = [ 'sftp' ];
+
+			expect( ensureSafeUrl( url, allowedCustomProtocols ) ).toBe( url );
 		} );
 
 		it( 'returns the same relative URL (starting with a dot)', () => {
 			const url = './xx/yyy';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same relative URL (starting with two dots)', () => {
 			const url = '../../xx/yyy';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same relative URL (starting with a slash)', () => {
 			const url = '/xx/yyy';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same relative URL (starting with a backslash)', () => {
 			const url = '\\xx\\yyy';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same relative URL (starting with a letter)', () => {
 			const url = 'xx/yyy';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
+		} );
+
+		it( 'returns the same relative URL (starting with hash)', () => {
+			const url = '#thatsection1';
+
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same URL even if it contains whitespaces', () => {
 			const url = '  ./xx/ yyy\t';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'returns the same URL even if it contains non ASCII characters', () => {
 			const url = 'https://kłącze.yy/źdźbło';
 
-			expect( ensureSafeUrl( url ) ).to.equal( url );
+			expect( ensureSafeUrl( url ) ).toBe( url );
+		} );
+
+		it( 'returns the same URL even if it starts with an IP address', () => {
+			const url = '192.178.10.123/subpath';
+
+			expect( ensureSafeUrl( url ) ).toBe( url );
 		} );
 
 		it( 'accepts non string values', () => {
-			expect( ensureSafeUrl( undefined ) ).to.equal( 'undefined' );
-			expect( ensureSafeUrl( null ) ).to.equal( 'null' );
+			expect( ensureSafeUrl( undefined ) ).toBe( 'undefined' );
+			expect( ensureSafeUrl( null ) ).toBe( 'null' );
 		} );
 
 		it( 'returns safe URL when a malicious URL starts with javascript:', () => {
 			const url = 'javascript:alert(1)';
 
-			expect( ensureSafeUrl( url ) ).to.equal( '#' );
+			expect( ensureSafeUrl( url ) ).toBe( '#' );
 		} );
 
 		it( 'returns safe URL when a malicious URL starts with an unknown protocol', () => {
 			const url = 'foo:alert(1)';
 
-			expect( ensureSafeUrl( url ) ).to.equal( '#' );
+			expect( ensureSafeUrl( url ) ).toBe( '#' );
+		} );
+
+		it( 'returns the same URL when the URL contains a custom protocol defined in the allowedProtocols parameter', () => {
+			const url = 'foo:customurl.resource';
+			const allowedCustomProtocols = [ 'https', 'http', 'foo' ];
+
+			expect( ensureSafeUrl( url, allowedCustomProtocols ) ).toBe( url );
 		} );
 
 		it( 'returns safe URL when a malicious URL contains spaces', () => {
 			const url = 'java\u0000script:\talert(1)';
 
-			expect( ensureSafeUrl( url ) ).to.equal( '#' );
+			expect( ensureSafeUrl( url ) ).toBe( '#' );
 		} );
 
 		it( 'returns safe URL when a malicious URL contains spaces (2)', () => {
 			const url = '\u0000 javascript:alert(1)';
 
-			expect( ensureSafeUrl( url ) ).to.equal( '#' );
+			expect( ensureSafeUrl( url ) ).toBe( '#' );
 		} );
 
 		it( 'returns safe URL when a malicious URL contains a safe part', () => {
 			const url = 'javascript:alert(1)\nhttp://xxx';
 
-			expect( ensureSafeUrl( url ) ).to.equal( '#' );
+			expect( ensureSafeUrl( url ) ).toBe( '#' );
 		} );
 
 		it( 'returns safe URL when a malicious URL contains a safe part (2)', () => {
 			const url = 'javascript:alert(1);http://xxx';
 
-			expect( ensureSafeUrl( url ) ).to.equal( '#' );
+			expect( ensureSafeUrl( url ) ).toBe( '#' );
 		} );
 	} );
 
@@ -200,7 +247,7 @@ describe( 'utils', () => {
 				}
 			};
 
-			expect( normalizeDecorators( entryObject ) ).to.deep.equal( [
+			expect( normalizeDecorators( entryObject ) ).toEqual( [
 				{
 					id: 'linkFoo',
 					mode: 'manual',
@@ -232,78 +279,78 @@ describe( 'utils', () => {
 
 	describe( 'isLinkableElement()', () => {
 		it( 'returns false when passed "null" as element', () => {
-			expect( isLinkableElement( null, new Schema() ) ).to.equal( false );
+			expect( isLinkableElement( null, new ModelSchema() ) ).toBe( false );
 		} );
 
 		it( 'returns false when passed an element that is not the image element', () => {
 			const element = new ModelElement( 'paragraph' );
-			expect( isLinkableElement( element, new Schema() ) ).to.equal( false );
+			expect( isLinkableElement( element, new ModelSchema() ) ).toBe( false );
 		} );
 
 		it( 'returns false when schema does not allow linking images (block image)', () => {
 			const element = new ModelElement( 'imageBlock' );
-			expect( isLinkableElement( element, new Schema() ) ).to.equal( false );
+			expect( isLinkableElement( element, new ModelSchema() ) ).toBe( false );
 		} );
 
 		it( 'returns false when schema does not allow linking images (inline image)', () => {
 			const element = new ModelElement( 'imageInline' );
-			expect( isLinkableElement( element, new Schema() ) ).to.equal( false );
+			expect( isLinkableElement( element, new ModelSchema() ) ).toBe( false );
 		} );
 
 		it( 'returns true when passed a block image element and it can be linked', () => {
 			const element = new ModelElement( 'imageBlock' );
-			const schema = new Schema();
+			const schema = new ModelSchema();
 
 			schema.register( 'imageBlock', {
 				allowIn: '$root',
 				allowAttributes: [ 'linkHref' ]
 			} );
 
-			expect( isLinkableElement( element, schema ) ).to.equal( true );
+			expect( isLinkableElement( element, schema ) ).toBe( true );
 		} );
 
 		it( 'returns true when passed an inline image element and it can be linked', () => {
 			const element = new ModelElement( 'imageInline' );
-			const schema = new Schema();
+			const schema = new ModelSchema();
 
 			schema.register( 'imageInline', {
 				allowIn: '$root',
 				allowAttributes: [ 'linkHref' ]
 			} );
 
-			expect( isLinkableElement( element, schema ) ).to.equal( true );
+			expect( isLinkableElement( element, schema ) ).toBe( true );
 		} );
 	} );
 
 	describe( 'isEmail()', () => {
 		it( 'should return true for email string', () => {
-			expect( isEmail( 'newsletter@cksource.com' ) ).to.be.true;
+			expect( isEmail( 'newsletter@cksource.com' ) ).toBe( true );
 		} );
 
 		it( 'should return false for not email string', () => {
-			expect( isEmail( 'test' ) ).to.be.false;
-			expect( isEmail( 'test.test' ) ).to.be.false;
-			expect( isEmail( 'test@test' ) ).to.be.false;
+			expect( isEmail( 'test' ) ).toBe( false );
+			expect( isEmail( 'test.test' ) ).toBe( false );
+			expect( isEmail( 'test@test' ) ).toBe( false );
 		} );
 	} );
 
 	describe( 'addLinkProtocolIfApplicable()', () => {
 		it( 'should return link with email protocol for email string', () => {
-			expect( addLinkProtocolIfApplicable( 'foo@bar.com' ) ).to.equal( 'mailto:foo@bar.com' );
-			expect( addLinkProtocolIfApplicable( 'foo@bar.com', 'http://' ) ).to.equal( 'mailto:foo@bar.com' );
+			expect( addLinkProtocolIfApplicable( 'foo@bar.com' ) ).toBe( 'mailto:foo@bar.com' );
+			expect( addLinkProtocolIfApplicable( 'foo@bar.com', 'http://' ) ).toBe( 'mailto:foo@bar.com' );
 		} );
 
 		it( 'should return link with http protocol for url string if defaultProtocol is provided', () => {
-			expect( addLinkProtocolIfApplicable( 'www.ckeditor.com', 'http://' ) ).to.equal( 'http://www.ckeditor.com' );
+			expect( addLinkProtocolIfApplicable( 'www.ckeditor.com', 'http://' ) ).toBe( 'http://www.ckeditor.com' );
 		} );
 
 		it( 'should return unmodified link if not applicable', () => {
-			expect( addLinkProtocolIfApplicable( 'test' ) ).to.equal( 'test' );
-			expect( addLinkProtocolIfApplicable( 'www.ckeditor.com' ) ).to.equal( 'www.ckeditor.com' );
-			expect( addLinkProtocolIfApplicable( 'http://www.ckeditor.com' ) ).to.equal( 'http://www.ckeditor.com' );
-			expect( addLinkProtocolIfApplicable( 'http://www.ckeditor.com', 'http://' ) ).to.equal( 'http://www.ckeditor.com' );
-			expect( addLinkProtocolIfApplicable( 'mailto:foo@bar.com' ) ).to.equal( 'mailto:foo@bar.com' );
-			expect( addLinkProtocolIfApplicable( 'mailto:foo@bar.com', 'http://' ) ).to.equal( 'mailto:foo@bar.com' );
+			expect( addLinkProtocolIfApplicable( 'test' ) ).toBe( 'test' );
+			expect( addLinkProtocolIfApplicable( 'www.ckeditor.com' ) ).toBe( 'www.ckeditor.com' );
+			expect( addLinkProtocolIfApplicable( 'http://www.ckeditor.com' ) ).toBe( 'http://www.ckeditor.com' );
+			expect( addLinkProtocolIfApplicable( 'http://www.ckeditor.com', 'http://' ) ).toBe( 'http://www.ckeditor.com' );
+			expect( addLinkProtocolIfApplicable( 'mailto:foo@bar.com' ) ).toBe( 'mailto:foo@bar.com' );
+			expect( addLinkProtocolIfApplicable( 'mailto:foo@bar.com', 'http://' ) ).toBe( 'mailto:foo@bar.com' );
 		} );
 	} );
 
@@ -311,13 +358,7 @@ describe( 'utils', () => {
 		let stub;
 
 		beforeEach( () => {
-			stub = sinon.stub( window, 'open' );
-
-			stub.returns( undefined );
-		} );
-
-		afterEach( () => {
-			stub.restore();
+			stub = vi.spyOn( window, 'open' ).mockReturnValue( undefined );
 		} );
 
 		it( 'should open a new browser tab', () => {
@@ -325,9 +366,78 @@ describe( 'utils', () => {
 
 			openLink( url );
 
-			expect( stub.calledOnce ).to.be.true;
-			expect( stub.calledOn( window ) ).to.be.true;
-			expect( stub.calledWith( url, '_blank', 'noopener' ) ).to.be.true;
+			expect( stub ).toHaveBeenCalledOnce();
+			expect( stub ).toHaveBeenCalledWith( url, '_blank', 'noopener' );
+		} );
+	} );
+
+	describe( 'extractTextFromLinkRange()', () => {
+		let editor;
+
+		beforeEach( async () => {
+			function InlineWidget( editor ) {
+				editor.model.schema.register( 'inlineWidget', { inheritAllFrom: '$inlineObject' } );
+				editor.conversion.elementToElement( {
+					view: { name: 'span', class: 'foo' },
+					model: 'inlineWidget'
+				} );
+			}
+
+			editor = await ModelTestEditor.create( {
+				plugins: [ Paragraph, InlineWidget, BoldEditing ]
+			} );
+		} );
+
+		afterEach( async () => {
+			await editor.destroy();
+		} );
+
+		it( 'should extract text from range', () => {
+			_setModelData( editor.model, '<paragraph>foo[bar]baz</paragraph>' );
+
+			const text = extractTextFromLinkRange( editor.model.document.selection.getFirstRange() );
+
+			expect( text ).toBe( 'bar' );
+		} );
+
+		it( 'should extract text from range even when split into multiple text nodes with different style', () => {
+			_setModelData( editor.model,
+				'<paragraph>' +
+					'abc[fo' +
+					'<$text bold="true">ob</$text>' +
+					'ar]def' +
+				'</paragraph>'
+			);
+
+			expect( editor.model.document.getRoot().getChild( 0 ).childCount ).toBe( 3 );
+
+			const text = extractTextFromLinkRange( editor.model.document.selection.getFirstRange() );
+
+			expect( text ).toBe( 'foobar' );
+		} );
+
+		it( 'should return undefined if range includes an inline object', () => {
+			_setModelData( editor.model, '<paragraph>foo[ba<inlineWidget></inlineWidget>r]baz</paragraph>' );
+
+			const text = extractTextFromLinkRange( editor.model.document.selection.getFirstRange() );
+
+			expect( text ).toBeUndefined();
+		} );
+
+		it( 'should return undefined if range is on an inline object', () => {
+			_setModelData( editor.model, '<paragraph>fooba[<inlineWidget></inlineWidget>]rbaz</paragraph>' );
+
+			const text = extractTextFromLinkRange( editor.model.document.selection.getFirstRange() );
+
+			expect( text ).toBeUndefined();
+		} );
+
+		it( 'should return undefined if range is spanning multiple blocks', () => {
+			_setModelData( editor.model, '<paragraph>f[oo</paragraph><paragraph>ba]z</paragraph>' );
+
+			const text = extractTextFromLinkRange( editor.model.document.selection.getFirstRange() );
+
+			expect( text ).toBeUndefined();
 		} );
 	} );
 } );

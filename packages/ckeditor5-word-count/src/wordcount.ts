@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module word-count/wordcount
  */
 
-import { type DocumentChangeEvent } from 'ckeditor5/src/engine';
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import { Template, View } from 'ckeditor5/src/ui';
-import { env } from 'ckeditor5/src/utils';
+import { type ModelDocumentChangeEvent } from '@ckeditor/ckeditor5-engine';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import { Template, View } from '@ckeditor/ckeditor5-ui';
+import { env } from '@ckeditor/ckeditor5-utils';
 
-import { modelElementToPlainText } from './utils';
-import type { WordCountConfig } from './wordcountconfig';
+import { modelElementToPlainText } from './utils.js';
+import type { WordCountConfig } from './wordcountconfig.js';
 
-import { throttle, isElement } from 'lodash-es';
+import { throttle, isElement } from 'es-toolkit/compat';
 
 /**
  * The word count plugin.
  *
- * This plugin calculates all words and characters in all {@link module:engine/model/text~Text text nodes} available in the model.
+ * This plugin calculates all words and characters in all {@link module:engine/model/text~ModelText text nodes} available in the model.
  * It also provides an HTML element that updates its state whenever the editor content is changed.
  *
  * The model's data is first converted to plain text using {@link module:word-count/utils~modelElementToPlainText}.
@@ -47,7 +47,7 @@ import { throttle, isElement } from 'lodash-es';
  * // Words: 1, Characters: 5
  * ```
  */
-export default class WordCount extends Plugin {
+export class WordCount extends Plugin {
 	/**
 	 * The number of characters in the editor.
 	 *
@@ -147,11 +147,33 @@ export default class WordCount extends Plugin {
 
 	/**
 	 * @inheritDoc
+	 * @internal
+	 */
+	public static get licenseFeatureCode(): string {
+		return 'WC';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isPremiumPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
 	 */
 	public init(): void {
 		const editor = this.editor;
 
-		editor.model.document.on<DocumentChangeEvent>( 'change:data', throttle( this._refreshStats.bind( this ), 250 ) );
+		editor.model.document.on<ModelDocumentChangeEvent>( 'change:data', throttle( this._refreshStats.bind( this ), 250 ) );
 
 		if ( typeof this._config.onUpdate == 'function' ) {
 			this.on<WordCountUpdateEvent>( 'update', ( evt, data ) => {

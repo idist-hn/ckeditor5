@@ -1,16 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import isComment from '../../src/dom/iscomment';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { isComment } from '../../src/dom/iscomment.js';
 
 describe( 'isComment()', () => {
 	let text, element, documentFragment, comment;
 
-	before( () => {
+	beforeAll( () => {
 		text = document.createTextNode( 'test' );
 		element = document.createElement( 'div' );
 		documentFragment = document.createDocumentFragment();
@@ -18,13 +17,13 @@ describe( 'isComment()', () => {
 	} );
 
 	it( 'should return true for HTML comments', () => {
-		expect( isComment( comment ) ).to.be.true;
+		expect( isComment( comment ) ).toBe( true );
 	} );
 
 	it( 'should return false for other arguments', () => {
-		expect( isComment( text ) ).to.be.false;
-		expect( isComment( element ) ).to.be.false;
-		expect( isComment( documentFragment ) ).to.be.false;
-		expect( isComment( {} ) ).to.be.false;
+		expect( isComment( text ) ).toBe( false );
+		expect( isComment( element ) ).toBe( false );
+		expect( isComment( documentFragment ) ).toBe( false );
+		expect( isComment( {} ) ).toBe( false );
 	} );
 } );

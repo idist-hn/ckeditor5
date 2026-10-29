@@ -1,33 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, setTimeout */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Table, TableToolbar } from '@ckeditor/ckeditor5-table';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { Link } from '@ckeditor/ckeditor5-link';
+import { Delete } from '@ckeditor/ckeditor5-typing';
+import { ViewDocumentDomEventData, _parseView, _getViewData, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import ClipboardPipeline from '@ckeditor/ckeditor5-clipboard/src/clipboardpipeline';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import TableToolbar from '@ckeditor/ckeditor5-table/src/tabletoolbar';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import Link from '@ckeditor/ckeditor5-link/src/link';
-import Delete from '@ckeditor/ckeditor5-typing/src/delete';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { parse as parseView, getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-import MentionEditing from '../src/mentionediting';
-import Mention from '../src/mention';
-import MentionUI from '../src/mentionui';
+import { MentionEditing } from '../src/mentionediting.js';
+import { Mention } from '../src/mention.js';
+import { MentionUI } from '../src/mentionui.js';
 
 describe( 'Mention feature - integration', () => {
 	let div, editor, model, doc;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		div = document.createElement( 'div' );
@@ -53,11 +45,13 @@ describe( 'Mention feature - integration', () => {
 				} );
 		} );
 
-		// Failing test. See ckeditor/ckeditor5#1645.
+		// Failing test. See https://github.com/ckeditor/ckeditor5/issues/1645.
 		it( 'should restore removed mention on adding a text inside mention', () => {
-			editor.setData( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
+			editor.setData( '<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>' );
 
-			expect( editor.getData() ).to.equal( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
+			expect( editor.getData() ).toBe(
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>'
+			);
 
 			model.change( writer => {
 				const paragraph = doc.getRoot().getChild( 0 );
@@ -67,21 +61,25 @@ describe( 'Mention feature - integration', () => {
 				writer.insertText( 'a', doc.selection.getAttributes(), writer.createPositionAt( paragraph, 6 ) );
 			} );
 
-			expect( editor.getData() ).to.equal( '<p>foo @Jaohn bar</p>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal( '<p>foo @Jaohn bar</p>' );
+			expect( editor.getData() ).toBe( '<p>foo @Jaohn bar</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe( '<p>foo @Jaohn bar</p>' );
 
 			editor.execute( 'undo' );
 
-			expect( editor.getData() ).to.equal( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
+			expect( editor.getData() ).toBe(
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>'
+			);
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toBe( '<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>' );
 		} );
 
-		// Failing test. See ckeditor/ckeditor5#1645.
+		// Failing test. See https://github.com/ckeditor/ckeditor5/issues/1645.
 		it( 'should restore removed mention on removing a text inside mention', () => {
-			editor.setData( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
+			editor.setData( '<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>' );
 
-			expect( editor.getData() ).to.equal( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
+			expect( editor.getData() ).toBe(
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>'
+			);
 
 			model.change( writer => {
 				const paragraph = doc.getRoot().getChild( 0 );
@@ -92,20 +90,22 @@ describe( 'Mention feature - integration', () => {
 				model.deleteContent( doc.selection );
 			} );
 
-			expect( editor.getData() ).to.equal( '<p>foo @Jhn bar</p>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal( '<p>foo @Jhn bar</p>' );
+			expect( editor.getData() ).toBe( '<p>foo @Jhn bar</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toBe( '<p>foo @Jhn bar</p>' );
 
 			editor.execute( 'undo' );
 
-			expect( editor.getData() ).to.equal( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( '<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>' );
+			expect( editor.getData() ).toBe(
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>'
+			);
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toBe( '<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>' );
 		} );
 
 		it( 'should work with attribute post-fixer (beginning formatted)', () => {
 			testAttributePostFixer(
-				'<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>',
-				'<p><strong>foo <span class="mention" data-mention="@John">@John</span></strong> bar</p>',
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>',
+				'<p><strong>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span></strong> bar</p>',
 				() => {
 					model.change( writer => {
 						const paragraph = doc.getRoot().getChild( 0 );
@@ -121,8 +121,8 @@ describe( 'Mention feature - integration', () => {
 
 		it( 'should work with attribute post-fixer (end formatted)', () => {
 			testAttributePostFixer(
-				'<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>',
-				'<p>foo <strong><span class="mention" data-mention="@John">@John</span> ba</strong>r</p>',
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>',
+				'<p>foo <strong><span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> ba</strong>r</p>',
 				() => {
 					model.change( writer => {
 						const paragraph = doc.getRoot().getChild( 0 );
@@ -138,8 +138,8 @@ describe( 'Mention feature - integration', () => {
 
 		it( 'should work with attribute post-fixer (middle formatted)', () => {
 			testAttributePostFixer(
-				'<p>foo <span class="mention" data-mention="@John">@John</span> bar</p>',
-				'<p>foo <strong><span class="mention" data-mention="@John">@John</span></strong> bar</p>',
+				'<p>foo <span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> bar</p>',
+				'<p>foo <strong><span class="mention" data-mention="@John" data-mention-uid="u1">@John</span></strong> bar</p>',
 				() => {
 					model.change( writer => {
 						const paragraph = doc.getRoot().getChild( 0 );
@@ -156,27 +156,27 @@ describe( 'Mention feature - integration', () => {
 		function testAttributePostFixer( initialData, expectedData, testCallback ) {
 			editor.setData( initialData );
 
-			expect( editor.getData() ).to.equal( initialData );
+			expect( editor.getData() ).toBe( initialData );
 
 			testCallback();
 
 			expect( editor.getData() )
-				.to.equal( expectedData );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( expectedData );
+				.toBe( expectedData );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toBe( expectedData );
 
 			editor.execute( 'undo' );
 
-			expect( editor.getData() ).to.equal( initialData );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( initialData );
+			expect( editor.getData() ).toBe( initialData );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toBe( initialData );
 
 			editor.execute( 'redo' );
 
 			expect( editor.getData() )
-				.to.equal( expectedData );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( expectedData );
+				.toBe( expectedData );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toBe( expectedData );
 		}
 	} );
 
@@ -195,6 +195,61 @@ describe( 'Mention feature - integration', () => {
 				} );
 		} );
 
+		it( 'should generate new uid when pasting mention copied from the editor', () => {
+			editor.setData( '<p><span class="mention" data-mention="@John" data-mention-uid="u1">@John</span> foobar</p>' );
+
+			const originalUid = doc.getRoot().getChild( 0 ).getChild( 0 ).getAttribute( 'mention' ).uid;
+
+			expect( originalUid ).toBe( 'u1' );
+
+			// Select the mention and copy it.
+			model.change( writer => {
+				const paragraph = doc.getRoot().getChild( 0 );
+
+				writer.setSelection( writer.createRange(
+					writer.createPositionAt( paragraph, 0 ),
+					writer.createPositionAt( paragraph, 5 )
+				) );
+			} );
+
+			const dataTransferMock = { setData: vi.fn(), getData: vi.fn() };
+
+			editor.editing.view.document.fire( 'copy', {
+				dataTransfer: dataTransferMock,
+				preventDefault: vi.fn()
+			} );
+
+			// The clipboard HTML should not contain data-mention-uid.
+			const clipboardHtml = dataTransferMock.setData.mock.calls[ 0 ][ 1 ];
+
+			expect( clipboardHtml ).not.toContain( 'data-mention-uid' );
+
+			// Now paste at the end.
+			model.change( writer => {
+				writer.setSelection( doc.getRoot().getChild( 0 ), 'end' );
+			} );
+
+			dataTransferMock.getData.mockImplementation( format => format === 'text/html' ? clipboardHtml : undefined );
+
+			clipboard.fire( 'inputTransformation', {
+				content: _parseView( clipboardHtml )
+			} );
+
+			// Find the pasted mention (last text node with mention attribute).
+			const paragraph = doc.getRoot().getChild( 0 );
+			let pastedMentionNode;
+
+			for ( const child of paragraph.getChildren() ) {
+				if ( child.hasAttribute && child.hasAttribute( 'mention' ) ) {
+					pastedMentionNode = child;
+				}
+			}
+
+			expect( pastedMentionNode ).not.toBeUndefined();
+			expect( pastedMentionNode.getAttribute( 'mention' ) ).toHaveProperty( 'id', '@John' );
+			expect( pastedMentionNode.getAttribute( 'mention' ).uid ).not.toBe( 'u1' );
+		} );
+
 		it( 'should not fix broken mention inside pasted content', () => {
 			editor.setData( '<p>foobar</p>' );
 
@@ -203,17 +258,19 @@ describe( 'Mention feature - integration', () => {
 			} );
 
 			clipboard.fire( 'inputTransformation', {
-				content: parseView( '<blockquote><p>xxx<span class="mention" data-mention="@John">@Joh</span></p></blockquote>' )
+				content: _parseView(
+					'<blockquote><p>xxx<span class="mention" data-mention="@John" data-mention-uid="u1">@Joh</span></p></blockquote>'
+				)
 			} );
 
 			const expectedData = '<p>foo</p>' +
-				'<blockquote><p>xxx<span class="mention" data-mention="@John">@Joh</span></p></blockquote>' +
+				'<blockquote><p>xxx<span class="mention" data-mention="@John" data-mention-uid="u1">@Joh</span></p></blockquote>' +
 				'<p>bar</p>';
 
 			expect( editor.getData() )
-				.to.equal( expectedData );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( expectedData );
+				.toBe( expectedData );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toBe( expectedData );
 		} );
 	} );
 
@@ -221,7 +278,7 @@ describe( 'Mention feature - integration', () => {
 		beforeEach( () => {
 			return ClassicTestEditor
 				.create( div, {
-					plugins: [ Paragraph, Table, TableToolbar, Mention ],
+					plugins: [ Paragraph, Table, TableToolbar, Mention, ClipboardPipeline ],
 					table: {
 						contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells' ]
 					},
@@ -244,7 +301,7 @@ describe( 'Mention feature - integration', () => {
 		it( 'should work with table toolbar', () => {
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '<table><tableRow><tableCell><paragraph>foo []</paragraph></tableCell></tableRow></table>' );
+			_setModelData( model, '<table><tableRow><tableCell><paragraph>foo []</paragraph></tableCell></tableRow></table>' );
 
 			const balloon = editor.plugins.get( 'ContextualBalloon' );
 			const panelView = balloon.view;
@@ -259,15 +316,15 @@ describe( 'Mention feature - integration', () => {
 				} )
 				.then( () => new Promise( resolve => setTimeout( resolve, 200 ) ) )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( balloon.visibleView === mentionsView ).to.be.true;
+					expect( panelView.isVisible ).toBe( true );
+					expect( balloon.visibleView === mentionsView ).toBe( true );
 
 					model.change( writer => {
 						writer.setSelection( doc.getRoot().getNodeByPath( [ 0, 0, 0, 0 ] ), '1' );
 					} );
 
-					expect( panelView.isVisible ).to.be.true;
-					expect( balloon.visibleView === mentionsView ).to.be.false;
+					expect( panelView.isVisible ).toBe( true );
+					expect( balloon.visibleView === mentionsView ).toBe( false );
 				} );
 		} );
 	} );
@@ -296,7 +353,7 @@ describe( 'Mention feature - integration', () => {
 		it( 'should work with link toolbar', () => {
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '<paragraph>[]</paragraph>' );
+			_setModelData( model, '<paragraph>[]</paragraph>' );
 
 			const balloon = editor.plugins.get( 'ContextualBalloon' );
 			const panelView = balloon.view;
@@ -309,15 +366,16 @@ describe( 'Mention feature - integration', () => {
 
 					// Show link UI
 					editor.execute( 'link', '@' );
-					// The link is not being selected after inserting it. We need to put the selection manually. See #1016.
+					// The link is not being selected after inserting it. We need to put the selection manually.
+					// See https://github.com/ckeditor/ckeditor5/issues/1016.
 					model.change( writer => {
 						writer.setSelection( writer.createRangeOn( model.document.getRoot().getChild( 0 ).getChild( 0 ) ) );
 					} );
 
 					editor.editing.view.document.fire( 'click', { domEvent: {} } );
 
-					expect( panelView.isVisible ).to.be.true;
-					expect( balloon.visibleView === mentionsView ).to.be.false; // LinkUI
+					expect( panelView.isVisible ).toBe( true );
+					expect( balloon.visibleView === mentionsView ).toBe( false ); // LinkUI
 
 					model.change( writer => {
 						writer.setSelection( doc.getRoot().getChild( 0 ), 'end' );
@@ -325,12 +383,12 @@ describe( 'Mention feature - integration', () => {
 				} )
 				.then( () => new Promise( resolve => setTimeout( resolve, 200 ) ) )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( balloon.visibleView === mentionsView ).to.be.true;
+					expect( panelView.isVisible ).toBe( true );
+					expect( balloon.visibleView === mentionsView ).toBe( true );
 
 					editor.execute( 'delete' );
 
-					expect( panelView.isVisible ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
 				} );
 		} );
 	} );
@@ -339,7 +397,7 @@ describe( 'Mention feature - integration', () => {
 		beforeEach( () => {
 			return ClassicTestEditor
 				.create( div, {
-					plugins: [ Paragraph, Table, Mention ],
+					plugins: [ Paragraph, Table, Mention, ClipboardPipeline ],
 					mention: {
 						feeds: [
 							{
@@ -361,10 +419,10 @@ describe( 'Mention feature - integration', () => {
 			expect( () => {
 				editor.setData(
 					'<figure class="table"><table><tbody><tr><td>' +
-						'<span class="mention" data-mention="@Barney">@Barney</span> ' +
-						'<span class="mention" data-mention="@Barney">@Barney</span>' +
+						'<span class="mention" data-mention="@Barney" data-mention-uid="u1">@Barney</span> ' +
+						'<span class="mention" data-mention="@Barney" data-mention-uid="u2">@Barney</span>' +
 					'</td></tr></tbody></table></figure><p>&nbsp;</p>' );
-			} ).not.to.throw();
+			} ).not.toThrow();
 
 			// Set selection after the table
 			editor.model.change( writer => {
@@ -373,20 +431,20 @@ describe( 'Mention feature - integration', () => {
 				writer.setSelection( paragraph, 0 );
 			} );
 
-			const deleteEvent = new DomEventData(
+			const deleteEvent = new ViewDocumentDomEventData(
 				viewDocument,
-				{ preventDefault: sinon.spy() },
+				{ preventDefault: vi.fn() },
 				{ direction: 'backward', unit: 'codePoint', sequence: 1 }
 			);
 
 			expect( () => {
 				viewDocument.fire( 'delete', deleteEvent );
-			} ).not.to.throw();
+			} ).not.toThrow();
 
-			expect( editor.getData() ).to.equal(
+			expect( editor.getData() ).toBe(
 				'<figure class="table"><table><tbody><tr><td>' +
-					'<span class="mention" data-mention="@Barney">@Barney</span> ' +
-					'<span class="mention" data-mention="@Barney">@Barney</span>' +
+					'<span class="mention" data-mention="@Barney" data-mention-uid="u1">@Barney</span> ' +
+					'<span class="mention" data-mention="@Barney" data-mention-uid="u2">@Barney</span>' +
 				'</td></tr></tbody></table></figure>'
 			);
 		} );

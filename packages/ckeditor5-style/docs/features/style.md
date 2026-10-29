@@ -1,6 +1,7 @@
 ---
 menu-title: Styles
 meta-title: Styles | CKEditor 5 Documentation
+meta-description: Apply predefined styles to content in CKEditor 5 using the Style feature to ensure consistent formatting and visual design.
 category: features
 modified_at: 2022-07-22
 ---
@@ -15,9 +16,9 @@ Use the demo below to test the styles feature. Select a passage or a header and 
 
 {@snippet features/styles}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 <details>
 <summary>Configuration of the above demo</summary>
@@ -82,7 +83,7 @@ style: {
 // ...
 ```
 
-The stylesheet:
+The style sheet:
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap');
@@ -225,61 +226,41 @@ The stylesheet:
 
 ## Installation
 
-<info-box info>
-	The style feature is not available in any of the {@link installation/getting-started/predefined-builds predefined builds}.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your rich-text editor, install the [`@ckeditor/ckeditor5-style`](https://www.npmjs.com/package/@ckeditor/ckeditor5-style) package:
-
-```plaintext
-npm install --save @ckeditor/ckeditor5-style
-```
-
-Then add it to the editor configuration:
-
+<code-switcher>
 ```js
-import { Style } from '@ckeditor/ckeditor5-style';
+import { ClassicEditor, Style, GeneralHtmlSupport } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ Style, /* ... */ ],
-		toolbar: {
-			items: [
-				'style',
-				// More toolbar items.
-				// ...
-			],
-		},
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
+		plugins: [ Style, GeneralHtmlSupport, /* ... */ ],
+		toolbar: [ 'style', /* ... */ ],
 		style: {
-			definitions: [
-				// Styles definitions.
-				// ...
-			]
+			// Configuration.
+		},
+		htmlSupport: {
+			// Configuration.
 		}
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
+</code-switcher>
 
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
+<info-box important>
+	The style feature requires the {@link features/general-html-support General HTML Support} feature to work properly.
 </info-box>
 
 ## Configuration
 
-Configuring the styles feature takes two steps. First you need to define the styles in the configuration file, for example:
+Configuring the styles feature takes two steps. First, you need to define the styles in the configuration file, for example:
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ Style, /* ... */ ],
-		toolbar: {
-			items: [
-				'style',
-				// More toolbar items.
-				// ...
-			],
-		},
+	.create( {
+		// ... Other configuration options ...
 		style: {
 			definitions: [
 				{
@@ -297,10 +278,9 @@ ClassicEditor
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
-
 ```
 
-Then, corresponding CSS styles need to be defined for the document:
+Then, define the corresponding CSS styles for the document:
 
 ```css
 .ck.ck-content h3.category {
@@ -322,35 +302,36 @@ Then, corresponding CSS styles need to be defined for the document:
 }
 ```
 
-Note that the editor will automatically distinguish text and block styles and group them in the dropdown.
+The editor will automatically distinguish text and block styles and group them in the dropdown.
 
 ## Known issues
 
-At present, the style feature may clash with other features that bring in similar content (e.g. headings). Problems with overlapping styles applied to the same element may also occur.
+At present, the style feature may clash with other features that bring in similar content (like headings). Problems with overlapping styles applied to the same element may also occur.
 
 ## Related features
 
 Check out also these CKEditor&nbsp;5 features to gain better control over your content style and format:
+
 * {@link features/basic-styles Basic text styles} &ndash; Apply the most frequently used formatting such as bold, italic, underline, etc.
-* {@link features/font Font styles} &ndash; Easily and efficiently control the font {@link features/font#configuring-the-font-family-feature family}, {@link features/font#configuring-the-font-size-feature size}, {@link features/font#configuring-the-font-color-and-font-background-color-features text or background color}.
+* {@link features/font Font styles} &ndash; Control the font {@link features/font#configuring-the-font-family-feature family}, {@link features/font#configuring-the-font-size-feature size}, {@link features/font#configuring-the-font-color-and-font-background-color-features text or background color}.
 * {@link features/headings Headings} &ndash; Divide your content into sections.
 * {@link features/format-painter Format painter} &ndash; Easily copy text formatting and apply it in a different place in the edited document.
 * {@link features/remove-format Remove format} &ndash; Easily clean basic text formatting.
-* {@link features/general-html-support General HTML support} &ndash; Allows enabling additional HTML, such as `<style>` and `<classes>` attributes.
+* {@link features/general-html-support General HTML support} &ndash; Enable additional HTML, such as `<style>` and `<classes>` attributes.
 
 ## Common API
 
 The {@link module:style/style~Style Style} plugin registers:
 
 * The `'style'` command implemented by {@link module:style/stylecommand~StyleCommand}.
-* The `'style'` UI drop-down.
+* The `'style'` UI dropdown.
 
-The command can be executed using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
+You can execute the command using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
 
 ```js
 // Applies the style to the selected content.
 // Executing the command again will remove the style from the selected content.
-editor.execute( 'style', 'Article category' );
+editor.execute( 'style', { styleName: 'Article category' } );
 ```
 
 <info-box>

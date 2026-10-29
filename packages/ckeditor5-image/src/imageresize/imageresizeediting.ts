@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageresize/imageresizeediting
  */
 
-import type { ViewElement } from 'ckeditor5/src/engine';
-import { type Editor, Plugin } from 'ckeditor5/src/core';
-import ImageUtils from '../imageutils';
-import ResizeImageCommand from './resizeimagecommand';
-import { widthAndHeightStylesAreBothSet } from '../image/utils';
+import type { ViewElement } from '@ckeditor/ckeditor5-engine';
+import { type Editor, Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageUtils } from '../imageutils.js';
+import { ResizeImageCommand } from './resizeimagecommand.js';
+import { widthAndHeightStylesAreBothSet } from '../image/utils.js';
 
 /**
  * The image resize editing feature.
@@ -19,12 +19,12 @@ import { widthAndHeightStylesAreBothSet } from '../image/utils';
  * It adds the ability to resize each image using handles or manually by
  * {@link module:image/imageresize/imageresizebuttons~ImageResizeButtons} buttons.
  */
-export default class ImageResizeEditing extends Plugin {
+export class ImageResizeEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageUtils ]> {
+		return [ ImageUtils ];
 	}
 
 	/**
@@ -36,32 +36,61 @@ export default class ImageResizeEditing extends Plugin {
 
 	/**
 	 * @inheritDoc
+	 * @internal
+	 */
+	public static get licenseFeatureCode(): string {
+		return 'IR';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isPremiumPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
 	 */
 	constructor( editor: Editor ) {
 		super( editor );
 
 		editor.config.define( 'image', {
 			resizeUnit: '%',
-			resizeOptions: [ {
-				name: 'resizeImage:original',
-				value: null,
-				icon: 'original'
-			},
-			{
-				name: 'resizeImage:25',
-				value: '25',
-				icon: 'small'
-			},
-			{
-				name: 'resizeImage:50',
-				value: '50',
-				icon: 'medium'
-			},
-			{
-				name: 'resizeImage:75',
-				value: '75',
-				icon: 'large'
-			} ]
+			resizeOptions: [
+				{
+					name: 'resizeImage:original',
+					value: null,
+					icon: 'original'
+				},
+				{
+					name: 'resizeImage:custom',
+					value: 'custom',
+					icon: 'custom'
+				},
+				{
+					name: 'resizeImage:25',
+					value: '25',
+					icon: 'small'
+				},
+				{
+					name: 'resizeImage:50',
+					value: '50',
+					icon: 'medium'
+				},
+				{
+					name: 'resizeImage:75',
+					value: '75',
+					icon: 'large'
+				}
+			]
 		} );
 	}
 
@@ -72,7 +101,6 @@ export default class ImageResizeEditing extends Plugin {
 		const editor = this.editor;
 		const resizeImageCommand = new ResizeImageCommand( editor );
 
-		this._registerSchema();
 		this._registerConverters( 'imageBlock' );
 		this._registerConverters( 'imageInline' );
 
@@ -81,13 +109,26 @@ export default class ImageResizeEditing extends Plugin {
 		editor.commands.add( 'imageResize', resizeImageCommand );
 	}
 
+	/**
+	 * @inheritDoc
+	 */
+	public afterInit(): void {
+		this._registerSchema();
+	}
+
 	private _registerSchema(): void {
+		const schema = this.editor.model.schema;
+
 		if ( this.editor.plugins.has( 'ImageBlockEditing' ) ) {
-			this.editor.model.schema.extend( 'imageBlock', { allowAttributes: [ 'resizedWidth', 'resizedHeight' ] } );
+			schema.extend( 'imageBlock', { allowAttributes: [ 'resizedWidth', 'resizedHeight' ] } );
+			schema.setAttributeProperties( 'resizedWidth', { isFormatting: true } );
+			schema.setAttributeProperties( 'resizedHeight', { isFormatting: true } );
 		}
 
 		if ( this.editor.plugins.has( 'ImageInlineEditing' ) ) {
-			this.editor.model.schema.extend( 'imageInline', { allowAttributes: [ 'resizedWidth', 'resizedHeight' ] } );
+			schema.extend( 'imageInline', { allowAttributes: [ 'resizedWidth', 'resizedHeight' ] } );
+			schema.setAttributeProperties( 'resizedWidth', { isFormatting: true } );
+			schema.setAttributeProperties( 'resizedHeight', { isFormatting: true } );
 		}
 	}
 
@@ -190,5 +231,11 @@ export default class ImageResizeEditing extends Plugin {
 					}
 				}
 			} );
+
+		editor.conversion.for( 'upcast' ).add( dispatcher => {
+			dispatcher.on( `element:${ imageType === 'imageBlock' ? 'figure' : 'img' }`, ( evt, data, conversionApi ) => {
+				conversionApi.consumable.consume( data.viewItem, { classes: [ 'image_resized' ] } );
+			} );
+		} );
 	}
 }

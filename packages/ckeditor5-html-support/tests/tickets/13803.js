@@ -1,14 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import LinkEditing from '@ckeditor/ckeditor5-link/src/linkediting';
-import GeneralHtmlSupport from '../../src/generalhtmlsupport';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { LinkEditing } from '@ckeditor/ckeditor5-link';
+import { GeneralHtmlSupport } from '../../src/generalhtmlsupport.js';
 
 describe( 'bug #13803', () => {
 	let editor, editorElement;
@@ -48,6 +47,6 @@ describe( 'bug #13803', () => {
 
 		editor.setData( data );
 
-		expect( editor.getData() ).to.equalMarkup( data );
+		expect( editor.getData() ).toBe( data );
 	} );
 } );

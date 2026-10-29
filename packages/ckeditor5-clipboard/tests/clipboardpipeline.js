@@ -1,32 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClipboardPipeline from '../src/clipboardpipeline';
-import ClipboardObserver from '../src/clipboardobserver';
-import DataTransfer from '@ckeditor/ckeditor5-engine/src/view/datatransfer';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ViewDocumentFragment from '@ckeditor/ckeditor5-engine/src/view/documentfragment';
-import ModelDocumentFragment from '@ckeditor/ckeditor5-engine/src/model/documentfragment';
-import ViewText from '@ckeditor/ckeditor5-engine/src/view/text';
-import {
-	stringify as stringifyView,
-	parse as parseView
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import {
-	stringify as stringifyModel,
-	setData as setModelData,
-	getData as getModelData
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { ClipboardPipeline } from '../src/clipboardpipeline.js';
+import { ClipboardObserver } from '../src/clipboardobserver.js';
+import { ViewDataTransfer, ViewDocumentFragment, ModelDocumentFragment, ViewText,
+	_stringifyView,
+	_parseView,
+	_stringifyModel,
+	_setModelData,
+	_getModelData
+} from '@ckeditor/ckeditor5-engine';
+
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
 describe( 'ClipboardPipeline feature', () => {
 	let editor, view, viewDocument, clipboardPlugin, scrollSpy;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return VirtualTestEditor
@@ -41,222 +35,358 @@ describe( 'ClipboardPipeline feature', () => {
 
 				// VirtualTestEditor has no DOM, so this method must be stubbed for all tests.
 				// Otherwise it will throw as it accesses the DOM to do its job.
-				scrollSpy = sinon.stub( view, 'scrollToTheSelection' );
+				scrollSpy = vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
 			} );
+	} );
+
+	afterEach( async () => {
+		await editor.destroy();
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ClipboardPipeline.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ClipboardPipeline.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'registers ClipboardObserver', () => {
-			expect( view.getObserver( ClipboardObserver ) ).to.be.instanceOf( ClipboardObserver );
+			expect( view.getObserver( ClipboardObserver ) ).toBeInstanceOf( ClipboardObserver );
 		} );
 	} );
 
 	describe( 'clipboard paste pipeline', () => {
 		describe( 'takes HTML data from the dataTransfer', () => {
-			it( 'and fires the clipboardInput event on the editingView', done => {
-				const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-				const preventDefaultSpy = sinon.spy();
+			it( 'and fires the clipboardInput event on the editingView', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
+					const preventDefaultSpy = vi.fn();
 
-				viewDocument.on( 'clipboardInput', ( evt, data ) => {
-					expect( preventDefaultSpy.calledOnce ).to.be.true;
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
+					viewDocument.on( 'clipboardInput', ( evt, data ) => {
+						expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
 
-					done();
-				} );
+						resolve();
+					} );
 
-				viewDocument.fire( 'paste', {
-					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy
-				} );
-			} );
-
-			it( 'and fires the inputTransformation event on the clipboardPlugin', done => {
-				const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-				const preventDefaultSpy = sinon.spy();
-
-				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
-					expect( data.content ).is.instanceOf( ViewDocumentFragment );
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
-					expect( stringifyView( data.content ) ).to.equal( '<p>x</p>' );
-
-					done();
-				} );
-
-				viewDocument.fire( 'paste', {
-					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy
+					} );
 				} );
 			} );
 
-			it( 'and fires the contentInsertion event on the clipboardPlugin', done => {
-				const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-				const preventDefaultSpy = sinon.spy();
+			it( 'and fires the inputTransformation event on the clipboardPlugin', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
+					const preventDefaultSpy = vi.fn();
 
-				clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
-					expect( data.content ).is.instanceOf( ModelDocumentFragment );
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
-					expect( stringifyModel( data.content ) ).to.equal( '<paragraph>x</paragraph>' );
+					clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+						expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
+						expect( _stringifyView( data.content ) ).toBe( '<p>x</p>' );
 
-					done();
+						resolve();
+					} );
+
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy
+					} );
 				} );
+			} );
 
-				viewDocument.fire( 'paste', {
-					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy
+			it( 'and fires the contentInsertion event on the clipboardPlugin', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
+					const preventDefaultSpy = vi.fn();
+
+					clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
+						expect( data.content ).toBeInstanceOf( ModelDocumentFragment );
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
+						expect( _stringifyModel( data.content ) ).toBe( '<paragraph>x</paragraph>' );
+
+						resolve();
+					} );
+
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy
+					} );
 				} );
 			} );
 		} );
 
 		describe( 'takes plain text data from the dataTransfer if there is no HTML', () => {
-			it( 'and fires the clipboardInput event on the editingView', done => {
-				const dataTransferMock = createDataTransfer( { 'text/plain': 'x\n\ny  z' } );
-				const preventDefaultSpy = sinon.spy();
+			it( 'and fires the clipboardInput event on the editingView', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/plain': 'x\n\ny  z' } );
+					const preventDefaultSpy = vi.fn();
 
-				viewDocument.on( 'clipboardInput', ( evt, data ) => {
-					expect( preventDefaultSpy.calledOnce ).to.be.true;
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
+					viewDocument.on( 'clipboardInput', ( evt, data ) => {
+						expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
 
-					done();
-				} );
+						resolve();
+					} );
 
-				viewDocument.fire( 'paste', {
-					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy,
-					method: 'paste'
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy,
+						method: 'paste'
+					} );
 				} );
 			} );
 
-			it( 'and fires the inputTransformation event on the clipboardPlugin', done => {
-				const dataTransferMock = createDataTransfer( { 'text/plain': 'x\n\ny  z' } );
-				const preventDefaultSpy = sinon.spy();
+			it( 'and fires the inputTransformation event on the clipboardPlugin', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/plain': 'x\n\ny  z' } );
+					const preventDefaultSpy = vi.fn();
+
+					clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+						expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
+						expect( _stringifyView( data.content ) ).toBe( '<p>x</p><p>y  z</p>' );
+
+						resolve();
+					} );
+
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy,
+						method: 'paste'
+					} );
+				} );
+			} );
+
+			it( 'and fires the contentInsertion event on the clipboardPlugin', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/plain': 'x\n\ny  z' } );
+					const preventDefaultSpy = vi.fn();
+
+					clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
+						expect( data.content ).toBeInstanceOf( ModelDocumentFragment );
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
+						expect( _stringifyModel( data.content ) ).toBe( '<paragraph>x</paragraph><paragraph>y  z</paragraph>' );
+
+						resolve();
+					} );
+
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy,
+						method: 'paste'
+					} );
+				} );
+			} );
+		} );
+
+		// https://github.com/ckeditor/ckeditor5/issues/2074
+		describe( 'takes URI list data from the dataTransfer if there is no HTML nor plain text', () => {
+			it( 'and inserts a single URI as plain text', () => {
+				const dataTransferMock = createDataTransfer( { 'text/uri-list': 'https://ckeditor.com/' } );
+
+				_setModelData( editor.model, '<paragraph>[]</paragraph>' );
+
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
+				} );
+
+				expect( _getModelData( editor.model ) ).toBe( '<paragraph>https://ckeditor.com/[]</paragraph>' );
+			} );
+
+			it( 'and skips comment and empty lines', () => {
+				const dataTransferMock = createDataTransfer( {
+					'text/uri-list': '# comment\r\nhttps://ckeditor.com/\r\n\r\n# another comment\r\nhttps://example.com/#hash\r\n'
+				} );
 
 				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
-					expect( data.content ).is.instanceOf( ViewDocumentFragment );
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
-					expect( stringifyView( data.content ) ).to.equal( '<p>x</p><p>y  z</p>' );
-
-					done();
+					expect( _stringifyView( data.content ) ).toBe( '<p>https://ckeditor.com/<br></br>https://example.com/#hash</p>' );
 				} );
 
 				viewDocument.fire( 'paste', {
 					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy,
-					method: 'paste'
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				} );
+
+				expect.assertions( 1 );
 			} );
 
-			it( 'and fires the contentInsertion event on the clipboardPlugin', done => {
-				const dataTransferMock = createDataTransfer( { 'text/plain': 'x\n\ny  z' } );
-				const preventDefaultSpy = sinon.spy();
-
-				clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
-					expect( data.content ).is.instanceOf( ModelDocumentFragment );
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
-					expect( stringifyModel( data.content ) ).to.equal( '<paragraph>x</paragraph><paragraph>y  z</paragraph>' );
-
-					done();
+			it( 'and prefers plain text over the URI list', () => {
+				const dataTransferMock = createDataTransfer( {
+					'text/plain': 'foo',
+					'text/uri-list': 'https://ckeditor.com/'
 				} );
+
+				_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 				viewDocument.fire( 'paste', {
 					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy,
-					method: 'paste'
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				} );
+
+				expect( _getModelData( editor.model ) ).toBe( '<paragraph>foo[]</paragraph>' );
 			} );
+
+			it( 'and inserts nothing if the URI list contains only comments', () => {
+				const dataTransferMock = createDataTransfer( { 'text/uri-list': '# comment' } );
+				const contentInsertionSpy = vi.fn();
+
+				clipboardPlugin.on( 'contentInsertion', contentInsertionSpy );
+
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
+				} );
+
+				expect( contentInsertionSpy ).not.toHaveBeenCalled();
+			} );
+
+			it( 'and inserts a single URI as plain text on drop', () => {
+				const dataTransferMock = createDataTransfer( { 'text/uri-list': 'https://ckeditor.com/' } );
+
+				_setModelData( editor.model, '<paragraph>[]</paragraph>' );
+
+				viewDocument.fire( 'drop', {
+					dataTransfer: dataTransferMock,
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
+				} );
+
+				expect( _getModelData( editor.model ) ).toBe( '<paragraph>https://ckeditor.com/[]</paragraph>' );
+			} );
+
+			for ( const method of [ 'paste', 'drop' ] ) {
+				it( `and inserts nothing on ${ method } if the data transfer contains files (their local paths)`, () => {
+					const fileMock = {
+						type: 'application/pdf',
+						size: 1024
+					};
+					const dataTransferMock = new ViewDataTransfer( {
+						files: [ fileMock ],
+						types: [ 'text/uri-list', 'Files' ],
+						getData: type => type == 'text/uri-list' ? 'file:///home/user/document.pdf' : ''
+					} );
+					const contentInsertionSpy = vi.fn();
+
+					clipboardPlugin.on( 'contentInsertion', contentInsertionSpy );
+
+					viewDocument.fire( method, {
+						dataTransfer: dataTransferMock,
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
+					} );
+
+					expect( contentInsertionSpy ).not.toHaveBeenCalled();
+				} );
+			}
 		} );
 
 		describe( 'should be possible to override clipboardInput data', () => {
-			it( 'fires the inputTransformation event on the clipboardPlugin', done => {
-				const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-				const preventDefaultSpy = sinon.spy();
+			it( 'fires the inputTransformation event on the clipboardPlugin', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
+					const preventDefaultSpy = vi.fn();
 
-				viewDocument.on( 'clipboardInput', ( evt, data ) => {
-					const fragment = new ViewDocumentFragment();
+					viewDocument.on( 'clipboardInput', ( evt, data ) => {
+						const fragment = new ViewDocumentFragment();
 
-					fragment._appendChild( parseView( '<p>foo</p>' ) );
-					data.content = fragment;
-				} );
+						fragment._appendChild( _parseView( '<p>foo</p>' ) );
+						data.content = fragment;
+					} );
 
-				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
-					expect( data.content ).is.instanceOf( ViewDocumentFragment );
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
-					expect( stringifyView( data.content ) ).to.equal( '<p>foo</p>' );
+					clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+						expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
+						expect( _stringifyView( data.content ) ).toBe( '<p>foo</p>' );
 
-					done();
-				} );
+						resolve();
+					} );
 
-				viewDocument.fire( 'paste', {
-					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy
+					} );
 				} );
 			} );
 
-			it( 'and fires the contentInsertion event on the clipboardPlugin', done => {
-				const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-				const preventDefaultSpy = sinon.spy();
+			it( 'and fires the contentInsertion event on the clipboardPlugin', () => {
+				return new Promise( resolve => {
+					const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
+					const preventDefaultSpy = vi.fn();
 
-				viewDocument.on( 'clipboardInput', ( evt, data ) => {
-					const fragment = new ViewDocumentFragment();
+					viewDocument.on( 'clipboardInput', ( evt, data ) => {
+						const fragment = new ViewDocumentFragment();
 
-					fragment._appendChild( parseView( '<p>foo</p>' ) );
-					data.content = fragment;
-				} );
+						fragment._appendChild( _parseView( '<p>foo</p>' ) );
+						data.content = fragment;
+					} );
 
-				clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
-					expect( data.content ).is.instanceOf( ModelDocumentFragment );
-					expect( data.dataTransfer ).to.equal( dataTransferMock );
-					expect( data.method ).to.equal( 'paste' );
-					expect( stringifyModel( data.content ) ).to.equal( '<paragraph>foo</paragraph>' );
+					clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
+						expect( data.content ).toBeInstanceOf( ModelDocumentFragment );
+						expect( data.dataTransfer ).toBe( dataTransferMock );
+						expect( data.method ).toBe( 'paste' );
+						expect( _stringifyModel( data.content ) ).toBe( '<paragraph>foo</paragraph>' );
 
-					done();
-				} );
+						resolve();
+					} );
 
-				viewDocument.fire( 'paste', {
-					dataTransfer: dataTransferMock,
-					preventDefault: preventDefaultSpy
+					viewDocument.fire( 'paste', {
+						dataTransfer: dataTransferMock,
+						preventDefault: preventDefaultSpy
+					} );
 				} );
 			} );
 		} );
 
-		it( 'fires events with empty data if there is no HTML nor plain text', done => {
-			const dataTransferMock = createDataTransfer( {} );
-			const preventDefaultSpy = sinon.spy();
-			const editorViewCalled = sinon.spy();
+		it( 'fires events with empty data if there is no HTML nor plain text', () => {
+			return new Promise( resolve => {
+				const dataTransferMock = createDataTransfer( {} );
+				const preventDefaultSpy = vi.fn();
+				const editorViewCalled = vi.fn();
 
-			viewDocument.on( 'clipboardInput', ( evt, data ) => {
-				expect( preventDefaultSpy.calledOnce ).to.be.true;
+				viewDocument.on( 'clipboardInput', ( evt, data ) => {
+					expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 
-				expect( data.dataTransfer ).to.equal( dataTransferMock );
+					expect( data.dataTransfer ).toBe( dataTransferMock );
 
-				editorViewCalled();
-			} );
+					editorViewCalled();
+				} );
 
-			clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
-				expect( data.content ).is.instanceOf( ViewDocumentFragment );
-				expect( data.dataTransfer ).to.equal( dataTransferMock );
-				expect( stringifyView( data.content ) ).to.equal( '' );
+				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+					expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
+					expect( data.dataTransfer ).toBe( dataTransferMock );
+					expect( _stringifyView( data.content ) ).toBe( '' );
 
-				expect( editorViewCalled.calledOnce ).to.be.true;
+					expect( editorViewCalled ).toHaveBeenCalledOnce();
 
-				done();
-			} );
+					resolve();
+				} );
 
-			viewDocument.fire( 'paste', {
-				dataTransfer: dataTransferMock,
-				preventDefault: preventDefaultSpy
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: preventDefaultSpy
+				} );
 			} );
 		} );
 
 		it( 'uses low priority observer for the paste event', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': 'x' } );
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'paste', evt => {
 				evt.stop();
@@ -269,12 +399,12 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.callCount ).to.equal( 0 );
+			expect( spy ).toHaveBeenCalledTimes( 0 );
 		} );
 
 		it( 'inserts content to the editor', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-			const spy = sinon.stub( editor.model, 'insertContent' );
+			const spy = vi.spyOn( editor.model, 'insertContent' ).mockImplementation( () => {} );
 
 			viewDocument.fire( 'paste', {
 				dataTransfer: dataTransferMock,
@@ -282,13 +412,13 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( stringifyModel( spy.args[ 0 ][ 0 ] ) ).to.equal( '<paragraph>x</paragraph>' );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( _stringifyModel( spy.mock.calls[ 0 ][ 0 ] ) ).toBe( '<paragraph>x</paragraph>' );
 		} );
 
 		it( 'does not insert content when editor is read-only', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-			const spy = sinon.stub( editor.model, 'insertContent' );
+			const spy = vi.spyOn( editor.model, 'insertContent' ).mockImplementation( () => {} );
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
@@ -298,12 +428,12 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			sinon.assert.notCalled( spy );
+			expect( spy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'stops `clipboardInput` event on highest priority when editor is read-only', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'clipboardInput', spy, { priority: 'high' } );
 
@@ -311,26 +441,28 @@ describe( 'ClipboardPipeline feature', () => {
 
 			viewDocument.fire( 'clipboardInput', {
 				dataTransfer: dataTransferMock,
+				content: dataTransferMock.getData( 'text/html' ),
 				method: 'paste'
 			} );
 
-			sinon.assert.notCalled( spy );
+			expect( spy ).not.toHaveBeenCalled();
 
 			editor.disableReadOnlyMode( 'unit-test' );
 
 			viewDocument.fire( 'clipboardInput', {
-				dataTransfer: dataTransferMock
+				dataTransfer: dataTransferMock,
+				content: dataTransferMock.getData( 'text/html' )
 			} );
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'does not insert content if the whole content was invalid', () => {
 			// Whole content is invalid. Even though there is "view" content, the "model" content would be empty.
 			// Do not insert content in this case.
 			const dataTransferMock = createDataTransfer( { 'text/html': '<unknownTag></unknownTag>', 'text/plain': '' } );
-			const insertContentSpy = sinon.stub( editor.model, 'insertContent' );
-			const contentInsertionSpy = sinon.spy();
+			const insertContentSpy = vi.spyOn( editor.model, 'insertContent' ).mockImplementation( () => {} );
+			const contentInsertionSpy = vi.fn();
 
 			clipboardPlugin.on( 'contentInsertion', () => contentInsertionSpy() );
 
@@ -340,15 +472,15 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			sinon.assert.notCalled( insertContentSpy );
-			sinon.assert.notCalled( contentInsertionSpy );
+			expect( insertContentSpy ).not.toHaveBeenCalled();
+			expect( contentInsertionSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'converts content in an "all allowed" context', () => {
 			// It's enough if we check this here with a text node and paragraph because if the conversion was made
 			// in a normal root, then text or paragraph wouldn't be allowed here.
 			const dataTransferMock = createDataTransfer( { 'text/html': 'x<p>y</p>', 'text/plain': 'z' } );
-			const spy = sinon.stub( editor.model, 'insertContent' );
+			const spy = vi.spyOn( editor.model, 'insertContent' ).mockImplementation( () => {} );
 
 			viewDocument.fire( 'paste', {
 				dataTransfer: dataTransferMock,
@@ -356,25 +488,25 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( stringifyModel( spy.args[ 0 ][ 0 ] ) ).to.equal( 'x<paragraph>y</paragraph>' );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( _stringifyModel( spy.mock.calls[ 0 ][ 0 ] ) ).toBe( 'x<paragraph>y</paragraph>' );
 		} );
 
 		it( 'does nothing when pasted content is empty', () => {
 			const dataTransferMock = createDataTransfer( { 'text/plain': '' } );
-			const spy = sinon.stub( editor.model, 'insertContent' );
+			const spy = vi.spyOn( editor.model, 'insertContent' ).mockImplementation( () => {} );
 
 			viewDocument.fire( 'clipboardInput', {
 				dataTransfer: dataTransferMock,
 				content: new ViewDocumentFragment()
 			} );
 
-			expect( spy.callCount ).to.equal( 0 );
+			expect( spy ).toHaveBeenCalledTimes( 0 );
 		} );
 
 		it( 'scrolls the editing document to the selection after the pasted content is inserted', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': '<p>x</p>', 'text/plain': 'y' } );
-			const inputTransformationSpy = sinon.spy();
+			const inputTransformationSpy = vi.fn();
 
 			clipboardPlugin.on( 'inputTransformation', inputTransformationSpy );
 
@@ -383,13 +515,13 @@ describe( 'ClipboardPipeline feature', () => {
 				content: new ViewDocumentFragment()
 			} );
 
-			sinon.assert.calledOnce( scrollSpy );
-			sinon.assert.callOrder( inputTransformationSpy, scrollSpy );
+			expect( scrollSpy ).toHaveBeenCalledOnce();
+			expect( inputTransformationSpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( scrollSpy.mock.invocationCallOrder[ 0 ] );
 		} );
 
 		it( 'uses low priority observer for the clipboardInput event', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': 'x' } );
-			const spy = sinon.stub( editor.model, 'insertContent' );
+			const spy = vi.spyOn( editor.model, 'insertContent' ).mockImplementation( () => {} );
 
 			viewDocument.on( 'clipboardInput', evt => {
 				evt.stop();
@@ -401,14 +533,14 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.callCount ).to.equal( 0 );
+			expect( spy ).toHaveBeenCalledTimes( 0 );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-upload/issues/92
 		// https://github.com/ckeditor/ckeditor5/issues/6464
 		it( 'should stop propagation of the original event if CKEditor handled the input', () => {
 			const dataTransferMock = createDataTransfer( { 'text/html': 'x' } );
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.fire( 'paste', {
 				dataTransfer: dataTransferMock,
@@ -416,7 +548,7 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.callCount ).to.equal( 1 );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-upload/issues/92
@@ -426,8 +558,8 @@ describe( 'ClipboardPipeline feature', () => {
 				type: 'application/zip',
 				size: 1024
 			};
-			const dataTransferMock = new DataTransfer( { files: [ fileMock ], types: [ 'Files' ], getData: () => {} } );
-			const spy = sinon.spy();
+			const dataTransferMock = new ViewDataTransfer( { files: [ fileMock ], types: [ 'Files' ], getData: () => {} } );
+			const spy = vi.fn();
 
 			viewDocument.fire( 'drop', {
 				dataTransfer: dataTransferMock,
@@ -435,7 +567,7 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.callCount ).to.equal( 0 );
+			expect( spy ).toHaveBeenCalledTimes( 0 );
 
 			clipboardPlugin.on( 'inputTransformation', evt => {
 				evt.stop();
@@ -447,90 +579,233 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.callCount ).to.equal( 1 );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+		} );
+
+		describe( 'source editor ID in events', () => {
+			it( 'should be null when pasting content from outside the editor', () => {
+				const dataTransferMock = createDataTransfer( { 'text/html': '<p>external content</p>' } );
+				const inputTransformationSpy = vi.fn();
+
+				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+					inputTransformationSpy( data.sourceEditorId );
+				} );
+
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {},
+					stopPropagation: () => {}
+				} );
+
+				expect( inputTransformationSpy ).toHaveBeenCalledWith( null );
+			} );
+
+			it( 'should contain an editor ID when pasting content copied from the same editor (in dataTransfer)', () => {
+				const spy = vi.fn();
+
+				_setModelData( editor.model, '<paragraph>f[oo]bar</paragraph>' );
+
+				// Copy selected content.
+				const dataTransferMock = createDataTransfer();
+
+				viewDocument.fire( 'copy', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {}
+				} );
+
+				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+					spy( data.dataTransfer.getData( 'application/ckeditor5-editor-id' ) );
+				} );
+
+				// Paste the copied content.
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {},
+					stopPropagation: () => {}
+				} );
+
+				expect( spy ).toHaveBeenCalledWith( editor.id );
+			} );
+
+			it( 'should contain an editor ID when pasting content copied from the same editor', () => {
+				const spy = vi.fn();
+
+				_setModelData( editor.model, '<paragraph>f[oo]bar</paragraph>' );
+
+				// Copy selected content.
+				const dataTransferMock = createDataTransfer();
+
+				viewDocument.fire( 'copy', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {}
+				} );
+
+				clipboardPlugin.on( 'inputTransformation', ( evt, data ) => {
+					spy( data.sourceEditorId );
+				} );
+
+				// Paste the copied content.
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {},
+					stopPropagation: () => {}
+				} );
+
+				expect( spy ).toHaveBeenCalledWith( editor.id );
+			} );
+
+			it( 'should be propagated to contentInsertion event (when it\'s external content)', () => {
+				const dataTransferMock = createDataTransfer( { 'text/html': '<p>external content</p>' } );
+				const contentInsertionSpy = vi.fn();
+
+				clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
+					contentInsertionSpy( data.sourceEditorId );
+				} );
+
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {},
+					stopPropagation: () => {}
+				} );
+
+				expect( contentInsertionSpy ).toHaveBeenCalledWith( null );
+			} );
+
+			it( 'should be propagated to contentInsertion event (when it\'s internal content)', () => {
+				const dataTransferMock = createDataTransfer( {
+					'text/html': '<p>internal content</p>',
+					'application/ckeditor5-editor-id': editor.id
+				} );
+
+				const contentInsertionSpy = vi.fn();
+
+				clipboardPlugin.on( 'contentInsertion', ( evt, data ) => {
+					contentInsertionSpy( data.sourceEditorId );
+				} );
+
+				viewDocument.fire( 'paste', {
+					dataTransfer: dataTransferMock,
+					preventDefault: () => {},
+					stopPropagation: () => {}
+				} );
+
+				expect( contentInsertionSpy ).toHaveBeenCalledWith( editor.id );
+			} );
 		} );
 
 		function createDataTransfer( data ) {
+			const state = Object.create( data || {} );
+
 			return {
+				files: [],
 				getData( type ) {
-					return data[ type ];
+					return state[ type ];
+				},
+				setData( type, newData ) {
+					state[ type ] = newData;
 				}
 			};
 		}
 	} );
 
 	describe( 'clipboard copy/cut pipeline', () => {
-		it( 'fires the outputTransformation event on the clipboardPlugin', done => {
-			const dataTransferMock = createDataTransfer();
-			const preventDefaultSpy = sinon.spy();
+		it( 'fires the outputTransformation event on the clipboardPlugin', () => {
+			return new Promise( resolve => {
+				const dataTransferMock = createDataTransfer();
+				const preventDefaultSpy = vi.fn();
 
-			setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
+				_setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
 
-			clipboardPlugin.on( 'outputTransformation', ( evt, data ) => {
-				expect( preventDefaultSpy.calledOnce ).to.be.true;
+				clipboardPlugin.on( 'outputTransformation', ( evt, data ) => {
+					expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 
-				expect( data.method ).to.equal( 'copy' );
-				expect( data.dataTransfer ).to.equal( dataTransferMock );
-				expect( data.content ).is.instanceOf( ModelDocumentFragment );
-				expect( stringifyModel( data.content ) ).to.equal( '<paragraph>bc</paragraph><paragraph>de</paragraph>' );
+					expect( data.method ).toBe( 'copy' );
+					expect( data.dataTransfer ).toBe( dataTransferMock );
+					expect( data.content ).toBeInstanceOf( ModelDocumentFragment );
+					expect( _stringifyModel( data.content ) ).toBe( '<paragraph>bc</paragraph><paragraph>de</paragraph>' );
+					resolve();
+				} );
 
-				done();
-			} );
-
-			viewDocument.fire( 'copy', {
-				dataTransfer: dataTransferMock,
-				preventDefault: preventDefaultSpy
-			} );
-		} );
-
-		it( 'fires clipboardOutput for copy with the selected content and correct method', done => {
-			const dataTransferMock = createDataTransfer();
-			const preventDefaultSpy = sinon.spy();
-
-			setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
-
-			viewDocument.on( 'clipboardOutput', ( evt, data ) => {
-				expect( preventDefaultSpy.calledOnce ).to.be.true;
-				expect( data.method ).to.equal( 'copy' );
-
-				expect( data.dataTransfer ).to.equal( dataTransferMock );
-
-				expect( data.content ).is.instanceOf( ViewDocumentFragment );
-				expect( stringifyView( data.content ) ).to.equal( '<p>bc</p><p>de</p>' );
-
-				done();
-			} );
-
-			viewDocument.fire( 'copy', {
-				dataTransfer: dataTransferMock,
-				preventDefault: preventDefaultSpy
+				viewDocument.fire( 'copy', {
+					dataTransfer: dataTransferMock,
+					preventDefault: preventDefaultSpy
+				} );
 			} );
 		} );
 
-		it( 'fires clipboardOutput for cut with the selected content and correct method', done => {
-			const dataTransferMock = createDataTransfer();
-			const preventDefaultSpy = sinon.spy();
+		it( 'triggers the conversion with the `isClipboardPipeline` flag', () => {
+			return new Promise( resolve => {
+				const dataTransferMock = createDataTransfer();
+				const preventDefaultSpy = vi.fn();
+				const toViewSpy = vi.spyOn( editor.data, 'toView' );
 
-			setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
+				_setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
 
-			viewDocument.on( 'clipboardOutput', ( evt, data ) => {
-				expect( data.method ).to.equal( 'cut' );
+				clipboardPlugin.on( 'outputTransformation', ( evt, data ) => {
+					expect( toViewSpy ).toHaveBeenCalledWith( data.content, { isClipboardPipeline: true } );
 
-				done();
+					resolve();
+				}, { priority: 'lowest' } );
+
+				viewDocument.fire( 'copy', {
+					dataTransfer: dataTransferMock,
+					preventDefault: preventDefaultSpy
+				} );
 			} );
+		} );
 
-			viewDocument.fire( 'cut', {
-				dataTransfer: dataTransferMock,
-				preventDefault: preventDefaultSpy
+		it( 'fires clipboardOutput for copy with the selected content and correct method', () => {
+			return new Promise( resolve => {
+				const dataTransferMock = createDataTransfer();
+				const preventDefaultSpy = vi.fn();
+
+				_setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
+
+				viewDocument.on( 'clipboardOutput', ( evt, data ) => {
+					expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+					expect( data.method ).toBe( 'copy' );
+
+					expect( data.dataTransfer ).toBe( dataTransferMock );
+
+					expect( data.content ).toBeInstanceOf( ViewDocumentFragment );
+					expect( _stringifyView( data.content ) ).toBe( '<p>bc</p><p>de</p>' );
+
+					resolve();
+				} );
+
+				viewDocument.fire( 'copy', {
+					dataTransfer: dataTransferMock,
+					preventDefault: preventDefaultSpy
+				} );
+			} );
+		} );
+
+		it( 'fires clipboardOutput for cut with the selected content and correct method', () => {
+			return new Promise( resolve => {
+				const dataTransferMock = createDataTransfer();
+				const preventDefaultSpy = vi.fn();
+
+				_setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
+
+				viewDocument.on( 'clipboardOutput', ( evt, data ) => {
+					expect( data.method ).toBe( 'cut' );
+
+					resolve();
+				} );
+
+				viewDocument.fire( 'cut', {
+					dataTransfer: dataTransferMock,
+					preventDefault: preventDefaultSpy
+				} );
 			} );
 		} );
 
 		it( 'not fires clipboardOutput and preventDefault event for cut when editor is read-only', () => {
 			const dataTransferMock = createDataTransfer();
-			const preventDefaultSpy = sinon.spy();
-			const spy = sinon.spy();
+			const preventDefaultSpy = vi.fn();
+			const spy = vi.fn();
 
-			setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
+			_setModelData( editor.model, '<paragraph>a[bc</paragraph><paragraph>de]f</paragraph>' );
 			editor.enableReadOnlyMode( 'unit-test' );
 
 			viewDocument.on( 'clipboardOutput', spy );
@@ -540,13 +815,13 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault: preventDefaultSpy
 			} );
 
-			sinon.assert.notCalled( spy );
-			sinon.assert.calledOnce( preventDefaultSpy );
+			expect( spy ).not.toHaveBeenCalled();
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'uses low priority observer for the copy event', () => {
 			const dataTransferMock = createDataTransfer();
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			viewDocument.on( 'copy', evt => {
 				evt.stop();
@@ -559,7 +834,7 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( spy.callCount ).to.equal( 0 );
+			expect( spy ).toHaveBeenCalledTimes( 0 );
 		} );
 
 		it( 'sets clipboard HTML data', () => {
@@ -605,11 +880,11 @@ describe( 'ClipboardPipeline feature', () => {
 
 			viewDocument.fire( 'clipboardOutput', {
 				dataTransfer: dataTransferMock,
-				content: parseView( input ),
+				content: _parseView( input ),
 				method: 'copy'
 			} );
 
-			expect( dataTransferMock.getData( 'text/html' ) ).to.equal( output );
+			expect( dataTransferMock.getData( 'text/html' ) ).toBe( output );
 		} );
 
 		it( 'sets clipboard plain text data', () => {
@@ -652,11 +927,11 @@ describe( 'ClipboardPipeline feature', () => {
 
 			viewDocument.fire( 'clipboardOutput', {
 				dataTransfer: dataTransferMock,
-				content: parseView( input ),
+				content: _parseView( input ),
 				method: 'copy'
 			} );
 
-			expect( dataTransferMock.getData( 'text/plain' ) ).to.equal( output );
+			expect( dataTransferMock.getData( 'text/plain' ) ).toBe( output );
 		} );
 
 		it( 'does not set clipboard HTML data if content is empty', () => {
@@ -668,13 +943,13 @@ describe( 'ClipboardPipeline feature', () => {
 				method: 'copy'
 			} );
 
-			expect( dataTransferMock.getData( 'text/html' ) ).to.be.undefined;
+			expect( dataTransferMock.getData( 'text/html' ) ).toBeUndefined();
 		} );
 
 		it( 'deletes selected content in case of cut', () => {
 			const dataTransferMock = createDataTransfer();
 
-			setModelData( editor.model, '<paragraph>f[o</paragraph><paragraph>x]o</paragraph>' );
+			_setModelData( editor.model, '<paragraph>f[o</paragraph><paragraph>x]o</paragraph>' );
 
 			// Change block is only to get writer instance.
 			// Writer should not be passed along this event.
@@ -687,7 +962,7 @@ describe( 'ClipboardPipeline feature', () => {
 				} );
 			} );
 
-			expect( getModelData( editor.model ) ).to.equal( '<paragraph>f[]o</paragraph>' );
+			expect( _getModelData( editor.model ) ).toBe( '<paragraph>f[]o</paragraph>' );
 		} );
 
 		it( 'uses low priority observer for the clipboardOutput event', () => {
@@ -703,7 +978,7 @@ describe( 'ClipboardPipeline feature', () => {
 				preventDefault() {}
 			} );
 
-			expect( dataTransferMock.getData( 'text/html' ) ).to.be.undefined;
+			expect( dataTransferMock.getData( 'text/html' ) ).toBeUndefined();
 		} );
 
 		function createDataTransfer() {

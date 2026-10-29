@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import { CKEditorError, logWarning, type Locale } from 'ckeditor5/src/utils';
-import type { AlignmentFormat, SupportedOption } from './alignmentconfig';
 
 /**
  * @module alignment/utils
  */
+
+import { CKEditorError, logWarning, type Locale } from '@ckeditor/ckeditor5-utils';
+import type { AlignmentFormat, AlignmentSupportedOption } from './alignmentconfig.js';
 
 /**
  * The list of supported alignment options:
@@ -17,12 +17,15 @@ import type { AlignmentFormat, SupportedOption } from './alignmentconfig';
  * * `'right'`,
  * * `'center'`,
  * * `'justify'`
+ *
+ * @internal
  */
-export const supportedOptions: ReadonlyArray<SupportedOption> = [ 'left', 'right', 'center', 'justify' ];
+export const supportedOptions: ReadonlyArray<AlignmentSupportedOption> = [ 'left', 'right', 'center', 'justify' ];
 
 /**
  * Checks whether the passed option is supported by {@link module:alignment/alignmentediting~AlignmentEditing}.
  *
+ * @internal
  * @param option The option value to check.
  */
 export function isSupported( option: string ): boolean {
@@ -33,6 +36,7 @@ export function isSupported( option: string ): boolean {
  * Checks whether alignment is the default one considering the direction
  * of the editor content.
  *
+ * @internal
  * @param alignment The name of the alignment to check.
  * @param locale The {@link module:core/editor/editor~Editor#locale} instance.
  */
@@ -49,6 +53,7 @@ export function isDefault( alignment: string, locale: Locale ): boolean {
 /**
  * Brings the configuration to the common form, an array of objects.
  *
+ * @internal
  * @param configuredOptions Alignment plugin configuration.
  * @returns Normalized object holding the configuration.
  */
@@ -75,7 +80,7 @@ export function normalizeAlignmentOptions( configuredOptions: Array<string | Ali
 				 * The available options are: `'left'`, `'right'`, `'center'` and `'justify'`.
 				 *
 				 * @error alignment-config-name-not-recognized
-				 * @param option Options with unknown value of the `name` property.
+				 * @param {object} option Options with unknown value of the `name` property.
 				 */
 				logWarning( 'alignment-config-name-not-recognized', { option } );
 			}
@@ -91,7 +96,7 @@ export function normalizeAlignmentOptions( configuredOptions: Array<string | Ali
 		 * The `className` property has to be defined for all options once at least one option declares `className`.
 		 *
 		 * @error alignment-config-classnames-are-missing
-		 * @param configuredOptions Contents of `alignment.options`.
+		 * @param {object} configuredOptions Contents of `alignment.options`.
 		 */
 		throw new CKEditorError( 'alignment-config-classnames-are-missing', { configuredOptions } );
 	}
@@ -107,8 +112,8 @@ export function normalizeAlignmentOptions( configuredOptions: Array<string | Ali
 			 * Each `name` representing one alignment option can be set exactly once.
 			 *
 			 * @error alignment-config-name-already-defined
-			 * @param option First option that declares given `name`.
-			 * @param configuredOptions Contents of `alignment.options`.
+			 * @param {object} option First option that declares given `name`.
+			 * @param {object} configuredOptions Contents of `alignment.options`.
 			 */
 			throw new CKEditorError( 'alignment-config-name-already-defined', { option, configuredOptions } );
 		}
@@ -122,8 +127,8 @@ export function normalizeAlignmentOptions( configuredOptions: Array<string | Ali
 				 * The same `className` in one of the `alignment.options` was already declared.
 				 *
 				 * @error alignment-config-classname-already-defined
-				 * @param option First option that declares given `className`.
-				 * @param configuredOptions
+				 * @param {object} option First option that declares given `className`.
+				 * @param {object} configuredOptions
 				 * Contents of `alignment.options`.
 				 */
 				throw new CKEditorError( 'alignment-config-classname-already-defined', { option, configuredOptions } );

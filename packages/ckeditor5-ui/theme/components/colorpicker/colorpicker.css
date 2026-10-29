@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 .color-picker-hex-input {
@@ -16,7 +16,7 @@
 	flex-direction: row;
 	flex-wrap: nowrap;
 	justify-content: space-between;
-	margin: var(--ck-spacing-large) 0 0;
+	margin: var(--ck-spacing-gap-comfortable) 0 0;
 	width: unset;
 
 	& .ck.ck-labeled-field-view {
@@ -28,7 +28,7 @@
 	}
 
 	& .ck-color-picker__hash-view {
-		padding-top: var(--ck-spacing-tiny);
-		padding-right: var(--ck-spacing-medium);
+		padding-top: var(--ck-spacing-control-padding-block);
+		padding-right: var(--ck-spacing-control-icon-gap);
 	}
 }

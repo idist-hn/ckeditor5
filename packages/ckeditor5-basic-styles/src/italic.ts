@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/italic
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ItalicEditing from './italic/italicediting';
-import ItalicUI from './italic/italicui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ItalicEditing } from './italic/italicediting.js';
+import { ItalicUI } from './italic/italicui.js';
 
 /**
  * The italic feature.
@@ -20,12 +20,12 @@ import ItalicUI from './italic/italicui';
  * This is a "glue" plugin which loads the {@link module:basic-styles/italic/italicediting~ItalicEditing} and
  * {@link module:basic-styles/italic/italicui~ItalicUI} plugins.
  */
-export default class Italic extends Plugin {
+export class Italic extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ItalicEditing, ItalicUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ ItalicEditing, ItalicUI ]> {
+		return [ ItalicEditing, ItalicUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class Italic extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Italic' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

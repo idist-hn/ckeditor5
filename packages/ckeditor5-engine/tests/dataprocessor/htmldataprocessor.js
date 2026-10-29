@@ -1,18 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals setTimeout, window, Node, DOMParser */
-
-import HtmlDataProcessor from '../../src/dataprocessor/htmldataprocessor';
-import BasicHtmlWriter from '../../src/dataprocessor/basichtmlwriter';
-import DomConverter from '../../src/view/domconverter';
-import xssTemplates from '../../tests/dataprocessor/_utils/xsstemplates';
-import ViewDocumentFragment from '../../src/view/documentfragment';
-import { stringify, parse } from '../../src/dev-utils/view';
-import { StylesProcessor } from '../../src/view/stylesmap';
-import ViewDocument from '../../src/view/document';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { HtmlDataProcessor } from '../../src/dataprocessor/htmldataprocessor.js';
+import { BasicHtmlWriter } from '../../src/dataprocessor/basichtmlwriter.js';
+import { ViewDomConverter } from '../../src/view/domconverter.js';
+import { xssTemplates } from '../../tests/dataprocessor/_utils/xsstemplates.js';
+import { ViewDocumentFragment } from '../../src/view/documentfragment.js';
+import { _parseView, _stringifyView } from '../../src/dev-utils/view.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
+import { ViewDocument } from '../../src/view/document.js';
 
 describe( 'HtmlDataProcessor', () => {
 	let dataProcessor, viewDocument;
@@ -24,62 +23,64 @@ describe( 'HtmlDataProcessor', () => {
 
 	describe( 'constructor', () => {
 		it( 'should set public properties', () => {
-			expect( dataProcessor ).to.have.property( 'domParser' );
-			expect( dataProcessor ).to.have.property( 'domConverter' );
-			expect( dataProcessor ).to.have.property( 'htmlWriter' );
-			expect( dataProcessor ).to.have.property( 'skipComments' );
+			expect( dataProcessor ).toHaveProperty( 'domParser' );
+			expect( dataProcessor ).toHaveProperty( 'domConverter' );
+			expect( dataProcessor ).toHaveProperty( 'htmlWriter' );
+			expect( dataProcessor ).toHaveProperty( 'skipComments' );
+			expect( dataProcessor ).toHaveProperty( 'skipProcessingInstructions' );
 
-			expect( dataProcessor.domParser ).to.be.an.instanceOf( DOMParser );
-			expect( dataProcessor.domConverter ).to.be.an.instanceOf( DomConverter );
-			expect( dataProcessor.htmlWriter ).to.be.an.instanceOf( BasicHtmlWriter );
-			expect( dataProcessor.skipComments ).to.be.true;
+			expect( dataProcessor.domParser ).toBeInstanceOf( DOMParser );
+			expect( dataProcessor.domConverter ).toBeInstanceOf( ViewDomConverter );
+			expect( dataProcessor.htmlWriter ).toBeInstanceOf( BasicHtmlWriter );
+			expect( dataProcessor.skipComments ).toBe( true );
+			expect( dataProcessor.skipProcessingInstructions ).toBe( true );
 		} );
 	} );
 
 	describe( 'toView()', () => {
 		it( 'should return empty DocumentFragment when empty string is passed', () => {
 			const fragment = dataProcessor.toView( '' );
-			expect( fragment ).to.be.an.instanceOf( ViewDocumentFragment );
-			expect( fragment.childCount ).to.equal( 0 );
+			expect( fragment ).toBeInstanceOf( ViewDocumentFragment );
+			expect( fragment.childCount ).toBe( 0 );
 		} );
 
 		it( 'should convert HTML to DocumentFragment with single text node', () => {
 			const fragment = dataProcessor.toView( 'foo bar' );
 
-			expect( stringify( fragment ) ).to.equal( 'foo bar' );
+			expect( _stringifyView( fragment ) ).toBe( 'foo bar' );
 		} );
 
 		it( 'should convert HTML to DocumentFragment with multiple child nodes', () => {
 			const fragment = dataProcessor.toView( '<p>foo</p><p>bar</p>' );
 
-			expect( stringify( fragment ) ).to.equal( '<p>foo</p><p>bar</p>' );
+			expect( _stringifyView( fragment ) ).toBe( '<p>foo</p><p>bar</p>' );
 		} );
 
 		it( 'should return only elements inside body tag', () => {
 			const fragment = dataProcessor.toView( '<html><head></head><body><p>foo</p></body></html>' );
 
-			expect( stringify( fragment ) ).to.equal( '<p>foo</p>' );
+			expect( _stringifyView( fragment ) ).toBe( '<p>foo</p>' );
 		} );
 
 		it( 'should not add any additional nodes', () => {
 			const fragment = dataProcessor.toView( 'foo <b>bar</b> text' );
 
-			expect( stringify( fragment ) ).to.equal( 'foo <b>bar</b> text' );
+			expect( _stringifyView( fragment ) ).toBe( 'foo <b>bar</b> text' );
 		} );
 
 		// Test against XSS attacks.
 		for ( const name in xssTemplates ) {
 			const input = xssTemplates[ name ].replace( /%xss%/g, 'testXss()' );
 
-			it( 'should prevent XSS attacks: ' + name, done => {
-				window.testXss = sinon.spy();
+			it( 'should prevent XSS attacks: ' + name, () => new Promise( resolve => {
+				window.testXss = vi.fn();
 				dataProcessor.toView( input );
 
 				setTimeout( () => {
-					sinon.assert.notCalled( window.testXss );
-					done();
+					expect( window.testXss ).not.toHaveBeenCalled();
+					resolve();
 				}, 10 );
-			} );
+			} ) );
 		}
 
 		describe( 'https://github.com/ckeditor/ckeditor5-clipboard/issues/2#issuecomment-310417731 + #404', () => {
@@ -93,19 +94,18 @@ describe( 'HtmlDataProcessor', () => {
 					'<span>.</span>'
 				);
 
-				expect( stringify( fragment ) ).to.equal(
-					'<span>This is the<span>\u00a0</span></span>' +
+				expect( _stringifyView( fragment ) ).toBe( '<span>This is the<span>\u00a0</span></span>' +
 					'<a href="url">third developer preview</a>' +
 					'<span><span>\u00a0</span>of<span>\u00a0</span></span>' +
 					'<strong>CKEditor\u00a05</strong>' +
 					'<span>.</span>'
 				);
 
-				// Just to be sure... stringify() uses conversion and the browser extensively,
+				// Just to be sure... _stringifyView() uses conversion and the browser extensively,
 				// so it's not entirely safe.
-				expect( fragment.getChild( 0 ).getChild( 1 ).getChild( 0 ).data ).to.equal( '\u00a0' );
-				expect( fragment.getChild( 2 ).getChild( 0 ).getChild( 0 ).data ).to.equal( '\u00a0' );
-				expect( fragment.getChild( 2 ).getChild( 2 ).getChild( 0 ).data ).to.equal( '\u00a0' );
+				expect( fragment.getChild( 0 ).getChild( 1 ).getChild( 0 ).data ).toBe( '\u00a0' );
+				expect( fragment.getChild( 2 ).getChild( 0 ).getChild( 0 ).data ).toBe( '\u00a0' );
+				expect( fragment.getChild( 2 ).getChild( 2 ).getChild( 0 ).data ).toBe( '\u00a0' );
 			} );
 		} );
 	} );
@@ -129,28 +129,27 @@ describe( 'HtmlDataProcessor', () => {
 				const [ comment1, paragraph, comment4 ] = div.childNodes;
 				const [ comment2, text, comment3 ] = paragraph.childNodes;
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 1 );
-				expect( div.childNodes.length ).to.equal( 3 );
-				expect( paragraph.childNodes.length ).to.equal( 3 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 1 );
+				expect( div.childNodes.length ).toBe( 3 );
+				expect( paragraph.childNodes.length ).toBe( 3 );
 
-				expect( comment1.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment1.data ).to.equal( ' Comment 1 ' );
+				expect( comment1.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment1.data ).toBe( ' Comment 1 ' );
 
-				expect( comment2.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment2.data ).to.equal( ' Comment 2 ' );
+				expect( comment2.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment2.data ).toBe( ' Comment 2 ' );
 
-				expect( comment3.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment3.data ).to.equal( ' Comment 3 ' );
+				expect( comment3.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment3.data ).toBe( ' Comment 3 ' );
 
-				expect( comment4.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment4.data ).to.equal( ' Comment 4 ' );
+				expect( comment4.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment4.data ).toBe( ' Comment 4 ' );
 
-				expect( text.nodeType ).to.equal( Node.TEXT_NODE );
-				expect( text.data ).to.equal( 'Paragraph' );
+				expect( text.nodeType ).toBe( Node.TEXT_NODE );
+				expect( text.data ).toBe( 'Paragraph' );
 
-				expect( div.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( div.outerHTML ).to.equal(
-					'<div>' +
+				expect( div.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( div.outerHTML ).toBe( '<div>' +
 						'<!-- Comment 1 -->' +
 						'<p>' +
 							'<!-- Comment 2 -->' +
@@ -161,9 +160,8 @@ describe( 'HtmlDataProcessor', () => {
 					'</div>'
 				);
 
-				expect( paragraph.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( paragraph.outerHTML ).to.equal(
-					'<p>' +
+				expect( paragraph.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( paragraph.outerHTML ).toBe( '<p>' +
 						'<!-- Comment 2 -->' +
 						'Paragraph' +
 						'<!-- Comment 3 -->' +
@@ -190,25 +188,25 @@ describe( 'HtmlDataProcessor', () => {
 					comment4
 				] = bodyDocumentFragment.childNodes;
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 6 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 6 );
 
-				expect( comment1.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment1.data ).to.equal( ' Comment 1 ' );
+				expect( comment1.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment1.data ).toBe( ' Comment 1 ' );
 
-				expect( comment2.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment2.data ).to.equal( ' Comment 2 ' );
+				expect( comment2.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment2.data ).toBe( ' Comment 2 ' );
 
-				expect( comment3.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment3.data ).to.equal( ' Comment 3 ' );
+				expect( comment3.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment3.data ).toBe( ' Comment 3 ' );
 
-				expect( comment4.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment4.data ).to.equal( ' Comment 4 ' );
+				expect( comment4.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment4.data ).toBe( ' Comment 4 ' );
 
-				expect( heading.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( heading.outerHTML ).to.equal( '<h2>Heading</h2>' );
+				expect( heading.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( heading.outerHTML ).toBe( '<h2>Heading</h2>' );
 
-				expect( paragraph.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( paragraph.outerHTML ).to.equal( '<p>Paragraph</p>' );
+				expect( paragraph.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( paragraph.outerHTML ).toBe( '<p>Paragraph</p>' );
 			} );
 
 			it( 'should insert leading script nodes from HTML string into <body> collection', () => {
@@ -230,25 +228,25 @@ describe( 'HtmlDataProcessor', () => {
 					comment4
 				] = bodyDocumentFragment.childNodes;
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 6 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 6 );
 
-				expect( comment1.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment1.data ).to.equal( ' Comment 1 ' );
+				expect( comment1.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment1.data ).toBe( ' Comment 1 ' );
 
-				expect( comment2.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment2.data ).to.equal( ' Comment 2 ' );
+				expect( comment2.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment2.data ).toBe( ' Comment 2 ' );
 
-				expect( comment3.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment3.data ).to.equal( ' Comment 3 ' );
+				expect( comment3.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment3.data ).toBe( ' Comment 3 ' );
 
-				expect( comment4.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment4.data ).to.equal( ' Comment 4 ' );
+				expect( comment4.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment4.data ).toBe( ' Comment 4 ' );
 
-				expect( heading.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( heading.outerHTML ).to.equal( '<h2>Heading</h2>' );
+				expect( heading.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( heading.outerHTML ).toBe( '<h2>Heading</h2>' );
 
-				expect( paragraph.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( paragraph.outerHTML ).to.equal( '<p>Paragraph</p>' );
+				expect( paragraph.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( paragraph.outerHTML ).toBe( '<p>Paragraph</p>' );
 			} );
 
 			it( 'should preserve leading non-layout elements', () => {
@@ -262,7 +260,7 @@ describe( 'HtmlDataProcessor', () => {
 					'</p>'
 				);
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 4 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 4 );
 
 				const [
 					comment1,
@@ -271,17 +269,17 @@ describe( 'HtmlDataProcessor', () => {
 					paragraph
 				] = bodyDocumentFragment.childNodes;
 
-				expect( comment1.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment1.data ).to.equal( ' Comment 1 ' );
+				expect( comment1.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment1.data ).toBe( ' Comment 1 ' );
 
-				expect( style.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( style.outerHTML ).to.equal( '<style>#foo { color: red }</style>' );
+				expect( style.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( style.outerHTML ).toBe( '<style>#foo { color: red }</style>' );
 
-				expect( script.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( script.outerHTML ).to.equal( '<script>bar</script>' );
+				expect( script.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( script.outerHTML ).toBe( '<script>bar</script>' );
 
-				expect( paragraph.nodeType ).to.equal( Node.ELEMENT_NODE );
-				expect( paragraph.outerHTML ).to.equal( '<p><!-- Comment 2 -->Paragraph</p>' );
+				expect( paragraph.nodeType ).toBe( Node.ELEMENT_NODE );
+				expect( paragraph.outerHTML ).toBe( '<p><!-- Comment 2 -->Paragraph</p>' );
 			} );
 		} );
 
@@ -299,16 +297,16 @@ describe( 'HtmlDataProcessor', () => {
 					'</html>'
 				);
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 1 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 1 );
 
 				const [ paragraph ] = bodyDocumentFragment.childNodes;
 				const [ comment2, text ] = paragraph.childNodes;
 
-				expect( comment2.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment2.data ).to.equal( ' Comment 2 ' );
+				expect( comment2.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment2.data ).toBe( ' Comment 2 ' );
 
-				expect( text.nodeType ).to.equal( Node.TEXT_NODE );
-				expect( text.data ).to.equal( 'Paragraph' );
+				expect( text.nodeType ).toBe( Node.TEXT_NODE );
+				expect( text.data ).toBe( 'Paragraph' );
 			} );
 
 			it( 'should ignore leading non-layout elements if <body> tag is provided', () => {
@@ -324,16 +322,16 @@ describe( 'HtmlDataProcessor', () => {
 					'</body>'
 				);
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 1 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 1 );
 
 				const [ paragraph ] = bodyDocumentFragment.childNodes;
 				const [ comment2, text ] = paragraph.childNodes;
 
-				expect( comment2.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment2.data ).to.equal( ' Comment 2 ' );
+				expect( comment2.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment2.data ).toBe( ' Comment 2 ' );
 
-				expect( text.nodeType ).to.equal( Node.TEXT_NODE );
-				expect( text.data ).to.equal( 'Paragraph' );
+				expect( text.nodeType ).toBe( Node.TEXT_NODE );
+				expect( text.data ).toBe( 'Paragraph' );
 			} );
 
 			it( 'should ignore leading non-layout elements if <meta> tag is provided', () => {
@@ -348,16 +346,16 @@ describe( 'HtmlDataProcessor', () => {
 					'</p>'
 				);
 
-				expect( bodyDocumentFragment.childNodes.length ).to.equal( 1 );
+				expect( bodyDocumentFragment.childNodes.length ).toBe( 1 );
 
 				const [ paragraph ] = bodyDocumentFragment.childNodes;
 				const [ comment2, text ] = paragraph.childNodes;
 
-				expect( comment2.nodeType ).to.equal( Node.COMMENT_NODE );
-				expect( comment2.data ).to.equal( ' Comment 2 ' );
+				expect( comment2.nodeType ).toBe( Node.COMMENT_NODE );
+				expect( comment2.data ).toBe( ' Comment 2 ' );
 
-				expect( text.nodeType ).to.equal( Node.TEXT_NODE );
-				expect( text.data ).to.equal( 'Paragraph' );
+				expect( text.nodeType ).toBe( Node.TEXT_NODE );
+				expect( text.data ).toBe( 'Paragraph' );
 			} );
 		} );
 	} );
@@ -366,20 +364,20 @@ describe( 'HtmlDataProcessor', () => {
 		it( 'should return empty string when empty DocumentFragment is passed', () => {
 			const fragment = new ViewDocumentFragment( viewDocument );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '' );
 		} );
 
 		it( 'should return text if document fragment with single text node is passed', () => {
 			const fragment = new ViewDocumentFragment( viewDocument );
-			fragment._appendChild( parse( 'foo bar' ) );
+			fragment._appendChild( _parseView( 'foo bar' ) );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( 'foo bar' );
+			expect( dataProcessor.toData( fragment ) ).toBe( 'foo bar' );
 		} );
 
 		it( 'should convert HTML to DocumentFragment with multiple child nodes', () => {
-			const fragment = parse( '<p>foo</p><p>bar</p>' );
+			const fragment = _parseView( '<p>foo</p><p>bar</p>' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p>foo</p><p>bar</p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p>foo</p><p>bar</p>' );
 		} );
 	} );
 
@@ -397,24 +395,24 @@ describe( 'HtmlDataProcessor', () => {
 				'<p>bar</p>'
 			);
 
-			expect( stringify( fragment ) ).to.equal( '<p>foo</p><div class="raw"></div><p>bar</p>' );
-			expect( fragment.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<!-- 123 --> abc <!-- 456 -->' );
+			expect( _stringifyView( fragment ) ).toBe( '<p>foo</p><div class="raw"></div><p>bar</p>' );
+			expect( fragment.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<!-- 123 --> abc <!-- 456 -->' );
 		} );
 	} );
 
 	describe( 'useFillerType()', () => {
 		it( 'should turn on and off using marked block fillers', () => {
-			const fragment = parse( '<container:p></container:p>' );
+			const fragment = _parseView( '<container:p></container:p>' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p>&nbsp;</p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p>&nbsp;</p>' );
 
 			dataProcessor.useFillerType( 'marked' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p><span data-cke-filler="true">&nbsp;</span></p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p><span data-cke-filler="true">&nbsp;</span></p>' );
 
 			dataProcessor.useFillerType( 'default' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p>&nbsp;</p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p>&nbsp;</p>' );
 		} );
 	} );
 
@@ -435,7 +433,7 @@ describe( 'HtmlDataProcessor', () => {
 				'</html>'
 			);
 
-			expect( stringify( fragment ) ).to.equal( '<p>foobar</p>' );
+			expect( _stringifyView( fragment ) ).toBe( '<p>foobar</p>' );
 		} );
 
 		it( 'should preserve comments when `false`', () => {
@@ -456,7 +454,96 @@ describe( 'HtmlDataProcessor', () => {
 				'</html>'
 			);
 
-			expect( stringify( fragment ) ).to.equal( '<$comment></$comment><p>foo<$comment></$comment>bar</p><$comment></$comment>' );
+			expect( _stringifyView( fragment ) ).toBe( '<$comment></$comment><p>foo<$comment></$comment>bar</p><$comment></$comment>' );
+		} );
+	} );
+
+	describe( 'skipProcessingInstructions', () => {
+		// Whether `<?target data?>` in an HTML string is parsed into a processing instruction node at all
+		// depends on the browser - engines without that support still parse it into a comment. The flag
+		// pass-through is therefore asserted on the converter, and only the end-to-end tests are conditional.
+		const supportsProcessingInstructions = new DOMParser()
+			.parseFromString( '<body><?foo bar?></body>', 'text/html' )
+			.body.firstChild.nodeType === Node.PROCESSING_INSTRUCTION_NODE;
+
+		it( 'should pass the default flags to the DOM converter', () => {
+			const spy = vi.spyOn( dataProcessor.domConverter, 'domToView' );
+
+			dataProcessor.toView( '<p>foo</p>' );
+
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+				skipComments: true,
+				skipProcessingInstructions: true
+			} ) );
+		} );
+
+		it( 'should pass the changed flags to the DOM converter', () => {
+			const spy = vi.spyOn( dataProcessor.domConverter, 'domToView' );
+
+			dataProcessor.skipComments = false;
+			dataProcessor.skipProcessingInstructions = false;
+
+			dataProcessor.toView( '<p>foo</p>' );
+
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+				skipComments: false,
+				skipProcessingInstructions: false
+			} ) );
+		} );
+
+		it( 'should pass the flags independently of each other', () => {
+			const spy = vi.spyOn( dataProcessor.domConverter, 'domToView' );
+
+			dataProcessor.skipComments = false;
+
+			dataProcessor.toView( '<p>foo</p>' );
+
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+				skipComments: false,
+				skipProcessingInstructions: true
+			} ) );
+		} );
+
+		it.skipIf( !supportsProcessingInstructions )( 'should skip processing instructions when `true`', () => {
+			const fragment = dataProcessor.toView(
+				'<?instruction 1?>' +
+				'<p>' +
+					'foo' +
+					'<?instruction 2?>' +
+					'bar' +
+				'</p>' +
+				'<?instruction 3?>'
+			);
+
+			expect( _stringifyView( fragment ) ).toBe( '<p>foobar</p>' );
+		} );
+
+		it.skipIf( !supportsProcessingInstructions )( 'should preserve processing instructions when `false`', () => {
+			dataProcessor.skipProcessingInstructions = false;
+
+			const fragment = dataProcessor.toView(
+				'<?instruction 1?>' +
+				'<p>' +
+					'foo' +
+					'<?instruction 2?>' +
+					'bar' +
+				'</p>' +
+				'<?instruction 3?>'
+			);
+
+			expect( _stringifyView( fragment ) ).toBe(
+				'<$processingInstruction></$processingInstruction>' +
+				'<p>foo<$processingInstruction></$processingInstruction>bar</p>' +
+				'<$processingInstruction></$processingInstruction>'
+			);
+		} );
+
+		it.skipIf( !supportsProcessingInstructions )( 'should still skip processing instructions when only comments are preserved', () => {
+			dataProcessor.skipComments = false;
+
+			const fragment = dataProcessor.toView( '<p>foo<!-- c --><?instruction 1?>bar</p>' );
+
+			expect( _stringifyView( fragment ) ).toBe( '<p>foo<$comment></$comment>bar</p>' );
 		} );
 	} );
 } );

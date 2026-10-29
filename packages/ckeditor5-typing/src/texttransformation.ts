@@ -1,27 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module typing/texttransformation
  */
 
-import {
-	Plugin,
-	type Editor
-} from '@ckeditor/ckeditor5-core';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import type { Position } from '@ckeditor/ckeditor5-engine';
+import type { ModelPosition } from '@ckeditor/ckeditor5-engine';
 
-import TextWatcher, { type TextWatcherMatchedDataEvent } from './textwatcher';
-import type { TextTransformationConfig, TextTransformationDescription } from './typingconfig';
-import type Delete from './delete';
+import { TextWatcher, type TextWatcherMatchedDataEvent } from './textwatcher.js';
+import type { TextTransformationConfig, TextTypingTransformationDescription } from './typingconfig.js';
+import { Delete } from './delete.js';
+import { Input } from './input.js';
 
-import { escapeRegExp } from 'lodash-es';
+import { escapeRegExp } from 'es-toolkit/compat';
 
 // All named transformations.
-const TRANSFORMATIONS: Record<string, TextTransformationDescription> = {
+const TRANSFORMATIONS: Record<string, TextTypingTransformationDescription> = {
 	// Common symbols:
 	copyright: { from: '(c)', to: '©' },
 	registeredTrademark: { from: '(r)', to: '®' },
@@ -80,12 +78,12 @@ const DEFAULT_TRANSFORMATIONS = [
 /**
  * The text transformation plugin.
  */
-export default class TextTransformation extends Plugin {
+export class TextTransformation extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ 'Delete', 'Input' ] as const;
+	public static get requires(): PluginDependenciesOf<[ Delete, Input ]> {
+		return [ Delete, Input ];
 	}
 
 	/**
@@ -93,6 +91,13 @@ export default class TextTransformation extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'TextTransformation' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -116,8 +121,12 @@ export default class TextTransformation extends Plugin {
 		const modelSelection = model.document.selection;
 
 		modelSelection.on( 'change:range', () => {
-			// Disable plugin when selection is inside a code block.
-			this.isEnabled = !modelSelection.anchor!.parent.is( 'element', 'codeBlock' );
+			// Disable plugin when selection is inside a code block or inline code.
+			const anchor = modelSelection.anchor;
+			const isInCodeBlock = !!anchor && anchor.parent.is( 'element', 'codeBlock' );
+			const isInInlineCode = modelSelection.hasAttribute( 'code' );
+
+			this.isEnabled = !( isInCodeBlock || isInInlineCode );
 		} );
 
 		this._enableTransformationWatchers();
@@ -210,7 +219,7 @@ function normalizeFrom( from: string | RegExp ): RegExp {
  * The normalized value for the `to` parameter is a function that takes an array and returns an array. See more in the
  * configuration description. If the passed `to` is already a function, it is returned unchanged.
  */
-function normalizeTo( to: TextTransformationDescription[ 'to' ] ) {
+function normalizeTo( to: TextTypingTransformationDescription[ 'to' ] ) {
 	if ( typeof to == 'string' ) {
 		return () => [ to ];
 	} else if ( to instanceof Array ) {
@@ -225,7 +234,7 @@ function normalizeTo( to: TextTransformationDescription[ 'to' ] ) {
  * For given `position` returns attributes for the text that is after that position.
  * The text can be in the same text node as the position (`foo[]bar`) or in the next text node (`foo[]<$text bold="true">bar</$text>`).
  */
-function getTextAttributesAfterPosition( position: Position ) {
+function getTextAttributesAfterPosition( position: ModelPosition ) {
 	const textNode = position.textNode ? position.textNode : position.nodeAfter;
 
 	return textNode!.getAttributes();
@@ -246,7 +255,7 @@ function buildQuotesRegExp( quoteCharacter: string ): RegExp {
 function normalizeTransformations( config: TextTransformationConfig ): Array<NormalizedTransformationConfig> {
 	const extra = config.extra || [];
 	const remove = config.remove || [];
-	const isNotRemoved = ( transformation: TextTransformationDescription | string ) => !remove.includes( transformation );
+	const isNotRemoved = ( transformation: TextTypingTransformationDescription | string ) => !remove.includes( transformation );
 
 	const configured = config.include.concat( extra ).filter( isNotRemoved );
 
@@ -256,7 +265,7 @@ function normalizeTransformations( config: TextTransformationConfig ): Array<Nor
 			typeof transformation == 'string' && TRANSFORMATIONS[ transformation ] ? TRANSFORMATIONS[ transformation ] : transformation )
 		)
 		// Filter out transformations set as string that has not been found.
-		.filter( ( transformation ): transformation is TextTransformationDescription => typeof transformation === 'object' )
+		.filter( ( transformation ): transformation is TextTypingTransformationDescription => typeof transformation === 'object' )
 		.map( transformation => ( {
 			from: normalizeFrom( transformation.from ),
 			to: normalizeTo( transformation.to )
@@ -268,10 +277,10 @@ function normalizeTransformations( config: TextTransformationConfig ): Array<Nor
  * This method also removes duplicated named transformations if any.
  */
 function expandGroupsAndRemoveDuplicates(
-	definitions: Array<TextTransformationDescription | string>
-): Array<TextTransformationDescription | string> {
+	definitions: Array<TextTypingTransformationDescription | string>
+): Array<TextTypingTransformationDescription | string> {
 	// Set is using to make sure that transformation names are not duplicated.
-	const definedTransformations = new Set<TextTransformationDescription | string>();
+	const definedTransformations = new Set<TextTypingTransformationDescription | string>();
 
 	for ( const transformationOrGroup of definitions ) {
 		if ( typeof transformationOrGroup == 'string' && TRANSFORMATION_GROUPS[ transformationOrGroup ] ) {

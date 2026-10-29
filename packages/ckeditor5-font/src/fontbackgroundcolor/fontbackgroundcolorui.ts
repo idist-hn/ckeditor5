@@ -1,22 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontbackgroundcolor/fontbackgroundcolorui
  */
 
-import ColorUI from '../ui/colorui';
-import { FONT_BACKGROUND_COLOR } from '../utils';
-import type { Editor } from 'ckeditor5/src/core';
-
-import fontBackgroundColorIcon from '../../theme/icons/font-background.svg';
+import { IconFontBackground } from '@ckeditor/ckeditor5-icons';
+import { FontColorUIBase } from '../ui/colorui.js';
+import { FONT_BACKGROUND_COLOR } from '../utils.js';
+import type { Editor } from '@ckeditor/ckeditor5-core';
 
 /**
  * The font background color UI plugin. It introduces the `'fontBackgroundColor'` dropdown.
  */
-export default class FontBackgroundColorUI extends ColorUI {
+export class FontBackgroundColorUI extends FontColorUIBase {
 	/**
 	 * @inheritDoc
 	 */
@@ -26,7 +25,7 @@ export default class FontBackgroundColorUI extends ColorUI {
 		super( editor, {
 			commandName: FONT_BACKGROUND_COLOR,
 			componentName: FONT_BACKGROUND_COLOR,
-			icon: fontBackgroundColorIcon,
+			icon: IconFontBackground,
 			dropdownLabel: t( 'Font Background Color' )
 		} );
 	}

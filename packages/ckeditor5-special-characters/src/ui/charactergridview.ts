@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,21 +12,21 @@ import {
 	ButtonView,
 	addKeyboardHandlingForGrid,
 	type ViewCollection
-} from 'ckeditor5/src/ui';
+} from '@ckeditor/ckeditor5-ui';
 import {
 	KeystrokeHandler,
 	FocusTracker,
 	global,
 	type Locale
-} from 'ckeditor5/src/utils';
-
-import '../../theme/charactergrid.css';
+} from '@ckeditor/ckeditor5-utils';
 
 /**
  * A grid of character tiles. It allows browsing special characters and selecting the character to
  * be inserted into the content.
+ *
+ * @internal
  */
-export default class CharacterGridView extends View<HTMLDivElement> {
+export class CharacterGridView extends View<HTMLDivElement> {
 	/**
 	 * A collection of the child tile views. Each tile represents a particular character.
 	 */
@@ -106,7 +106,7 @@ export default class CharacterGridView extends View<HTMLDivElement> {
 		} );
 
 		// Labels are vital for the users to understand what character they're looking at.
-		// For now we're using native title attribute for that, see #5817.
+		// For now we're using native title attribute for that, see https://github.com/ckeditor/ckeditor5/issues/5817.
 		tile.extendTemplate( {
 			attributes: {
 				title: name
@@ -118,15 +118,15 @@ export default class CharacterGridView extends View<HTMLDivElement> {
 		} );
 
 		tile.on( 'mouseover', () => {
-			this.fire<CharacterGridViewTileHoverEvent>( 'tileHover', { name, character } );
+			this.fire<SpecialCharactersGridViewTileHoverEvent>( 'tileHover', { name, character } );
 		} );
 
 		tile.on( 'focus', () => {
-			this.fire<CharacterGridViewTileFocusEvent>( 'tileFocus', { name, character } );
+			this.fire<SpecialCharactersGridViewTileFocusEvent>( 'tileFocus', { name, character } );
 		} );
 
 		tile.on( 'execute', () => {
-			this.fire<CharacterGridViewExecuteEvent>( 'execute', { name, character } );
+			this.fire<SpecialCharactersGridViewExecuteEvent>( 'execute', { name, character } );
 		} );
 
 		return tile;
@@ -165,6 +165,7 @@ export default class CharacterGridView extends View<HTMLDivElement> {
 		super.destroy();
 
 		this.keystrokes.destroy();
+		this.focusTracker.destroy();
 	}
 
 	/**
@@ -181,9 +182,9 @@ export default class CharacterGridView extends View<HTMLDivElement> {
  * @eventName ~CharacterGridView#execute
  * @param data Additional information about the event.
  */
-export type CharacterGridViewExecuteEvent = {
+export type SpecialCharactersGridViewExecuteEvent = {
 	name: 'execute';
-	args: [ data: CharacterGridViewEventData ];
+	args: [ data: SpecialCharactersGridViewEventData ];
 };
 
 /**
@@ -193,9 +194,9 @@ export type CharacterGridViewExecuteEvent = {
  * @eventName ~CharacterGridView#tileHover
  * @param data Additional information about the event.
  */
-export type CharacterGridViewTileHoverEvent = {
+export type SpecialCharactersGridViewTileHoverEvent = {
 	name: 'tileHover';
-	args: [ data: CharacterGridViewEventData ];
+	args: [ data: SpecialCharactersGridViewEventData ];
 };
 
 /**
@@ -204,12 +205,12 @@ export type CharacterGridViewTileHoverEvent = {
  * @eventName ~CharacterGridView#tileFocus
  * @param data Additional information about the event.
  */
-export type CharacterGridViewTileFocusEvent = {
+export type SpecialCharactersGridViewTileFocusEvent = {
 	name: 'tileFocus';
-	args: [ data: CharacterGridViewEventData ];
+	args: [ data: SpecialCharactersGridViewEventData ];
 };
 
-export interface CharacterGridViewEventData {
+export interface SpecialCharactersGridViewEventData {
 
 	/**
 	 * The name of the tile that caused the event (e.g. "greek small letter epsilon").

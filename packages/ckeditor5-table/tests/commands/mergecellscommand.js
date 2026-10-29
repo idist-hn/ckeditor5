@@ -1,16 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import MergeCellsCommand from '../../src/commands/mergecellscommand';
-import { modelTable } from '../_utils/utils';
-import TableSelection from '../../src/tableselection';
-import TableEditing from '../../src/tableediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { MergeCellsCommand } from '../../src/commands/mergecellscommand.js';
+import { modelTable } from '../_utils/utils.js';
+import { TableSelection } from '../../src/tableselection.js';
+import { TableEditing } from '../../src/tableediting.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
 describe( 'MergeCellsCommand', () => {
 	let editor, model, command, root, tableSelection;
@@ -33,35 +34,35 @@ describe( 'MergeCellsCommand', () => {
 
 	describe( 'isEnabled', () => {
 		it( 'should be false if collapsed selection in table cell', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01' ]
 			] ) );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if only one table cell is selected', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ]
 			] ) );
 
 			selectNodes( [ [ 0, 0, 0 ] ] );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true if at least two adjacent table cells are selected', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ]
 			] ) );
 
 			selectNodes( [ [ 0, 0, 0 ], [ 0, 0, 1 ] ] );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true if many table cells are selected', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ],
 				[ '20', '21', '22', '23' ],
@@ -75,11 +76,11 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 3, 1 ], [ 0, 3, 2 ]
 			] );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if at least one table cell is not selected from an area', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ],
 				[ '20', '21', '22', '23' ],
@@ -93,11 +94,11 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 3, 1 ], [ 0, 3, 2 ]
 			] );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if table cells are not in adjacent rows', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ]
 			] ) );
@@ -107,21 +108,21 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 0, 1 ]
 			] );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if table cells are not in adjacent columns', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01', '02' ]
 			] ) );
 
 			selectNodes( [ [ 0, 0, 0 ], [ 0, 0, 2 ] ] );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if any table cell with colspan attribute extends over selection area', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { colspan: 2, contents: '01' } ],
 				[ '10', '11', '12' ]
 			] ) );
@@ -131,11 +132,11 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 1, 0 ], [ 0, 1, 1 ]
 			] );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true if none table cell with colspan attribute extends over selection area', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { colspan: 2, contents: '01' } ],
 				[ '10', '11', '12' ]
 			] ) );
@@ -146,11 +147,11 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 1, 2 ]
 			] );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true if first table cell is inside selection area', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ { colspan: 2, rowspan: 2, contents: '00' }, '02', '03' ],
 				[ '12', '13' ]
 			] ) );
@@ -160,22 +161,22 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 1, 0 ]
 			] );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if any table cell with rowspan attribute extends over selection area', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { rowspan: 2, contents: '01' } ],
 				[ '10' ]
 			] ) );
 
 			selectNodes( [ [ 0, 0, 0 ], [ 0, 0, 1 ] ] );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true if none table cell with rowspan attribute extends over selection area', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { rowspan: 2, contents: '01' } ],
 				[ '10' ]
 			] ) );
@@ -185,17 +186,17 @@ describe( 'MergeCellsCommand', () => {
 				[ 0, 1, 0 ]
 			] );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if not in a cell', () => {
-			setData( model, '<paragraph>11[]</paragraph>' );
+			_setModelData( model, '<paragraph>11[]</paragraph>' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if selection has cells from header and body sections', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01' ],
 				[ '10', '11' ]
 			], { headingRows: 1 } ) );
@@ -205,11 +206,54 @@ describe( 'MergeCellsCommand', () => {
 				root.getNodeByPath( [ 0, 1, 0 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should be false if selection has cells from footer and body sections', () => {
+			_setModelData( model, modelTable( [
+				[ '00[]', '01' ],
+				[ '10', '11' ]
+			], { footerRows: 1 } ) );
+
+			tableSelection.setCellSelection(
+				root.getNodeByPath( [ 0, 0, 0 ] ),
+				root.getNodeByPath( [ 0, 1, 0 ] )
+			);
+
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should be false if selection has cells from header and footer sections', () => {
+			_setModelData( model, modelTable( [
+				[ '00[]', '01' ],
+				[ '10', '11' ]
+			], { headingRows: 1, footerRows: 1 } ) );
+
+			tableSelection.setCellSelection(
+				root.getNodeByPath( [ 0, 0, 0 ] ),
+				root.getNodeByPath( [ 0, 1, 0 ] )
+			);
+
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should be false if selection has cells from header, footer, and body sections', () => {
+			_setModelData( model, modelTable( [
+				[ '00[]', '01' ],
+				[ '10', '11' ],
+				[ '20', '21' ]
+			], { headingRows: 1, footerRows: 1 } ) );
+
+			tableSelection.setCellSelection(
+				root.getNodeByPath( [ 0, 0, 0 ] ),
+				root.getNodeByPath( [ 0, 2, 0 ] )
+			);
+
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if more than 10 rows selected and some are in heading section', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '0' ],
 				[ '1' ],
 				[ '2' ],
@@ -234,11 +278,40 @@ describe( 'MergeCellsCommand', () => {
 				modelRoot.getNodeByPath( [ 0, 12, 0 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should be false if more than 10 rows selected and some are in footer section', () => {
+			_setModelData( model, modelTable( [
+				[ '0' ],
+				[ '1' ],
+				[ '2' ],
+				[ '3' ],
+				[ '4' ],
+				[ '5' ],
+				[ '6' ],
+				[ '7' ],
+				[ '8' ],
+				[ '9' ],
+				[ '10' ],
+				[ '11' ],
+				[ '12' ],
+				[ '13' ],
+				[ '14' ]
+			], { footerRows: 10 } ) );
+
+			const tableSelection = editor.plugins.get( TableSelection );
+			const modelRoot = model.document.getRoot();
+			tableSelection.setCellSelection(
+				modelRoot.getNodeByPath( [ 0, 1, 0 ] ),
+				modelRoot.getNodeByPath( [ 0, 12, 0 ] )
+			);
+
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true if selection has cells only from column headers - rows in body section', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ]
 			], { headingColumns: 2 } ) );
@@ -248,11 +321,25 @@ describe( 'MergeCellsCommand', () => {
 				root.getNodeByPath( [ 0, 1, 1 ] )
 			);
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
+		} );
+
+		it( 'should be true if selection has cells only from column footers - rows in footer section', () => {
+			_setModelData( model, modelTable( [
+				[ '00[]', '01', '02', '03' ],
+				[ '10', '11', '12', '13' ]
+			], { headingColumns: 2, footerRows: 1 } ) );
+
+			tableSelection.setCellSelection(
+				root.getNodeByPath( [ 0, 1, 0 ] ),
+				root.getNodeByPath( [ 0, 1, 1 ] )
+			);
+
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if selection has cells from column headers and other cells - rows in body section', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ]
 			], { headingColumns: 2 } ) );
@@ -262,11 +349,39 @@ describe( 'MergeCellsCommand', () => {
 				root.getNodeByPath( [ 0, 1, 2 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should be false if selection has cells only from column footers and other cells - rows in footer section', () => {
+			_setModelData( model, modelTable( [
+				[ '00[]', '01', '02', '03' ],
+				[ '10', '11', '12', '13' ]
+			], { headingColumns: 2, footerRows: 1 } ) );
+
+			tableSelection.setCellSelection(
+				root.getNodeByPath( [ 0, 1, 0 ] ),
+				root.getNodeByPath( [ 0, 1, 2 ] )
+			);
+
+			expect( command.isEnabled ).toBe( false );
+		} );
+
+		it( 'should be false if selection has cells from column footers, row footers and body sections', () => {
+			_setModelData( model, modelTable( [
+				[ '00[]', '01', '02', '03' ],
+				[ '10', '11', '12', '13' ]
+			], { headingColumns: 2, footerRows: 1 } ) );
+
+			tableSelection.setCellSelection(
+				root.getNodeByPath( [ 0, 0, 0 ] ),
+				root.getNodeByPath( [ 0, 1, 2 ] )
+			);
+
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true if selection has cells only from column headers - rows in header section', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ]
 			], { headingColumns: 2, headingRows: 1 } ) );
@@ -276,11 +391,11 @@ describe( 'MergeCellsCommand', () => {
 				root.getNodeByPath( [ 0, 0, 1 ] )
 			);
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if selection has cells only from column headers and other cells - rows in header section', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ]
 			], { headingColumns: 2, headingRows: 1 } ) );
@@ -290,11 +405,11 @@ describe( 'MergeCellsCommand', () => {
 				root.getNodeByPath( [ 0, 0, 2 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if selection has cells from column headers, row headers and body sections', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01', '02', '03' ],
 				[ '10', '11', '12', '13' ]
 			], { headingColumns: 2, headingRows: 1 } ) );
@@ -304,13 +419,13 @@ describe( 'MergeCellsCommand', () => {
 				root.getNodeByPath( [ 0, 1, 2 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'should merge simple table cell selection', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01' ],
 				[ '10', '11' ]
 			] ) );
@@ -322,14 +437,14 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { colspan: 2, contents: '<paragraph>[00</paragraph><paragraph>01]</paragraph>' } ],
 				[ '10', '11' ]
 			] ) );
 		} );
 
 		it( 'should merge simple table cell selection and remove empty columns', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01' ]
 			] ) );
 
@@ -340,13 +455,13 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '<paragraph>[00</paragraph><paragraph>01]</paragraph>' ]
 			] ) );
 		} );
 
 		it( 'should merge selection with a cell with rowspan in the selection', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01', '02' ],
 				[ '10', { contents: '11', rowspan: 2 }, '12' ],
 				[ '20', '22' ]
@@ -359,7 +474,7 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '00', '01', '02' ],
 				[ {
 					colspan: 3,
@@ -370,7 +485,7 @@ describe( 'MergeCellsCommand', () => {
 		} );
 
 		it( 'should merge selection with a cell with rowspan in the selection (reverse selection)', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01', '02' ],
 				[ '10', { contents: '11', rowspan: 2 }, '12' ],
 				[ '20', '22' ]
@@ -383,7 +498,7 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '00', '01', '02' ],
 				[ {
 					colspan: 3,
@@ -394,7 +509,7 @@ describe( 'MergeCellsCommand', () => {
 		} );
 
 		it( 'should merge selection inside a table (properly calculate target rowspan/colspan)', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01', '02', '03' ],
 				[ '10', '11', { contents: '12', rowspan: 2 }, '13' ],
 				[ '20', '21', '23' ],
@@ -408,7 +523,7 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '00', '01', '02', '03' ],
 				[ '10', {
 					colspan: 2,
@@ -428,7 +543,7 @@ describe( 'MergeCellsCommand', () => {
 			// +----+----+----+----+
 			// | 20 | 21 | 22 | 23 |
 			// +----+----+----+----+
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ { colspan: 2, contents: '00' }, '02', '03' ],
 				[ '10', '11', '12', '13' ],
 				[ '20', '21', '22', '23' ]
@@ -448,7 +563,7 @@ describe( 'MergeCellsCommand', () => {
 			// +----+----+----+----+
 			// | 20 | 21 | 22 | 23 |
 			// +----+----+----+----+
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ {
 					colspan: 3,
 					rowspan: 2,
@@ -464,7 +579,7 @@ describe( 'MergeCellsCommand', () => {
 		} );
 
 		it( 'should merge to a single paragraph - every cell is empty', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]', '' ],
 				[ '10', '11' ]
 			] ) );
@@ -473,14 +588,14 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { colspan: 2, contents: '<paragraph>[]</paragraph>' } ],
 				[ '10', '11' ]
 			] ) );
 		} );
 
 		it( 'should merge to a single paragraph - merged cell is empty', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ 'foo', '' ],
 				[ '10', '11' ]
 			] ) );
@@ -489,14 +604,14 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { colspan: 2, contents: '<paragraph>[foo]</paragraph>' } ],
 				[ '10', '11' ]
 			] ) );
 		} );
 
 		it( 'should merge to a single paragraph - cell to which others are merged is empty', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '', 'foo' ],
 				[ '10', '11' ]
 			] ) );
@@ -505,7 +620,7 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { colspan: 2, contents: '<paragraph>[foo]</paragraph>' } ],
 				[ '10', '11' ]
 			] ) );
@@ -518,7 +633,7 @@ describe( 'MergeCellsCommand', () => {
 				isBlock: true
 			} );
 
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '<block>[]</block>', '<block></block>' ],
 				[ '10', '11' ]
 			] ) );
@@ -527,7 +642,7 @@ describe( 'MergeCellsCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { colspan: 2, contents: '<block>[</block><block>]</block>' } ],
 				[ '10', '11' ]
 			] ) );
@@ -535,7 +650,7 @@ describe( 'MergeCellsCommand', () => {
 
 		describe( 'removing empty row', () => {
 			it( 'should remove empty row if merging all table cells from that row', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00' ],
 					[ '10' ],
 					[ '20' ]
@@ -549,7 +664,7 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[
 						'<paragraph>[00</paragraph><paragraph>10</paragraph><paragraph>20]</paragraph>'
 					]
@@ -557,7 +672,7 @@ describe( 'MergeCellsCommand', () => {
 			} );
 
 			it( 'should decrease heading rows if some heading rows were removed', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00' ],
 					[ '10' ],
 					[ '20' ]
@@ -570,7 +685,7 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[
 						'<paragraph>[00</paragraph><paragraph>10]</paragraph>'
 					],
@@ -592,7 +707,7 @@ describe( 'MergeCellsCommand', () => {
 				// +----+----+ <-- heading rows
 				// | 50 | 51 |
 				// +----+----+
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ { contents: '00', rowspan: 2 }, '01' ],
 					[ '11' ],
 					[ '20', '21' ],
@@ -622,7 +737,7 @@ describe( 'MergeCellsCommand', () => {
 				// +----+----+ <-- heading rows
 				// | 50 | 51 |
 				// +----+----+
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', { contents, rowspan: 3 } ],
 					[ '20' ],
 					[ '30' ],
@@ -631,7 +746,7 @@ describe( 'MergeCellsCommand', () => {
 			} );
 
 			it( 'should create one undo step (1 batch)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00' ],
 					[ '10' ],
 					[ '20' ]
@@ -650,11 +765,11 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( createdBatches.size ).to.equal( 1 );
+				expect( createdBatches.size ).toEqual( 1 );
 			} );
 
 			it( 'should decrease rowspan if cell overlaps removed row', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', { rowspan: 2, contents: '01' }, { rowspan: 3, contents: '02' } ],
 					[ '10' ],
 					[ '20', '21' ]
@@ -668,7 +783,7 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[
 						{ rowspan: 2, contents: '<paragraph>[00</paragraph><paragraph>10</paragraph><paragraph>20]</paragraph>' },
 						'01',
@@ -679,7 +794,7 @@ describe( 'MergeCellsCommand', () => {
 			} );
 
 			it( 'should not decrease rowspan if cell from previous row does not overlaps removed row', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', { rowspan: 2, contents: '01' } ],
 					[ '10' ],
 					[ '20', '21' ],
@@ -693,7 +808,7 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', { rowspan: 2, contents: '01' } ],
 					[ '10' ],
 					[
@@ -707,7 +822,7 @@ describe( 'MergeCellsCommand', () => {
 			} );
 
 			it( 'should remove all empty rows and columns', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02' ],
 					[ '10', '11', '12' ],
 					[ '20', '21', '22' ]
@@ -720,7 +835,7 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[
 						'<paragraph>[00</paragraph><paragraph>01</paragraph><paragraph>02</paragraph>' +
 						'<paragraph>10</paragraph><paragraph>11</paragraph><paragraph>12</paragraph>' +
@@ -730,7 +845,7 @@ describe( 'MergeCellsCommand', () => {
 			} );
 
 			it( 'should remove all empty rows and columns (asymmetrical case)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', { contents: '02', rowspan: 3 } ],
 					[ '10', '11' ],
 					[ '20', '21' ]
@@ -743,7 +858,7 @@ describe( 'MergeCellsCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[
 						'<paragraph>[00</paragraph><paragraph>01</paragraph>' +
 						'<paragraph>10</paragraph><paragraph>11</paragraph>' +

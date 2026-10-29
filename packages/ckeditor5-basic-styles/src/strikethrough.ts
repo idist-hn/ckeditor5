@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/strikethrough
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import StrikethroughEditing from './strikethrough/strikethroughediting';
-import StrikethroughUI from './strikethrough/strikethroughui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { StrikethroughEditing } from './strikethrough/strikethroughediting.js';
+import { StrikethroughUI } from './strikethrough/strikethroughui.js';
 
 /**
  * The strikethrough feature.
@@ -20,12 +20,12 @@ import StrikethroughUI from './strikethrough/strikethroughui';
  * This is a "glue" plugin which loads the {@link module:basic-styles/strikethrough/strikethroughediting~StrikethroughEditing} and
  * {@link module:basic-styles/strikethrough/strikethroughui~StrikethroughUI} plugins.
  */
-export default class Strikethrough extends Plugin {
+export class Strikethrough extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ StrikethroughEditing, StrikethroughUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ StrikethroughEditing, StrikethroughUI ]> {
+		return [ StrikethroughEditing, StrikethroughUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class Strikethrough extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Strikethrough' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

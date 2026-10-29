@@ -1,32 +1,44 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document, ClassicEditor, GeneralHtmlSupport, ArticlePluginSet */
-
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config.js';
+import { GeneralHtmlSupport } from 'ckeditor5';
+import {
+	TOKEN_URL,
+	ArticlePluginSet,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
+import { GHSEditor } from './general-html-support-source.js';
 
 import './general-html-support.css';
 
-ClassicEditor
-	.create( document.querySelector( '#snippet-general-html-support' ), {
+GHSEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-general-html-support' ),
 		extraPlugins: [
 			ArticlePluginSet,
 			GeneralHtmlSupport
 		],
 		toolbar: {
 			items: [
-				'undo', 'redo', '|', 'sourceEditing', '|', 'heading',
+				'undo', 'redo', '|', 'sourceEditingEnhanced', '|', 'heading',
 				'|', 'bold', 'italic', 'code',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		},
 		image: {
 			toolbar: [
@@ -35,13 +47,13 @@ ClassicEditor
 				'imageStyle:breakText',
 				'|',
 				'toggleImageCaption',
-				'imageTextAlternative'
+				'imageTextAlternative',
+				'ckboxImageEdit'
 			]
 		},
 		table: {
 			contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells' ]
 		},
-		cloudServices: CS_CONFIG,
 		htmlSupport: {
 			allow: [
 				// Enables all HTML features.
@@ -67,9 +79,8 @@ ClassicEditor
 	.then( editor => {
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar,
-				item => item.label && item.label === 'Source' ),
+		attachTourBalloon( {
+			target: findToolbarItem( editor.ui.view.toolbar, item => item.label && item.label === 'Source' ),
 			text: 'Switch to the source mode to check out the source of the content and play with it.',
 			editor,
 			tippyOptions: {

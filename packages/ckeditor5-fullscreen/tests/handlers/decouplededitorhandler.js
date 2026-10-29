@@ -1,0 +1,119 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Essentials } from '@ckeditor/ckeditor5-essentials';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { DecoupledEditor } from '@ckeditor/ckeditor5-editor-decoupled';
+import { global } from '@ckeditor/ckeditor5-utils';
+
+import { FullscreenDecoupledEditorHandler } from '../../src/handlers/decouplededitorhandler.js';
+import { FullscreenEditing } from '../../src/fullscreenediting.js';
+
+describe( 'DecoupledEditorHandler', () => {
+	let decoupledEditorHandler, domElement, editor;
+
+	beforeEach( async () => {
+		domElement = global.document.createElement( 'div' );
+		global.document.body.appendChild( domElement );
+
+		editor = await DecoupledEditor.create( domElement, {
+			plugins: [
+				Paragraph,
+				Essentials
+			],
+			fullscreen: {
+				menuBar: {
+					isVisible: true
+				}
+			}
+		} );
+
+		decoupledEditorHandler = new FullscreenDecoupledEditorHandler( editor );
+	} );
+
+	afterEach( () => {
+		decoupledEditorHandler.disable();
+		domElement.remove();
+
+		return editor.destroy();
+	} );
+
+	describe( 'constructor', () => {
+		it( 'should set the editor instance as a property', () => {
+			expect( decoupledEditorHandler._editor ).toBeInstanceOf( DecoupledEditor );
+		} );
+	} );
+
+	describe( '#enable()', () => {
+		it( 'should move the editable, toolbar, menu bar and body wrapper to the fullscreen container', () => {
+			decoupledEditorHandler.enable();
+
+			expect( decoupledEditorHandler.getWrapper().querySelector( '[data-ck-fullscreen=editable]' ).children[ 1 ] )
+				.toBe( editor.editing.view.getDomRoot() );
+			expect( decoupledEditorHandler.getWrapper().querySelector( '[data-ck-fullscreen=toolbar]' ).children[ 0 ] )
+				.toBe( editor.ui.view.toolbar.element );
+			expect( decoupledEditorHandler.getWrapper().querySelector( '[data-ck-fullscreen=menu-bar]' ).children[ 0 ] )
+				.toBe( editor.ui.view.menuBarView.element );
+		} );
+
+		it( 'should not move the menu bar if it is hidden by the fullscreen config', () => {
+			editor.config.set( 'fullscreen.menuBar.isVisible', false );
+
+			decoupledEditorHandler.enable();
+
+			expect( decoupledEditorHandler.getWrapper().querySelector( '[data-ck-fullscreen=menu-bar]' ).children.length )
+				.toBe( 0 );
+		} );
+
+		it( 'should use the configured toolbar behavior', async () => {
+			const tempDomElementDynamicToolbar = global.document.createElement( 'div' );
+			global.document.body.appendChild( tempDomElementDynamicToolbar );
+
+			const tempEditorDynamicToolbar = await DecoupledEditor.create( tempDomElementDynamicToolbar, {
+				plugins: [
+					Paragraph,
+					Essentials,
+					FullscreenEditing
+				],
+				fullscreen: {
+					toolbar: {
+						shouldNotGroupWhenFull: true
+					}
+				}
+			} );
+
+			tempEditorDynamicToolbar.execute( 'toggleFullscreen' );
+
+			expect( tempEditorDynamicToolbar.ui.view.toolbar.isGrouping ).toBe( false );
+
+			tempDomElementDynamicToolbar.remove();
+			await tempEditorDynamicToolbar.destroy();
+
+			const tempDomElementStaticToolbar = global.document.createElement( 'div' );
+			global.document.body.appendChild( tempDomElementStaticToolbar );
+
+			const tempEditorStaticToolbar = await DecoupledEditor.create( tempDomElementStaticToolbar, {
+				plugins: [
+					Paragraph,
+					Essentials,
+					FullscreenEditing
+				],
+				fullscreen: {
+					toolbar: {
+						shouldNotGroupWhenFull: false
+					}
+				}
+			} );
+
+			tempEditorStaticToolbar.execute( 'toggleFullscreen' );
+
+			expect( tempEditorStaticToolbar.ui.view.toolbar.isGrouping ).toBe( true );
+
+			tempDomElementStaticToolbar.remove();
+			return tempEditorStaticToolbar.destroy();
+		} );
+	} );
+} );

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,26 +8,27 @@
  */
 
 import {
+	rootAcceptsBlocks,
 	type Editor
-} from 'ckeditor5/src/core';
+} from '@ckeditor/ckeditor5-core';
 
 import {
 	EditorUI,
 	normalizeToolbarConfig,
 	type EditorUIReadyEvent,
 	type EditorUIUpdateEvent
-} from 'ckeditor5/src/ui';
+} from '@ckeditor/ckeditor5-ui';
 
-import { enablePlaceholder } from 'ckeditor5/src/engine';
+import { enableViewPlaceholder } from '@ckeditor/ckeditor5-engine';
 
-import type InlineEditorUIView from './inlineeditoruiview';
+import { type InlineEditorUIView } from './inlineeditoruiview.js';
 
 /**
  * The inline editor UI class.
  *
  * @extends module:ui/editorui/editorui~EditorUI
  */
-export default class InlineEditorUI extends EditorUI {
+export class InlineEditorUI extends EditorUI {
 	/**
 	 * The main (top–most) view of the editor UI.
 	 */
@@ -72,6 +73,15 @@ export default class InlineEditorUI extends EditorUI {
 		// to recognize the particular editable, for instance in ARIA attributes.
 		editable.name = editingRoot.rootName;
 
+		// Resolved during UI init rather than in the editor constructor: by this point the plugin
+		// initialization phase has finished, so the schema is fully populated and the check below
+		// reflects any plugin-registered root types or additional content rules.
+		editable.isInlineRoot = !rootAcceptsBlocks( editor, editingRoot.rootName );
+
+		// Mark the main editing root (adds `ck-editor__editable_root`) so themes can target it without
+		// reaching secondary editables that share the `ck-editor__editable` class (comments, etc.).
+		editable.isMainFrameEditingRoot = true;
+
 		view.render();
 
 		// The editable UI element in DOM is available for sure only after the editor UI view has been rendered.
@@ -97,6 +107,11 @@ export default class InlineEditorUI extends EditorUI {
 
 		this._initPlaceholder();
 		this._initToolbar();
+
+		if ( view.menuBarView ) {
+			this.initMenuBar( view.menuBarView );
+		}
+
 		this.fire<EditorUIReadyEvent>( 'ready' );
 	}
 
@@ -109,7 +124,10 @@ export default class InlineEditorUI extends EditorUI {
 		const view = this.view;
 		const editingView = this.editor.editing.view;
 
-		editingView.detachDomRoot( view.editable.name! );
+		if ( editingView.getDomRoot( view.editable.name! ) ) {
+			editingView.detachDomRoot( view.editable.name! );
+		}
+
 		view.destroy();
 	}
 
@@ -125,7 +143,7 @@ export default class InlineEditorUI extends EditorUI {
 		// Set–up the view#panel.
 		view.panel.bind( 'isVisible' ).to( this.focusTracker, 'isFocused' );
 
-		view.bind( 'viewportTopOffset' ).to( this, 'viewportOffset', ( { top } ) => top || 0 );
+		view.bind( 'viewportTopOffset' ).to( this, 'viewportOffset', ( { visualTop } ) => visualTop || 0 );
 
 		// https://github.com/ckeditor/ckeditor5-editor-inline/issues/4
 		view.listenTo<EditorUIUpdateEvent>( editor.ui, 'update', () => {
@@ -152,20 +170,16 @@ export default class InlineEditorUI extends EditorUI {
 		const editor = this.editor;
 		const editingView = editor.editing.view;
 		const editingRoot = editingView.document.getRoot()!;
-		const placeholder = editor.config.get( 'placeholder' );
+		const placeholder = editor.config.get( 'roots' )![ editingRoot.rootName ].placeholder;
 
 		if ( placeholder ) {
-			const placeholderText = typeof placeholder === 'string' ? placeholder : placeholder[ editingRoot.rootName ];
-
-			if ( placeholderText ) {
-				editingRoot.placeholder = placeholderText;
-			}
+			editingRoot.placeholder = placeholder;
 		}
 
-		enablePlaceholder( {
+		enableViewPlaceholder( {
 			view: editingView,
 			element: editingRoot,
-			isDirectHost: false,
+			isDirectHost: this.view.editable.isInlineRoot,
 			keepOnFocus: true
 		} );
 	}

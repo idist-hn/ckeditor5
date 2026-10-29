@@ -1,11 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect } from 'vitest';
 
-import insertAt from '../../src/dom/insertat';
+import { insertAt } from '../../src/dom/insertat.js';
 
 describe( 'insertAt', () => {
 	it( 'should insert at given position', () => {
@@ -19,10 +19,10 @@ describe( 'insertAt', () => {
 
 		insertAt( div, 1, p1 );
 
-		expect( div.childNodes.length ).to.equal( 3 );
-		expect( div.childNodes[ 0 ] ).to.equal( p0 );
-		expect( div.childNodes[ 1 ] ).to.equal( p1 );
-		expect( div.childNodes[ 2 ] ).to.equal( p2 );
+		expect( div.childNodes.length ).toBe( 3 );
+		expect( div.childNodes[ 0 ] ).toBe( p0 );
+		expect( div.childNodes[ 1 ] ).toBe( p1 );
+		expect( div.childNodes[ 2 ] ).toBe( p2 );
 	} );
 
 	it( 'should insert at the beginning', () => {
@@ -36,10 +36,10 @@ describe( 'insertAt', () => {
 
 		insertAt( div, 0, p0 );
 
-		expect( div.childNodes.length ).to.equal( 3 );
-		expect( div.childNodes[ 0 ] ).to.equal( p0 );
-		expect( div.childNodes[ 1 ] ).to.equal( p1 );
-		expect( div.childNodes[ 2 ] ).to.equal( p2 );
+		expect( div.childNodes.length ).toBe( 3 );
+		expect( div.childNodes[ 0 ] ).toBe( p0 );
+		expect( div.childNodes[ 1 ] ).toBe( p1 );
+		expect( div.childNodes[ 2 ] ).toBe( p2 );
 	} );
 
 	it( 'should insert at the end', () => {
@@ -53,9 +53,9 @@ describe( 'insertAt', () => {
 
 		insertAt( div, 2, p2 );
 
-		expect( div.childNodes.length ).to.equal( 3 );
-		expect( div.childNodes[ 0 ] ).to.equal( p0 );
-		expect( div.childNodes[ 1 ] ).to.equal( p1 );
-		expect( div.childNodes[ 2 ] ).to.equal( p2 );
+		expect( div.childNodes.length ).toBe( 3 );
+		expect( div.childNodes[ 0 ] ).toBe( p0 );
+		expect( div.childNodes[ 1 ] ).toBe( p1 );
+		expect( div.childNodes[ 2 ] ).toBe( p2 );
 	} );
 } );

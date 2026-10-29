@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import EnterCommand from '../src/entercommand';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { EnterCommand } from '../src/entercommand.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'EnterCommand', () => {
 	let editor, model, doc, schema, command;
@@ -46,41 +47,43 @@ describe( 'EnterCommand', () => {
 
 	describe( 'EnterCommand', () => {
 		it( 'splits a block using parent batch', () => {
-			setData( model, '<p>foo[]</p>' );
+			_setModelData( model, '<p>foo[]</p>' );
 
 			model.change( writer => {
-				expect( writer.batch.operations ).to.length( 0 );
+				expect( writer.batch.operations ).toHaveLength( 0 );
 				editor.execute( 'enter' );
-				expect( writer.batch.operations ).to.length.above( 0 );
+				expect( writer.batch.operations.length ).toBeGreaterThan( 0 );
 			} );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'uses enterBlock()', () => {
-			setData( model, '<p>foo[]bar</p>' );
+			_setModelData( model, '<p>foo[]bar</p>' );
 
-			sinon.spy( command, 'enterBlock' );
+			const spy = vi.spyOn( command, 'enterBlock' );
 
 			editor.execute( 'enter' );
 
-			expect( command.enterBlock.called ).to.be.true;
+			expect( spy ).toHaveBeenCalled();
 		} );
 
-		it( 'fires afterExecute() event with the current writer as a parameter', done => {
-			setData( model, '<p>foo[]bar</p>' );
+		it( 'fires afterExecute() event with the current writer as a parameter', () => {
+			_setModelData( model, '<p>foo[]bar</p>' );
 
 			let currentWriter;
 
-			command.on( 'afterExecute', ( evt, { writer } ) => {
-				expect( writer ).to.equal( currentWriter );
+			return new Promise( resolve => {
+				command.on( 'afterExecute', ( evt, { writer } ) => {
+					expect( writer ).toBe( currentWriter );
 
-				done();
-			} );
+					resolve();
+				} );
 
-			model.change( writer => {
-				currentWriter = writer;
-				editor.execute( 'enter' );
+				model.change( writer => {
+					currentWriter = writer;
+					editor.execute( 'enter' );
+				} );
 			} );
 		} );
 	} );
@@ -189,13 +192,13 @@ describe( 'EnterCommand', () => {
 			it( 'should not break inline limit elements - selection partially inside', () => {
 				// Wrap all changes in one block to avoid post-fixing the selection (which is incorret) in the meantime.
 				model.change( () => {
-					setData( model, '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
+					_setModelData( model, '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
 
 					model.change( writer => {
 						command.enterBlock( writer );
 					} );
 
-					expect( getData( model ) ).to.equal( '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
+					expect( _getModelData( model ) ).toBe( '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
 				} );
 			} );
 
@@ -206,7 +209,7 @@ describe( 'EnterCommand', () => {
 			);
 
 			it( 'leaves one empty element after two were fully selected (backward)', () => {
-				setData( model, '<p>[abc</p><p>def]</p>' );
+				_setModelData( model, '<p>[abc</p><p>def]</p>' );
 				// @TODO: Add option for setting selection direction to model utils.
 				doc.selection._lastRangeBackward = true;
 
@@ -214,33 +217,33 @@ describe( 'EnterCommand', () => {
 					command.enterBlock( writer );
 				} );
 
-				expect( getData( model ) ).to.equal( '<p>[]</p>' );
+				expect( _getModelData( model ) ).toBe( '<p>[]</p>' );
 			} );
 
 			it( 'uses DataController.deleteContent', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				editor.model.on( 'deleteContent', spy );
 
-				setData( model, '<p>[x]</p>' );
+				_setModelData( model, '<p>[x]</p>' );
 
 				model.change( writer => {
 					command.enterBlock( writer );
 				} );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 			} );
 		} );
 
 		function test( title, input, output ) {
-			it( title, () => {
-				setData( model, input );
+			it( `enterBlock(): ${ title }`, () => {
+				_setModelData( model, input );
 
 				model.change( writer => {
 					command.enterBlock( writer );
 				} );
 
-				expect( getData( model ) ).to.equal( output );
+				expect( _getModelData( model ) ).toBe( output );
 			} );
 		}
 	} );

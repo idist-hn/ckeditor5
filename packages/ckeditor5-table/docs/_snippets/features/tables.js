@@ -1,17 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals ClassicEditor, CKEditorPlugins, console, window, document */
+import {
+	TableColumnResize,
+	TableCaption,
+	TableProperties,
+	TableCellProperties
+} from 'ckeditor5';
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
+import { TableEditor } from './build-table-source.js';
 
-ClassicEditor
-	.create( document.querySelector( '#snippet-tables' ), {
+TableEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-tables' ),
 		extraPlugins: [
-			CKEditorPlugins.TableColumnResize,
-			CKEditorPlugins.TableCaption,
-			CKEditorPlugins.TableProperties,
-			CKEditorPlugins.TableCellProperties
+			TableColumnResize,
+			TableCaption,
+			TableProperties,
+			TableCellProperties
 		],
 		table: {
 			contentToolbar: [ 'toggleTableCaption', '|', 'tableColumn', 'tableRow', 'mergeTableCells', '|',
@@ -21,25 +34,34 @@ ClassicEditor
 			toolbar: [
 				'imageStyle:inline',
 				'imageStyle:block',
-				'imageStyle:side',
+				'imageStyle:wrapText',
 				'|',
 				'toggleImageCaption',
-				'imageTextAlternative'
+				'imageTextAlternative',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		}
 	} )
 	.then( editor => {
 		window.editor = editor;
 		window.editorCaption = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar,
-				item => item.buttonView && item.buttonView.label && item.buttonView.label === 'Insert table' ),
+		attachTourBalloon( {
+			target: findToolbarItem(
+				editor.ui.view.toolbar,
+				item => item.buttonView?.label === 'Insert table'
+			),
 			text: 'Click to create a table.',
 			editor,
 			tippyOptions: {

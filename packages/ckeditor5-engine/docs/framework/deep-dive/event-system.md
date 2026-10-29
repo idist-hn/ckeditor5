@@ -1,6 +1,7 @@
 ---
 category: framework-deep-dive
 meta-title: Event system | CKEditor 5 Framework Documentation
+meta-description: Explore the CKEditor 5 event system, including event types, bubbling, delegation, and how to create and handle custom events.
 ---
 # Event system
 
@@ -10,8 +11,9 @@ Emitters are heavily used throughout the entire editor architecture. They are th
 
 Any class can become an event emitter. All you need to do is mix the {@link module:utils/emittermixin~Emitter} into it:
 
+<code-switcher>
 ```js
-import { EmitterMixin, mix } from '@ckeditor/ckeditor5-utils';
+import { EmitterMixin, mix } from 'ckeditor5';
 
 class AnyClass {
 	// Class's code.
@@ -20,6 +22,7 @@ class AnyClass {
 
 mix( AnyClass, EmitterMixin );
 ```
+</code-switcher>
 
 ## Listening to events
 
@@ -35,7 +38,7 @@ However, a function object is needed if you want to be able to remove the event 
 emitter.off( 'eventName', handler );
 ```
 
-There is also another way to add an event listener &mdash; by using {@link module:utils/emittermixin~Emitter#listenTo `listenTo()`}. This way one emitter can listen to events on another emitter:
+There is also another way to add an event listener &ndash; by using {@link module:utils/emittermixin~Emitter#listenTo `listenTo()`}. This way one emitter can listen to events on another emitter:
 
 ```js
 foo.listenTo( bar, 'eventName', ( eventInfo, ...args ) => { /* ... */ } );
@@ -113,7 +116,7 @@ emitter.fire( 'eventName' ); // -> 123
 
 ### Listening on namespaced events
 
-The event system supports namespaced events to give you the possibility to build a structure of callbacks. Namespacing is achieved by using `:` in the event name:
+The event system supports namespaced events to give you the possibility to build a structure of callbacks. You can achieve namespacing by using `:` in the event name:
 
 ```js
 this.fire( 'foo:bar:baz', data );
@@ -129,7 +132,7 @@ this.on( 'foo:bar:baz', () => { /* ... */ } );
 
 This way you can have more general events, listening to a broader event (`'foo'` in this case), or more detailed callbacks listening to specified events (`'foo:bar'` or `'foo:bar:baz'`).
 
-This mechanism is used for instance in the conversion, where thanks to events named as `'insert:<elementName>'` you can listen to the insertion of a specific element (e.g. `'insert:p'`) or all elements insertion (`'insert'`).
+This mechanism is used for instance in the conversion, where thanks to events named `'insert:<elementName>'` you can listen to the insertion of a specific element (like `'insert:p'`) or all elements insertion (`'insert'`).
 
 **Note**: Listeners registered on the same priority will be fired in the order of the registration (no matter if listening to a whole namespace or to a specific event).
 
@@ -149,8 +152,9 @@ All passed arguments will be available in all listeners that are added to the ev
 
 It is sometimes useful to know if an event was stopped by any of the listeners. There is an alternative way of firing an event just for that:
 
+<code-switcher>
 ```js
-import { EventInfo } from '@ckeditor/ckeditor5-utils';
+import { EventInfo } from 'ckeditor5';
 
 // Prepare the event info...
 const eventInfo = new EventInfo( this, 'eventName' );
@@ -163,6 +167,7 @@ if ( eventInfo.stop.called ) {
 	// The event was stopped.
 }
 ```
+</code-switcher>
 
 Note that {@link module:utils/eventinfo~EventInfo} expects the source object in the first parameter as the origin of the event.
 
@@ -245,7 +250,7 @@ emitterA.fire( 'foo' );
 
 ## View events bubbling
 
-The {@link module:engine/view/document~Document `view.Document`} is not only an {@link module:utils/observablemixin~Observable Observable} and an {@link module:utils/emittermixin~Emitter emitter} but it also implements the special {@link module:engine/view/observer/bubblingemittermixin~BubblingEmitter} interface (implemented by {@link module:engine/view/observer/bubblingemittermixin~BubblingEmitterMixin}). It provides a mechanism for bubbling events over the virtual DOM tree.
+The {@link module:engine/view/document~ViewDocument `view.Document`} is not only an {@link module:utils/observablemixin~Observable Observable} and an {@link module:utils/emittermixin~Emitter emitter} but it also implements the special {@link module:engine/view/observer/bubblingemittermixin~BubblingEmitter} interface (implemented by {@link module:engine/view/observer/bubblingemittermixin~BubblingEmitterMixin}). It provides a mechanism for bubbling events over the virtual DOM tree.
 
 It is different from the bubbling that you know from the DOM tree event bubbling. You do not register listeners on specific instances of the elements in the view document tree. Instead, you can register handlers for specific contexts. A context is either a name of an element, or one of the virtual contexts (`'$capture'`, `'$text'`, `'$root'`, `'$document'`), or a callback to match desired nodes.
 
@@ -286,8 +291,9 @@ this.listenTo( view.document, 'arrowKey', ( evt, data ) => {
 
 Listeners registered in the context of a custom callback function:
 
+<code-switcher>
 ```js
-import { isWidget } from '@ckeditor/ckeditor5-widget';
+import { isWidget } from 'ckeditor5';
 
 this.listenTo( view.document, 'arrowKey', ( evt, data ) => {
 	// Listener's code.
@@ -299,6 +305,7 @@ this.listenTo( view.document, 'arrowKey', ( evt, data ) => {
 	// ...
 }, { context: isWidget, priority: 'high' } );
 ```
+</code-switcher>
 
 **Note**: Without specifying the `context`, events are bound to the `'$document'` context.
 
@@ -306,7 +313,7 @@ this.listenTo( view.document, 'arrowKey', ( evt, data ) => {
 
 Bubbling always starts from the virtual `'$capture'` context. All listeners attached to this context are triggered first (and in the order of their priorities).
 
-Then, the real bubbling starts from the selection position (either its anchor or focus &mdash; depending on what is deeper).
+Then, the real bubbling starts from the selection position (either its anchor or focus &ndash; depending on what is deeper).
 
 If text nodes are allowed at the selection position, then the first context is `'$text'`. Then the event bubbles through all elements up to the `'$root'` and finally `'$document'`.
 
@@ -339,7 +346,7 @@ Assuming the given content and selection (on a widget):
 <blockquote>
 	<p>
 		Foo
-		[<img />]	 // enhanced with toWidget()
+		[<img />]	// enhanced with toWidget()
 		bar
 	</p>
 </blockquote>
@@ -359,7 +366,7 @@ An even more complex example:
 
 ```html
 <blockquote>
-	<figure class="table">	 // enhanced with toWidget()
+	<figure class="table">	// enhanced with toWidget()
 		<table>
 			<tr>
 				<td>
@@ -393,14 +400,14 @@ In some events the first parameter is not the standard `EventInfo`, but {@link m
 
 Currently, this information is available for the following events:
 
-* {@link module:engine/view/document~Document#event:enter `enter`},
-* {@link module:engine/view/document~Document#event:delete `delete`},
-* {@link module:engine/view/document~Document#event:arrowKey `arrowKey`}.
+* {@link module:engine/view/document~ViewDocument#event:enter `enter`},
+* {@link module:engine/view/document~ViewDocument#event:delete `delete`},
+* {@link module:engine/view/document~ViewDocument#event:arrowKey `arrowKey`}.
 
 Hence the events from the above example would be extended with the following `eventPhase` data:
 
 1. `'$capture'` - *capturing*
-1. `'$text'` - *atTarget*
+1. `'$text'` - *at target*
 1. `'p'` - *bubbling*
 1. `'td'` - *bubbling*
 1. `'tr'` - *bubbling*
@@ -417,7 +424,7 @@ And for the example with the widget selected:
 <blockquote>
 	<p>
 		Foo
-		[<img />]	 // enhanced with toWidget()
+		[<img />]	 // Enhanced with toWidget().
 		bar
 	</p>
 </blockquote>
@@ -426,8 +433,8 @@ And for the example with the widget selected:
 Events that will be fired:
 
 1. `'$capture'` - *capturing*
-1. `'img'` - *atTarget*
-1. *widget* - *atTarget* (assuming a custom matcher was used)
+1. `'img'` - *at target*
+1. *widget* - *at target* (assuming a custom matcher was used)
 1. `'p'` - *bubbling*
 1. `'blockquote'` - *bubbling*
 1. `'$root'` - *bubbling*

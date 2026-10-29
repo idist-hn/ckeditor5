@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module page-break/pagebreak
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { Widget } from 'ckeditor5/src/widget';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Widget } from '@ckeditor/ckeditor5-widget';
 
-import PageBreakEditing from './pagebreakediting';
-import PageBreakUI from './pagebreakui';
+import { PageBreakEditing } from './pagebreakediting.js';
+import { PageBreakUI } from './pagebreakui.js';
 
 /**
  * The page break feature.
@@ -20,12 +20,12 @@ import PageBreakUI from './pagebreakui';
  *
  * For a detailed overview, check the {@glink features/page-break Page break feature} documentation.
  */
-export default class PageBreak extends Plugin {
+export class PageBreak extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ PageBreakEditing, PageBreakUI, Widget ] as const;
+	public static get requires(): PluginDependenciesOf<[ PageBreakEditing, PageBreakUI, Widget ]> {
+		return [ PageBreakEditing, PageBreakUI, Widget ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class PageBreak extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'PageBreak' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

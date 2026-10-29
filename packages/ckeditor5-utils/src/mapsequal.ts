@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -14,7 +14,7 @@
  * @param mapB The second map to compare.
  * @returns `true` if given maps are equal, `false` otherwise.
  */
-export default function mapsEqual<Key>( mapA: Map<Key, unknown>, mapB: Map<Key, unknown> ): boolean {
+export function mapsEqual<Key>( mapA: Map<Key, unknown>, mapB: Map<Key, unknown> ): boolean {
 	if ( mapA.size != mapB.size ) {
 		return false;
 	}

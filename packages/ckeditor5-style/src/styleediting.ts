@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/styleediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { DataSchema } from '@ckeditor/ckeditor5-html-support';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { GeneralHtmlSupport, type DataSchema } from '@ckeditor/ckeditor5-html-support';
 
-import StyleCommand from './stylecommand';
-import StyleUtils from './styleutils';
-import type { StyleConfig } from './styleconfig';
+import { StyleCommand } from './stylecommand.js';
+import { StyleUtils } from './styleutils.js';
+import type { StyleConfig } from './styleconfig.js';
 
-import DocumentListStyleSupport from './integrations/documentlist';
-import TableStyleSupport from './integrations/table';
-import LinkStyleSupport from './integrations/link';
+import { ListStyleSupport } from './integrations/list.js';
+import { TableStyleSupport } from './integrations/table.js';
+import { LinkStyleSupport } from './integrations/link.js';
 
 /**
  * The style engine feature.
@@ -25,7 +25,7 @@ import LinkStyleSupport from './integrations/link';
  * {@link module:style/styleconfig~StyleConfig#definitions configured style definitions} and introduces the
  * {@link module:style/stylecommand~StyleCommand style command} that applies styles to the content of the document.
  */
-export default class StyleEditing extends Plugin {
+export class StyleEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -36,8 +36,27 @@ export default class StyleEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ 'GeneralHtmlSupport', StyleUtils, DocumentListStyleSupport, TableStyleSupport, LinkStyleSupport ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[
+		GeneralHtmlSupport,
+		StyleUtils,
+		ListStyleSupport,
+		TableStyleSupport,
+		LinkStyleSupport
+	]> {
+		return [
+			GeneralHtmlSupport,
+			StyleUtils,
+			ListStyleSupport,
+			TableStyleSupport,
+			LinkStyleSupport
+		];
 	}
 
 	/**

@@ -1,14 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import AlignmentCommand from '../src/alignmentcommand';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { AlignmentCommand } from '../src/alignmentcommand.js';
 
-import Command from '@ckeditor/ckeditor5-core/src/command';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
+import { _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
+
+import { Command } from '@ckeditor/ckeditor5-core';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
 
 describe( 'AlignmentCommand', () => {
 	let editor, model, command;
@@ -28,26 +30,26 @@ describe( 'AlignmentCommand', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	it( 'is a command', () => {
-		expect( AlignmentCommand.prototype ).to.be.instanceOf( Command );
-		expect( command ).to.be.instanceOf( Command );
+		expect( AlignmentCommand.prototype ).toBeInstanceOf( Command );
+		expect( command ).toBeInstanceOf( Command );
 	} );
 
 	describe( 'value', () => {
 		it( 'is set to block alignment when selection is in block that has alignment attribute set', () => {
-			setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
+			_setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
 
-			expect( command ).to.have.property( 'value', 'center' );
+			expect( command.value ).toBe( 'center' );
 		} );
 
 		it( 'is set to default alignment when selection is in block with default alignment (LTR content)', () => {
-			setModelData( model, '<paragraph>x[]x</paragraph>' );
+			_setModelData( model, '<paragraph>x[]x</paragraph>' );
 
-			expect( command ).to.have.property( 'value', 'left' );
+			expect( command.value ).toBe( 'left' );
 		} );
 
 		it( 'is set to default alignment when selection is in block with default alignment (RTL content)', () => {
@@ -64,9 +66,9 @@ describe( 'AlignmentCommand', () => {
 				model.schema.register( 'div', { inheritAllFrom: '$block' } );
 				model.schema.extend( 'paragraph', { allowAttributes: 'alignment' } );
 
-				setModelData( model, '<paragraph>x[]x</paragraph>' );
+				_setModelData( model, '<paragraph>x[]x</paragraph>' );
 
-				expect( command ).to.have.property( 'value', 'right' );
+				expect( command.value ).toBe( 'right' );
 
 				return newEditor.destroy();
 			} );
@@ -75,34 +77,34 @@ describe( 'AlignmentCommand', () => {
 
 	describe( 'isEnabled', () => {
 		it( 'is true when selection is in a block which can have added alignment', () => {
-			setModelData( model, '<paragraph>x[]x</paragraph>' );
+			_setModelData( model, '<paragraph>x[]x</paragraph>' );
 
-			expect( command ).to.have.property( 'isEnabled', true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
-		it( 'is false when selection is in a block which can not be aligned', () => {
-			setModelData( model, '<div>x[]x</div>' );
+		it( 'is false when selection is in a block which cannot be aligned', () => {
+			_setModelData( model, '<div>x[]x</div>' );
 
-			expect( command ).to.have.property( 'isEnabled', false );
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		describe( 'applying alignment', () => {
 			it( 'adds alignment to block element', () => {
-				setModelData( model, '<paragraph>x[]x</paragraph>' );
+				_setModelData( model, '<paragraph>x[]x</paragraph>' );
 
 				editor.execute( 'alignment', { value: 'center' } );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph alignment="center">x[]x</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph alignment="center">x[]x</paragraph>' );
 			} );
 
 			it( 'should remove alignment from single block element if already has one (LTR content)', () => {
-				setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
+				_setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
 
 				editor.execute( 'alignment', { value: 'left' } );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph>x[]x</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>x[]x</paragraph>' );
 			} );
 
 			it( 'should remove alignment from single block element if already has one (RTL content)', () => {
@@ -119,22 +121,22 @@ describe( 'AlignmentCommand', () => {
 					model.schema.register( 'div', { inheritAllFrom: '$block' } );
 					model.schema.extend( 'paragraph', { allowAttributes: 'alignment' } );
 
-					setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
+					_setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
 
 					newEditor.execute( 'alignment', { value: 'right' } );
 
-					expect( getModelData( model ) ).to.equal( '<paragraph>x[]x</paragraph>' );
+					expect( _getModelData( model ) ).toBe( '<paragraph>x[]x</paragraph>' );
 
 					return newEditor.destroy();
 				} );
 			} );
 
 			it( 'adds alignment to all selected blocks', () => {
-				setModelData( model, '<paragraph>x[x</paragraph><paragraph>xx</paragraph><paragraph>x]x</paragraph>' );
+				_setModelData( model, '<paragraph>x[x</paragraph><paragraph>xx</paragraph><paragraph>x]x</paragraph>' );
 
 				editor.execute( 'alignment', { value: 'center' } );
 
-				expect( getModelData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph alignment="center">x[x</paragraph>' +
 					'<paragraph alignment="center">xx</paragraph>' +
 					'<paragraph alignment="center">x]x</paragraph>'
@@ -142,7 +144,7 @@ describe( 'AlignmentCommand', () => {
 			} );
 
 			it( 'sets alignment on all selected blocks as first block', () => {
-				setModelData(
+				_setModelData(
 					model,
 					'<paragraph>x[x</paragraph>' +
 					'<paragraph >xx</paragraph>' +
@@ -151,7 +153,7 @@ describe( 'AlignmentCommand', () => {
 
 				editor.execute( 'alignment', { value: 'center' } );
 
-				expect( getModelData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph alignment="center">x[x</paragraph>' +
 					'<paragraph alignment="center">xx</paragraph>' +
 					'<paragraph alignment="center">x]x</paragraph>'
@@ -159,32 +161,32 @@ describe( 'AlignmentCommand', () => {
 			} );
 
 			it( 'should remove alignment if block has the same alignment set', () => {
-				setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
+				_setModelData( model, '<paragraph alignment="center">x[]x</paragraph>' );
 
 				editor.execute( 'alignment', { value: 'center' } );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph>x[]x</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>x[]x</paragraph>' );
 			} );
 		} );
 
 		describe( 'applying default alignment', () => {
 			it( 'removes alignment from block element when passed as value', () => {
-				setModelData( model, '<paragraph alignment="justify">x[]x</paragraph>' );
+				_setModelData( model, '<paragraph alignment="justify">x[]x</paragraph>' );
 
 				editor.execute( 'alignment', { value: 'left' } );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph>x[]x</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>x[]x</paragraph>' );
 			} );
 			it( 'removes alignment from block element when no value is passed', () => {
-				setModelData( model, '<paragraph alignment="justify">x[]x</paragraph>' );
+				_setModelData( model, '<paragraph alignment="justify">x[]x</paragraph>' );
 
 				editor.execute( 'alignment' );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph>x[]x</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>x[]x</paragraph>' );
 			} );
 
 			it( 'removes alignment from all selected blocks', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph alignment="center">x[x</paragraph>' +
 					'<paragraph alignment="center">xx</paragraph>' +
 					'<paragraph alignment="center">x]x</paragraph>'
@@ -192,13 +194,13 @@ describe( 'AlignmentCommand', () => {
 
 				editor.execute( 'alignment', { value: 'left' } );
 
-				expect( getModelData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>x[x</paragraph><paragraph>xx</paragraph><paragraph>x]x</paragraph>'
 				);
 			} );
 
 			it( 'removes alignment from all selected blocks even if one has no alignment defined', () => {
-				setModelData( model,
+				_setModelData( model,
 					'<paragraph alignment="center">x[x</paragraph>' +
 					'<paragraph>xx</paragraph>' +
 					'<paragraph alignment="center">x]x</paragraph>'
@@ -206,7 +208,7 @@ describe( 'AlignmentCommand', () => {
 
 				editor.execute( 'alignment', { value: 'left' } );
 
-				expect( getModelData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>x[x</paragraph><paragraph>xx</paragraph><paragraph>x]x</paragraph>'
 				);
 			} );

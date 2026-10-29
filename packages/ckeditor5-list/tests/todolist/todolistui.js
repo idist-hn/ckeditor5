@@ -1,31 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import TodoListEditing from '../../src/todolist/todolistediting';
-import TodoListUI from '../../src/todolist/todolistui';
+// TODO use new list
+import { LegacyTodoListEditing } from '../../src/legacytodolist/legacytodolistediting.js';
+import { TodoListUI } from '../../src/todolist/todolistui.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ButtonView, MenuBarMenuListItemButtonView } from '@ckeditor/ckeditor5-ui';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'TodoListUI', () => {
-	let editorElement, editor, model, button;
+	let editorElement, editor, model;
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
 		document.body.appendChild( editorElement );
 
-		return ClassicTestEditor.create( editorElement, { plugins: [ Paragraph, TodoListEditing, TodoListUI ] } )
+		return ClassicTestEditor.create( editorElement, { plugins: [ Paragraph, LegacyTodoListEditing, TodoListUI ] } )
 			.then( newEditor => {
 				editor = newEditor;
 				model = editor.model;
-
-				button = editor.ui.componentFactory.create( 'todoList' );
 			} );
 	} );
 
@@ -35,29 +34,79 @@ describe( 'TodoListUI', () => {
 		return editor.destroy();
 	} );
 
-	it( 'should set up buttons for bulleted list and numbered list', () => {
-		expect( button ).to.be.instanceOf( ButtonView );
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TodoListUI.isOfficialPlugin ).toBe( true );
 	} );
 
-	it( 'should execute proper commands when buttons are used', () => {
-		sinon.spy( editor, 'execute' );
-
-		button.fire( 'execute' );
-		sinon.assert.calledWithExactly( editor.execute, 'todoList' );
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TodoListUI.isPremiumPlugin ).toBe( false );
 	} );
 
-	it( 'should bind button to command', () => {
-		setData( model, '<listItem listType="todo" listIndent="0">[]foo</listItem>' );
+	describe( 'toolbar button', () => {
+		let button;
 
-		const command = editor.commands.get( 'todoList' );
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'todoList' );
+		} );
 
-		expect( button.isOn ).to.be.true;
-		expect( button.isEnabled ).to.be.true;
+		it( 'should be a button', () => {
+			expect( button ).toBeInstanceOf( ButtonView );
+		} );
 
-		command.value = false;
-		expect( button.isOn ).to.be.false;
+		it( 'should execute proper commands when buttons are used', () => {
+			const spy = vi.spyOn( editor, 'execute' );
 
-		command.isEnabled = false;
-		expect( button.isEnabled ).to.be.false;
+			button.fire( 'execute' );
+			expect( spy ).toHaveBeenCalledExactlyOnceWith( 'todoList' );
+		} );
+
+		it( 'should bind button to command', () => {
+			_setModelData( model, '<listItem listType="todo" listIndent="0">[]foo</listItem>' );
+
+			const command = editor.commands.get( 'todoList' );
+
+			expect( button.isOn ).toBe( true );
+			expect( button.isEnabled ).toBe( true );
+
+			command.value = false;
+			expect( button.isOn ).toBe( false );
+
+			command.isEnabled = false;
+			expect( button.isEnabled ).toBe( false );
+		} );
+	} );
+
+	describe( 'menu bar button', () => {
+		let button;
+
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'menuBar:todoList' );
+		} );
+
+		it( 'should be a button', () => {
+			expect( button ).toBeInstanceOf( MenuBarMenuListItemButtonView );
+		} );
+
+		it( 'should execute proper commands when buttons are used', () => {
+			const spy = vi.spyOn( editor, 'execute' );
+
+			button.fire( 'execute' );
+			expect( spy ).toHaveBeenCalledExactlyOnceWith( 'todoList' );
+		} );
+
+		it( 'should bind button to command', () => {
+			_setModelData( model, '<listItem listType="todo" listIndent="0">[]foo</listItem>' );
+
+			const command = editor.commands.get( 'todoList' );
+
+			expect( button.isOn ).toBe( true );
+			expect( button.isEnabled ).toBe( true );
+
+			command.value = false;
+			expect( button.isOn ).toBe( false );
+
+			command.isEnabled = false;
+			expect( button.isEnabled ).toBe( false );
+		} );
 	} );
 } );

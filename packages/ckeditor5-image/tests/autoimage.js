@@ -1,26 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global setTimeout */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Clipboard } from '@ckeditor/ckeditor5-clipboard';
+import { Link, LinkImage } from '@ckeditor/ckeditor5-link';
+import { Table } from '@ckeditor/ckeditor5-table';
+import { Typing } from '@ckeditor/ckeditor5-typing';
+import { Undo } from '@ckeditor/ckeditor5-undo';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { ViewDocumentDomEventData, _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Clipboard from '@ckeditor/ckeditor5-clipboard/src/clipboard';
-import Link from '@ckeditor/ckeditor5-link/src/link';
-import LinkImage from '@ckeditor/ckeditor5-link/src/linkimage';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
-import Undo from '@ckeditor/ckeditor5-undo/src/undo';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-import Image from '../src/image';
-import ImageUtils from '../src/imageutils';
-import ImageCaption from '../src/imagecaption';
-import AutoImage from '../src/autoimage';
+import { Image } from '../src/image.js';
+import { ImageUtils } from '../src/imageutils.js';
+import { ImageCaption } from '../src/imagecaption.js';
+import { AutoImage } from '../src/autoimage.js';
 
 describe( 'AutoImage - integration', () => {
 	let editorElement, editor;
@@ -31,7 +28,8 @@ describe( 'AutoImage - integration', () => {
 
 		return ClassicTestEditor
 			.create( editorElement, {
-				plugins: [ Typing, Paragraph, Link, Image, LinkImage, ImageCaption, AutoImage ]
+				plugins: [ Typing, Paragraph, Link, Image, LinkImage, ImageCaption, AutoImage ],
+				image: { insert: { type: 'auto' } }
 			} )
 			.then( newEditor => {
 				editor = newEditor;
@@ -45,84 +43,90 @@ describe( 'AutoImage - integration', () => {
 	} );
 
 	it( 'should load the Clipboard plugin', () => {
-		expect( AutoImage.requires ).to.include( Clipboard );
+		expect( AutoImage.requires ).toContain( Clipboard );
 	} );
 
 	it( 'should load the Undo plugin', () => {
-		expect( AutoImage.requires ).to.include( Undo );
+		expect( AutoImage.requires ).toContain( Undo );
 	} );
 
 	it( 'should load the ImageUtils plugin', () => {
-		expect( AutoImage.requires ).to.include( ImageUtils );
+		expect( AutoImage.requires ).toContain( ImageUtils );
 	} );
 
 	it( 'has proper name', () => {
-		expect( AutoImage.pluginName ).to.equal( 'AutoImage' );
+		expect( AutoImage.pluginName ).toBe( 'AutoImage' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( AutoImage.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( AutoImage.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'use fake timers', () => {
-		let clock;
-
 		beforeEach( () => {
-			clock = sinon.useFakeTimers();
+			vi.useFakeTimers();
 		} );
 
 		afterEach( () => {
-			clock.restore();
+			vi.useRealTimers();
 		} );
 
 		it( 'replaces pasted text with image element after 100ms', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>'
 			);
 		} );
 
 		it( 'can undo auto-embeding', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
 			editor.commands.execute( 'undo' );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 		} );
 
 		it( 'can undo auto-embeding by pressing backspace', () => {
 			const viewDocument = editor.editing.view.document;
-			const deleteEvent = new DomEventData(
+			const deleteEvent = new ViewDocumentDomEventData(
 				viewDocument,
-				{ preventDefault: sinon.spy() },
+				{ preventDefault: vi.fn() },
 				{ direction: 'backward', unit: 'codePoint', sequence: 1 }
 			);
 
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
 			viewDocument.fire( 'delete', deleteEvent );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 		} );
@@ -150,12 +154,12 @@ describe( 'AutoImage - integration', () => {
 
 			for ( const supportedURL of supportedURLs ) {
 				it( `should detect "${ supportedURL }" as a valid URL`, () => {
-					setData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 					pasteHtml( editor, supportedURL );
 
-					clock.tick( 100 );
+					vi.advanceTimersByTime( 100 );
 
-					expect( getData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toBe(
 						`<paragraph>[<imageInline src="${ supportedURL }"></imageInline>]</paragraph>`
 					);
 				} );
@@ -177,12 +181,12 @@ describe( 'AutoImage - integration', () => {
 
 			for ( const unsupportedURL of unsupportedOrInvalid ) {
 				it( `should not detect "${ unsupportedURL }" as a valid URL`, () => {
-					setData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 					pasteHtml( editor, unsupportedURL );
 
-					clock.tick( 100 );
+					vi.advanceTimersByTime( 100 );
 
-					expect( getData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toBe(
 						`<paragraph>${ unsupportedURL }[]</paragraph>`
 					);
 				} );
@@ -192,58 +196,58 @@ describe( 'AutoImage - integration', () => {
 			it( 'should handle invalid URL with repeated characters', () => {
 				const invalidURL = 'a.' + 'a'.repeat( 100000 );
 
-				setData( editor.model, '<paragraph>[]</paragraph>' );
+				_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 				pasteHtml( editor, invalidURL );
 
-				clock.tick( 100 );
+				vi.advanceTimersByTime( 100 );
 
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					`<paragraph>${ invalidURL }[]</paragraph>`
 				);
 			} );
 		} );
 
 		it( 'works for URL that was pasted as a link', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, '<a href="http://example.com/image.png">' +
 				'http://example.com/image.png</a>' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>'
 			);
 		} );
 
 		it( 'works for URL that contains some inline styles', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, '<b>http://example.com/image.png</b>' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>'
 			);
 		} );
 
 		it( 'works for not collapsed selection inside single element', () => {
-			setData( editor.model, '<paragraph>[Foo]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[Foo]</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>'
 			);
 		} );
 
 		it( 'works for not collapsed selection over a few elements', () => {
-			setData( editor.model, '<paragraph>Fo[o</paragraph><paragraph>Ba]r</paragraph>' );
+			_setModelData( editor.model, '<paragraph>Fo[o</paragraph><paragraph>Ba]r</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>' +
 					'Fo[<imageInline src="http://example.com/image.png"></imageInline>]r' +
 				'</paragraph>'
@@ -251,12 +255,12 @@ describe( 'AutoImage - integration', () => {
 		} );
 
 		it( 'inserts image in-place (collapsed selection)', () => {
-			setData( editor.model, '<paragraph>Foo []Bar</paragraph>' );
+			_setModelData( editor.model, '<paragraph>Foo []Bar</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>' +
 					'Foo [<imageInline src="http://example.com/image.png"></imageInline>]Bar' +
 				'</paragraph>'
@@ -264,12 +268,12 @@ describe( 'AutoImage - integration', () => {
 		} );
 
 		it( 'inserts image in-place (non-collapsed selection)', () => {
-			setData( editor.model, '<paragraph>Foo [Bar] Baz</paragraph>' );
+			_setModelData( editor.model, '<paragraph>Foo [Bar] Baz</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>' +
 					'Foo [<imageInline src="http://example.com/image.png"></imageInline>] Baz' +
 				'</paragraph>'
@@ -277,16 +281,16 @@ describe( 'AutoImage - integration', () => {
 		} );
 
 		it( 'does nothing if pasted more than single node', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor,
 				'http://example.com/image.png ' +
 				'<a href="http://example.com/image.png">' +
 				'http://example.com/image.png</a>'
 			);
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model, { withoutSelection: true } ) ).to.equal(
+			expect( _getModelData( editor.model, { withoutSelection: true } ) ).toBe(
 				'<paragraph>http://example.com/image.png ' +
 				'<$text linkHref="http://example.com/image.png">' +
 				'http://example.com/image.png</$text>' +
@@ -295,58 +299,58 @@ describe( 'AutoImage - integration', () => {
 		} );
 
 		it( 'does nothing if pasted a paragraph with the url', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, '<p>http://example.com/image.png</p>' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 		} );
 
 		it( 'does nothing if pasted a block of content that looks like a URL', () => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, '<p>https://</p><p>example.com/image</p><p>.png</p>' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>https://</paragraph><paragraph>example.com/image</paragraph><paragraph>.png[]</paragraph>'
 			);
 		} );
 
 		// #47
 		it( 'does not transform a valid URL into a image if the element cannot be placed in the current position', () => {
-			setData( editor.model, '<imageBlock src="/assets/sample.png"><caption>Foo.[]</caption></imageBlock>' );
+			_setModelData( editor.model, '<imageBlock src="/sample.png"><caption>Foo.[]</caption></imageBlock>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
-				'<imageBlock src="/assets/sample.png"><caption>' +
+			expect( _getModelData( editor.model ) ).toBe(
+				'<imageBlock src="/sample.png"><caption>' +
 				'Foo.http://example.com/image.png[]' +
 				'</caption></imageBlock>'
 			);
 		} );
 
 		it( 'replaces a URL in image if pasted a link when other image element was selected', () => {
-			setData(
+			_setModelData(
 				editor.model,
 				'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>'
 			);
 
 			pasteHtml( editor, 'http://example.com/image2.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>[<imageInline src="http://example.com/image2.png"></imageInline>]</paragraph>'
 			);
 		} );
 
 		it( 'inserts a new image element if pasted a link when other image element was selected in correct place', () => {
-			setData(
+			_setModelData(
 				editor.model,
 				'<paragraph>Foo. <$text linkHref="https://cksource.com">Bar</$text></paragraph>' +
 				'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>' +
@@ -355,9 +359,9 @@ describe( 'AutoImage - integration', () => {
 
 			pasteHtml( editor, 'http://example.com/image2.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>Foo. <$text linkHref="https://cksource.com">Bar</$text></paragraph>' +
 				'<paragraph>[<imageInline src="http://example.com/image2.png"></imageInline>]</paragraph>' +
 				'<paragraph>Bar.</paragraph>'
@@ -365,12 +369,12 @@ describe( 'AutoImage - integration', () => {
 		} );
 
 		it( 'should insert an image into a link and preserve its continuity (LinkImage integration)', () => {
-			setData( editor.model, '<paragraph><$text linkHref="https://cksource.com">linked[]text</$text></paragraph>' );
+			_setModelData( editor.model, '<paragraph><$text linkHref="https://cksource.com">linked[]text</$text></paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			clock.tick( 100 );
+			vi.advanceTimersByTime( 100 );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>' +
 					'<$text linkHref="https://cksource.com">linked</$text>' +
 					'[<imageInline linkHref="https://cksource.com" src="http://example.com/image.png"></imageInline>]' +
@@ -383,27 +387,27 @@ describe( 'AutoImage - integration', () => {
 	describe( 'use real timers', () => {
 		const characters = Array( 10 ).fill( 1 ).map( ( x, i ) => String.fromCharCode( 65 + i ) );
 
-		it( 'undo breaks the auto-image feature (undo was done before auto-image)', done => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+		it( 'undo breaks the auto-image feature (undo was done before auto-image)', () => new Promise( resolve => {
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 
-			expect( getData( editor.model ) ).to.equal(
+			expect( _getModelData( editor.model ) ).toBe(
 				'<paragraph>http://example.com/image.png[]</paragraph>'
 			);
 
 			setTimeout( () => {
 				editor.commands.execute( 'undo' );
 
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					'<paragraph>[]</paragraph>'
 				);
 
-				done();
+				resolve();
 			} );
-		} );
+		} ) );
 
 		// Checking whether paste+typing calls the auto-image handler once.
-		it( 'pasting handler should be executed once', done => {
+		it( 'pasting handler should be executed once', () => new Promise( resolve => {
 			const AutoImagePlugin = editor.plugins.get( AutoImage );
 			const autoImageHandler = AutoImagePlugin._embedImageBetweenPositions;
 			let counter = 0;
@@ -414,21 +418,21 @@ describe( 'AutoImage - integration', () => {
 				return autoImageHandler.apply( this, args );
 			};
 
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 			pasteHtml( editor, 'http://example.com/image.png' );
 			simulateTyping( 'Foo. Bar.' );
 
 			setTimeout( () => {
 				AutoImagePlugin._embedImageBetweenPositions = autoImageHandler;
 
-				expect( counter ).to.equal( 1 );
+				expect( counter ).toBe( 1 );
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 
-		it( 'typing before pasted link during collaboration should not blow up', done => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+		it( 'typing before pasted link during collaboration should not blow up', () => new Promise( resolve => {
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 			pasteHtml( editor, 'http://example.com/image.png' );
 
@@ -443,16 +447,16 @@ describe( 'AutoImage - integration', () => {
 			}
 
 			setTimeout( () => {
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]ABCDEFGHIJ</paragraph>'
 				);
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 
-		it( 'typing after pasted link during collaboration should not blow up', done => {
-			setData( editor.model, '<paragraph>[]</paragraph>' );
+		it( 'typing after pasted link during collaboration should not blow up', () => new Promise( resolve => {
+			_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 			pasteHtml( editor, 'http://example.com/image.png' );
 
@@ -465,16 +469,17 @@ describe( 'AutoImage - integration', () => {
 			}
 
 			setTimeout( () => {
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					'<paragraph>[<imageInline src="http://example.com/image.png"></imageInline>]ABCDEFGHIJ</paragraph>'
 				);
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 
-		it( 'should insert the image element even if parent element where the URL was pasted has been deleted', done => {
-			setData( editor.model, '<paragraph>Foo.</paragraph><paragraph>Bar.[]</paragraph>' );
+		// eslint-disable-next-line @stylistic/max-len
+		it( 'should insert the image element even if parent element where the URL was pasted has been deleted', () => new Promise( resolve => {
+			_setModelData( editor.model, '<paragraph>Foo.</paragraph><paragraph>Bar.[]</paragraph>' );
 
 			pasteHtml( editor, 'http://example.com/image.png' );
 
@@ -483,16 +488,16 @@ describe( 'AutoImage - integration', () => {
 			} );
 
 			setTimeout( () => {
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					'<paragraph>Foo.[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>'
 				);
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 
-		it( 'should insert the image element even if new element appeared above the pasted URL', done => {
-			setData( editor.model, '<paragraph>Foo.</paragraph><paragraph>Bar.[]</paragraph>' );
+		it( 'should insert the image element even if new element appeared above the pasted URL', () => new Promise( resolve => {
+			_setModelData( editor.model, '<paragraph>Foo.</paragraph><paragraph>Bar.[]</paragraph>' );
 
 			pasteHtml( editor, 'http://example.com/image.png' );
 
@@ -511,7 +516,7 @@ describe( 'AutoImage - integration', () => {
 			}
 
 			setTimeout( () => {
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					'<paragraph>Foo.</paragraph>' +
 					'<paragraph>ABCDEFGHIJ</paragraph>' +
 					'<paragraph>Bar.' +
@@ -519,12 +524,12 @@ describe( 'AutoImage - integration', () => {
 					'</paragraph>'
 				);
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 
-		it( 'should insert the image element even if new element appeared below the pasted URL', done => {
-			setData( editor.model, '<paragraph>Foo.</paragraph><paragraph>Bar.[]</paragraph>' );
+		it( 'should insert the image element even if new element appeared below the pasted URL', () => new Promise( resolve => {
+			_setModelData( editor.model, '<paragraph>Foo.</paragraph><paragraph>Bar.[]</paragraph>' );
 
 			pasteHtml( editor, 'http://example.com/image.png' );
 
@@ -543,24 +548,24 @@ describe( 'AutoImage - integration', () => {
 			}
 
 			setTimeout( () => {
-				expect( getData( editor.model ) ).to.equal(
+				expect( _getModelData( editor.model ) ).toBe(
 					'<paragraph>Foo.</paragraph>' +
 					'<paragraph>Bar.' +
 					'[<imageInline src="http://example.com/image.png"></imageInline>]</paragraph>' +
 					'<paragraph>ABCDEFGHIJ</paragraph>'
 				);
 
-				done();
+				resolve();
 			}, 100 );
-		} );
+		} ) );
 	} );
 
-	it( 'should detach LiveRange', async () => {
+	it( 'should detach ModelLiveRange', async () => {
 		const editor = await ClassicTestEditor.create( editorElement, {
 			plugins: [ Typing, Paragraph, Link, Image, ImageCaption, Table, AutoImage ]
 		} );
 
-		setData(
+		_setModelData(
 			editor.model,
 			'<table>' +
 				'<tableRow>' +
@@ -572,7 +577,7 @@ describe( 'AutoImage - integration', () => {
 
 		pasteHtml( editor, '<table><tr><td>one</td><td>two</td></tr></table>' );
 
-		expect( getData( editor.model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( editor.model, { withoutSelection: true } ) ).toBe(
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell><paragraph>one</paragraph></tableCell>' +
@@ -583,7 +588,7 @@ describe( 'AutoImage - integration', () => {
 
 		expect( () => {
 			editor.setData( '' );
-		} ).not.to.throw();
+		} ).not.toThrow();
 
 		await editor.destroy();
 	} );

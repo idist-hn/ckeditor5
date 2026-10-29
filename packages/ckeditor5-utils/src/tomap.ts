@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/tomap
  */
 
-import objectToMap from './objecttomap';
-import isIterable from './isiterable';
+import { objectToMap } from './objecttomap.js';
+import { isIterable } from './isiterable.js';
 
 /**
  * Transforms object or iterable to map. Iterable needs to be in the format acceptable by the `Map` constructor.
@@ -22,8 +22,8 @@ import isIterable from './isiterable';
  * @param data Object or iterable to transform.
  * @returns Map created from data.
  */
-export default function toMap<T>( data: { readonly [ key: string ]: T } | Iterable<readonly [ string, T ]> | null | undefined ):
-	Map<string, T>
+export function toMap<T>( data: { readonly [ key: string ]: T } | Iterable<readonly [ string, T ]> | null | undefined ):
+Map<string, T>
 {
 	if ( isIterable( data ) ) {
 		return new Map( data );

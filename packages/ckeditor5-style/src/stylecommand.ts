@@ -1,29 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/stylecommand
  */
 
-import type { DocumentSelection, Element } from 'ckeditor5/src/engine';
-import { Command, type Editor } from 'ckeditor5/src/core';
-import { logWarning, first } from 'ckeditor5/src/utils';
+import type { ModelDocumentSelection, ModelElement } from '@ckeditor/ckeditor5-engine';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { logWarning, first } from '@ckeditor/ckeditor5-utils';
 import type { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
 
-import StyleUtils, {
+import {
+	StyleUtils,
 	type BlockStyleDefinition,
 	type NormalizedStyleDefinition,
 	type NormalizedStyleDefinitions
-} from './styleutils';
+} from './styleutils.js';
 
 /**
  * Style command.
  *
  * Applies and removes styles from selection and elements.
  */
-export default class StyleCommand extends Command {
+export class StyleCommand extends Command {
 	/**
 	 * Set of currently applied styles on the current selection.
 	 *
@@ -96,8 +97,9 @@ export default class StyleCommand extends Command {
 		// Block styles.
 		const firstBlock = first( selection.getSelectedBlocks() ) || selection.getFirstPosition()!.parent;
 
+		/* v8 ignore else -- @preserve */
 		if ( firstBlock ) {
-			const ancestorBlocks = firstBlock.getAncestors( { includeSelf: true, parentFirst: true } ) as Array<Element>;
+			const ancestorBlocks = firstBlock.getAncestors( { includeSelf: true, parentFirst: true } ) as Array<ModelElement>;
 
 			for ( const block of ancestorBlocks ) {
 				if ( block.is( 'rootElement' ) ) {
@@ -132,17 +134,17 @@ export default class StyleCommand extends Command {
 	}
 
 	/**
-	 * Executes the command &mdash; applies the style classes to the selection or removes it from the selection.
+	 * Executes the command &ndash; applies the style classes to the selection or removes it from the selection.
 	 *
 	 * If the command value already contains the requested style, it will remove the style classes. Otherwise, it will set it.
 	 *
-	 * The execution result differs, depending on the {@link module:engine/model/document~Document#selection} and the
+	 * The execution result differs, depending on the {@link module:engine/model/document~ModelDocument#selection} and the
 	 * style type (inline or block):
 	 *
 	 * * When applying inline styles:
 	 *   * If the selection is on a range, the command applies the style classes to all nodes in that range.
 	 *   * If the selection is collapsed in a non-empty node, the command applies the style classes to the
-	 * {@link module:engine/model/document~Document#selection}.
+	 * {@link module:engine/model/document~ModelDocument#selection}.
 	 *
 	 * * When applying block styles:
 	 *   * If the selection is on a range, the command applies the style classes to the nearest block parent element.
@@ -215,13 +217,13 @@ export default class StyleCommand extends Command {
 	 * Returns a set of elements that should be affected by the block-style change.
 	 */
 	private _findAffectedBlocks(
-		selectedBlocks: Iterable<Element>,
+		selectedBlocks: Iterable<ModelElement>,
 		definition: BlockStyleDefinition
-	): Set<Element> {
-		const blocks = new Set<Element>();
+	): Set<ModelElement> {
+		const blocks = new Set<ModelElement>();
 
 		for ( const selectedBlock of selectedBlocks ) {
-			const ancestorBlocks = selectedBlock.getAncestors( { includeSelf: true, parentFirst: true } ) as Array<Element>;
+			const ancestorBlocks = selectedBlock.getAncestors( { includeSelf: true, parentFirst: true } ) as Array<ModelElement>;
 
 			for ( const block of ancestorBlocks ) {
 				if ( block.is( 'rootElement' ) ) {
@@ -246,7 +248,8 @@ export default class StyleCommand extends Command {
 
 /**
  * Returns classes that are defined only in the supplied definition and not in any other active definition. It's used
- * to ensure that classes used by other definitions are preserved when a style is removed. See #11748.
+ * to ensure that classes used by other definitions are preserved when a style is removed.
+ * See https://github.com/ckeditor/ckeditor5/issues/11748.
  *
  * @param activeDefinitions All currently active definitions affecting selected element(s).
  * @param definition Definition whose classes will be compared with all other active definition classes.
@@ -277,10 +280,10 @@ function isBlockStyleDefinition( definition: NormalizedStyleDefinition ): defini
  * @param selection Current document's selection.
  * @returns Selected blocks if there are any, first selected element otherwise.
  */
-function getBlocksFromSelection( selection: DocumentSelection ) {
+function getBlocksFromSelection( selection: ModelDocumentSelection ) {
 	const blocks = Array.from( selection.getSelectedBlocks() );
 	if ( blocks.length ) {
 		return blocks;
 	}
-	return [ selection.getFirstPosition()!.parent as Element ];
+	return [ selection.getFirstPosition()!.parent as ModelElement ];
 }

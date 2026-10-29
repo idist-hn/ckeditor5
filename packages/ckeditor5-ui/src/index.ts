@@ -1,110 +1,336 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui
  */
 
-export { default as clickOutsideHandler } from './bindings/clickoutsidehandler';
-export { default as injectCssTransitionDisabler } from './bindings/injectcsstransitiondisabler';
-export { default as CssTransitionDisablerMixin, type ViewWithCssTransitionDisabler } from './bindings/csstransitiondisablermixin';
-export { default as submitHandler } from './bindings/submithandler';
-export { default as addKeyboardHandlingForGrid } from './bindings/addkeyboardhandlingforgrid';
+export {
+	AriaLiveAnnouncerPoliteness,
+	AriaLiveAnnouncer,
+	AriaLiveAnnouncerView,
+	AriaLiveAnnouncerRegionView,
+	type AriaLiveAnnouncerPolitenessValue,
+	type AriaLiveAppendContentAttributes,
+	type AriaLiveAnnounceConfig
+} from './arialiveannouncer.js';
 
-export { default as BodyCollection } from './editorui/bodycollection';
+export { clickOutsideHandler } from './bindings/clickoutsidehandler.js';
+export {
+	CssTransitionDisablerMixin,
+	type CssTransitionDisablerMixinConstructor,
+	type ViewWithCssTransitionDisabler
+} from './bindings/csstransitiondisablermixin.js';
+export {
+	DraggableViewMixin,
+	type DraggableView,
+	type DraggableViewMixinConstructor,
+	type DraggableViewDragEvent
+} from './bindings/draggableviewmixin.js';
+export { submitHandler, type SubmitHandlerEvent } from './bindings/submithandler.js';
+export { addKeyboardHandlingForGrid } from './bindings/addkeyboardhandlingforgrid.js';
 
-export { type ButtonExecuteEvent } from './button/button';
-export { type default as ButtonLabel } from './button/buttonlabel';
-export { default as ButtonView } from './button/buttonview';
-export { default as ButtonLabelView } from './button/buttonlabelview';
-export { default as SwitchButtonView } from './button/switchbuttonview';
+export { AccessibilityHelpContentView } from './editorui/accessibilityhelp/accessibilityhelpcontentview.js';
+export { AccessibilityHelp } from './editorui/accessibilityhelp/accessibilityhelp.js';
+export { BodyCollection, type BodyCollectionRemountEvent } from './editorui/bodycollection.js';
+export { PoweredBy } from './editorui/poweredby.js';
 
-export * from './colorgrid/utils';
-export { default as ColorGridView, type ColorDefinition } from './colorgrid/colorgridview';
-export { default as ColorTileView } from './colorgrid/colortileview';
+export { Badge, type BadgeConfig } from './badge/badge.js';
 
-export { default as ColorPickerView } from './colorpicker/colorpickerview';
-export type { ColorPickerConfig, ColorPickerViewConfig, ColorPickerOutputFormat } from './colorpicker/utils';
+export type { Button, ButtonExecuteEvent } from './button/button.js';
+export type { ButtonLabel } from './button/buttonlabel.js';
+export { ButtonView } from './button/buttonview.js';
+export { ButtonLabelView } from './button/buttonlabelview.js';
+export { SwitchButtonView } from './button/switchbuttonview.js';
+export { ListItemButtonView } from './button/listitembuttonview.js';
+
+export { TabButtonView, TAB_POSITIONS, type TabButtonViewOptions, type TabPosition } from './tabs/tabbuttonview.js';
+export { TabPanelView } from './tabs/tabpanelview.js';
 
 export {
-	default as ColorSelectorView,
+	FileDialogButtonView,
+	FileDialogListItemButtonView,
+	FileDialogViewMixin,
+	type FileDialogButtonViewBase,
+	type FileDialogViewMixinConstructor,
+	type FileInputViewDoneEvent
+} from './button/filedialogbuttonview.js';
+
+export { CollapsibleView } from './collapsible/collapsibleview.js';
+
+export {
+	type ColorOption,
+	type NormalizedColorOption,
+	getLocalizedColorOptions,
+	normalizeColorOptions,
+	normalizeSingleColorDefinition
+} from './colorgrid/utils.js';
+
+export {
+	ColorGridView,
+	type ColorDefinition,
+	type ColorGridViewExecuteEvent,
+	type ColorGridViewExecuteEventData
+} from './colorgrid/colorgridview.js';
+
+export { ColorTileView } from './colorgrid/colortileview.js';
+
+export { ColorPickerView, SliderView, ColorPickerInputRowView, type ColorPickerColorSelectedEvent } from './colorpicker/colorpickerview.js';
+export type { ColorPickerConfig, ColorPickerViewConfig, ColorPickerOutputFormat } from './colorpicker/utils.js';
+
+export {
+	ColorSelectorView,
 	type ColorSelectorExecuteEvent,
 	type ColorSelectorColorPickerCancelEvent,
 	type ColorSelectorColorPickerShowEvent
-} from './colorselector/colorselectorview';
+} from './colorselector/colorselectorview.js';
 
-export { default as ComponentFactory } from './componentfactory';
-
-export { default as DropdownView } from './dropdown/dropdownview';
-export { default as DropdownPanelView } from './dropdown/dropdownpanelview';
-export { default as DropdownButtonView } from './dropdown/button/dropdownbuttonview';
-export { default as SplitButtonView } from './dropdown/button/splitbuttonview';
-export * from './dropdown/utils';
-
-export { default as EditorUI, type EditorUIReadyEvent, type EditorUIUpdateEvent } from './editorui/editorui';
-export { default as EditorUIView } from './editorui/editoruiview';
-export { default as BoxedEditorUIView } from './editorui/boxed/boxededitoruiview';
-export { default as InlineEditableUIView } from './editableui/inline/inlineeditableuiview';
-
-export { default as FormHeaderView } from './formheader/formheaderview';
 export {
-	default as FocusCycler,
+	DocumentColorCollection,
+	type DocumentColorCollectionChangeEvent,
+	type DocumentColorCollectionAddEvent,
+	type DocumentColorCollectionRemoveEvent
+} from './colorselector/documentcolorcollection.js';
+
+export { ColorGridsFragmentView } from './colorselector/colorgridsfragmentview.js';
+export { ColorPickerFragmentView } from './colorselector/colorpickerfragmentview.js';
+
+export { ComponentFactory } from './componentfactory.js';
+
+export { Dialog, type DialogDefinition, type DialogShowEvent, type DialogHideEvent, type DialogPositionCallback } from './dialog/dialog.js';
+export { DialogView, DialogViewPosition, type DialogViewMoveToEvent, type DialogViewCloseEvent } from './dialog/dialogview.js';
+export { DialogActionsView, type DialogActionButtonDefinition } from './dialog/dialogactionsview.js';
+export { DialogContentView } from './dialog/dialogcontentview.js';
+
+export { DropdownView, type DropdownViewEvent } from './dropdown/dropdownview.js';
+export { DropdownPanelView, type PanelPosition } from './dropdown/dropdownpanelview.js';
+export type { DropdownPanelFocusable } from './dropdown/dropdownpanelfocusable.js';
+export type { DropdownButton, DropdownButtonOpenEvent } from './dropdown/button/dropdownbutton.js';
+export { DropdownButtonView } from './dropdown/button/dropdownbuttonview.js';
+export { SplitButtonView } from './dropdown/button/splitbuttonview.js';
+
+export {
+	type ListDropdownItemDefinition,
+	type ListDropdownSeparatorDefinition,
+	type ListDropdownButtonDefinition,
+	type ListDropdownGroupDefinition,
+	createDropdown,
+	addMenuToDropdown,
+	addToolbarToDropdown,
+	addListToDropdown,
+	focusChildOnDropdownOpen
+} from './dropdown/utils.js';
+
+export {
+	type DropdownNestedMenuDefinition,
+	type DropdownMenuButtonDefinition,
+	type DropdownMenuDefinition,
+	DropdownMenuPanelPositioningFunctions
+} from './dropdown/menu/utils.js';
+
+export { DropdownMenuNestedMenuView } from './dropdown/menu/dropdownmenunestedmenuview.js';
+export { DropdownMenuRootListView, type DropdownMenuRootListViewExecuteEvent } from './dropdown/menu/dropdownmenurootlistview.js';
+export { DropdownMenuListView } from './dropdown/menu/dropdownmenulistview.js';
+export { DropdownMenuListItemView } from './dropdown/menu/dropdownmenulistitemview.js';
+export { DropdownMenuListItemButtonView } from './dropdown/menu/dropdownmenulistitembuttonview.js';
+export { DropdownMenuButtonView } from './dropdown/menu/dropdownmenubuttonview.js';
+
+export {
+	DropdownMenuNestedMenuPanelView,
+	type DropdownMenuNestedMenuPanelPosition
+} from './dropdown/menu/dropdownmenunestedmenupanelview.js';
+
+export {
+	EditorUI,
+	type EditorUIReadyEvent,
+	type EditorUIUpdateEvent,
+	type FocusableToolbarDefinition,
+	type FocusableToolbarOptions,
+	type ViewportOffset
+} from './editorui/editorui.js';
+
+export { EditorUIView } from './editorui/editoruiview.js';
+export { EvaluationBadge } from './editorui/evaluationbadge.js';
+export { BoxedEditorUIView } from './editorui/boxed/boxededitoruiview.js';
+export { InlineEditableUIView, type InlineEditableUIViewOptions } from './editableui/inline/inlineeditableuiview.js';
+export { EditableUIView } from './editableui/editableuiview.js';
+
+export { FormRowView } from './formrow/formrowview.js';
+export { FormHeaderView } from './formheader/formheaderview.js';
+export {
+	FocusCycler,
 	type FocusableView,
+	type ViewWithFocusCycler,
 	type FocusCyclerForwardCycleEvent,
-	type FocusCyclerBackwardCycleEvent
-} from './focuscycler';
+	type FocusCyclerBackwardCycleEvent,
+	type FocusCyclerActions,
+	isViewWithFocusCycler,
+	isFocusable
+} from './focuscycler.js';
 
-export { default as IconView } from './icon/iconview';
-export { default as InputView } from './input/inputview';
-export { default as InputTextView } from './inputtext/inputtextview';
-export { default as InputNumberView } from './inputnumber/inputnumberview';
+export { IconView } from './icon/iconview.js';
+export { InputBase } from './input/inputbase.js';
+export { InputView, type InputViewInputEvent } from './input/inputview.js';
+export { InputTextView } from './inputtext/inputtextview.js';
+export { InputNumberView } from './inputnumber/inputnumberview.js';
 
-export { default as TextareaView, type TextareaViewUpdateEvent } from './textarea/textareaview';
+export { TextareaView, type TextareaViewUpdateEvent } from './textarea/textareaview.js';
 
-export { default as IframeView } from './iframe/iframeview';
+export { IframeView, type IframeViewLoadedEvent } from './iframe/iframeview.js';
 
-export { default as LabelView } from './label/labelview';
-export { type LabeledFieldViewCreator, default as LabeledFieldView } from './labeledfield/labeledfieldview';
-export * from './labeledfield/utils';
+export { LabelView } from './label/labelview.js';
 
-export { default as ListItemGroupView } from './list/listitemgroupview';
-export { default as ListItemView } from './list/listitemview';
-export { default as ListView } from './list/listview';
+export { type LabeledFieldViewCreator, LabeledFieldView } from './labeledfield/labeledfieldview.js';
 
-export { default as Notification } from './notification/notification';
+export {
+	createLabeledInputNumber,
+	createLabeledInputText,
+	createLabeledTextarea,
+	createLabeledDropdown
+} from './labeledfield/utils.js';
 
-export { default as Model } from './model';
-export { default as BalloonPanelView } from './panel/balloon/balloonpanelview';
-export { default as ContextualBalloon } from './panel/balloon/contextualballoon';
-export { default as StickyPanelView } from './panel/sticky/stickypanelview';
+export { LabeledInputView } from './labeledinput/labeledinputview.js';
 
-export { default as AutocompleteView, type AutocompleteViewConfig, type AutocompleteResultsView } from './autocomplete/autocompleteview';
-export { default as SearchTextView, type SearchTextViewSearchEvent, type SearchTextViewConfig } from './search/text/searchtextview';
-export { default as SearchInfoView } from './search/searchinfoview';
-export { default as FilteredView, type FilteredViewExecuteEvent } from './search/filteredview';
-export { default as HighlightedTextView } from './highlightedtext/highlightedtextview';
+export { ListItemGroupView } from './list/listitemgroupview.js';
+export { ListItemView } from './list/listitemview.js';
+export { ListSeparatorView } from './list/listseparatorview.js';
+export { ListView } from './list/listview.js';
+export { filterGroupAndItemNames } from './search/filtergroupanditemnames.js';
 
-export { default as TooltipManager } from './tooltipmanager';
-export { default as Template, type TemplateDefinition } from './template';
+export {
+	Notification,
+	type NotificationEventType,
+	type NotificationShowEvent,
+	type NotificationShowSuccessEvent,
+	type NotificationShowWarningEvent,
+	type NotificationShowTypeEvent,
+	type NotificationShowEventData,
+	type NotificationShowInfoEvent
+} from './notification/notification.js';
 
-export { default as SpinnerView } from './spinner/spinnerview';
+export {
+	UIModel,
+	UIModel as ViewModel // TODO: Remove after WProofReader has been adjusted.
+} from './model.js';
 
-export { default as ToolbarView } from './toolbar/toolbarview';
-export { default as ToolbarLineBreakView } from './toolbar/toolbarlinebreakview';
-export { default as ToolbarSeparatorView } from './toolbar/toolbarseparatorview';
-export { default as normalizeToolbarConfig } from './toolbar/normalizetoolbarconfig';
-export { default as BalloonToolbar, type BalloonToolbarShowEvent } from './toolbar/balloon/balloontoolbar';
-export { default as BlockToolbar } from './toolbar/block/blocktoolbar';
+export { BalloonPanelView } from './panel/balloon/balloonpanelview.js';
 
-export { default as View, type UIViewRenderEvent } from './view';
-export { default as ViewCollection } from './viewcollection';
+export {
+	ContextualBalloon,
+	type ContextualBalloonGetPositionOptionsEvent,
+	type ViewConfiguration
+} from './panel/balloon/contextualballoon.js';
 
-import { default as colorPaletteIcon } from '../theme/icons/color-palette.svg';
+export { StickyPanelView } from './panel/sticky/stickypanelview.js';
 
-export const icons = {
-	colorPaletteIcon
-};
+export { AutocompleteView, type AutocompleteViewConfig, type AutocompleteResultsView } from './autocomplete/autocompleteview.js';
 
-import './augmentation';
+export {
+	SearchTextView,
+	type SearchTextViewSearchEvent,
+	type SearchTextViewConfig,
+	type SearchTextViewDefaultInfoText,
+	type SearchTextViewSearchEventData
+} from './search/text/searchtextview.js';
+
+export type { SearchTextQueryViewResetEvent, SearchTextQueryViewConfig } from './search/text/searchtextqueryview.js';
+export { SearchResultsView } from './search/searchresultsview.js';
+export { SearchInfoView } from './search/searchinfoview.js';
+export type { FilteredView, FilteredViewExecuteEvent } from './search/filteredview.js';
+export { HighlightedTextView } from './highlightedtext/highlightedtextview.js';
+export { ButtonLabelWithHighlightView } from './highlightedtext/buttonlabelwithhighlightview.js';
+export { LabelWithHighlightView } from './highlightedtext/labelwithhighlightview.js';
+
+export { TooltipManager, type TooltipPosition, type BodyCollectionRegistration } from './tooltipmanager.js';
+
+export { OverlayHost, type OverlayHostOptions } from './overlayhost.js';
+
+export {
+	Template,
+	type TemplateDefinition,
+	type AttributeValues,
+	type TemplateElementDefinition,
+	type TemplateTextDefinition,
+	type FalsyValue,
+	type NamespacedValue,
+	type TemplateSimpleValue,
+	type TemplateSimpleValueSchema,
+	type TemplateValueSchema,
+	type TemplateListenerSchema,
+	type AttributeBinding,
+	type ListenerBinding,
+	type BindChain
+} from './template.js';
+
+export { SpinnerView } from './spinner/spinnerview.js';
+
+export { ToolbarView, ItemsView, type ToolbarViewGroupedItemsUpdateEvent, type ToolbarOptions } from './toolbar/toolbarview.js';
+export { ToolbarLineBreakView } from './toolbar/toolbarlinebreakview.js';
+export { ToolbarSeparatorView } from './toolbar/toolbarseparatorview.js';
+export { normalizeToolbarConfig } from './toolbar/normalizetoolbarconfig.js';
+export { BalloonToolbar, type BalloonToolbarShowEvent } from './toolbar/balloon/balloontoolbar.js';
+export { BlockToolbar } from './toolbar/block/blocktoolbar.js';
+export { BlockButtonView } from './toolbar/block/blockbuttonview.js';
+
+export { View, type UIViewRenderEvent } from './view.js';
+export { ViewCollection } from './viewcollection.js';
+
+export {
+	MenuBarView,
+	type MenuBarConfig,
+	type MenuBarConfigObject,
+	type NormalizedMenuBarConfigObject,
+	type MenuBarMenuEvent,
+	type MenuBarMenuGroupDefinition,
+	type MenuBarMenuDefinition,
+	type MenuBarConfigAddedPosition,
+	type MenuBarConfigAddedItem,
+	type MenuBarConfigAddedGroup,
+	type MenuBarConfigAddedMenu,
+	type MenuBarMenuMouseEnterEvent,
+	type MenuBarMenuArrowLeftEvent,
+	type MenuBarMenuArrowRightEvent,
+	type MenuBarMenuChangeIsOpenEvent
+} from './menubar/menubarview.js';
+
+export { MenuBarMenuButtonView } from './menubar/menubarmenubuttonview.js';
+export { MenuBarMenuPanelView, type MenuBarMenuPanelPosition } from './menubar/menubarmenupanelview.js';
+export { MenuBarMenuView } from './menubar/menubarmenuview.js';
+export { MenuBarMenuListView } from './menubar/menubarmenulistview.js';
+export { MenuBarMenuListItemView } from './menubar/menubarmenulistitemview.js';
+export { MenuBarMenuListItemButtonView } from './menubar/menubarmenulistitembuttonview.js';
+export { MenuBarMenuListItemFileDialogButtonView } from './menubar/menubarmenulistitemfiledialogbuttonview.js';
+export { normalizeMenuBarConfig, DefaultMenuBarItems } from './menubar/utils.js';
+
+// Internals
+export { preventDefault as _preventUiViewDefault } from './bindings/preventdefault.js';
+export { CheckIconHolderView as _CheckIconHolderView } from './button/listitembuttonview.js';
+export { CollapsibleView as _CollapsibleView } from './collapsible/collapsibleview.js';
+export { defaultColors as _DEFAULT_COLORS } from './colorgrid/colors.js';
+export { defaultColorGridColumns as _DEFAULT_COLOR_GRID_COLUMNS } from './colorgrid/colors.js';
+export { getLocalizedColorName as _getLocalizedColorName } from './colorgrid/utils.js';
+export { tryParseHexColor as _tryNormalizeHexColor } from './colorpicker/colorpickerview.js';
+export { convertColor as _convertColor } from './colorpicker/utils.js';
+export { convertToHex as _convertColorToHex } from './colorpicker/utils.js';
+export { registerCustomElement as _registerCustomElement } from './colorpicker/utils.js';
+export { DropdownRootMenuBehaviors as _DropdownRootMenuBehaviors } from './dropdown/menu/dropdownmenubehaviors.js';
+export { DropdownMenuBehaviors as _DropdownMenuBehaviors } from './dropdown/menu/dropdownmenubehaviors.js';
+export { MenuBarBehaviors as _MenuBarBehaviors } from './menubar/utils.js';
+export { MenuBarMenuBehaviors as _MenuBarMenuBehaviors } from './menubar/utils.js';
+export { MenuBarMenuViewPanelPositioningFunctions as _MenuBarMenuViewPanelPositioningFunctions } from './menubar/utils.js';
+export { processMenuBarConfig as _processMenuBarConfig } from './menubar/utils.js';
+export { RotatorView as _ContextualBalloonRotatorView } from './panel/balloon/contextualballoon.js';
+export { SearchInfoView as _SearchInfoView } from './search/searchinfoview.js';
+export { SearchTextQueryView as _SearchTextQueryView } from './search/text/searchtextqueryview.js';
+export { TemplateBinding as _TemplateBinding } from './template.js';
+export { TemplateToBinding as _TemplateToBinding } from './template.js';
+export { TemplateIfBinding as _TemplateIfBinding } from './template.js';
+export { type RenderData as _TemplateRenderData } from './template.js';
+export { NESTED_TOOLBAR_ICONS } from './toolbar/toolbarview.js';
+export { type ToolbarBehavior as _ToolbarBehavior } from './toolbar/toolbarview.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

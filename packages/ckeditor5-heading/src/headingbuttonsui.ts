@@ -1,34 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module heading/headingbuttonsui
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { ButtonView } from '@ckeditor/ckeditor5-ui';
+import { IconHeading1, IconHeading2, IconHeading3, IconHeading4, IconHeading5, IconHeading6 } from '@ckeditor/ckeditor5-icons';
 
-import { getLocalizedOptions } from './utils';
-import type { HeadingOption } from './headingconfig';
-import type HeadingCommand from './headingcommand';
+import { getLocalizedOptions } from './utils.js';
+import type { HeadingOption } from './headingconfig.js';
+import { type HeadingCommand } from './headingcommand.js';
 
-import iconHeading1 from '../theme/icons/heading1.svg';
-import iconHeading2 from '../theme/icons/heading2.svg';
-import iconHeading3 from '../theme/icons/heading3.svg';
-import iconHeading4 from '../theme/icons/heading4.svg';
-import iconHeading5 from '../theme/icons/heading5.svg';
-import iconHeading6 from '../theme/icons/heading6.svg';
-
-const defaultIcons: Record<string, string> = {
-	heading1: iconHeading1,
-	heading2: iconHeading2,
-	heading3: iconHeading3,
-	heading4: iconHeading4,
-	heading5: iconHeading5,
-	heading6: iconHeading6
-};
+const defaultIcons: Record<string, string> = /* #__PURE__ */ ( () => ( {
+	heading1: IconHeading1,
+	heading2: IconHeading2,
+	heading3: IconHeading3,
+	heading4: IconHeading4,
+	heading5: IconHeading5,
+	heading6: IconHeading6
+} ) )();
 
 /**
  * The `HeadingButtonsUI` plugin defines a set of UI buttons that can be used instead of the
@@ -63,7 +57,7 @@ const defaultIcons: Record<string, string> = {
  * It is possible to use custom icons by providing `icon` config option in {@link module:heading/headingconfig~HeadingOption}.
  * For the default configuration standard icons are used.
  */
-export default class HeadingButtonsUI extends Plugin {
+export class HeadingButtonsUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */

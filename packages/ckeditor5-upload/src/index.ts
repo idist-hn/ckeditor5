@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,14 +8,14 @@
  */
 
 export {
-	default as FileRepository,
+	FileRepository,
 	type UploadAdapter,
 	type UploadResponse,
-	type FileLoader
-} from './filerepository';
-export { default as FileDialogButtonView } from './ui/filedialogbuttonview';
-export { default as Base64UploadAdapter } from './adapters/base64uploadadapter';
-export { default as SimpleUploadAdapter } from './adapters/simpleuploadadapter';
-export type { SimpleUploadConfig } from './uploadconfig';
+	FileLoader
+} from './filerepository.js';
+export { Base64UploadAdapter } from './adapters/base64uploadadapter.js';
+export { SimpleUploadAdapter } from './adapters/simpleuploadadapter.js';
+export type { SimpleUploadConfig } from './uploadconfig.js';
+export { FileReader } from './filereader.js';
 
-import './augmentation';
+import './augmentation.js';

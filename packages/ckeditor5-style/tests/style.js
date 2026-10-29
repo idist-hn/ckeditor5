@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import GeneralHtmlSupport from '@ckeditor/ckeditor5-html-support/src/generalhtmlsupport';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
 
-import Style from '../src/style';
-import StyleEditing from '../src/styleediting';
-import StyleUI from '../src/styleui';
+import { Style } from '../src/style.js';
+import { StyleEditing } from '../src/styleediting.js';
+import { StyleUI } from '../src/styleui.js';
 
 describe( 'Style', () => {
 	let editor, editorElement;
@@ -33,14 +33,22 @@ describe( 'Style', () => {
 	it( 'should be a plugin', () => {
 		const style = editor.plugins.get( 'Style' );
 
-		expect( style ).to.instanceOf( Style );
+		expect( style ).toBeInstanceOf( Style );
 	} );
 
 	it( 'should be named', () => {
-		expect( Style.pluginName ).to.equal( 'Style' );
+		expect( Style.pluginName ).toBe( 'Style' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( Style.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( Style.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should require StyleEditing and StyleUI', () => {
-		expect( Style.requires ).to.deep.equal( [ StyleEditing, StyleUI ] );
+		expect( Style.requires ).toEqual( [ StyleEditing, StyleUI ] );
 	} );
 } );

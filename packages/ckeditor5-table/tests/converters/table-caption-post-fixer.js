@@ -1,15 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { getData as getModelData, parse, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import TableEditing from '../../src/tableediting';
-import TableCaptionEditing from '../../src/tablecaption/tablecaptionediting';
-import TableWalker from '../../src/tablewalker';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _getModelData, _parseModel, _setModelData } from '@ckeditor/ckeditor5-engine';
+
+import { TableEditing } from '../../src/tableediting.js';
+import { TableCaptionEditing } from '../../src/tablecaption/tablecaptionediting.js';
+import { TableWalker } from '../../src/tablewalker.js';
 
 describe( 'Table caption post-fixer', () => {
 	let editor, model, root;
@@ -26,8 +28,8 @@ describe( 'Table caption post-fixer', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	describe( 'on insert table', () => {
@@ -45,14 +47,14 @@ describe( 'Table caption post-fixer', () => {
 					'<caption>caption 0</caption>' +
 					'<caption>caption 1</caption>' +
 				'</table>';
-			const parsed = parse( modelTable, model.schema );
+			const parsed = _parseModel( modelTable, model.schema );
 
 			model.change( writer => {
 				writer.remove( writer.createRangeIn( root ) );
 				writer.insert( parsed, root );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equalMarkup(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell>' +
@@ -90,14 +92,14 @@ describe( 'Table caption post-fixer', () => {
 					'</tableRow>' +
 					'<caption>caption 2</caption>' +
 				'</table>';
-			const parsed = parse( modelTable, model.schema );
+			const parsed = _parseModel( modelTable, model.schema );
 
 			model.change( writer => {
 				writer.remove( writer.createRangeIn( root ) );
 				writer.insert( parsed, root );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equalMarkup(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell>' +
@@ -143,7 +145,7 @@ describe( 'Table caption post-fixer', () => {
 					'</tableRow>' +
 					'<caption>caption 2</caption>' +
 				'</table>';
-			const parsed = parse( modelTable, model.schema );
+			const parsed = _parseModel( modelTable, model.schema );
 
 			model.change( writer => {
 				writer.remove( writer.createRangeIn( root ) );
@@ -151,18 +153,18 @@ describe( 'Table caption post-fixer', () => {
 
 				const slots = Array.from( new TableWalker( root.getChild( 0 ) ) );
 
-				expect( slots.length ).to.equal( 4 );
-				expect( slots[ 0 ].row ).to.equal( 0 );
-				expect( slots[ 0 ].column ).to.equal( 0 );
-				expect( slots[ 1 ].row ).to.equal( 0 );
-				expect( slots[ 1 ].column ).to.equal( 1 );
-				expect( slots[ 2 ].row ).to.equal( 1 );
-				expect( slots[ 2 ].column ).to.equal( 0 );
-				expect( slots[ 3 ].row ).to.equal( 1 );
-				expect( slots[ 3 ].column ).to.equal( 1 );
+				expect( slots.length ).toBe( 4 );
+				expect( slots[ 0 ].row ).toBe( 0 );
+				expect( slots[ 0 ].column ).toBe( 0 );
+				expect( slots[ 1 ].row ).toBe( 0 );
+				expect( slots[ 1 ].column ).toBe( 1 );
+				expect( slots[ 2 ].row ).toBe( 1 );
+				expect( slots[ 2 ].column ).toBe( 0 );
+				expect( slots[ 3 ].row ).toBe( 1 );
+				expect( slots[ 3 ].column ).toBe( 1 );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equalMarkup(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell>' +
@@ -198,14 +200,14 @@ describe( 'Table caption post-fixer', () => {
 						'</tableCell>' +
 					'</tableRow>' +
 				'</table>';
-			const parsed = parse( modelTable, model.schema );
+			const parsed = _parseModel( modelTable, model.schema );
 
 			model.change( writer => {
 				writer.remove( writer.createRangeIn( root ) );
 				writer.insert( parsed, root );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equalMarkup(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell>' +
@@ -221,7 +223,7 @@ describe( 'Table caption post-fixer', () => {
 		} );
 
 		it( 'should place new caption at the end of the table model', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell>' +
@@ -240,7 +242,7 @@ describe( 'Table caption post-fixer', () => {
 				writer.insert( caption, writer.createPositionFromPath( editor.model.document.getRoot(), [ 0, 0 ] ) );
 			} );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equalMarkup(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell>' +

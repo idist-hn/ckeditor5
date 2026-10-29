@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Highlight } from '@ckeditor/ckeditor5-highlight';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { FontSize } from '../../src/fontsize.js';
 
-import Highlight from '@ckeditor/ckeditor5-highlight/src/highlight';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import FontSize from '../../src/fontsize';
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'FontSize - integration', () => {
 	let editor, model, element;
@@ -38,17 +36,17 @@ describe( 'FontSize - integration', () => {
 
 	describe( 'compatibility with highlight', () => {
 		it( 'the view "span" element should outer wrap the text', () => {
-			setModelData( model, '<paragraph>Foo [Bar] Baz.</paragraph>' );
+			_setModelData( model, '<paragraph>Foo [Bar] Baz.</paragraph>' );
 
 			editor.execute( 'highlight', { value: 'yellowMarker' } );
 
-			expect( getViewData( editor.editing.view ) ).to.equal(
+			expect( _getViewData( editor.editing.view ) ).toEqual(
 				'<p>Foo {<mark class="marker-yellow">Bar</mark>} Baz.</p>'
 			);
 
 			editor.execute( 'fontSize', { value: 'huge' } );
 
-			expect( getViewData( editor.editing.view ) ).to.equal(
+			expect( _getViewData( editor.editing.view ) ).toEqual(
 				'<p>Foo {<span class="text-huge"><mark class="marker-yellow">Bar</mark></span>} Baz.</p>'
 			);
 		} );

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-:root {
+:root,
+:host {
 	--ck-mention-list-max-height: 300px;
 }
 
@@ -24,4 +25,19 @@
 		overflow: hidden;
 		flex-shrink: 0;
 	}
+
+	/*
+	 * The editable keeps DOM focus while the list is navigated, so the selected item is indicated
+	 * with a focus-style ring instead of the "on" background. The hover background still applies on
+	 * :hover only, matching the toolbar dropdown lists (e.g. headings).
+	 */
+	& > .ck-list__item.ck-mentions__item_focused > .ck-button {
+		border-color: var(--ck-button-focus-border-color);
+		box-shadow: var(--ck-focus-outer-shadow, var(--ck-interactive-focus-shadow)), 0 0;
+	}
+}
+
+div.ck.ck-balloon-panel.ck-mention-balloon {
+	/* Above dialogs. The legacy --ck-z-dialog keeps working through --ck-layer-dialog. */
+	z-index: calc( var(--ck-layer-dialog) + 1 );
 }

@@ -1,21 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module list/listproperties/listreversedcommand
  */
 
-import { Command } from 'ckeditor5/src/core';
-import { getSelectedListItems } from '../list/utils';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { first } from '@ckeditor/ckeditor5-utils';
+import {
+	expandListBlocksToCompleteList,
+	isListItemBlock
+} from '../list/utils/model.js';
 
 /**
- * The reversed list command. It changes the `listReversed` attribute of the selected list items. As a result, the list order will be
- * reversed.
+ * The list reversed command. It changes the `listReversed` attribute of the selected list items,
+ * letting the user to choose the order of an ordered list.
  * It is used by the {@link module:list/listproperties~ListProperties list properties feature}.
  */
-export default class ListReversedCommand extends Command {
+export class ListReversedCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -26,6 +30,7 @@ export default class ListReversedCommand extends Command {
 	 */
 	public override refresh(): void {
 		const value = this._getValue();
+
 		this.value = value;
 		this.isEnabled = value != null;
 	}
@@ -38,26 +43,31 @@ export default class ListReversedCommand extends Command {
 	 */
 	public override execute( options: { reversed?: boolean } = {} ): void {
 		const model = this.editor.model;
-		const listItems = getSelectedListItems( model )
-			.filter( item => item.getAttribute( 'listType' ) == 'numbered' );
+		const document = model.document;
+
+		let blocks = Array.from( document.selection.getSelectedBlocks() )
+			.filter( block => isListItemBlock( block ) && block.getAttribute( 'listType' ) == 'numbered' );
+
+		blocks = expandListBlocksToCompleteList( blocks );
 
 		model.change( writer => {
-			for ( const item of listItems ) {
-				writer.setAttribute( 'listReversed', !!options.reversed, item );
+			for ( const block of blocks ) {
+				writer.setAttribute( 'listReversed', !!options.reversed, block );
 			}
 		} );
 	}
 
 	/**
 	 * Checks the command's {@link #value}.
-	 *
-	 * @returns The current value.
 	 */
 	private _getValue() {
-		const listItem = this.editor.model.document.selection.getFirstPosition()!.parent;
+		const model = this.editor.model;
+		const document = model.document;
 
-		if ( listItem && listItem.is( 'element', 'listItem' ) && listItem.getAttribute( 'listType' ) == 'numbered' ) {
-			return listItem.getAttribute( 'listReversed' ) as boolean;
+		const block = first( document.selection.getSelectedBlocks() );
+
+		if ( isListItemBlock( block ) && block.getAttribute( 'listType' ) == 'numbered' ) {
+			return block.getAttribute( 'listReversed' ) as boolean;
 		}
 
 		return null;

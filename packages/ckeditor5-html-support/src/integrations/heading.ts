@@ -1,27 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/integrations/heading
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 import type { HeadingOption } from '@ckeditor/ckeditor5-heading';
-import { Enter } from 'ckeditor5/src/enter';
+import { Enter } from '@ckeditor/ckeditor5-enter';
 
-import DataSchema from '../dataschema';
+import { DataSchema } from '../dataschema.js';
 
 /**
  * Provides the General HTML Support integration with {@link module:heading/heading~Heading Heading} feature.
  */
-export default class HeadingElementSupport extends Plugin {
+export class HeadingElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ DataSchema, Enter ] as const;
+	public static get requires(): PluginDependenciesOf<[ DataSchema, Enter ]> {
+		return [ DataSchema, Enter ];
 	}
 
 	/**
@@ -29,6 +29,13 @@ export default class HeadingElementSupport extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'HeadingElementSupport' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -66,6 +73,13 @@ export default class HeadingElementSupport extends Plugin {
 
 		dataSchema.extendBlockElement( {
 			model: 'htmlHgroup',
+			modelSchema: {
+				allowChildren: headerModels
+			}
+		} );
+
+		dataSchema.extendBlockElement( {
+			model: 'htmlSummary',
 			modelSchema: {
 				allowChildren: headerModels
 			}

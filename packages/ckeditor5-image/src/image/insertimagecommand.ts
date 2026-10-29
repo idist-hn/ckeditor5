@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/insertimagecommand
  */
 
-import { Command, type Editor } from 'ckeditor5/src/core';
-import { logWarning, toArray, type ArrayOrItem } from 'ckeditor5/src/utils';
-import type ImageUtils from '../imageutils';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { logWarning, toArray, type ArrayOrItem } from '@ckeditor/ckeditor5-utils';
+import { type ImageUtils } from '../imageutils.js';
 
 /**
  * Insert image command.
@@ -47,7 +47,7 @@ import type ImageUtils from '../imageutils';
  * } );
  * ```
  */
-export default class InsertImageCommand extends Command {
+export class InsertImageCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -95,10 +95,18 @@ export default class InsertImageCommand extends Command {
 	 *
 	 * @fires execute
 	 * @param options Options for the executed command.
+	 * @param options.imageType The type of the image to insert. If not specified, the type will be determined automatically.
 	 * @param options.source The image source or an array of image sources to insert.
+	 * @param options.breakBlock If set to `true`, the block at the selection start will be broken before inserting the image.
 	 * See the documentation of the command to learn more about accepted formats.
 	 */
-	public override execute( options: { source: ArrayOrItem<string | Record<string, unknown>> } ): void {
+	public override execute(
+		options: {
+			source: ArrayOrItem<string | Record<string, unknown>>;
+			imageType?: 'imageBlock' | 'imageInline' | null;
+			breakBlock?: boolean;
+		}
+	): void {
 		const sourceDefinitions = toArray<string | Record<string, unknown>>( options.source );
 		const selection = this.editor.model.document.selection;
 		const imageUtils: ImageUtils = this.editor.plugins.get( 'ImageUtils' );
@@ -125,9 +133,11 @@ export default class InsertImageCommand extends Command {
 			if ( index && selectedElement && imageUtils.isImage( selectedElement ) ) {
 				const position = this.editor.model.createPositionAfter( selectedElement );
 
-				imageUtils.insertImage( { ...sourceDefinition, ...selectionAttributes }, position );
+				imageUtils.insertImage( { ...sourceDefinition, ...selectionAttributes }, position, options.imageType );
+			} else if ( options.breakBlock ) {
+				imageUtils.insertImage( { ...sourceDefinition, ...selectionAttributes }, selection.getFirstPosition(), options.imageType );
 			} else {
-				imageUtils.insertImage( { ...sourceDefinition, ...selectionAttributes } );
+				imageUtils.insertImage( { ...sourceDefinition, ...selectionAttributes }, null, options.imageType );
 			}
 		} );
 	}

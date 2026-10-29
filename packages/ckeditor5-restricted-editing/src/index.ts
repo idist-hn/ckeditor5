@@ -1,21 +1,53 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module restricted-editing
  */
 
-export { default as RestrictedEditingMode } from './restrictededitingmode';
-export { default as RestrictedEditingModeEditing } from './restrictededitingmodeediting';
-export { default as RestrictedEditingModeUI } from './restrictededitingmodeui';
-export { default as StandardEditingMode } from './standardeditingmode';
-export { default as StandardEditingModeEditing } from './standardeditingmodeediting';
-export { default as StandardEditingModeUI } from './standardeditingmodeui';
+export { RestrictedEditingMode } from './restrictededitingmode.js';
+export { RestrictedEditingModeEditing } from './restrictededitingmodeediting.js';
+export { RestrictedEditingModeUI } from './restrictededitingmodeui.js';
 
-export type { RestrictedEditingConfig } from './restrictededitingconfig';
-export type { default as RestrictedEditingExceptionCommand } from './restrictededitingexceptioncommand';
-export type { default as RestrictedEditingModeNavigationCommand } from './restrictededitingmodenavigationcommand';
+export {
+	RestrictedEditingExceptionCommand,
+	type RestrictedEditingExceptionCommandParams
+} from './restrictededitingexceptioncommand.js';
 
-import './augmentation';
+export {
+	RestrictedEditingModeNavigationCommand,
+	type RestrictedEditingModeNavigationDirection
+} from './restrictededitingmodenavigationcommand.js';
+
+export {
+	RestrictedEditingExceptionBlockCommand
+} from './restrictededitingexceptionblockcommand.js';
+
+export {
+	RestrictedEditingExceptionAutoCommand
+} from './restrictededitingexceptionautocommand.js';
+
+export { StandardEditingMode } from './standardeditingmode.js';
+export { StandardEditingModeEditing } from './standardeditingmodeediting.js';
+export { StandardEditingModeUI } from './standardeditingmodeui.js';
+
+export type { RestrictedEditingConfig } from './restrictededitingconfig.js';
+
+export {
+	setupExceptionHighlighting as _setupRestrictedEditingExceptionHighlighting,
+	resurrectCollapsedMarkerPostFixer as _resurrectRestrictedEditingCollapsedMarkerPostFixer,
+	extendMarkerOnTypingPostFixer as _extendRestrictedEditingMarkerOnTypingPostFixer,
+	upcastHighlightToMarker as _upcastRestrictedEditingHighlightToMarker
+} from './restrictededitingmode/converters.js';
+
+export {
+	getMarkerAtPosition as _getRestrictedEditingMarkerAtPosition,
+	isPositionInRangeBoundaries as _isRestrictedEditingPositionInRangeBoundaries,
+	isSelectionInMarker as _isRestrictedEditingSelectionInMarker
+} from './restrictededitingmode/utils.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

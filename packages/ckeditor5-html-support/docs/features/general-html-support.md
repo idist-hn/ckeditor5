@@ -1,98 +1,93 @@
 ---
 category: features-html
 order: 20
-modified_at: 2021-10-25
+modified_at: 2026-10-08
 meta-title: General HTML Support | CKEditor 5 Documentation
+meta-description: Enable General HTML Support in CKEditor 5 to freely use custom HTML elements and attributes for advanced content editing and flexibility.
 ---
 
 # General HTML Support
 
-{@snippet features/general-html-support-source}
-
-With the General HTML Support ("GHS") feature, developers can easily enable HTML features that are not supported by any other dedicated CKEditor&nbsp;5 plugins. GHS lets you add elements, attributes, classes, and styles to the source and ensures this markup stays in the editor window and in the output.
+With the General HTML Support (GHS) feature, developers can enable HTML features that are not supported by any other dedicated CKEditor&nbsp;5 plugins. GHS lets you add elements, attributes, classes, and styles to the source. It also ensures this markup stays in the editor window and in the output.
 
 ## Demo
 
-Use the {@link features/source-editing source editing feature} toolbar button {@icon @ckeditor/ckeditor5-source-editing/theme/icons/source-editing.svg Source editing} to view and edit the HTML source of the document. You can find the configuration of this snippet below the demo.
+Use the {@link features/source-editing-enhanced Enhanced source code editing feature} toolbar button {@icon @ckeditor/ckeditor5-icons/theme/icons/source.svg Enhanced source code editing} to view and edit the HTML source of the document. You can find the configuration of this snippet below the demo.
 
-The General HTML Support feature is configured using the `config.htmlSupport` property. With this property, you need to list the HTML features that should be handled by GHS.
+You can configure the General HTML Support feature using the `config.htmlSupport` property. With this property, you need to list the HTML features that should be handled by GHS.
 
 {@snippet features/general-html-support}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Additional feature information
 
-Here are some examples of HTML features that can be easily enabled using General HTML Support:
+Here are some examples of HTML features that you can enable using General HTML Support:
 
 * The `<section>`, `<article>`, and `<div>` elements.
 * The `<audio>`, `<video>`, and `<iframe>` elements.
 * The `<span>` and `<cite>` elements.
-* Some of the attributes on existing dedicated CKEditor&nbsp;5 features:
-	* `data-*` and `id` attributes on e.g. `<p>` and `<h1-h6>`,
-	* `style` and `classes` on e.g. `<strong>` and `<a>`.
+* Some attributes of existing dedicated CKEditor&nbsp;5 features:
+	* The `data-*` and `id` attributes on, for example, `<p>` and `<h1-h6>`.
+	* The `style` and `classes` attributes on, for example, `<strong>` and `<a>`.
 
-The enabled HTML features can be loaded (e.g. via `editor.setData()`), pasted, output (e.g. via `editor.getData()`), and are visible in the editing area. Such content can also be edited in the editor, although, to a limited extent. Read more about it in the [Level of support](#level-of-support) section.
+You can load (for example, via `editor.setData()`), paste, output (for example, via `editor.getData()`) the enabled HTML features. They are also visible in the editing area. To a limited extent, you can also edit such content in the editor. Read more about it in the [Level of support](#level-of-support) section.
 
 ## Level of support
 
-The difference between specific CKEditor&nbsp;5 features such as {@link features/basic-styles basic styles} or {@link features/headings headings} and the HTML features enabled by GHS is that a plugin that supports a specific HTML feature provides a complete user experience for that feature, whereas GHS ensures only that such a content is accepted by the editor.
+The difference between specific CKEditor&nbsp;5 features such as {@link features/basic-styles basic styles} or {@link features/headings headings} and the HTML features enabled by GHS is that a plugin that supports a specific HTML feature provides a complete user experience for that feature. GHS ensures only that such content is accepted by the editor.
 
 For instance, the dedicated {@link features/basic-styles#available-text-styles bold} feature offers a toolbar button used to make the selected text bold. Together with the {@link features/autoformat autoformatting feature}, it also allows for applying bold style to content by typing a Markdown shortcode (`**foo**`) in the editor. The {@link features/headings headings} feature offers a dropdown from which the user can choose a heading level and ensures that pressing <kbd>Enter</kbd> at the end of a heading creates a new paragraph (and not another heading).
 
-The General HTML Support does not offer any UI for the enabled features and takes only the basic semantics of a given feature into account. If you enable support for `<div>`s via GHS, the user will not be able to create `<div>`s from the editor UI. The GHS will know that a `<div>` is a container element, so it can wrap other blocks (like paragraphs) but cannot be used inline (next to e.g. a `<strong>` element). It is, in this respect, similar to the content filtering (ACF) feature from CKEditor 4 as it lets you create a set or a list of markup tags that will not be stripped.
+The General HTML Support does not offer any UI for the enabled features and takes only the basic semantics of a given feature into account. If you enable support for `<div>` elements via GHS, the user will not be able to create such elements from the editor UI. The GHS will know that a `<div>` is a container element, so it can wrap other blocks (like paragraphs) but cannot be used inline (next to, for example, a `<strong>` element). In this respect, it is similar to the Advanced Content Filtering (ACF) feature from CKEditor&nbsp;4 as it lets you create a list of markup tags that the editor will not strip.
 
-Therefore, GHS's main use cases would be:
+Therefore, the main use cases for GHS would be:
 
-* Ensuring backwards content compatibility with legacy systems.
+* Ensuring backward content compatibility with legacy systems.
 * Introducing basic support for missing HTML features at a low cost.
 
 <info-box>
-	Taken the nature of GHS, you may consider installing the {@link features/source-editing source editing} feature alongside it.
+	Considering the nature of GHS, you may consider installing the {@link features/source-editing-enhanced Enhanced source code editing} feature alongside it.
 </info-box>
 
 ## Installation
 
-<info-box info>
-	This feature is enabled by default in the {@link installation/getting-started/predefined-builds#superbuild superbuild} only.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your rich-text editor, install the [`@ckeditor/ckeditor5-html-support`](https://www.npmjs.com/package/@ckeditor/ckeditor5-html-support) package:
-
-```plaintext
-npm install --save @ckeditor/ckeditor5-html-support
-```
-
-And add it to your plugin list configuration:
-
+<code-switcher>
 ```js
-import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { ClassicEditor, GeneralHtmlSupport } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ GeneralHtmlSupport, /* ... */ ],
+		htmlSupport: {
+			// Configuration.
+		}
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+</code-switcher>
 
 ## Configuration
 
-By default, enabling the {@link module:html-support/generalhtmlsupport~GeneralHtmlSupport} plugin does not enable support for any given element. The elements the user wants to be supported, need to be configured via the {@link module:core/editor/editorconfig~EditorConfig#htmlSupport `config.htmlSupport`} option:
+By default, enabling the {@link module:html-support/generalhtmlsupport~GeneralHtmlSupport} plugin does not enable support for any given element. You need to configure the elements the user wants to use via the {@link module:core/editor/editorconfig~EditorConfig#htmlSupport `config.htmlSupport`} option. List of predefined elements than can be enabled this way is [available further in this guide](#predefined-supported-elements). It is also possible to define and enable [custom elements](#enabling-custom-elements).
 
 ```js
-ClassicEditor.create( document.querySelector( '#editor' ), {
-	htmlSupport: {
-		allow: [ /* HTML features to allow */ ],
-		disallow: [ /* HTML features to disallow */ ]
-	}
-} )
+ClassicEditor
+	.create( {
+		// ... Other configuration options ...
+		htmlSupport: {
+			allow: [ /* HTML features to allow. */ ],
+			disallow: [ /* HTML features to disallow. */ ]
+		}
+	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
 ```
 
 The notation of the `allow` and `disallow` rules looks as follows:
@@ -100,17 +95,17 @@ The notation of the `allow` and `disallow` rules looks as follows:
 ```js
 [
 	{
-		// The element name to enable and/or extend with
-		// the following styles, classes and other attributes.
+		// The element name to enable or extend with
+		// the following styles, classes, and other attributes.
 		name: string|regexp,
 
-		// Styles to allow (by name, name and value or just all).
+		// Styles to allow (by name, name and value, or just all).
 		styles: object<string=>true|string|regexp>|array<string>|true,
 
 		// Classes to allow (by name or just all).
 		classes: array<string|regexp>|true,
 
-		// Other attributes to allow (by name, name and value or just all).
+		// Other attributes to allow (by name, name and value, or just all).
 		attributes: object<string=>true|string|regexp>|array<string>|true,
 	}
 ]
@@ -126,32 +121,32 @@ htmlSupport: {
 			name: 'div'
 		},
 
-		// Enables plain <div>, <section> and <article> elements.
+		// Enables plain <div>, <section>, and <article> elements.
 		{
 			name: /^(div|section|article)$/
 		},
 
-		// Enables <div>s with all inline styles (but no other attributes).
+		// Enables <div> elements with all inline styles (but no other attributes).
 		{
 			name: 'div',
 			styles: true
 		},
 
-		// Enables <div>s with foo and bar classes.
+		// Enables <div> elements with "foo" and "bar" classes.
 		{
 			name: 'div',
 			classes: [ 'foo', 'bar' ]
 		},
 
-		// Adds support for `foo` and `bar` classes to the already supported
+		// Adds support for "foo" and "bar" classes to the already supported
 		// <p> elements (those are enabled by the dedicated paragraph feature).
 		{
 			name: 'p',
 			classes: [ 'foo', 'bar' ]
 		},
 
-		// Enables <div>s with foo="true" attribute and bar attribute that
-		// can accept any value (boolean `true` value works as an asterisk).
+		// Enables <div> elements with foo="true" attribute and "bar" attribute that
+		// can accept any value (the Boolean "true" value works as an asterisk).
 		{
 			name: 'div',
 			attributes: {
@@ -171,15 +166,15 @@ htmlSupport: {
 
 The General HTML Support feature distinguishes several content types, each treated a bit differently:
 
-* Container elements (e.g. `<section>`, `<div>`).
-* Inline elements (e.g. `<span>`, `<a>`).
-* Object elements (e.g. `<iframe>`, `<video>`).
+* Container elements (like `<section>`, `<div>`).
+* Inline elements (like `<span>`, `<a>`).
+* Object elements (like `<iframe>`, `<video>`).
 
-The enabled elements will not just be available "anywhere" in the content, as they still need to adhere to certain rules derived from the HTML schema as well as common sense. Also, the behavior of specific types of elements in the editing area will be different. For instance, the object elements will only be selectable as a whole, and the inline elements will work the same as other formatting features supported by CKEditor&nbsp;5 (e.g. bold, italic) do.
+The enabled elements will not just be available "anywhere" in the content. They still need to adhere to certain rules derived from the HTML schema and common sense. Also, the behavior of specific types of elements in the editing area will be different. For instance, the object elements will only be selectable as a whole. The inline elements will work the same as other formatting features supported by CKEditor&nbsp;5 (like bold and italic) do.
 
 ### Enabling all HTML features
 
-It might be desired to enable all HTML features in some cases, so all elements and attributes will be allowed by the editor. It could be done with a special configuration:
+Sometimes you might want to enable all HTML features, so the editor will allow all elements and attributes. You can achieve this with a special configuration:
 
 ```js
 htmlSupport: {
@@ -195,66 +190,119 @@ htmlSupport: {
 ```
 
 <info-box>
-	Please, keep in mind that enabling all HTML features creates a security risk. It is recommended to pass a list of disallowed elements and attributes to the configuration to make sure that any malicious code will not be saved and executed in the editor.
+	Enabling all HTML features creates a security risk. You should pass a list of disallowed elements and attributes to the configuration to make sure that any malicious code will not be saved and executed in the editor.
 </info-box>
 
-The above configuration will work similarly to [`allowedContent: true`](/docs/ckeditor4/latest/api/CKEDITOR_config.html#cfg-allowedContent) option from CKEditor 4.
+This configuration will work similarly to the [`allowedContent: true`](/docs/ckeditor4/latest/api/CKEDITOR_config.html#cfg-allowedContent) option from CKEditor 4.
+
+### Enabling script tags for legacy use cases
+
+<info-box warning>
+	Scripts are blocked by default for [security reasons](#security). For new implementations, we discourage embedding scripts in editor content.
+</info-box>
+
+Scripts are blocked by default because allowing `<script>` tags in editor content would let arbitrary JavaScript run whenever that content is rendered. It creates a serious cross-site scripting (XSS) risk—content from untrusted sources (e.g., copied from a malicious site or supplied by an attacker) could steal session data, modify the page, or perform actions on behalf of the user. If you attempt to place the `<script>` tag in the content, you may see an error like this:
+
+```plain
+view renderer filler not found
+```
+
+Blocking scripts by default keeps the editing surface and the published output safe unless you explicitly enable scripts for a controlled, legacy scenario. For example, if you have content from CKEditor&nbsp;4 and script tags are necessary. For such a case you can explicitly allow `<script>` tags using the configuration:
+
+```js
+htmlSupport: {
+	allow: [
+		{
+			name: 'script',
+			attributes: true,
+			classes: true,
+			styles: true
+		}
+	]
+}
+```
+
+This configuration allows `<script>` elements along with their attributes, classes, and styles, preventing the editor from crashing when such content is loaded.
 
 ### Security
 
-When you set up the GHS to allow elements like `<script>` or attributes like `onclick`, you expose the users of your application to a possibly malicious markup &mdash; whether it is code mistakenly copied from a risky website or purposely provided by a bad actor. An example of that could be: `<div onclick="leakUserData()">`.
+When you set up the GHS to allow elements like `<script>` or attributes like `onclick`, you expose the users of your application to a possibly malicious markup. This can be code mistakenly copied from a risky website or purposely provided by a bad actor. An example of that could be: `<div onclick="leakUserData()">`.
 
-The content inside the editor (what you see in the editing area) is filtered by default from typical content that could break the editor. However, the editor does not feature a full XSS filter. Thus, we recommend configuring GHS to enable specific HTML markup, instead of enabling all markup at once.
+The content inside the editor (what you see in the editing area) is filtered by default from typical content that could break the editor. However, the editor does not feature a full XSS filter. We recommend configuring GHS to enable specific HTML markup instead of enabling all markup at once.
 
-Moreover, as a general rule, not exclusive to GHS, there should always be a sanitization process present on the back-end side of your application. Even the best filtering done on the browser side of your application can be mitigated and every network call can be manipulated, thus bypassing the front-end filtering. This can quickly become a security risk.
+Moreover, as a general rule, not exclusive to GHS, there should always be a sanitization process present on the backend side of your application. Even the best filtering done on the browser side of your application can be mitigated, and every network call can be manipulated, thus bypassing the frontend filtering. This can quickly become a security risk.
 
-In addition to the sanitization process and safe GHS configuration, it is highly recommended to set strict {@link installation/advanced/csp Content Security Policy} rules.
+In addition to the sanitization process and safe GHS configuration, it is highly recommended to set strict {@link getting-started/setup/csp Content Security Policy} rules.
+
+#### Iframe sandbox
+
+`<iframe>` elements can introduce security risks if not properly restricted. To address this, browsers support the [`sandbox` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox) on iframes, which restricts what the embedded content is allowed to do.
+
+GHS automatically enforces a `sandbox` attribute on all `<iframe>` elements in the **editing view** via the built-in `IframeElementSupport` plugin. This behavior is controlled by the `htmlSupport.htmlIframeSandbox` configuration option.
+
+<info-box>
+	The `htmlIframeSandbox` option only affects what is rendered in the editing area. It does **not** modify the document data returned by `editor.getData()`. Your backend sanitization pipeline should independently enforce iframe sandboxing in the output HTML.
+</info-box>
+
+The `htmlIframeSandbox` option accepts `true` (the default), an array of allowed [sandbox flag values](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox), or `false`. Setting it to `true` enforces the strictest mode — every `<iframe>` in the editing view gets an empty `sandbox=""` attribute, disabling scripts, forms, popups, and all other privileged features. Passing an array limits the sandbox to only the specified flags; any flag not on the list is stripped from existing iframes. Setting the option to `false` disables enforcement entirely and leaves the attribute untouched.
+
+```js
+ClassicEditor
+	.create( {
+		htmlSupport: {
+			// Default. Enforces empty sandbox on all iframes.
+			htmlIframeSandbox: true,
+
+			// Only these flags are kept.
+			// htmlIframeSandbox: [ 'allow-scripts', 'allow-same-origin' ],
+
+			// No enforcement — attribute is left as-is.
+			// htmlIframeSandbox: false
+		}
+	} );
+```
 
 ### Enabling custom elements
 
-Custom HTML elements with attributes and classes can be defined.
+You can define custom HTML elements with attributes and classes.
 
-To use a new element, it has to be registered by {@link module:html-support/dataschema~DataSchema} as one of the types below:
+To use a new element, you need to register it with {@link module:html-support/dataschema~DataSchema} as one of the types below:
 
 * Inline element.
 * Block element.
 
-To enable such elements and add attributes or classes to them, you need to use the {@link module:html-support/datafilter~DataFilter#allowElement allowElement} and {@link module:html-support/datafilter~DataFilter#allowAttributes allowAttributes} methods from the {@link module:html-support/datafilter~DataFilter DataFilter} API.
+To enable such elements and add attributes or classes to them, you need to use the {@link module:html-support/datafilter~DataFilter#allowElement `allowElement`} and {@link module:html-support/datafilter~DataFilter#allowAttributes `allowAttributes`} methods from the {@link module:html-support/datafilter~DataFilter `DataFilter`} API.
 
 Base implementation example:
 
+<code-switcher>
 ```js
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
-import { Plugin } from '@ckeditor/ckeditor5-core';
-import { SourceEditing } from '@ckeditor/ckeditor5-source-editing';
-import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { ClassicEditor, Essentials, Paragraph, Plugin, SourceEditingEnhanced, GeneralHtmlSupport } from 'ckeditor5';
 
 /**
- * A plugin extending General HTML Support for example custom HTML elements.
- */
+* A plugin extending General HTML Support, for example, with custom HTML elements.
+*/
 class ExtendHTMLSupport extends Plugin {
 	static get requires() {
 		return [ GeneralHtmlSupport ];
 	}
 
 	init() {
-		// Extend schema with custom HTML elements.
+		// Extend the schema with custom HTML elements.
 		const dataFilter = this.editor.plugins.get( 'DataFilter' );
 		const dataSchema = this.editor.plugins.get( 'DataSchema' );
 
-		// Inline element
+		// Inline element.
 		dataSchema.registerInlineElement( {
 			view: 'element-inline',
 			model: 'myElementInline'
 		} );
 
-		// Custom elements need to be registered using direct API instead of config.
+		// Custom elements need to be registered using direct API instead of configuration.
 		dataFilter.allowElement( 'element-inline' );
 		dataFilter.allowAttributes( { name: 'element-inline', attributes: { 'data-foo': false }, classes: [ 'foo' ] } );
 
-		// Block element
+		// Block element.
 		dataSchema.registerBlockElement( {
 			view: 'element-block',
 			model: 'myElementBlock',
@@ -268,10 +316,12 @@ class ExtendHTMLSupport extends Plugin {
 }
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
 		plugins: [
 			Essentials,
 			Paragraph,
+			SourceEditingEnhanced,
 			ExtendHTMLSupport
 		],
 		htmlSupport: {
@@ -285,12 +335,15 @@ ClassicEditor
 			]
 		}
 	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
 ```
+</code-switcher>
 
-Both inline and block elements can be treated as object elements. To make it possible, it is necessary to set the {@link module:html-support/dataschema~DataSchemaDefinition#isObject isObject} property to `true`.
+You can treat both inline and block elements as object elements. To make it possible, it is necessary to set the {@link module:html-support/dataschema~HtmlSupportDataSchemaDefinition#isObject isObject} property to `true`.
 
 ```js
-// Inline object element
+// Inline object element.
 dataSchema.registerInlineElement( {
 	view: 'object-inline',
 	model: 'myObjectInline',
@@ -302,7 +355,7 @@ dataSchema.registerInlineElement( {
 
 dataFilter.allowElement( 'object-inline' );
 
-// Block object element
+// Block object element.
 dataSchema.registerBlockElement( {
 	view: 'object-block',
 	model: 'myObjectBlock',
@@ -313,23 +366,314 @@ dataSchema.registerBlockElement( {
 } );
 
 dataFilter.allowElement( 'object-block' );
+```
 
+### Predefined supported elements
+
+The HTML elements listed below can be turned on directly via the `allow` setting of the `config.htmlSupport` option [mentioned above](#configuration).
+
+#### Block elements
+
+<ul style="display: grid; grid-template-columns: 1fr 1fr 1fr;">
+	<li>address</li>
+	<li>article</li>
+	<li>aside</li>
+	<li>blockquote</li>
+	<li>button</li>
+	<li>caption</li>
+	<li>center</li>
+	<li>col</li>
+	<li>colgroup</li>
+	<li>dd</li>
+	<li>details</li>
+	<li>dir</li>
+	<li>div</li>
+	<li>dl</li>
+	<li>dt</li>
+	<li>fieldset</li>
+	<li>figcaption</li>
+	<li>figure</li>
+	<li>footer</li>
+	<li>form</li>
+	<li>header</li>
+	<li>hgroup</li>
+	<li>hr</li>
+	<li>hx</li>
+	<li>img</li>
+	<li>input</li>
+	<li>legend</li>
+	<li>li</li>
+	<li>main</li>
+	<li>menu</li>
+	<li>nav</li>
+	<li>ol</li>
+	<li>p</li>
+	<li>pre</li>
+	<li>section</li>
+	<li>summary</li>
+	<li>table</li>
+	<li>tbody</li>
+	<li>td</li>
+	<li>tfoot</li>
+	<li>th</li>
+	<li>thead</li>
+	<li>tr</li>
+	<li>ul</li>
+</ul>
+
+#### Inline elements
+
+<ul style="display: grid; grid-template-columns: 1fr 1fr 1fr;">
+	<li>a</li>
+	<li>abbr</li>
+	<li>acronym</li>
+	<li>audio</li>
+	<li>b</li>
+	<li>bdi</li>
+	<li>bdo</li>
+	<li>big</li>
+	<li>canvas</li>
+	<li>cite</li>
+	<li>code</li>
+	<li>del</li>
+	<li>dfn</li>
+	<li>embed</li>
+	<li>em</li>
+	<li>figure</li>
+	<li>font</li>
+	<li>i</li>
+	<li>iframe</li>
+	<li>ins</li>
+	<li>kbd</li>
+	<li>li</li>
+	<li>mark</li>
+	<li>meter</li>
+	<li>object</li>
+	<li>oembed</li>
+	<li>ol</li>
+	<li>output</li>
+	<li>progress</li>
+	<li>q</li>
+	<li>s</li>
+	<li>samp</li>
+	<li>script</li>
+	<li>select</li>
+	<li>small</li>
+	<li>span</li>
+	<li>strong</li>
+	<li>style</li>
+	<li>sub</li>
+	<li>sup</li>
+	<li>tbody</li>
+	<li>thead</li>
+	<li>time</li>
+	<li>tt</li>
+	<li>u</li>
+	<li>ul</li>
+	<li>var</li>
+	<li>video</li>
+</ul>
+
+## Detecting content loss
+
+Sometimes, after loading content into the editor, you may find that certain elements, attributes, classes, or styles are missing. The editor removes content that no feature supports. General HTML Support keeps extra content only when it matches an `allow` rule and does not match a `disallow` rule. Debugging this can be difficult. However, you can list such content as it is loaded into the editor (with `setData()`, pasting, or source editing) using a plugin that scans for unprocessed elements and attributes.
+
+Each warning contains one of the following reasons:
+
+* `disallowedAttribute` &ndash; The attribute, class, or style matched a `disallow` rule and was removed.
+* `disallowedElement` &ndash; The element matched a `disallow` rule that does not specify any attributes.
+* `notAllowed` &ndash; There is no `allow` rule for it and no other feature handled it.
+
+The demo below uses the following General HTML Support rules. Switch to source editing, change the HTML, and check the warnings logged below the editor. Use the **Clear logs** button to start with an empty console.
+
+| Elements          | Allowed                                                                                                 | Disallowed                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `<pre>`, `<code>` | The `data-foo` attribute, the `foo` class, and the `color` and `background` styles, all with any value. | The `data-foo="bar"` attribute and the `background: yellow` style. |
+| `<kbd>`           | &ndash;                                                                                                 | The whole element.                                                 |
+
+Any other element or attribute is logged as `notAllowed`, unless one of the editor features (paragraphs, bold, italic, or code blocks) handles it. For example, try adding `<span class="x">`, `<pre data-bar="baz">`, or `<code title="Not allowed">`.
+
+{@snippet features/general-html-support-debugger}
+
+<div class="ghs-debugger-demo__header">
+	<strong>JS console</strong>
+	<ck:button id="general-html-support-debugger-clear" variant="secondary">Clear logs</ck:button>
+</div>
+
+<ck:fake-devtools id='general-html-support-debugger-devtools' />
+
+The code for this plugin is available below. Add it to the `plugins` list next to `GeneralHtmlSupport`. To send the warnings somewhere other than the browser console, override the `log()` method.
+
+<info-box warning>
+	This plugin relies on the private API of the {@link module:html-support/datafilter~DataFilter} plugin, which may change without notice. Use it in development builds only. In TypeScript, accessing the private `_disallowedAttributes` and `_disallowedElements` properties causes type errors, so you need to cast `dataFilter` to `any`.
+</info-box>
+
+```js
+import { Plugin, DataFilter, priorities } from 'ckeditor5';
+
+// Logs the elements, attributes, classes, and styles dropped while loading data (`setData()`, pasting, etc.).
+class HtmlSupportDebugger extends Plugin {
+	static get pluginName() {
+		return 'HtmlSupportDebugger';
+	}
+
+	static get requires() {
+		return [ DataFilter ];
+	}
+
+	init() {
+		const editor = this.editor;
+		const dataFilter = editor.plugins.get( DataFilter );
+
+		// Logs the items of the element that no converter has consumed (yet).
+		const logUnconsumed = ( reason, element, consumable, items ) => {
+			const unconsumedItems = items.filter( ( { descriptor } ) => consumable.test( element, descriptor ) );
+			const coveredStyles = unconsumedItems
+				.filter( ( { kind } ) => kind == 'style' )
+				.flatMap( ( { name } ) => getLonghandStyles( element, name ) );
+
+			for ( const { kind, name, value } of unconsumedItems ) {
+				// Log only `margin` instead of `margin`, `margin-top`, `margin-left`, and so on.
+				if ( kind != 'style' || !coveredStyles.includes( name ) ) {
+					this.log( { reason, kind, name, value, path: getPath( element ) } );
+				}
+			}
+		};
+
+		// GHS removes disallowed attributes by consuming them, so catch them right before that happens.
+		dataFilter.decorate( 'processViewAttributes' );
+
+		this.listenTo( dataFilter, 'processViewAttributes', ( evt, [ element, { consumable } ] ) => {
+			const disallowedIds = getDisallowedIds( dataFilter, element );
+			const disallowedItems = getItems( element ).filter( ( { kind, name } ) => disallowedIds.has( `${ kind }:${ name }` ) );
+
+			logUnconsumed( 'disallowedAttribute', element, consumable, disallowedItems );
+		}, { priority: 'high' } );
+
+		// Whatever is still not consumed after all converters ran gets dropped. Run right before
+		// the default converter (`lowest` priority) that unwraps unknown elements.
+		this.listenTo( editor.data.upcastDispatcher, 'element', ( evt, { viewItem: element }, { consumable } ) => {
+			// Skip internal elements, like `$comment`.
+			if ( element.name.startsWith( '$' ) ) {
+				return;
+			}
+
+			const reason = dataFilter._disallowedElements.has( element.name ) ? 'disallowedElement' : 'notAllowed';
+			const elementItem = { kind: 'element', name: element.name, descriptor: { name: true } };
+
+			// Some features do not consume wrapper elements, like `<ul>`, but rebuild them in the output.
+			const items = isRebuiltByFeature( editor, element ) ? getItems( element ) : [ elementItem, ...getItems( element ) ];
+
+			logUnconsumed( reason, element, consumable, items );
+		}, { priority: priorities.lowest + 1 } );
+	}
+
+	log( rejection ) {
+		console.warn( 'HtmlSupportDebugger:', rejection );
+	}
+}
+
+// Returns the attributes, classes, and styles of the element with their descriptors for `consumable.test()`.
+function getItems( element ) {
+	const attributes = [ ...element.getAttributeKeys() ]
+		.filter( name => name != 'class' && name != 'style' )
+		.map( name => ( {
+			kind: 'attribute',
+			name,
+			value: element.getAttribute( name ),
+			descriptor: { attributes: [ name ] }
+		} ) );
+
+	const classes = [ ...element.getClassNames() ].map( name => ( {
+		kind: 'class',
+		name,
+		descriptor: { classes: [ name ] }
+	} ) );
+
+	// Include longhand styles, like `margin-left` for `margin`, because the rules may use either form.
+	// Skip the shorthands that have no value of their own, like `margin` when only `margin-left` is set.
+	const styles = element.getStyleNames( true )
+		.filter( name => element.getStyle( name ) !== undefined )
+		.map( name => ( {
+			kind: 'style',
+			name,
+			value: element.getStyle( name ),
+			descriptor: { styles: [ name ] }
+		} ) );
+
+	return [ ...attributes, ...classes, ...styles ];
+}
+
+// Returns the `kind:name` IDs of the element items that match a `disallow` rule. The matcher returns
+// them as `[ 'class', 'foo' ]`, `[ 'style', 'color' ]`, or `[ 'data-foo' ]` pairs.
+function getDisallowedIds( dataFilter, element ) {
+	const matches = dataFilter._disallowedAttributes.matchAll( element ) || [];
+
+	const ids = matches
+		.flatMap( ( { match } ) => match.attributes || [] )
+		.flatMap( ( [ key, token ] ) => {
+			if ( key == 'style' ) {
+				// GHS also removes the longhands of a disallowed shorthand, like `margin-left` for `margin`.
+				return [ token, ...getLonghandStyles( element, token ) ].map( name => `style:${ name }` );
+			}
+
+			return key == 'class' ? `class:${ token }` : `attribute:${ key }`;
+		} );
+
+	return new Set( ids );
+}
+
+// Checks if a feature rebuilds the element from its children. For example, the list feature converts
+// each `<li>` element and then rebuilds the `<ul>` or `<ol>` element around them in the output.
+function isRebuiltByFeature( editor, element ) {
+	const { plugins, config } = editor;
+	const hasChild = name => [ ...element.getChildren() ].some( child => child.is( 'element', name ) );
+
+	switch ( element.name ) {
+		case 'ul':
+		case 'ol':
+			return plugins.has( 'ListEditing' ) && hasChild( 'li' );
+		case 'thead':
+		case 'tbody':
+			return plugins.has( 'TableEditing' ) && hasChild( 'tr' );
+		case 'tfoot':
+			return plugins.has( 'TableEditing' ) && hasChild( 'tr' ) && !!config.get( 'table.enableFooters' );
+		case 'pre':
+			return plugins.has( 'CodeBlockEditing' ) && hasChild( 'code' );
+		default:
+			return false;
+	}
+}
+
+// Returns the longhands of the style, for example, `margin-left` for `margin`.
+function getLonghandStyles( element, styleName ) {
+	return element.document.stylesProcessor.getRelatedStyles( styleName )
+		.filter( name => name.split( '-' ).length > styleName.split( '-' ).length );
+}
+
+// Returns the path to the element, for example, `pre > code`.
+function getPath( element ) {
+	return [ ...element.getAncestors(), element ]
+		.filter( node => node.is( 'element' ) )
+		.map( node => node.name )
+		.join( ' > ' );
+}
 ```
 
 ## Known issues
 
-It is possible to add support for arbitrary styles, classes, and other attributes to existing CKEditor&nbsp;5 features (such as paragraphs, headings, list items, etc.). Most of the existing CKEditor&nbsp;5 features can already be extended this way, however, some cannot yet. This includes e.g.: the `<ul>` and `<ol>` elements of the list feature (see: [#9917](https://github.com/ckeditor/ckeditor5/issues/9917)).
+You can add support for arbitrary styles, classes, and other attributes to existing CKEditor&nbsp;5 features (such as paragraphs, headings, list items, etc.). Most of the existing CKEditor&nbsp;5 features can already be extended this way; however, some cannot yet.
 
 <info-box info>
-	While the GHS feature is stable, some problems with complex documents may occur if it is used together with {@link features/real-time-collaboration real-time collaboration}.
+	While the GHS feature is stable, some problems with complex documents may occur if you use it together with {@link features/real-time-collaboration real-time collaboration}.
 </info-box>
 
-We are open to feedback, so if you find any issue, feel free to report it in the [main CKEditor&nbsp;5 repository](https://github.com/ckeditor/ckeditor5/issues/). You can also track other [GHS-related issues](https://github.com/ckeditor/ckeditor5/issues/9856) on GitHub <!-- To be removed at some point, as the main issue is closed already -->.
+We are open to feedback, so if you find any issue, feel free to report it in the [main CKEditor&nbsp;5 repository](https://github.com/ckeditor/ckeditor5/issues/).
 
 ## Related features
 
 CKEditor&nbsp;5 has other features related to HTML editing that you may want to check:
 
 * {@link features/full-page-html Full page HTML} &ndash; Allows using CKEditor&nbsp;5 to edit entire HTML pages, from `<html>` to `</html>`, including the page metadata.
-* {@link features/source-editing Source editing} &ndash; Provides the ability for viewing and editing the source of the document.
+* {@link features/source-editing-enhanced Enhanced source code editing} &ndash; Allows for viewing and editing the source code of the document in a handy modal window (compatible with all editor types) with syntax highlighting, autocompletion and more.
 * {@link features/html-embed HTML embed} &ndash; Allows embedding an arbitrary HTML snippet in the editor.

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -17,10 +17,10 @@ export type TokenUrl = string | ( () => Promise<string> );
  *
  * ```ts
  * ClassicEditor
- * 	.create( document.querySelector( '#editor' ), {
+ * 	.create( {
+ * 		attachTo: document.querySelector( '#editor' ),
  * 		cloudServices: {
- * 			tokenUrl: 'https://example.com/cs-token-endpoint',
- * 			uploadUrl: 'https://your-organization-id.cke-cs.com/easyimage/upload/'
+ * 			tokenUrl: 'https://example.com/cs-token-endpoint'
  * 		}
  * 	} )
  * 	.then( ... )
@@ -37,12 +37,13 @@ export interface CloudServicesConfig {
 	 * As a string, it should be a URL to the security token endpoint in your application.
 	 * The role of this endpoint is to securely authorize
 	 * the end users of your application to use [CKEditor Cloud Services](https://ckeditor.com/ckeditor-cloud-services) only
-	 * if they should have access e.g. to upload files with {@glink @cs guides/easy-image/quick-start Easy Image} or to use the
-	 * {@glink @cs guides/collaboration/quick-start Collaboration} service.
+	 * if they should have access e.g. to upload files with {@glink features/file-management/ckbox CKBox} or to use the
+	 * [Collaboration](https://ckeditor.com/docs/cs/latest/guides/collaboration/quick-start.html) service.
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( document.querySelector( '#editor' ), {
+	 * 	.create( {
+	 * 		attachTo: document.querySelector( '#editor' ),
 	 * 		cloudServices: {
 	 * 			tokenUrl: 'https://example.com/cs-token-endpoint',
 	 * 			...
@@ -58,7 +59,8 @@ export interface CloudServicesConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( document.querySelector( '#editor' ), {
+	 * 	.create( {
+	 * 		attachTo: document.querySelector( '#editor' ),
 	 * 		cloudServices: {
 	 * 			tokenUrl: () => new Promise( ( resolve, reject ) => {
 	 * 				const xhr = new XMLHttpRequest();
@@ -88,9 +90,12 @@ export interface CloudServicesConfig {
 	 * 	} )
 	 * ```
 	 *
+	 * If the request to the token endpoint fails, the editor will call the token request function every 5 seconds in attempt
+	 * to refresh the token.
+	 *
 	 * You can find more information about token endpoints in the
-	 * {@glink @cs guides/easy-image/quick-start#create-token-endpoint Cloud Services - Quick start}
-	 * and {@glink @cs developer-resources/security/token-endpoint Cloud Services - Token endpoint} documentation.
+	 * [Cloud Services - Token endpoint](https://ckeditor.com/docs/cs/latest/developer-resources/security/token-endpoint.html)
+	 * documentation.
 	 *
 	 * Without a properly working token endpoint (token URL) CKEditor plugins will not be able to connect to CKEditor Cloud Services.
 	 */
@@ -98,13 +103,10 @@ export interface CloudServicesConfig {
 
 	/**
 	 * The endpoint URL for [CKEditor Cloud Services](https://ckeditor.com/ckeditor-cloud-services) uploads.
-	 * This option must be set for Easy Image to work correctly.
+	 * This option is used by the legacy Easy Image product.
 	 *
-	 * The upload URL is unique for each customer and can be found in the
-	 * [CKEditor Ecosystem customer dashboard](https://dashboard.ckeditor.com) after subscribing to the Easy Image service.
-	 * To learn how to start using Easy Image, check the {@glink @cs guides/easy-image/quick-start Easy Image - Quick start} documentation.
-	 *
-	 * Note: Make sure to also set the {@link module:cloud-services/cloudservicesconfig~CloudServicesConfig#tokenUrl} configuration option.
+	 * Note: Easy Image is a legacy product and only maintained for existing clients. Make sure to also set the
+	 * {@link module:cloud-services/cloudservicesconfig~CloudServicesConfig#tokenUrl} configuration option.
 	 */
 	uploadUrl?: string;
 
@@ -125,4 +127,28 @@ export interface CloudServicesConfig {
 	 * the new bundle (build + configuration) from the old ones.
 	 */
 	bundleVersion?: string;
+
+	/**
+	 * Specifies whether the token should be automatically refreshed when it expires.
+	 *
+	 * When set to `false`, the token will not be automatically refreshed, and you will need to handle token refresh manually.
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( {
+	 * 		attachTo: document.querySelector( '#editor' ),
+	 * 		cloudServices: {
+	 * 			tokenUrl: 'https://example.com/cs-token-endpoint',
+	 * 			// Disable automatic token refresh.
+	 * 			autoRefresh: false,
+	 * 			...
+	 * 		}
+	 * 	} )
+	 * 	.then( ... )
+	 * 	.catch( ... );
+	 * ```
+	 *
+	 * @default true
+	 */
+	autoRefresh?: boolean;
 }

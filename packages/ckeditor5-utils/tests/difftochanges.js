@@ -1,12 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import diff from '../src/diff';
-import diffToChanges from '../src/difftochanges';
+import { describe, it, expect } from 'vitest';
+import { diff } from '../src/diff.js';
+import { diffToChanges } from '../src/difftochanges.js';
 
 describe( 'diffToChanges', () => {
+	/* eslint-disable @stylistic/no-multi-spaces */
+
 	describe( 'equal patterns', () => {
 		testDiff( 0,		'',				'' );
 		testDiff( 0,		'abc',			'abc' );
@@ -45,6 +48,8 @@ describe( 'diffToChanges', () => {
 		testDiff( 5,		'abcdef',		'bdxfy' );
 	} );
 
+	/* eslint-enable @stylistic/no-multi-spaces */
+
 	it( 'works with arrays', () => {
 		const input = Array.from( 'abc' );
 		const output = Array.from( 'xaby' );
@@ -58,8 +63,8 @@ describe( 'diffToChanges', () => {
 			}
 		} );
 
-		expect( input ).to.deep.equal( output );
-		expect( changes ).to.have.lengthOf( 3 );
+		expect( input ).toEqual( output );
+		expect( changes ).toHaveLength( 3 );
 	} );
 
 	function testDiff( expectedChangeNumber, oldStr, newStr ) {
@@ -75,8 +80,8 @@ describe( 'diffToChanges', () => {
 				}
 			} );
 
-			expect( oldStrChars.join( '' ) ).to.equal( newStr );
-			expect( changes ).to.have.lengthOf( expectedChangeNumber );
+			expect( oldStrChars.join( '' ) ).toBe( newStr );
+			expect( changes ).toHaveLength( expectedChangeNumber );
 		} );
 	}
 } );

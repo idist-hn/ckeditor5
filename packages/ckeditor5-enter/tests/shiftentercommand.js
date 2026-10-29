@@ -1,12 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import InsertOperation from '@ckeditor/ckeditor5-engine/src/model/operation/insertoperation';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import ShiftEnter from '../src/shiftenter';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { InsertOperation, _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+import { ShiftEnter } from '../src/shiftenter.js';
 
 describe( 'ShiftEnterCommand', () => {
 	let editor, model, doc, schema, command;
@@ -46,33 +46,33 @@ describe( 'ShiftEnterCommand', () => {
 
 	describe( 'ShiftEnterCommand', () => {
 		it( 'soft breaks a block using parent batch', () => {
-			setData( model, '<p>foo[]</p>' );
+			_setModelData( model, '<p>foo[]</p>' );
 
 			model.change( writer => {
-				expect( writer.batch.operations ).to.length( 0 );
+				expect( writer.batch.operations ).toHaveLength( 0 );
 				editor.execute( 'shiftEnter' );
-				expect( writer.batch.operations ).to.length.above( 0 );
+				expect( writer.batch.operations.length ).toBeGreaterThan( 0 );
 			} );
 		} );
 
 		it( 'creates InsertOperation if soft enter is at the beginning of block', () => {
-			setData( model, '<p>[]foo</p>' );
+			_setModelData( model, '<p>[]foo</p>' );
 
 			editor.execute( 'shiftEnter' );
 
 			const operations = Array.from( doc.history.getOperations() );
 
-			expect( operations[ operations.length - 1 ] ).to.be.instanceof( InsertOperation );
+			expect( operations[ operations.length - 1 ] ).toBeInstanceOf( InsertOperation );
 		} );
 
 		it( 'creates InsertOperation if soft enter is at the end of block', () => {
-			setData( model, '<p>foo[]</p>' );
+			_setModelData( model, '<p>foo[]</p>' );
 
 			editor.execute( 'shiftEnter' );
 
 			const operations = Array.from( doc.history.getOperations() );
 
-			expect( operations[ operations.length - 1 ] ).to.be.instanceof( InsertOperation );
+			expect( operations[ operations.length - 1 ] ).toBeInstanceOf( InsertOperation );
 		} );
 	} );
 
@@ -111,7 +111,7 @@ describe( 'ShiftEnterCommand', () => {
 				test(
 					'allowed attributes are copied',
 					'<p><$text foo="true">test[]</$text></p>',
-					'<p><$text foo="true">test</$text><softBreak></softBreak><$text foo="true">[]</$text></p>'
+					'<p><$text foo="true">test</$text><softBreak foo="true"></softBreak><$text foo="true">[]</$text></p>'
 				);
 
 				test(
@@ -123,8 +123,63 @@ describe( 'ShiftEnterCommand', () => {
 				test(
 					'only allowed attributes are copied from mix set',
 					'<p><$text bar="true" foo="true">test[]</$text></p>',
-					'<p><$text bar="true" foo="true">test</$text><softBreak></softBreak><$text foo="true">[]</$text></p>'
+					'<p><$text bar="true" foo="true">test</$text><softBreak foo="true"></softBreak><$text foo="true">[]</$text></p>'
 				);
+
+				it( 'removes stale attributes from the last softBreak when the following text no longer has them', () => {
+					_setModelData(
+						model,
+						'<p><$text foo="true">foo</$text><softBreak foo="true"></softBreak><$text foo="true">bar[]</$text></p>'
+					);
+
+					const paragraph = doc.getRoot().getChild( 0 );
+
+					model.change( writer => {
+						writer.removeAttribute( 'foo', paragraph.getChild( 0 ) );
+						writer.removeAttribute( 'foo', paragraph.getChild( 2 ) );
+					} );
+
+					expect( _getModelData( model ) ).toBe( '<p>foo<softBreak></softBreak>bar[]</p>' );
+				} );
+
+				it( 'keeps attributes on a softBreak followed by another softBreak', () => {
+					_setModelData(
+						model,
+						'<p><$text foo="true">foo</$text>' +
+						'<softBreak foo="true"></softBreak><softBreak foo="true"></softBreak>' +
+						'<$text foo="true">bar[]</$text></p>'
+					);
+
+					const paragraph = doc.getRoot().getChild( 0 );
+
+					model.change( writer => {
+						writer.removeAttribute( 'foo', paragraph.getChild( 0 ) );
+						writer.removeAttribute( 'foo', paragraph.getChild( 3 ) );
+					} );
+
+					expect( _getModelData( model ) ).toBe(
+						'<p>foo<softBreak foo="true"></softBreak><softBreak></softBreak>bar[]</p>'
+					);
+				} );
+
+				it( 'keeps softBreak attributes when there is no following text node', () => {
+					_setModelData(
+						model,
+						'<p><$text foo="true">foo[]</$text></p><p>bar</p>'
+					);
+
+					editor.execute( 'shiftEnter' );
+
+					const firstParagraph = doc.getRoot().getChild( 0 );
+
+					model.change( writer => {
+						writer.removeAttribute( 'foo', firstParagraph.getChild( 0 ) );
+					} );
+
+					expect( _getModelData( model ) ).toBe(
+						'<p>foo<softBreak foo="true"></softBreak><$text foo="true">[]</$text></p><p>bar</p>'
+					);
+				} );
 			} );
 		} );
 
@@ -193,11 +248,11 @@ describe( 'ShiftEnterCommand', () => {
 			it( 'should not break inline limit elements - selection partially inside', () => {
 				// Wrap all changes in one block to avoid post-fixing the selection (which is incorret) in the meantime.
 				model.change( () => {
-					setData( model, '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
+					_setModelData( model, '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
+					expect( _getModelData( model ) ).toBe( '<p><inlineLimit>ba[r</inlineLimit></p><p>f]oo</p>' );
 				} );
 			} );
 
@@ -210,44 +265,44 @@ describe( 'ShiftEnterCommand', () => {
 			it( 'does nothing when break element cannot be inserted in specified context', () => {
 				// Wrap all changes in one block to avoid post-fixing the selection (which is incorret) in the meantime.
 				model.change( () => {
-					setData( model, '<img>[]</img>' );
+					_setModelData( model, '<img>[]</img>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<img>[]</img>' );
+					expect( _getModelData( model ) ).toBe( '<img>[]</img>' );
 				} );
 			} );
 
 			it( 'leaves one empty element after two were fully selected (backward)', () => {
-				setData( model, '<p>[abc</p><p>def]</p>' );
+				_setModelData( model, '<p>[abc</p><p>def]</p>' );
 				// @TODO: Add option for setting selection direction to model utils.
 				doc.selection._lastRangeBackward = true;
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( '<p>[]</p>' );
+				expect( _getModelData( model ) ).toBe( '<p>[]</p>' );
 			} );
 
 			it( 'uses DataController.deleteContent', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				editor.model.on( 'deleteContent', spy );
 
-				setData( model, '<p>[x]</p>' );
+				_setModelData( model, '<p>[x]</p>' );
 
 				command.execute();
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 			} );
 		} );
 
 		function test( title, input, output ) {
-			it( title, () => {
-				setData( model, input );
+			it( `execute(): ${ title }`, () => {
+				_setModelData( model, input );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( output );
+				expect( _getModelData( model ) ).toBe( output );
 			} );
 		}
 	} );
@@ -255,134 +310,134 @@ describe( 'ShiftEnterCommand', () => {
 	describe( '#isEnabled', () => {
 		it( 'should be disabled if <softBreak> cannot be inserted into element', () => {
 			model.change( () => {
-				setData( model, '<img>[]</img>' );
+				_setModelData( model, '<img>[]</img>' );
 
-				expect( command.isEnabled ).to.equal( false );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		it( 'should be enabled for collapsed selection in $root', () => {
-			setData( model, 'Foo.[]' );
+			_setModelData( model, 'Foo.[]' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for collapsed selection in paragraph', () => {
-			setData( model, '<p>Foo.[]</p>' );
+			_setModelData( model, '<p>Foo.[]</p>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for collapsed selection in heading', () => {
-			setData( model, '<h>Foo.[]</h>' );
+			_setModelData( model, '<h>Foo.[]</h>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for collapsed selection in inline limit element', () => {
-			setData( model, '<p><inlineLimit>Foo.[]</inlineLimit></p>' );
+			_setModelData( model, '<p><inlineLimit>Foo.[]</inlineLimit></p>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for non-collapsed selection in inline limit element', () => {
-			setData( model, '<p><inlineLimit>[Foo.]</inlineLimit></p>' );
+			_setModelData( model, '<p><inlineLimit>[Foo.]</inlineLimit></p>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for collapsed selection in paragraph which is wrapped in a block limit element', () => {
-			setData( model, '<blockLimit><p>Foo.[]</p></blockLimit>' );
+			_setModelData( model, '<blockLimit><p>Foo.[]</p></blockLimit>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for non-collapsed selection in paragraph which is wrapped in a block limit element', () => {
-			setData( model, '<blockLimit><p>F[oo.]</p></blockLimit>' );
+			_setModelData( model, '<blockLimit><p>F[oo.]</p></blockLimit>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for non-collapsed selection in paragraphs', () => {
-			setData( model, '<p>[Foo.</p><p>Bar.]</p>' );
+			_setModelData( model, '<p>[Foo.</p><p>Bar.]</p>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled for non-collapsed selection in headings', () => {
-			setData( model, '<h>[Foo.</h><h>Bar.]</h>' );
+			_setModelData( model, '<h>[Foo.</h><h>Bar.]</h>' );
 
-			expect( command.isEnabled ).to.equal( true );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be disabled for non-collapsed selection which starts in an inline limit element', () => {
 			// Wrap all changes in one block to avoid post-fixing the selection (which is incorret) in the meantime.
 			model.change( () => {
-				setData( model, '<p><inlineLimit>F[oo.</inlineLimit>B]ar.</p>' );
+				_setModelData( model, '<p><inlineLimit>F[oo.</inlineLimit>B]ar.</p>' );
 
 				// Refresh it manually because we're in the middle of a change block.
 				command.refresh();
 
-				expect( command.isEnabled ).to.equal( false );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		it( 'should be disabled for non-collapsed selection which end in an inline limit element', () => {
 			// Wrap all changes in one block to avoid post-fixing the selection (which is incorret) in the meantime.
 			model.change( () => {
-				setData( model, '<p>F[oo<inlineLimit>Bar].</inlineLimit></p>' );
+				_setModelData( model, '<p>F[oo<inlineLimit>Bar].</inlineLimit></p>' );
 
 				// Refresh it manually because we're in the middle of a change block.
 				command.refresh();
 
-				expect( command.isEnabled ).to.equal( false );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		it( 'should be disabled when break element cannot be inserted in specified context', () => {
 			// Wrap all changes in one block to avoid post-fixing the selection (which is incorret) in the meantime.
 			model.change( () => {
-				setData( model, '<img>[]</img>' );
+				_setModelData( model, '<img>[]</img>' );
 
 				// Refresh it manually because we're in the middle of a change block.
 				command.refresh();
 
-				expect( command.isEnabled ).to.equal( false );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		it( 'should be disabled for non-collapsed selection which starts in element inside a block limit element', () => {
 			model.change( () => {
-				setData( model, '<blockLimit><p>F[oo.</p></blockLimit><p>B]ar.</p>' );
+				_setModelData( model, '<blockLimit><p>F[oo.</p></blockLimit><p>B]ar.</p>' );
 
 				// Refresh it manually because we're in the middle of a change block.
 				command.refresh();
 
-				expect( command.isEnabled ).to.equal( false );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		it( 'should be disabled for non-collapsed selection which ends in element inside a block limit element', () => {
 			model.change( () => {
-				setData( model, '<p>Fo[o.</p><blockLimit><p>Bar].</p></blockLimit>' );
+				_setModelData( model, '<p>Fo[o.</p><blockLimit><p>Bar].</p></blockLimit>' );
 
 				// Refresh it manually because we're in the middle of a change block.
 				command.refresh();
 
-				expect( command.isEnabled ).to.equal( false );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		it( 'should be disabled for multi-ranges selection (1)', () => {
-			setData( model, '<p>[x]</p><p>[foo]</p>' );
+			_setModelData( model, '<p>[x]</p><p>[foo]</p>' );
 
-			expect( command.isEnabled ).to.equal( false );
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be disabled for multi-ranges selection (2)', () => {
-			setData( model, '<p>[]x</p><p>[]foo</p>' );
+			_setModelData( model, '<p>[]x</p><p>[]foo</p>' );
 
-			expect( command.isEnabled ).to.equal( false );
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 } );

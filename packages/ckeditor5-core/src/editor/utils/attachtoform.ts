@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module core/editor/utils/attachtoform
  */
 
-import { isFunction } from 'lodash-es';
+import { isFunction } from 'es-toolkit/compat';
 
 import { CKEditorError } from '@ckeditor/ckeditor5-utils';
 
-import type { default as Editor, EditorDestroyEvent } from '../editor';
-import type { ElementApi } from './elementapimixin';
+import type { Editor, EditorDestroyEvent } from '../editor.js';
+import type { ElementApi } from './elementapimixin.js';
 
 /**
  * Checks if the editor is initialized on a `<textarea>` element that belongs to a form. If yes, it updates the editor's element
@@ -22,7 +22,7 @@ import type { ElementApi } from './elementapimixin';
  *
  * @param editor Editor instance.
  */
-export default function attachToForm( editor: Editor & ElementApi ): void {
+export function attachToForm( editor: Editor & ElementApi ): void {
 	if ( !isFunction( editor.updateSourceElement ) ) {
 		/**
 		 * The editor passed to `attachToForm()` must implement the

@@ -1,19 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/eventinfo
  */
 
-import spy from './spy';
+import { spy } from './spy.js';
 
 /**
  * The event object passed to event callbacks. It is used to provide information about the event as well as a tool to
  * manipulate it.
  */
-export default class EventInfo<TName extends string = string, TReturn = unknown> {
+export class EventInfo<TName extends string = string, TReturn = unknown> {
 	/**
 	 * The object that fired the event.
 	 */

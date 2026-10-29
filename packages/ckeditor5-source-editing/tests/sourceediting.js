@@ -1,39 +1,35 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event, console */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import SourceEditing from '../src/sourceediting';
+import { SourceEditing } from '../src/sourceediting.js';
 
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Essentials from '@ckeditor/ckeditor5-essentials/src/essentials';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import InlineEditableUIView from '@ckeditor/ckeditor5-ui/src/editableui/inline/inlineeditableuiview';
-import PendingActions from '@ckeditor/ckeditor5-core/src/pendingactions';
-import Markdown from '@ckeditor/ckeditor5-markdown-gfm/src/markdown';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
+import { Plugin, PendingActions } from '@ckeditor/ckeditor5-core';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Essentials } from '@ckeditor/ckeditor5-essentials';
+import { ButtonView, MenuBarMenuListItemButtonView, InlineEditableUIView, Dialog } from '@ckeditor/ckeditor5-ui';
+import { Markdown } from '@ckeditor/ckeditor5-markdown-gfm';
+import { Heading } from '@ckeditor/ckeditor5-heading';
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { _getEmitterListenedTo, _getEmitterId } from '@ckeditor/ckeditor5-utils/src/emittermixin';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
+import { assertCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { removeEditorBodyOrphans } from '@ckeditor/ckeditor5-core/tests/_utils/cleanup.js';
+import { _getEmitterListenedTo, _getEmitterId, env, keyCodes } from '@ckeditor/ckeditor5-utils';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'SourceEditing', () => {
 	let editor, editorElement, plugin, button;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = document.body.appendChild( document.createElement( 'div' ) );
 
 		editor = await ClassicTestEditor.create( editorElement, {
-			plugins: [ SourceEditing, Paragraph, Essentials ],
+			plugins: [ SourceEditing, Paragraph, Essentials, Dialog ],
 			initialData: '<p>Foo</p>'
 		} );
 
@@ -48,81 +44,99 @@ describe( 'SourceEditing', () => {
 	} );
 
 	it( 'should be named', () => {
-		expect( SourceEditing.pluginName ).to.equal( 'SourceEditing' );
+		expect( SourceEditing.pluginName ).toEqual( 'SourceEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( SourceEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( SourceEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'initialization', () => {
-		it( 'should register a feature component', () => {
-			expect( button ).to.be.instanceOf( ButtonView );
-			expect( button.isEnabled ).to.be.true;
-			expect( button.isOn ).to.be.false;
-			expect( button.tooltip ).to.be.true;
-			expect( button.label ).to.equal( 'Source' );
-			expect( button.class ).to.equal( 'ck-source-editing-button' );
+		describe( 'in toolbar', () => {
+			testButton( 'Source', ButtonView );
+
+			it( 'should have tooltip and proper class', () => {
+				expect( button.tooltip ).toBe( true );
+				expect( button.class ).toEqual( 'ck-source-editing-button' );
+			} );
 		} );
 
-		it( 'should disable button if plugin is disabled', () => {
-			plugin.forceDisabled( 'disablePlugin' );
+		describe( 'in menu bar', () => {
+			beforeEach( () => {
+				button = editor.ui.componentFactory.create( 'menuBar:sourceEditing' );
+			} );
 
-			expect( button.isEnabled ).to.be.false;
-
-			plugin.clearForceDisabled( 'disablePlugin' );
-
-			expect( button.isEnabled ).to.be.true;
+			testButton( 'Show source', MenuBarMenuListItemButtonView );
 		} );
 
-		it( 'should disable button if editor is in read-only mode', () => {
-			editor.enableReadOnlyMode( 'unit-test' );
+		it( 'should throw when real-time collaboration plugin is loaded', async () => {
+			class RealTimeCollaborativeEditing extends Plugin {
+				static get pluginName() {
+					return 'RealTimeCollaborativeEditing';
+				}
+			}
 
-			expect( button.isEnabled ).to.be.false;
+			const editorElement = document.body.appendChild( document.createElement( 'div' ) );
 
-			editor.disableReadOnlyMode( 'unit-test' );
-
-			expect( button.isEnabled ).to.be.true;
+			return ClassicTestEditor.create( editorElement, {
+				plugins: [ SourceEditing, Paragraph, Essentials, RealTimeCollaborativeEditing ],
+				initialData: '<p>Foo</p>'
+			} ).then( () => {
+				throw new Error( 'It should throw an error' );
+			}, err => {
+				assertCKEditorError( err, 'source-editing-incompatible-with-real-time-collaboration', null );
+				removeEditorBodyOrphans();
+				editorElement.remove();
+			} );
 		} );
 
-		it( 'should disable button if there is a pending action', () => {
-			const pendingActionsPlugin = editor.plugins.get( PendingActions );
+		it( 'should display a warning in the console once if one or more collaboration plugins are loaded', async () => {
+			const warnStub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
-			const action = pendingActionsPlugin.add( 'Action' );
+			class CommentsEditing extends Plugin {
+				static get pluginName() {
+					return 'CommentsEditing';
+				}
+			}
 
-			expect( button.isEnabled ).to.be.false;
+			class TrackChangesEditing extends Plugin {
+				static get pluginName() {
+					return 'TrackChangesEditing';
+				}
+			}
 
-			pendingActionsPlugin.remove( action );
+			class RevisionHistory extends Plugin {
+				static get pluginName() {
+					return 'RevisionHistory';
+				}
+			}
 
-			expect( button.isEnabled ).to.be.true;
+			const pluginsFromCF = [ CommentsEditing, TrackChangesEditing, RevisionHistory ];
+
+			const editorElement = document.body.appendChild( document.createElement( 'div' ) );
+
+			const editor = await ClassicTestEditor.create( editorElement, {
+				plugins: [ SourceEditing, Paragraph, Essentials, ...pluginsFromCF ],
+				initialData: '<p>Foo</p>'
+			} );
+
+			expect( warnStub ).toHaveBeenCalledOnce();
+			expect( warnStub.mock.calls[ 0 ][ 0 ] )
+				.toEqual( 'You initialized the editor with the source editing feature and at least one of the collaboration features. ' +
+				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
+				'that contains markers created by the collaboration features.' );
+
+			editorElement.remove();
+
+			await editor.destroy();
 		} );
 
-		it( 'should bind button to the plugin property', () => {
-			plugin.isSourceEditingMode = false;
-
-			expect( button.isOn ).to.be.false;
-
-			plugin.isSourceEditingMode = true;
-
-			expect( button.isOn ).to.be.true;
-		} );
-
-		it( 'should toggle the plugin property after execution', () => {
-			const spy = sinon.spy();
-
-			plugin.on( 'change:isSourceEditingMode', spy );
-
-			button.fire( 'execute' );
-
-			expect( plugin.isSourceEditingMode ).to.be.true;
-			expect( spy.calledOnce ).to.be.true;
-			expect( spy.firstCall.args[ 2 ] ).to.be.true;
-
-			button.fire( 'execute' );
-
-			expect( plugin.isSourceEditingMode ).to.be.false;
-			expect( spy.calledTwice ).to.be.true;
-			expect( spy.secondCall.args[ 2 ] ).to.be.false;
-		} );
-
-		it( 'should display a warning in the console only once if all CF plugins are loaded', async () => {
-			sinon.stub( console, 'warn' );
+		it( 'should not throw nor display a warning for collaboration plugins if `allowCollaborationPlugins` flag is set', async () => {
+			const warnStub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
 			class RealTimeCollaborativeEditing extends Plugin {
 				static get pluginName() {
@@ -154,15 +168,13 @@ describe( 'SourceEditing', () => {
 
 			const editor = await ClassicTestEditor.create( editorElement, {
 				plugins: [ SourceEditing, Paragraph, Essentials, ...pluginsFromCF ],
+				sourceEditing: {
+					allowCollaborationFeatures: true
+				},
 				initialData: '<p>Foo</p>'
 			} );
 
-			expect( console.warn.calledOnce ).to.be.true;
-			expect( console.warn.firstCall.args[ 0 ] ).to.equal(
-				'You initialized the editor with the source editing feature and at least one of the collaboration features. ' +
-				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
-				'that contains markers created by the collaboration features.'
-			);
+			expect( warnStub ).not.toHaveBeenCalled();
 
 			editorElement.remove();
 
@@ -170,7 +182,7 @@ describe( 'SourceEditing', () => {
 		} );
 
 		it( 'should display a warning in the console if restricted editing plugin is loaded', async () => {
-			sinon.stub( console, 'warn' );
+			const warnStub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
 			class RestrictedEditingModeEditing extends Plugin {
 				static get pluginName() {
@@ -185,24 +197,93 @@ describe( 'SourceEditing', () => {
 				initialData: '<p>Foo</p>'
 			} );
 
-			expect( console.warn.calledOnce ).to.be.true;
-			expect( console.warn.firstCall.args[ 0 ] ).to.equal(
-				'You initialized the editor with the source editing feature and restricted editing feature. ' +
+			expect( warnStub ).toHaveBeenCalledOnce();
+			expect( warnStub.mock.calls[ 0 ][ 0 ] )
+				.toEqual( 'You initialized the editor with the source editing feature and restricted editing feature. ' +
 				'Please be advised that the source editing feature may not work, and be careful when editing document source ' +
-				'that contains markers created by the restricted editing feature.'
-			);
+				'that contains markers created by the restricted editing feature.' );
 
 			editorElement.remove();
 
 			await editor.destroy();
 		} );
+
+		function testButton( label, Component ) {
+			it( 'should register a feature component', () => {
+				expect( button ).to.be.instanceOf( Component );
+				expect( button.isEnabled ).toBe( true );
+				expect( button.isOn ).toBe( false );
+				expect( button.isToggleable ).toBe( true );
+				expect( button.label ).toEqual( label );
+			} );
+
+			it( 'should disable button if plugin is disabled', () => {
+				plugin.forceDisabled( 'disablePlugin' );
+
+				expect( button.isEnabled ).toBe( false );
+
+				plugin.clearForceDisabled( 'disablePlugin' );
+
+				expect( button.isEnabled ).toBe( true );
+			} );
+
+			it( 'should disable button if editor is in read-only mode', () => {
+				editor.enableReadOnlyMode( 'unit-test' );
+
+				expect( button.isEnabled ).toBe( false );
+
+				editor.disableReadOnlyMode( 'unit-test' );
+
+				expect( button.isEnabled ).toBe( true );
+			} );
+
+			it( 'should disable button if there is a pending action', () => {
+				const pendingActionsPlugin = editor.plugins.get( PendingActions );
+
+				const action = pendingActionsPlugin.add( 'Action' );
+
+				expect( button.isEnabled ).toBe( false );
+
+				pendingActionsPlugin.remove( action );
+
+				expect( button.isEnabled ).toBe( true );
+			} );
+
+			it( 'should bind button to the plugin property', () => {
+				plugin.isSourceEditingMode = false;
+
+				expect( button.isOn ).toBe( false );
+
+				plugin.isSourceEditingMode = true;
+
+				expect( button.isOn ).toBe( true );
+			} );
+
+			it( 'should toggle the plugin property after execution', () => {
+				const spy = vi.fn();
+
+				plugin.on( 'change:isSourceEditingMode', spy );
+
+				button.fire( 'execute' );
+
+				expect( plugin.isSourceEditingMode ).toBe( true );
+				expect( spy ).toHaveBeenCalledOnce();
+				expect( spy.mock.calls[ 0 ][ 2 ] ).toBe( true );
+
+				button.fire( 'execute' );
+
+				expect( plugin.isSourceEditingMode ).toBe( false );
+				expect( spy ).toHaveBeenCalledTimes( 2 );
+				expect( spy.mock.calls[ 1 ][ 2 ] ).toBe( false );
+			} );
+		}
 	} );
 
 	describe( 'default listener', () => {
 		it( 'should listen to own observable properties if editable is not external', () => {
 			const emitterId = _getEmitterId( plugin );
 
-			expect( _getEmitterListenedTo( plugin, emitterId ).id ).to.equal( plugin.id );
+			expect( _getEmitterListenedTo( plugin, emitterId ).id ).toEqual( plugin.id );
 		} );
 
 		it( 'should not listen to own observable properties if editable is external', async () => {
@@ -229,7 +310,7 @@ describe( 'SourceEditing', () => {
 
 			const emitterId = _getEmitterId( plugin );
 
-			expect( _getEmitterListenedTo( plugin, emitterId ) ).to.be.null;
+			expect( _getEmitterListenedTo( plugin, emitterId ) ).toBeNull();
 
 			editorElement.remove();
 
@@ -243,7 +324,7 @@ describe( 'SourceEditing', () => {
 				.map( ( [ , command ] ) => command )
 				.every( command => command.isEnabled === false && command._disableStack.has( 'SourceEditingMode' ) );
 
-			expect( hasIdInDisableStackForAllCommands ).to.be.true;
+			expect( hasIdInDisableStackForAllCommands ).toBe( true );
 		} );
 
 		it( 'should remove id from disable stack for all commands after switching back from the source editing mode', () => {
@@ -254,7 +335,7 @@ describe( 'SourceEditing', () => {
 				.map( ( [ , command ] ) => command )
 				.some( command => command._disableStack.has( 'SourceEditingMode' ) );
 
-			expect( hasIdInDisableStackForAnyCommand ).to.be.false;
+			expect( hasIdInDisableStackForAnyCommand ).toBe( false );
 		} );
 
 		it( 'should not remove the data from the editor after switching to the source editing mode', () => {
@@ -262,7 +343,7 @@ describe( 'SourceEditing', () => {
 
 			button.fire( 'execute' );
 
-			expect( editor.data.get() ).to.equal( data );
+			expect( editor.data.get() ).toEqual( data );
 		} );
 
 		it( 'should create a wrapper with a class and a data property', () => {
@@ -271,13 +352,11 @@ describe( 'SourceEditing', () => {
 			const domRoot = editor.editing.view.getDomRoot();
 			const wrapper = domRoot.nextSibling;
 
-			expect( wrapper.nodeName ).to.equal( 'DIV' );
-			expect( wrapper.className ).to.equal( 'ck-source-editing-area' );
-			expect( wrapper.dataset.value ).to.equal(
-				'<p>\n' +
+			expect( wrapper.nodeName ).toEqual( 'DIV' );
+			expect( wrapper.className ).toEqual( 'ck-source-editing-area' );
+			expect( wrapper.dataset.value ).toEqual( '<p>\n' +
 				'    Foo\n' +
-				'</p>'
-			);
+				'</p>' );
 		} );
 
 		it( 'should create a textarea inside a wrapper', () => {
@@ -286,14 +365,12 @@ describe( 'SourceEditing', () => {
 			const domRoot = editor.editing.view.getDomRoot();
 			const textarea = domRoot.nextSibling.children[ 0 ];
 
-			expect( textarea.nodeName ).to.equal( 'TEXTAREA' );
-			expect( textarea.rows ).to.equal( 1 );
-			expect( textarea.getAttribute( 'aria-label' ) ).to.equal( 'Source code editing area' );
-			expect( textarea.value ).to.equal(
-				'<p>\n' +
+			expect( textarea.nodeName ).toEqual( 'TEXTAREA' );
+			expect( textarea.rows ).toEqual( 1 );
+			expect( textarea.getAttribute( 'aria-label' ) ).toEqual( 'Source code editing area' );
+			expect( textarea.value ).toEqual( '<p>\n' +
 				'    Foo\n' +
-				'</p>'
-			);
+				'</p>' );
 		} );
 
 		it( 'should register a textarea in EditorUI when first shown', () => {
@@ -313,7 +390,195 @@ describe( 'SourceEditing', () => {
 
 			textarea.dispatchEvent( new Event( 'input' ) );
 
-			expect( wrapper.dataset.value ).to.equal( '<p>Foo</p><p>bar</p>' );
+			expect( wrapper.dataset.value ).toEqual( '<p>Foo</p><p>bar</p>' );
+		} );
+
+		it( 'should not block native undo keystroke in the textarea', () => {
+			button.fire( 'execute' );
+
+			const domRoot = editor.editing.view.getDomRoot();
+			const textarea = domRoot.nextSibling.children[ 0 ];
+
+			const keydownEvent = new KeyboardEvent( 'keydown', {
+				key: 'z',
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true
+			} );
+
+			const spy = vi.spyOn( keydownEvent, 'stopImmediatePropagation' );
+
+			textarea.dispatchEvent( keydownEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should not block native redo keystroke in the textarea', () => {
+			button.fire( 'execute' );
+
+			const domRoot = editor.editing.view.getDomRoot();
+			const textarea = domRoot.nextSibling.children[ 0 ];
+
+			const keydownEvent = new KeyboardEvent( 'keydown', {
+				key: 'y',
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true
+			} );
+
+			const spy = vi.spyOn( keydownEvent, 'stopImmediatePropagation' );
+
+			textarea.dispatchEvent( keydownEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should not block native undo keystroke with meta key in the textarea', () => {
+			button.fire( 'execute' );
+
+			const domRoot = editor.editing.view.getDomRoot();
+			const textarea = domRoot.nextSibling.children[ 0 ];
+
+			const keydownEvent = new KeyboardEvent( 'keydown', {
+				key: 'z',
+				metaKey: true,
+				bubbles: true,
+				cancelable: true
+			} );
+
+			const spy = vi.spyOn( keydownEvent, 'stopImmediatePropagation' );
+
+			textarea.dispatchEvent( keydownEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should not block native undo keystroke with caps lock in the textarea', () => {
+			button.fire( 'execute' );
+
+			const domRoot = editor.editing.view.getDomRoot();
+			const textarea = domRoot.nextSibling.children[ 0 ];
+
+			const keydownEvent = new KeyboardEvent( 'keydown', {
+				key: 'Z',
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true
+			} );
+
+			const spy = vi.spyOn( keydownEvent, 'stopImmediatePropagation' );
+
+			textarea.dispatchEvent( keydownEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should not block native redo keystroke with caps lock in the textarea', () => {
+			button.fire( 'execute' );
+
+			const domRoot = editor.editing.view.getDomRoot();
+			const textarea = domRoot.nextSibling.children[ 0 ];
+
+			const keydownEvent = new KeyboardEvent( 'keydown', {
+				key: 'Y',
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true
+			} );
+
+			const spy = vi.spyOn( keydownEvent, 'stopImmediatePropagation' );
+
+			textarea.dispatchEvent( keydownEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should trigger native redo on Cmd+Y in the textarea on macOS', () => {
+			const originalIsMac = env.isMac;
+			let execCommandSpy;
+
+			try {
+				env.isMac = true;
+				button.fire( 'execute' );
+
+				const domRoot = editor.editing.view.getDomRoot();
+				const textarea = domRoot.nextSibling.children[ 0 ];
+
+				const keydownEvent = new KeyboardEvent( 'keydown', {
+					key: 'y',
+					metaKey: true,
+					bubbles: true,
+					cancelable: true
+				} );
+
+				const preventDefaultSpy = vi.spyOn( keydownEvent, 'preventDefault' );
+				execCommandSpy = vi.spyOn( textarea.ownerDocument, 'execCommand' );
+
+				textarea.dispatchEvent( keydownEvent );
+
+				expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+				expect( execCommandSpy ).toHaveBeenCalledWith( 'redo' );
+			} finally {
+				if ( execCommandSpy ) {
+					execCommandSpy.mockRestore();
+				}
+
+				env.isMac = originalIsMac;
+			}
+		} );
+
+		it( 'should not trigger execCommand on Ctrl+Y in the textarea on non-macOS', () => {
+			const originalIsMac = env.isMac;
+			let execCommandSpy;
+
+			try {
+				env.isMac = false;
+				button.fire( 'execute' );
+
+				const domRoot = editor.editing.view.getDomRoot();
+				const textarea = domRoot.nextSibling.children[ 0 ];
+
+				const keydownEvent = new KeyboardEvent( 'keydown', {
+					key: 'y',
+					ctrlKey: true,
+					bubbles: true,
+					cancelable: true
+				} );
+
+				const preventDefaultSpy = vi.spyOn( keydownEvent, 'preventDefault' );
+				execCommandSpy = vi.spyOn( textarea.ownerDocument, 'execCommand' );
+
+				textarea.dispatchEvent( keydownEvent );
+
+				expect( preventDefaultSpy ).not.toHaveBeenCalled();
+				expect( execCommandSpy ).not.toHaveBeenCalled();
+			} finally {
+				if ( execCommandSpy ) {
+					execCommandSpy.mockRestore();
+				}
+
+				env.isMac = originalIsMac;
+			}
+		} );
+
+		it( 'should not intercept other Ctrl keystrokes in the textarea', () => {
+			button.fire( 'execute' );
+
+			const domRoot = editor.editing.view.getDomRoot();
+			const textarea = domRoot.nextSibling.children[ 0 ];
+
+			const keydownEvent = new KeyboardEvent( 'keydown', {
+				key: 'a',
+				ctrlKey: true,
+				bubbles: true,
+				cancelable: true
+			} );
+
+			const stopImmediatePropagationSpy = vi.spyOn( keydownEvent, 'stopImmediatePropagation' );
+
+			textarea.dispatchEvent( keydownEvent );
+
+			expect( stopImmediatePropagationSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should disable textarea if editor is in read-only mode', () => {
@@ -324,11 +589,11 @@ describe( 'SourceEditing', () => {
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			expect( textarea.readOnly ).to.be.true;
+			expect( textarea.readOnly ).toBe( true );
 
 			editor.disableReadOnlyMode( 'unit-test' );
 
-			expect( textarea.readOnly ).to.be.false;
+			expect( textarea.readOnly ).toBe( false );
 		} );
 
 		it( 'should disable textarea if plugin is disabled', () => {
@@ -339,11 +604,11 @@ describe( 'SourceEditing', () => {
 
 			plugin.forceDisabled( 'disablePlugin' );
 
-			expect( textarea.readOnly ).to.be.true;
+			expect( textarea.readOnly ).toBe( true );
 
 			plugin.clearForceDisabled( 'disablePlugin' );
 
-			expect( textarea.readOnly ).to.be.false;
+			expect( textarea.readOnly ).toBe( false );
 		} );
 
 		it( 'should remember replaced roots', () => {
@@ -352,17 +617,15 @@ describe( 'SourceEditing', () => {
 			const domRoot = editor.editing.view.getDomRoot();
 			const wrapper = domRoot.nextSibling;
 
-			expect( plugin._replacedRoots.get( 'main' ) ).to.equal( wrapper );
+			expect( plugin._replacedRoots.get( 'main' ) ).toEqual( wrapper );
 		} );
 
 		it( 'should remember document data from roots', () => {
 			button.fire( 'execute' );
 
-			expect( plugin._dataFromRoots.get( 'main' ) ).to.equal(
-				'<p>\n' +
+			expect( plugin._dataFromRoots.get( 'main' ) ).toEqual( '<p>\n' +
 				'    Foo\n' +
-				'</p>'
-			);
+				'</p>' );
 		} );
 
 		it( 'should hide the editing root after switching to the source editing mode', () => {
@@ -370,7 +633,61 @@ describe( 'SourceEditing', () => {
 
 			const domRoot = editor.editing.view.getDomRoot();
 
-			expect( domRoot.classList.contains( 'ck-hidden' ) ).to.be.true;
+			expect( domRoot.classList.contains( 'ck-hidden' ) ).toBe( true );
+		} );
+
+		describe( 'integration with the Dialog plugin', () => {
+			it( 'should hide the open dialog after switching to the source editing mode', () => {
+				const dialog = editor.plugins.get( 'Dialog' );
+
+				dialog.show( {} );
+
+				const spy = vi.spyOn( dialog, 'hide' );
+
+				button.fire( 'execute' );
+
+				expect( spy ).toHaveBeenCalledOnce();
+			} );
+
+			it( 'should not attempt to hide a hidden dialog after switching to the source editing mode', () => {
+				const dialog = editor.plugins.get( 'Dialog' );
+				const spy = vi.spyOn( dialog, 'hide' );
+
+				button.fire( 'execute' );
+
+				expect( spy ).not.toHaveBeenCalled();
+			} );
+
+			it( 'should not throw if the Dialog plugin is not loaded', async () => {
+				const tempEditorElement = document.body.appendChild( document.createElement( 'div' ) );
+
+				const tempEditor = await ClassicTestEditor.create( tempEditorElement, {
+					plugins: [ SourceEditing, Paragraph, Essentials ],
+					initialData: '<p>Foo</p>'
+				} );
+
+				plugin = tempEditor.plugins.get( 'SourceEditing' );
+				button = tempEditor.ui.componentFactory.create( 'sourceEditing' );
+
+				expect( () => button.fire( 'execute' ) ).to.not.throw();
+
+				tempEditorElement.remove();
+				return tempEditor.destroy();
+			} );
+
+			it( 'should not show the previously open dialog after switching back from the source editing mode', () => {
+				const dialog = editor.plugins.get( 'Dialog' );
+
+				dialog.show( {} );
+
+				const spy = vi.spyOn( dialog, 'show' );
+
+				// Exit and reenter the source editing mode.
+				button.fire( 'execute' );
+				button.fire( 'execute' );
+
+				expect( spy ).not.toHaveBeenCalled();
+			} );
 		} );
 
 		it( 'should show the editing root after switching back from the source editing mode', () => {
@@ -380,16 +697,16 @@ describe( 'SourceEditing', () => {
 			const domRoot = editor.editing.view.getDomRoot();
 			const wrapper = domRoot.nextSibling;
 
-			expect( domRoot.classList.contains( 'ck-hidden' ) ).to.be.false;
-			expect( wrapper ).to.be.null;
+			expect( domRoot.classList.contains( 'ck-hidden' ) ).toBe( false );
+			expect( wrapper ).toBeNull();
 		} );
 
 		it( 'should collapse selection and remove selection attributes after switching to the source editing mode', () => {
-			setData( editor.model, '<paragraph><$text bold="true">[foobar]</$text></paragraph>' );
+			_setModelData( editor.model, '<paragraph><$text bold="true">[foobar]</$text></paragraph>' );
 
 			button.fire( 'execute' );
 
-			expect( getData( editor.model ) ).to.equal( '<paragraph>[]<$text bold="true">foobar</$text></paragraph>' );
+			expect( _getModelData( editor.model ) ).toEqual( '<paragraph>[]<$text bold="true">foobar</$text></paragraph>' );
 		} );
 
 		it( 'should focus the textarea after switching to the source editing mode', () => {
@@ -398,7 +715,7 @@ describe( 'SourceEditing', () => {
 			const domRoot = editor.editing.view.getDomRoot();
 			const textarea = domRoot.nextSibling.children[ 0 ];
 
-			expect( document.activeElement ).to.equal( textarea );
+			expect( document.activeElement ).toBe( textarea );
 		} );
 
 		it( 'should move the input cursor to the beginning of textarea', () => {
@@ -407,21 +724,21 @@ describe( 'SourceEditing', () => {
 			const domRoot = editor.editing.view.getDomRoot();
 			const textarea = domRoot.nextSibling.children[ 0 ];
 
-			expect( textarea.selectionStart ).to.equal( 0 );
-			expect( textarea.selectionEnd ).to.equal( 0 );
+			expect( textarea.selectionStart ).toEqual( 0 );
+			expect( textarea.selectionEnd ).toEqual( 0 );
 		} );
 
 		it( 'should focus the editing view after switching back from the source editing mode', () => {
-			const spy = sinon.spy( editor.editing.view, 'focus' );
+			const spy = vi.spyOn( editor.editing.view, 'focus' );
 
 			button.fire( 'execute' );
 			button.fire( 'execute' );
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should update the editor data after switching back from the source editing mode if value has been changed', () => {
-			const setDataSpy = sinon.spy();
+			const setDataSpy = vi.fn();
 
 			editor.data.on( 'set', setDataSpy );
 
@@ -436,16 +753,16 @@ describe( 'SourceEditing', () => {
 
 			button.fire( 'execute' );
 
-			expect( setDataSpy.calledOnce ).to.be.true;
-			expect( setDataSpy.firstCall.args[ 1 ] ).to.deep.equal( [
+			expect( setDataSpy ).toHaveBeenCalledOnce();
+			expect( setDataSpy.mock.calls[ 0 ][ 1 ] ).toEqual( [
 				{ main: '<p>Foo</p><p>bar</p>' },
-				{ batchType: { isUndoable: true } }
+				{ batchType: { isUndoable: true }, suppressErrorInCollaboration: true }
 			] );
-			expect( editor.data.get() ).to.equal( '<p>Foo</p><p>bar</p>' );
+			expect( editor.data.get() ).toEqual( '<p>Foo</p><p>bar</p>' );
 		} );
 
 		it( 'should not overwrite the editor data after switching back from the source editing mode if value has not been changed', () => {
-			const setData = sinon.stub( editor.data, 'set' ).callThrough();
+			const setData = vi.spyOn( editor.data, 'set' );
 
 			button.fire( 'execute' );
 
@@ -460,12 +777,12 @@ describe( 'SourceEditing', () => {
 
 			button.fire( 'execute' );
 
-			expect( setData.callCount ).to.equal( 0 );
-			expect( editor.data.get() ).to.equal( '<p>Foo</p>' );
+			expect( setData ).toHaveBeenCalledTimes( 0 );
+			expect( editor.data.get() ).toEqual( '<p>Foo</p>' );
 		} );
 
 		it( 'should update the editor data after calling editor.getData() in the source editing mode', () => {
-			const setDataSpy = sinon.spy();
+			const setDataSpy = vi.fn();
 
 			editor.data.on( 'set', setDataSpy );
 
@@ -478,7 +795,7 @@ describe( 'SourceEditing', () => {
 			textarea.dispatchEvent( new Event( 'input' ) );
 
 			// Trigger getData() while in the source editing mode.
-			expect( editor.getData() ).to.equal( '<p>foo</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo</p>' );
 
 			textarea.value = 'bar';
 			textarea.dispatchEvent( new Event( 'input' ) );
@@ -486,20 +803,20 @@ describe( 'SourceEditing', () => {
 			// Exit source editing mode.
 			button.fire( 'execute' );
 
-			expect( setDataSpy.calledTwice ).to.be.true;
-			expect( setDataSpy.firstCall.args[ 1 ] ).to.deep.equal( [
+			expect( setDataSpy ).toHaveBeenCalledTimes( 2 );
+			expect( setDataSpy.mock.calls[ 0 ][ 1 ] ).toEqual( [
 				{ main: 'foo' },
-				{ batchType: { isUndoable: true } }
+				{ batchType: { isUndoable: true }, suppressErrorInCollaboration: true }
 			] );
-			expect( setDataSpy.secondCall.args[ 1 ] ).to.deep.equal( [
+			expect( setDataSpy.mock.calls[ 1 ][ 1 ] ).toEqual( [
 				{ main: 'bar' },
-				{ batchType: { isUndoable: true } }
+				{ batchType: { isUndoable: true }, suppressErrorInCollaboration: true }
 			] );
-			expect( editor.data.get() ).to.equal( '<p>bar</p>' );
+			expect( editor.data.get() ).toEqual( '<p>bar</p>' );
 		} );
 
 		it( 'should not overwrite the editor data after calling editor.getData() if value has not been changed', () => {
-			const setData = sinon.stub( editor.data, 'set' ).callThrough();
+			const setData = vi.spyOn( editor.data, 'set' );
 
 			button.fire( 'execute' );
 
@@ -513,14 +830,14 @@ describe( 'SourceEditing', () => {
 			textarea.dispatchEvent( new Event( 'input' ) );
 
 			// Trigger getData() while in the source editing mode.
-			expect( editor.getData() ).to.equal( '<p>Foo</p>' );
+			expect( editor.getData() ).toEqual( '<p>Foo</p>' );
 
-			expect( setData.callCount ).to.equal( 0 );
-			expect( editor.data.get() ).to.equal( '<p>Foo</p>' );
+			expect( setData ).toHaveBeenCalledTimes( 0 );
+			expect( editor.data.get() ).toEqual( '<p>Foo</p>' );
 		} );
 
 		it( 'should not overwrite the editor data after subsequent calls of editor.getData()', () => {
-			const setDataSpy = sinon.spy();
+			const setDataSpy = vi.fn();
 
 			editor.data.on( 'set', setDataSpy );
 
@@ -538,7 +855,7 @@ describe( 'SourceEditing', () => {
 			textarea.dispatchEvent( new Event( 'input' ) );
 
 			// Trigger getData() while in the source editing mode.
-			expect( editor.getData() ).to.equal( '<p>foo</p>' );
+			expect( editor.getData() ).toEqual( '<p>foo</p>' );
 
 			textarea.value = 'bar';
 			textarea.dispatchEvent( new Event( 'input' ) );
@@ -546,16 +863,16 @@ describe( 'SourceEditing', () => {
 			// Exit source editing mode.
 			button.fire( 'execute' );
 
-			expect( setDataSpy.callCount ).to.equal( 2 );
-			expect( setDataSpy.firstCall.args[ 1 ] ).to.deep.equal( [
+			expect( setDataSpy ).toHaveBeenCalledTimes( 2 );
+			expect( setDataSpy.mock.calls[ 0 ][ 1 ] ).toEqual( [
 				{ main: 'foo' },
-				{ batchType: { isUndoable: true } }
+				{ batchType: { isUndoable: true }, suppressErrorInCollaboration: true }
 			] );
-			expect( setDataSpy.secondCall.args[ 1 ] ).to.deep.equal( [
+			expect( setDataSpy.mock.calls[ 1 ][ 1 ] ).toEqual( [
 				{ main: 'bar' },
-				{ batchType: { isUndoable: true } }
+				{ batchType: { isUndoable: true }, suppressErrorInCollaboration: true }
 			] );
-			expect( editor.data.get() ).to.equal( '<p>bar</p>' );
+			expect( editor.data.get() ).toEqual( '<p>bar</p>' );
 		} );
 
 		it( 'should insert the formatted HTML source (editor output) into the textarea', () => {
@@ -565,12 +882,10 @@ describe( 'SourceEditing', () => {
 			const wrapper = domRoot.nextSibling;
 			const textarea = wrapper.children[ 0 ];
 
-			expect( editor.getData() ).to.equal( '<p>Foo</p>' );
-			expect( textarea.value ).to.equal(
-				'<p>\n' +
+			expect( editor.getData() ).toEqual( '<p>Foo</p>' );
+			expect( textarea.value ).toEqual( '<p>\n' +
 				'    Foo\n' +
-				'</p>'
-			);
+				'</p>' );
 		} );
 	} );
 
@@ -584,9 +899,9 @@ describe( 'SourceEditing', () => {
 			textarea.value = 'bar';
 			textarea.dispatchEvent( new Event( 'input' ) );
 
-			expect( getData( editor.model, { withoutSelection: true } ) ).to.equal( '<paragraph>Foo</paragraph>' );
+			expect( _getModelData( editor.model, { withoutSelection: true } ) ).toEqual( '<paragraph>Foo</paragraph>' );
 			plugin.updateEditorData();
-			expect( getData( editor.model, { withoutSelection: true } ) ).to.equal( '<paragraph>bar</paragraph>' );
+			expect( _getModelData( editor.model, { withoutSelection: true } ) ).toEqual( '<paragraph>bar</paragraph>' );
 		} );
 	} );
 
@@ -600,12 +915,12 @@ describe( 'SourceEditing', () => {
 				editor.model.insertContent( writer.createText( 'y' ) );
 			} );
 
-			expect( editor.model.document.history.getOperations().length ).to.equal( 3 );
+			expect( editor.model.document.history.getOperations().length ).toEqual( 3 );
 
 			button.fire( 'execute' );
 			button.fire( 'execute' );
 
-			expect( editor.model.document.history.getOperations().length ).to.equal( 3 );
+			expect( editor.model.document.history.getOperations().length ).toEqual( 3 );
 		} );
 
 		it( 'should add an operation to the history when a change has been made in the source mode', () => {
@@ -617,7 +932,7 @@ describe( 'SourceEditing', () => {
 				editor.model.insertContent( writer.createText( 'y' ) );
 			} );
 
-			expect( editor.model.document.history.getOperations().length ).to.equal( 3 );
+			expect( editor.model.document.history.getOperations().length ).toEqual( 3 );
 
 			button.fire( 'execute' );
 
@@ -632,13 +947,13 @@ describe( 'SourceEditing', () => {
 			button.fire( 'execute' );
 
 			// Adds 2 new operations MoveOperation (delete content) + InsertOperation.
-			expect( editor.model.document.history.getOperations().length ).to.equal( 5 );
+			expect( editor.model.document.history.getOperations().length ).toEqual( 5 );
 		} );
 	} );
 
 	describe( 'integration with EditorUI', () => {
 		it( 'should call EditorUI#update() on every DOM input event', () => {
-			const updateSpy = sinon.spy();
+			const updateSpy = vi.fn();
 
 			button.fire( 'execute' );
 
@@ -650,20 +965,135 @@ describe( 'SourceEditing', () => {
 			textarea.value = 'bar';
 			textarea.dispatchEvent( new Event( 'input' ) );
 
-			sinon.assert.calledOnce( updateSpy );
+			expect( updateSpy ).toHaveBeenCalledOnce();
 
 			textarea.value = 'barX';
 			textarea.dispatchEvent( new Event( 'input' ) );
 
-			sinon.assert.calledTwice( updateSpy );
+			expect( updateSpy ).toHaveBeenCalledTimes( 2 );
+		} );
+	} );
+
+	it( 'should disable CommentsArchiveUI plugin when disabling commands.', async () => {
+		class TestCommentsArchiveUIPlugin extends Plugin {
+			static get pluginName() {
+				return 'CommentsArchiveUI';
+			}
+			static get requires() {
+				return [];
+			}
+		}
+
+		const editorElement = document.body.appendChild( document.createElement( 'div' ) );
+
+		const editor = await ClassicEditor.create( editorElement, {
+			plugins: [ Paragraph, Heading, SourceEditing, TestCommentsArchiveUIPlugin ],
+			toolbar: [ 'heading' ]
+		} );
+
+		const sourceEditingPlugin = editor.plugins.get( 'SourceEditing' );
+		const commentsArchivePlugin = editor.plugins.get( 'CommentsArchiveUI' );
+
+		expect( commentsArchivePlugin.isEnabled ).toBe( true );
+
+		sourceEditingPlugin._disableCommands();
+
+		expect( commentsArchivePlugin.isEnabled ).toBe( false );
+
+		sourceEditingPlugin._enableCommands();
+
+		expect( commentsArchivePlugin.isEnabled ).toBe( true );
+
+		editorElement.remove();
+
+		await editor.destroy();
+	} );
+
+	describe( 'integration with document outline', () => {
+		let documentOutlineElement, documentOutlineEditor, documentOutlineEditorElement, documentOutlineEditorButton;
+
+		class DocumentOutlineUIMock extends Plugin {
+			static get pluginName() {
+				return 'DocumentOutlineUI';
+			}
+
+			view = { element: document.createElement( 'div' ) };
+		}
+
+		beforeEach( async () => {
+			documentOutlineEditorElement = document.body.appendChild( document.createElement( 'div' ) );
+
+			documentOutlineEditor = await ClassicEditor.create( documentOutlineEditorElement, {
+				plugins: [ Paragraph, Heading, SourceEditing, DocumentOutlineUIMock ],
+				toolbar: [ 'heading' ]
+			} );
+
+			documentOutlineElement = documentOutlineEditor.plugins.get( 'DocumentOutlineUI' ).view.element;
+			documentOutlineEditorButton = documentOutlineEditor.ui.componentFactory.create( 'sourceEditing' );
+		} );
+
+		afterEach( async () => {
+			documentOutlineEditorElement.remove();
+
+			return documentOutlineEditor.destroy();
+		} );
+
+		it( 'should hide the document outline container when entering the source editing mode', async () => {
+			documentOutlineEditorButton.fire( 'execute' );
+
+			expect( documentOutlineElement.style.display ).toEqual( 'none' );
+
+			documentOutlineElement.remove();
+		} );
+
+		it( 'should show the document outline container when leaving the source editing mode', async () => {
+			documentOutlineEditorButton.fire( 'execute' );
+
+			expect( documentOutlineElement.style.display ).toEqual( 'none' );
+
+			documentOutlineEditorButton.fire( 'execute' );
+
+			expect( documentOutlineElement.style.display ).toEqual( '' );
+
+			documentOutlineElement.remove();
+		} );
+	} );
+
+	describe( 'integration with annotations', () => {
+		class AnnotationsMock extends Plugin {
+			static get pluginName() {
+				return 'Annotations';
+			}
+
+			refreshVisibility() {}
+		}
+
+		it( 'should refresh annotations visibility when entering and leaving source editing mode', async () => {
+			const editorElement = document.body.appendChild( document.createElement( 'div' ) );
+			const editor = await ClassicEditor.create( editorElement, {
+				plugins: [ Paragraph, Heading, SourceEditing, AnnotationsMock ],
+				toolbar: [ 'heading' ]
+			} );
+
+			const spy = vi.spyOn( editor.plugins.get( 'Annotations' ), 'refreshVisibility' );
+
+			editor.plugins.get( 'SourceEditing' ).isSourceEditingMode = true;
+
+			expect( spy ).toHaveBeenCalledOnce();
+
+			editor.plugins.get( 'SourceEditing' ).isSourceEditingMode = false;
+
+			expect( spy ).toHaveBeenCalledTimes( 2 );
+
+			editorElement.remove();
+
+			return editor.destroy();
 		} );
 	} );
 } );
 
 describe( 'SourceEditing - integration with Markdown', () => {
 	let editor, editorElement, button;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = document.body.appendChild( document.createElement( 'div' ) );
@@ -689,8 +1119,8 @@ describe( 'SourceEditing - integration with Markdown', () => {
 		const wrapper = domRoot.nextSibling;
 		const textarea = wrapper.children[ 0 ];
 
-		expect( editor.getData() ).to.equal( '## Heading' );
-		expect( textarea.value ).to.equal( '## Heading' );
+		expect( editor.getData() ).toEqual( '## Heading' );
+		expect( textarea.value ).toEqual( '## Heading' );
 	} );
 
 	it( 'the content should not be additionally formatted when the content includes <> characters', () => {
@@ -702,15 +1132,13 @@ describe( 'SourceEditing - integration with Markdown', () => {
 		const wrapper = domRoot.nextSibling;
 		const textarea = wrapper.children[ 0 ];
 
-		expect( editor.getData() ).to.equal( '\\<paragraph>Foo\\</paragraph>' );
-		expect( textarea.value ).to.equal( '\\<paragraph>Foo\\</paragraph>' );
+		expect( editor.getData() ).toEqual( '\\<paragraph>Foo\\</paragraph>' );
+		expect( textarea.value ).toEqual( '\\<paragraph>Foo\\</paragraph>' );
 	} );
 } );
 
 describe( 'Focus handling and navigation between source editing and editor toolbar', () => {
 	let editorElement, editor, ui, toolbarView, domRoot, sourceEditingButton;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = document.body.appendChild( document.createElement( 'div' ) );
@@ -739,13 +1167,13 @@ describe( 'Focus handling and navigation between source editing and editor toolb
 	it( 'should focus the source editing textarea when entering the source mode', () => {
 		sourceEditingButton.fire( 'execute' );
 
-		expect( editor.ui.focusTracker.isFocused ).to.be.true;
-		expect( document.activeElement ).to.equal( domRoot.nextSibling.children[ 0 ] );
-		expect( editor.editing.view.document.isFocused ).to.be.false;
+		expect( editor.ui.focusTracker.isFocused ).toBe( true );
+		expect( document.activeElement ).toBe( domRoot.nextSibling.children[ 0 ] );
+		expect( editor.editing.view.document.isFocused ).toBe( false );
 	} );
 
 	it( 'should focus the editing root when leaving the source mode', () => {
-		const viewFocusSpy = testUtils.sinon.spy( editor.editing.view, 'focus' );
+		const viewFocusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
 		sourceEditingButton.fire( 'execute' );
 
@@ -753,12 +1181,12 @@ describe( 'Focus handling and navigation between source editing and editor toolb
 
 		sourceEditingButton.fire( 'execute' );
 
-		expect( editor.ui.focusTracker.isFocused ).to.be.true;
-		sinon.assert.calledOnce( viewFocusSpy );
+		expect( editor.ui.focusTracker.isFocused ).toBe( true );
+		expect( viewFocusSpy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'Alt+F10 should focus the main toolbar when the focus is in the editing root', () => {
-		const spy = testUtils.sinon.spy( toolbarView, 'focus' );
+		const spy = vi.spyOn( toolbarView, 'focus' );
 
 		sourceEditingButton.fire( 'execute' );
 
@@ -767,7 +1195,7 @@ describe( 'Focus handling and navigation between source editing and editor toolb
 
 		pressAltF10();
 
-		sinon.assert.calledOnce( spy );
+		expect( spy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'Esc should move the focus back from the main toolbar to the source editing', () => {
@@ -775,8 +1203,8 @@ describe( 'Focus handling and navigation between source editing and editor toolb
 
 		ui.focusTracker.focusedElement = domRoot.nextSibling.children[ 0 ];
 
-		const toolbarFocusSpy = testUtils.sinon.spy( toolbarView, 'focus' );
-		const sourceEditingTextareaFocusSpy = testUtils.sinon.spy( domRoot.nextSibling.children[ 0 ], 'focus' );
+		const toolbarFocusSpy = vi.spyOn( toolbarView, 'focus' );
+		const sourceEditingTextareaFocusSpy = vi.spyOn( domRoot.nextSibling.children[ 0 ], 'focus' );
 
 		// Focus the toolbar.
 		pressAltF10();
@@ -784,23 +1212,24 @@ describe( 'Focus handling and navigation between source editing and editor toolb
 
 		pressEsc();
 
-		sinon.assert.callOrder( toolbarFocusSpy, sourceEditingTextareaFocusSpy );
+		expect( toolbarFocusSpy.mock.invocationCallOrder[ 0 ] )
+			.to.be.lessThan( sourceEditingTextareaFocusSpy.mock.invocationCallOrder[ 0 ] );
 	} );
 
 	function pressAltF10() {
 		editor.keystrokes.press( {
 			keyCode: keyCodes.f10,
 			altKey: true,
-			preventDefault: sinon.spy(),
-			stopPropagation: sinon.spy()
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn()
 		} );
 	}
 
 	function pressEsc() {
 		editor.keystrokes.press( {
 			keyCode: keyCodes.esc,
-			preventDefault: sinon.spy(),
-			stopPropagation: sinon.spy()
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn()
 		} );
 	}
 } );

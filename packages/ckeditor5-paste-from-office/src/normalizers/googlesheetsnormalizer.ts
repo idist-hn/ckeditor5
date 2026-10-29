@@ -1,26 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module paste-from-office/normalizers/googlesheetsnormalizer
  */
 
-import { UpcastWriter, type ViewDocument } from 'ckeditor5/src/engine';
+import { ViewUpcastWriter, type ViewDocument } from '@ckeditor/ckeditor5-engine';
+import type { ClipboardInputTransformationData } from '@ckeditor/ckeditor5-clipboard';
 
-import removeXmlns from '../filters/removexmlns';
-import removeGoogleSheetsTag from '../filters/removegooglesheetstag';
-import removeInvalidTableWidth from '../filters/removeinvalidtablewidth';
-import removeStyleBlock from '../filters/removestyleblock';
-import type { Normalizer, NormalizerData } from '../normalizer';
+import { removeXmlns } from '../filters/removexmlns.js';
+import { removeGoogleSheetsTag } from '../filters/removegooglesheetstag.js';
+import { removeInvalidTableWidth } from '../filters/removeinvalidtablewidth.js';
+import { removeStyleBlock } from '../filters/removestyleblock.js';
+import type { PasteFromOfficeNormalizer } from '../normalizer.js';
 
 const googleSheetsMatch = /<google-sheets-html-origin/i;
 
 /**
  * Normalizer for the content pasted from Google Sheets.
+ *
+ * @internal
  */
-export default class GoogleSheetsNormalizer implements Normalizer {
+export class GoogleSheetsNormalizer implements PasteFromOfficeNormalizer {
 	public readonly document: ViewDocument;
 
 	/**
@@ -42,15 +45,12 @@ export default class GoogleSheetsNormalizer implements Normalizer {
 	/**
 	 * @inheritDoc
 	 */
-	public execute( data: NormalizerData ): void {
-		const writer = new UpcastWriter( this.document );
-		const { body: documentFragment } = data._parsedData;
+	public execute( data: ClipboardInputTransformationData ): void {
+		const writer = new ViewUpcastWriter( this.document );
 
-		removeGoogleSheetsTag( documentFragment, writer );
-		removeXmlns( documentFragment, writer );
-		removeInvalidTableWidth( documentFragment, writer );
-		removeStyleBlock( documentFragment, writer );
-
-		data.content = documentFragment;
+		removeGoogleSheetsTag( data.content, writer );
+		removeXmlns( data.content, writer );
+		removeInvalidTableWidth( data.content, writer );
+		removeStyleBlock( data.content, writer );
 	}
 }

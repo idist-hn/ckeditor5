@@ -4,23 +4,32 @@ order: 10
 menu-title: Editor and configuration
 meta-title: CKEditor 5 crash course - Editor and configuration | CKEditor 5 Documentation
 meta-description: Learn how to use CKEditor 5 APIs to create a custom editor plugin.
-modified_at: 2023-08-16
+modified_at: 2025-03-14
 ---
 
 # Editor and configuration
 
+In this part of the crash course, you will set up the project and learn how to create and configure a CKEditor&nbsp;5 editor instance.
+
 ## Test environment
 
-For the purposes of this tutorial, we have created a repository with the minimal setup required to use the editor. To follow along:
+For this tutorial, we have created a minimal setup required to use the editor. To follow along, run the commands below:
 
-1. Clone [this repository](https://github.com/ckeditor/tutorial-setup).
-2. Run the `npm install` command to install the dependencies.
-3. Run the `npm run dev` command to start the project.
-4. Open the URL displayed in your terminal.
+```bash
+npx -y degit ckeditor/ckeditor5-tutorials-examples/crash-course crash-course
+cd crash-course
 
-If everything went well, you should see a "Hello world!" text displayed on the page.
+npm install
+npm run dev
+```
+
+Open the URL displayed in your terminal. If everything went well, you should see a "Hello world!" text displayed on the page.
 
 We encourage you to follow the steps in the tutorial and type the code yourself to build the muscle and mental memory.
+
+<info-box>
+	If you want to use this tutorial with CDN, follow the steps in the [Adapt this tutorial to CDN](#adapt-this-tutorial-to-cdn) section.
+</info-box>
 
 ## Creating an editor
 
@@ -29,31 +38,38 @@ The test environment you set up displays the "Hello world!" on the page. Let's l
 Open the `src/main.js` file and add the following code:
 
 ```js
-// Import the editor
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+// Import the editor.
+import { ClassicEditor } from 'ckeditor5';
+
+// Import the styles.
+import 'ckeditor5/ckeditor5.css';
 
 // Get the HTML element with the ID of 'app'.
 const element = document.querySelector( '#app' );
 
 // Instantiate the editor using the `create` method.
-const editor = await ClassicEditor.create( element );
+const editor = await ClassicEditor.create( {
+	attachTo: element,
+	licenseKey: 'GPL' // Or '<YOUR_LICENSE_KEY>'.
+} );
 ```
 
-As you can see, the {@link module:core/editor/editor~Editor.create `create()`} method creates a new editor instance. It replaces the DOM element passed as the first argument with the editor UI, and sets the initial state of the editor to the content of that DOM element.
+As you can see, the {@link module:core/editor/editor~Editor.create `create()`} method creates a new editor instance. It replaces the DOM element passed in the configuration with the editor UI, and sets the initial state of the editor to the content of that DOM element.
 
-However, you may have noticed that the "Hello world!" text does not appear in the editor, and you can't write anything into it. This may seem strange at first, but it is by design. Let's fix this with the right configuration.
+However, you may have noticed that the "Hello world!" text does not appear in the editor, and you cannot write anything in it. This may seem strange at first, but it is by design. Let's fix this with the right configuration.
 
 ## Configuration
 
-The editor itself does not do much - it's just an empty shell at this stage. What gives the editor almost all of its functionality are the plugins. We will talk more about plugins in the next chapter, but for now let's just install two plugins that provide the bare minimum needed to type in the editor.
+The editor itself does not do much - it is just an empty shell at this stage. What gives the editor almost all of its functionality are the plugins. We will talk more about plugins in the next chapter, but for now, let's just install two plugins that provide the bare minimum needed to type in the editor.
 
 ```js
-// Add these two imports.
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+// Import plugins by adding them to the previously added import.
+import { ClassicEditor, Essentials, Paragraph } from 'ckeditor5';
 
 // Update the call to the `create()` method.
-const editor = await ClassicEditor.create( element, {
+const editor = await ClassicEditor.create( {
+	attachTo: element,
+	licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 	plugins: [
 		Essentials,
 		Paragraph
@@ -61,14 +77,16 @@ const editor = await ClassicEditor.create( element, {
 } );
 ```
 
-As shown in the example above, the {@link module:core/editor/editor~Editor.create `create()`} method takes a configuration object as its second parameter. In this object, we can pass the `plugins` array with the plugins we want to use.
+As shown in the example above, the {@link module:core/editor/editor~Editor.create `create()`} method takes a configuration object as its parameter. In this object, we can pass the `plugins` array with the plugins we want to use.
 
 When the page refreshes, you should see the "Hello world!" text in the editor and be able to type in it.
 
 The `Essentials` plugin adds the `Undo` and `Redo` operations. Let's add them to the editor's toolbar.
 
 ```js
-const editor = await ClassicEditor.create( element, {
+const editor = await ClassicEditor.create( {
+	attachTo: element,
+	licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 	plugins: [
 		Essentials,
 		Paragraph
@@ -86,7 +104,9 @@ const editor = await ClassicEditor.create( element, {
 
 After refreshing the page, the editor should have two buttons at the top. If you type something into the editor and click the "back arrow" button, your changes should be removed. Clicking the "forward arrow" button should restore those changes.
 
-The configuration object we just updated controls the features, appearance, and behavior of the editor. If you want to change any aspect of the editor, it's most likely through this object.
+The configuration object we have just updated controls the features, appearance, and behavior of the editor. If you want to change any aspect of the editor, it is most likely through this object.
+
+The `licenseKey` option is needed for the editor to run. You can learn more about it in the {@link getting-started/licensing/license-key-and-activation License key and activation} guide.
 
 ## Editor methods
 
@@ -99,8 +119,8 @@ window.editor = editor;
 
 Four common methods we will test are:
 
-* {@link module:core/editor/utils/dataapimixin~DataApi#getData `getData()`}
-* {@link module:core/editor/utils/dataapimixin~DataApi#setData `setData()`}
+* {@link module:core/editor/editor~Editor#getData `getData()`}
+* {@link module:core/editor/editor~Editor#setData `setData()`}
 * {@link module:core/editor/editor~Editor#execute `execute()`}
 * {@link module:core/editor/editor~Editor#destroy `destroy()`}
 
@@ -140,7 +160,7 @@ editor.execute( 'redo' );
 
 ### `destroy()`
 
-Last but not least is the `destroy()` method. It removes the editor and cleans up after it, including removing it from the DOM, removing all event listeners, etc.
+The `destroy()` method removes the editor and cleans up after it. This includes removing it from the DOM, removing all event listeners, etc.
 
 Run the following command from a console:
 
@@ -148,7 +168,63 @@ Run the following command from a console:
 editor.destroy();
 ```
 
-The editor and it's contents should disappear. Note that **this method returns a promise, so you need to `await` it** if you want to execute more logic after the editor is destroyed.
+The editor and its contents should disappear. **This method returns a promise, so you need to `await` it** if you want to execute more logic after the editor is destroyed.
+
+## Adapt this tutorial to CDN
+
+If you want to use the editor from CDN, you can adapt this tutorial by following these steps.
+
+First, clone the repository the same way as before. But do not install all the dependencies. Instead, run:
+
+```bash
+npm install vite
+```
+
+After that, open the `index.html` file and add the following tags:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>CKEditor 5 Framework – tutorial CDN</title>
+		<link rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/{@var ckeditor5-version}/ckeditor5.css" />
+	</head>
+	<body>
+		<div id="app">
+			<p>Hello world!</p>
+		</div>
+		<script src="https://cdn.ckeditor.com/ckeditor5/{@var ckeditor5-version}/ckeditor5.umd.js"></script>
+
+		<script type="module" src="/src/main.js"></script>
+	</body>
+</html>
+```
+
+The CSS file contains the editor and content styles. Therefore, you do not need to import styles into your JavaScript file.
+
+```js
+// Before:
+import 'ckeditor5/ckeditor5.css';
+
+// After:
+// No need to import the styles.
+```
+
+The script tag loads the editor from the CDN. It exposes the global variable `CKEDITOR`. You can use it in your project to access the editor class and plugins. That is why you must change the import statements to destructuring in the JavaScript files:
+
+```js
+// Before:
+import { ClassicEditor, Essentials, Bold, Italic, Paragraph } from 'ckeditor5';
+
+// After:
+const { ClassicEditor, Essentials, Bold, Italic, Paragraph } = CKEDITOR;
+```
+
+Also, since the `GPL` key can't be used for CDN integration, you need to go to our [pricing page](https://ckeditor.com/pricing/) and select a plan that best suits your needs to obtain a license key that can be used in cloud integration. In `src/main.js` set `licenseKey` to your license key.
+
+After following these steps and running the `npm run dev` command, you should be able to open the editor in the browser.
 
 ## What's next
 

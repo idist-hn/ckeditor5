@@ -1,16 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/diff
  */
 
-import fastDiff from './fastdiff';
+import { fastDiff as fastDiffFunction } from './fastdiff.js';
 
 // The following code is based on the "O(NP) Sequence Comparison Algorithm"
 // by Sun Wu, Udi Manber, Gene Myers, Webb Miller.
+
+export type Diff = {
+	<T>( a: ArrayLike<T>, b: ArrayLike<T>, cmp?: ( a: T, b: T ) => boolean ): Array<DiffResult>;
+	fastDiff: typeof fastDiffFunction;
+};
 
 /**
  * Calculates the difference between two arrays or strings producing an array containing a list of changes
@@ -30,7 +35,7 @@ import fastDiff from './fastdiff';
  * @param cmp Optional function used to compare array values, by default === is used.
  * @returns Array of changes.
  */
-export default function diff<T>(
+export const diff: Diff = function<T>(
 	a: ArrayLike<T>,
 	b: ArrayLike<T>,
 	cmp?: ( a: T, b: T ) => boolean
@@ -43,7 +48,7 @@ export default function diff<T>(
 	const aLength = a.length;
 	const bLength = b.length;
 
-	// Perform `fastDiff` for longer strings/arrays (see #269).
+	// Perform `fastDiff` for longer strings/arrays (see https://github.com/ckeditor/ckeditor5-utils/issues/269).
 	if ( aLength > 200 || bLength > 200 || aLength + bLength > 300 ) {
 		return diff.fastDiff( a, b, cmp, true );
 	}
@@ -137,11 +142,11 @@ export default function diff<T>(
 	// Return the final list of edit changes.
 	// We remove the first item that represents the action for the injected nulls.
 	return es[ delta ].slice( 1 );
-}
+} as Diff;
 
 // Store the API in static property to easily overwrite it in tests.
 // Too bad dependency injection does not work in Webpack + ES 6 (const) + Babel.
-diff.fastDiff = fastDiff;
+diff.fastDiff = fastDiffFunction;
 
 /**
  * The element of the result of {@link module:utils/diff~diff} function.

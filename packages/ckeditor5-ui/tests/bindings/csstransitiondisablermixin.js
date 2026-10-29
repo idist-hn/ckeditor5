@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import CssTransitionDisablerMixin from '../../src/bindings/csstransitiondisablermixin';
-import View from '../../src/view';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { CssTransitionDisablerMixin } from '../../src/bindings/csstransitiondisablermixin.js';
+import { View } from '../../src/view.js';
 
 describe( 'cssTransitionDisablerMixin()', () => {
 	let view;
@@ -29,36 +30,67 @@ describe( 'cssTransitionDisablerMixin()', () => {
 	} );
 
 	it( 'should create a protected observable property for class binding', () => {
-		expect( view._isCssTransitionsDisabled ).to.be.false;
+		expect( view._isCssTransitionsDisabled ).toBe( false );
 	} );
 
 	it( 'should not alter the CSS class of the view until blocking is enabled', () => {
-		expect( view.element.classList ).to.be.empty;
+		expect( view.element.classList.length ).toBe( 0 );
 	} );
 
 	describe( 'disableCssTransitions() method', () => {
 		it( 'should belong to the view', () => {
-			expect( view.disableCssTransitions ).to.be.a( 'function' );
+			expect( typeof view.disableCssTransitions ).toBe( 'function' );
 		} );
 
 		it( 'should set the proper CSS class when called', () => {
 			view.disableCssTransitions();
 
-			expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).to.be.true;
+			expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).toBe( true );
 		} );
 	} );
 
 	describe( 'enableCssTransitions() method', () => {
 		it( 'should belong to the view', () => {
-			expect( view.enableCssTransitions ).to.be.a( 'function' );
+			expect( typeof view.enableCssTransitions ).toBe( 'function' );
 		} );
 
 		it( 'should remove the proper CSS class when called', () => {
 			view.disableCssTransitions();
-			expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).to.be.true;
+			expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).toBe( true );
 
 			view.enableCssTransitions();
-			expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).to.be.false;
+			expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).toBe( false );
 		} );
+	} );
+
+	it( 'should allow late initialization', () => {
+		const LateInitView = CssTransitionDisablerMixin( View );
+
+		view.destroy();
+
+		expect( () => new LateInitView() ).not.toThrow();
+
+		view = new LateInitView();
+
+		view.setTemplate( {
+			tag: 'div'
+		} );
+
+		view.initializeCssTransitionDisablerMixin();
+
+		view.render();
+
+		expect( view._isCssTransitionsDisabled ).toBe( false );
+		expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).toBe( false );
+
+		view.disableCssTransitions();
+
+		expect( view._isCssTransitionsDisabled ).toBe( true );
+		expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).toBe( true );
+
+		view.enableCssTransitions();
+
+		expect( view._isCssTransitionsDisabled ).toBe( false );
+		expect( view.element.classList.contains( 'ck-transitions-disabled' ) ).toBe( false );
 	} );
 } );

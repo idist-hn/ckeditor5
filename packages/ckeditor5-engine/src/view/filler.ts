@@ -1,12 +1,7 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import { keyCodes, isText, type KeystrokeInfo } from '@ckeditor/ckeditor5-utils';
-import type View from './view';
-import type DomEventData from './observer/domeventdata';
-import type { ViewDocumentArrowKeyEvent } from './observer/arrowkeysobserver';
 
 /**
  * Set of utilities related to handling block and inline fillers.
@@ -18,7 +13,7 @@ import type { ViewDocumentArrowKeyEvent } from './observer/arrowkeysobserver';
  * * Block filler is an element which fill block elements, like `<p>`. CKEditor uses `<br>` as a block filler during the editing,
  * as browsers do natively. So instead of an empty `<p>` there will be `<p><br></p>`. The advantage of block filler is that
  * it is transparent for the selection, so when the caret is before the `<br>` and user presses right arrow he will be
- * moved to the next paragraph, not after the `<br>`. The disadvantage is that it breaks a block, so it can not be used
+ * moved to the next paragraph, not after the `<br>`. The disadvantage is that it breaks a block, so it cannot be used
  * in the middle of a line of text. The {@link module:engine/view/filler~BR_FILLER `<br>` filler} can be replaced with any other
  * character in the data output, for instance {@link module:engine/view/filler~NBSP_FILLER non-breaking space} or
  * {@link module:engine/view/filler~MARKED_NBSP_FILLER marked non-breaking space}.
@@ -31,11 +26,16 @@ import type { ViewDocumentArrowKeyEvent } from './observer/arrowkeysobserver';
  * transparent for the selection. The arrow key moves the caret between zero-width spaces characters, so the additional
  * code is needed to handle the caret.
  *
- * Both inline and block fillers are handled by the {@link module:engine/view/renderer~Renderer renderer} and are not present in the
+ * Both inline and block fillers are handled by the {@link module:engine/view/renderer~ViewRenderer renderer} and are not present in the
  * view.
  *
  * @module engine/view/filler
  */
+
+import { keyCodes, isText, getSelection, type KeystrokeInfo } from '@ckeditor/ckeditor5-utils';
+import { type EditingView } from './view.js';
+import { type ViewDocumentDomEventData } from './observer/domeventdata.js';
+import type { ViewDocumentArrowKeyEvent } from './observer/arrowkeysobserver.js';
 
 /**
  * Non-breaking space filler creator. This function creates the `&nbsp;` text node.
@@ -43,6 +43,7 @@ import type { ViewDocumentArrowKeyEvent } from './observer/arrowkeysobserver';
  *
  * @see module:engine/view/filler~MARKED_NBSP_FILLER
  * @see module:engine/view/filler~BR_FILLER
+ * @internal
  */
 export const NBSP_FILLER = ( domDocument: Document ): Text => domDocument.createTextNode( '\u00A0' );
 
@@ -52,6 +53,7 @@ export const NBSP_FILLER = ( domDocument: Document ): Text => domDocument.create
  *
  * @see module:engine/view/filler~NBSP_FILLER
  * @see module:engine/view/filler~BR_FILLER
+ * @internal
  */
 export const MARKED_NBSP_FILLER = ( domDocument: Document ): HTMLSpanElement => {
 	const span = domDocument.createElement( 'span' );
@@ -67,6 +69,7 @@ export const MARKED_NBSP_FILLER = ( domDocument: Document ): HTMLSpanElement => 
  *
  * @see module:engine/view/filler~NBSP_FILLER
  * @see module:engine/view/filler~MARKED_NBSP_FILLER
+ * @internal
  */
 export const BR_FILLER = ( domDocument: Document ): HTMLBRElement => {
 	const fillerBr = domDocument.createElement( 'br' );
@@ -77,13 +80,17 @@ export const BR_FILLER = ( domDocument: Document ): HTMLBRElement => {
 
 /**
  * Length of the {@link module:engine/view/filler~INLINE_FILLER INLINE_FILLER}.
+ *
+ * @internal
  */
 export const INLINE_FILLER_LENGTH = 7;
 
 /**
  * Inline filler which is a sequence of the word joiners.
+ *
+ * @internal
  */
-export const INLINE_FILLER = '\u2060'.repeat( INLINE_FILLER_LENGTH );
+export const INLINE_FILLER: string = '\u2060'.repeat( INLINE_FILLER_LENGTH );
 
 /**
  * Checks if the node is a text node which starts with the {@link module:engine/view/filler~INLINE_FILLER inline filler}.
@@ -97,6 +104,7 @@ export const INLINE_FILLER = '\u2060'.repeat( INLINE_FILLER_LENGTH );
  *
  * @param domNode DOM node.
  * @returns True if the text node starts with the {@link module:engine/view/filler~INLINE_FILLER inline filler}.
+ * @internal
  */
 export function startsWithFiller( domNode: Node | string ): boolean {
 	if ( typeof domNode == 'string' ) {
@@ -116,6 +124,7 @@ export function startsWithFiller( domNode: Node | string ): boolean {
  *
  * @param domText DOM text node.
  * @returns True if the text node contains only the {@link module:engine/view/filler~INLINE_FILLER inline filler}.
+ * @internal
  */
 export function isInlineFiller( domText: Text ): boolean {
 	return domText.data.length == INLINE_FILLER_LENGTH && startsWithFiller( domText );
@@ -132,6 +141,7 @@ export function isInlineFiller( domText: Text ): boolean {
  *
  * @param domText DOM text node, possible with inline filler.
  * @returns Data without filler.
+ * @internal
  */
 export function getDataWithoutFiller( domText: Text | string ): string {
 	const data = typeof domText == 'string' ? domText : domText.data;
@@ -148,19 +158,20 @@ export function getDataWithoutFiller( domText: Text | string ): string {
  * the left arrow is pressed, so the filler does not break navigation.
  *
  * @param view View controller instance we should inject quirks handling on.
+ * @internal
  */
-export function injectQuirksHandling( view: View ): void {
+export function injectQuirksHandling( view: EditingView ): void {
 	view.document.on<ViewDocumentArrowKeyEvent>( 'arrowKey', jumpOverInlineFiller, { priority: 'low' } );
 }
 
 /**
  * Move cursor from the end of the inline filler to the beginning of it when, so the filler does not break navigation.
  */
-function jumpOverInlineFiller( evt: unknown, data: DomEventData & KeystrokeInfo ) {
+function jumpOverInlineFiller( evt: unknown, data: ViewDocumentDomEventData & KeystrokeInfo ) {
 	if ( data.keyCode == keyCodes.arrowleft ) {
-		const domSelection = data.domTarget.ownerDocument.defaultView!.getSelection()!;
+		const domSelection = getSelection( data.domTarget );
 
-		if ( domSelection.rangeCount == 1 && domSelection.getRangeAt( 0 ).collapsed ) {
+		if ( domSelection && domSelection.rangeCount == 1 && domSelection.getRangeAt( 0 ).collapsed ) {
 			const domParent = domSelection.getRangeAt( 0 ).startContainer;
 			const domOffset = domSelection.getRangeAt( 0 ).startOffset;
 

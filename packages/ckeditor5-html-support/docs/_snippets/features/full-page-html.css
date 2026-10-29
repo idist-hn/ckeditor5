@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 .ck .posts {
@@ -42,7 +42,7 @@
 
 .ck .post__category {
 	font-weight: 600;
-	color: var(--ck-color-button-on-color);
+	color: var(--ck-button-on-text-color);
 	background-color: var(--ck-color-link-selected-background);
 	padding: 2px 8px;
 	border-radius: 8px;

@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { testDataProcessor } from '../_utils/utils';
+import { describe, it } from 'vitest';
+import { testDataProcessor } from '../_utils/utils.js';
 
-describe( 'GFMDataProcessor', () => {
+describe( 'MarkdownGfmDataProcessor', () => {
 	describe( 'strong and emphasis', () => {
 		it( 'should process strong', () => {
 			testDataProcessor(
@@ -97,23 +98,24 @@ describe( 'GFMDataProcessor', () => {
 		// Below two tests are not working because marked library renders nested emphasis differently than
 		// it is done on GitHub.
 
-		// it( 'should process nested emphasis #1', () => {
-		// 	testDataProcessor(
-		// 		'*test **test** test*',
-		//
-		// 		// GitHub is rendering as:
-		// 		// <p><em>test *</em>test** test*</p>
-		//
-		// 		'<p><em>test *</em>test** test*</p>'
-		// 	);
-		// } );
-		// it( 'should process nested emphasis #2', () => {
-		// 	testDataProcessor(
-		// 		'_test __test__ test_',
-		//
-		// 		// GitHub is rendering as:
-		// 		'<p><em>test __test_</em> test_</p>'
-		// 	);
-		// } );
+		it.skip( 'should process nested emphasis #1', () => {
+			testDataProcessor(
+				'*test **test** test*',
+
+				// GitHub is rendering as:
+				// <p><em>test *</em>test** test*</p>
+
+				'<p><em>test *</em>test** test*</p>'
+			);
+		} );
+
+		it.skip( 'should process nested emphasis #2', () => {
+			testDataProcessor(
+				'_test __test__ test_',
+
+				// GitHub is rendering as:
+				'<p><em>test __test_</em> test_</p>'
+			);
+		} );
 	} );
 } );

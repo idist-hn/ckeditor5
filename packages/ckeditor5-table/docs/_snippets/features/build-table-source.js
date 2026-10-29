@@ -1,51 +1,69 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window */
+import {
+	IndentBlock,
+	FontSize,
+	FontFamily,
+	FontColor,
+	Alignment,
+	CKBox,
+	CKBoxImageEdit,
+	PictureEditing,
+	ImageInsert,
+	ImageResize,
+	AutoImage,
+	LinkImage
+} from 'ckeditor5';
+import {
+	TOKEN_URL,
+	ClassicEditor as ClassicEditorBase,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
 
-import { Superscript } from '@ckeditor/ckeditor5-basic-styles';
-import { IndentBlock } from '@ckeditor/ckeditor5-indent';
-import { TableProperties, TableCellProperties, TableCaption, TableColumnResize } from '@ckeditor/ckeditor5-table';
-import { FontSize, FontFamily, FontColor } from '@ckeditor/ckeditor5-font';
-import { Alignment } from '@ckeditor/ckeditor5-alignment';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { PictureEditing, ImageResize, AutoImage } from '@ckeditor/ckeditor5-image';
-import { LinkImage } from '@ckeditor/ckeditor5-link';
+export class TableEditor extends ClassicEditorBase {
+	static builtinPlugins = [
+		...ClassicEditorBase.builtinPlugins,
+		FontFamily,
+		FontSize,
+		FontColor,
+		Alignment,
+		IndentBlock,
+		PictureEditing,
+		ImageResize,
+		ImageInsert,
+		AutoImage,
+		LinkImage,
+		CKBox,
+		CKBoxImageEdit
+	];
 
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
-
-ClassicEditor.builtinPlugins.push( FontFamily, FontSize, FontColor, Alignment, IndentBlock, PictureEditing,
-	ImageResize, AutoImage, LinkImage, CKBox );
-ClassicEditor.defaultConfig = {
-	cloudServices: CS_CONFIG,
-	toolbar: {
-		items: [
-			'undo', 'redo',
-			'|', 'heading', '|', 'fontFamily', 'fontSize', 'fontColor',
-			'|', 'bold', 'italic',
-			'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
-			'|', 'alignment',
-			'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
-		]
-	},
-	ui: {
-		viewportOffset: {
-			top: window.getViewportTopOffsetConfig()
+	static defaultConfig = {
+		toolbar: {
+			items: [
+				'undo', 'redo',
+				'|', 'heading', '|', 'fontFamily', 'fontSize', 'fontColor',
+				'|', 'bold', 'italic',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
+				'|', 'alignment',
+				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
+			]
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
+		},
+		ui: {
+			viewportOffset: {
+				top: getViewportTopOffsetConfig()
+			}
+		},
+		indentBlock: { offset: 30, unit: 'px' },
+		list: {
+			enableSkipLevelLists: true
 		}
-	},
-	indentBlock: { offset: 30, unit: 'px' }
-};
-
-window.ClassicEditor = ClassicEditor;
-window.CKEditorPlugins = {
-	TableProperties,
-	TableCellProperties,
-	TableCaption,
-	TableColumnResize,
-	Superscript
-};
+	};
+}

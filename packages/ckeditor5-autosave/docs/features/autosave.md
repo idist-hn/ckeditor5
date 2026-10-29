@@ -4,11 +4,9 @@ meta-title: Autosave | CKEditor 5 Documentation
 modified_at: 2023-05-29
 ---
 
-{@snippet installation/getting-and-setting-data/build-autosave-source}
-
 # Autosave
 
-The autosave feature allows you to automatically save the data (e.g. send it to the server) when needed. This can happen, for example, when the user changed the content.
+The autosave feature allows you to automatically save the data (for example, send it to the server) when needed. This can happen, for example, when the user changes the content.
 
 ## Demo
 
@@ -21,47 +19,44 @@ How to understand this demo:
 * The status indicator shows if the editor has some unsaved content or pending actions.
 	* If you drop a big image into this editor, you will see that it is busy during the entire period when the image is being uploaded.
 	* The editor is also busy when saving the content is in progress (the `save()`'s promise was not resolved).
-* The autosave feature has a throttling mechanism that groups frequent changes (e.g. typing) into batches.
+* The autosave feature has a throttling mechanism that groups frequent changes (like typing) into batches.
 * The autosave itself does not check whether the data has actually changed. It bases on changes in the {@link framework/architecture/editing-engine#model model} that sometimes may not be "visible" in the data. You can add such a check yourself if you would like to avoid sending the same data to the server twice.
-* You will be asked whether you want to leave the page if an image is being uploaded or the data has not been saved successfully yet. You can test that by dropping a big image into the editor or changing the "HTTP server lag" to a high value (e.g. 9000ms) and typing something. These actions will make the editor busy for a longer time &mdash; try leaving the page then.
+* You will be asked whether you want to leave the page if an image is being uploaded or the data has not been saved successfully yet. You can test that by dropping a big image into the editor or changing the "HTTP server lag" to a high value (for example, 9000ms) and typing something. These actions will make the editor busy for a longer time &ndash; try leaving the page then.
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Installation
 
-<info-box>
-	This plugin is not enabled in any of the {@link installation/getting-started/predefined-builds predefined builds}, so you need to {@link installation/plugins/installing-plugins install it} by hand.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list.
 
 Assuming that you have implemented some form of the `saveData()` function that sends the data to your server and returns a promise which is resolved once the data is successfully saved, configuring the {@link module:autosave/autosave~Autosave} feature is simple:
 
+<code-switcher>
 ```js
-ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [
-			Autosave,
+import { ClassicEditor, Autosave } from 'ckeditor5';
 
-			// ... other plugins.
-		],
+ClassicEditor
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
+		plugins: [ Autosave, /* ... */ ],
 
 		autosave: {
-			save( editor ) {
-				return saveData( editor.getData() );
-			}
-		},
-
-		// ... other configuration options.
-	} );
+			// Configuration.
+		}
+	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
 ```
+</code-switcher>
 
-The autosave feature listens to the {@link module:engine/model/document~Document#event:change:data `editor.model.document#change:data`} event, throttles it, and executes the {@link module:autosave/autosave~AutosaveConfig#save `config.autosave.save()`} function.
+The autosave feature listens to the {@link module:engine/model/document~ModelDocument#event:change:data `editor.model.document#change:data`} event, throttles it, and executes the {@link module:autosave/autosave~AutosaveConfig#save `config.autosave.save()`} function.
 
 It also listens to the native [`window#beforeunload`](https://developer.mozilla.org/en-US/docs/Web/Events/beforeunload) event and blocks it in the following cases:
 
 * The data has not been saved yet (the `save()` function did not resolve its promise or it has not been called yet due to throttling).
-* Or any of the editor features registered a {@link module:core/pendingactions~PendingActions "pending action"} (e.g. that an image is being uploaded).
+* Or any of the editor features registered a {@link module:core/pendingactions~PendingActions "pending action"} (for example, that an image is being uploaded).
 
 This automatically secures you from the user leaving the page before the content is saved or some ongoing actions like image upload did not finish.
 
@@ -73,14 +68,15 @@ One second is the default waiting time before the next save action if nothing ha
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		// ... Other configuration options ...
 		autosave: {
 			waitingTime: 5000, // in ms
 			save( editor ) {}
 		},
-
-		// ... other configuration options.
-	} );
+	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
 ```
 
 ### Demo code
@@ -89,13 +85,9 @@ The demo example at the beginning of this guide shows a simple integration of th
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [
-			Autosave,
-
-			// ... other plugins.
-		],
-
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
+		// ... Other configuration options ...
 		autosave: {
 			save( editor ) {
 				return saveData( editor.getData() );
@@ -139,7 +131,7 @@ function displayStatus( editor ) {
 
 ## Related features
 
-You can read more about {@link installation/getting-started/getting-and-setting-data getting and setting data} in the Getting started section.
+You can read more about {@link getting-started/setup/getting-and-setting-data getting and setting data} in the Getting started section.
 
 ## Common API
 

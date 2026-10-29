@@ -1,15 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/bindings/clickoutsidehandler
  */
 
-import type { DomEmitter } from '@ckeditor/ckeditor5-utils';
-
-/* global document */
+import { isShadowRoot, type DomEmitter } from '@ckeditor/ckeditor5-utils';
 
 /**
  * Handles clicking **outside** of a specified set of elements, then fires an action.
@@ -25,31 +23,77 @@ import type { DomEmitter } from '@ckeditor/ckeditor5-utils';
  * that determine the scope of the handler. Clicking any of them or their descendants will **not** fire the callback.
  * @param options.callback An action executed by the handler.
  */
-export default function clickOutsideHandler(
+export function clickOutsideHandler(
 	{ emitter, activator, callback, contextElements }: {
 		emitter: DomEmitter;
 		activator: () => boolean;
-		contextElements: Array<HTMLElement> | ( () => Array<HTMLElement> );
+		contextElements: Array<Element> | ( () => Array<Element> );
 		callback: () => void;
 	}
 ): void {
-	emitter.listenTo( document, 'mousedown', ( evt, domEvt ) => {
-		if ( !activator() ) {
-			return;
-		}
+	// Roots already covered by a listener of their own, so each one is listened to only once.
+	const listenedRoots = new WeakSet<ShadowRoot>();
 
-		// Check if `composedPath` is `undefined` in case the browser does not support native shadow DOM.
-		// Can be removed when all supported browsers support native shadow DOM.
-		const path = typeof domEvt.composedPath == 'function' ? domEvt.composedPath() : [];
+	// Whether any shadow root listener detected a click inside a context element.
+	let insideContext = false;
 
-		const contextElementsList = typeof contextElements == 'function' ? contextElements() : contextElements;
+	// Resolves context elements to an array of elements.
+	function getContextElements(): Array<Element> {
+		const elements = typeof contextElements == 'function' ? contextElements() : contextElements;
 
-		for ( const contextElement of contextElementsList ) {
-			if ( contextElement.contains( domEvt.target as Node ) || path.includes( contextElement ) ) {
-				return;
+		return elements.filter( element => element );
+	}
+
+	// Setups the listeners on shadow root of every context element.
+	// Only listener on a shadow root provides a real target for the event (not the shadow root host).
+	function listenToContextElementRoots( contextElements: Array<Element> ): void {
+		for ( const contextElement of contextElements ) {
+			const root = contextElement.getRootNode();
+
+			if ( root === document || !isShadowRoot( root ) || listenedRoots.has( root ) ) {
+				continue;
 			}
+
+			listenedRoots.add( root );
+
+			emitter.listenTo( root, 'mousedown', ( evt, domEvt ) => {
+				if ( activator() && isInsideContext( domEvt, getContextElements() ) ) {
+					insideContext = true;
+				}
+			} );
+		}
+	}
+
+	// Setup listeners on the context elements' shadow roots.
+	emitter.listenTo( document, 'mousedown', () => {
+		if ( activator() ) {
+			listenToContextElementRoots( getContextElements() );
 		}
 
-		callback();
+		// Clear the flag from shadow root listeners. It will be set again if any of them detects a click inside a context element.
+		insideContext = false;
+	}, { useCapture: true } );
+
+	// The main listener.
+	emitter.listenTo( document, 'mousedown', ( evt, domEvt ) => {
+		if ( activator() && !isInsideContext( domEvt, getContextElements() ) && !insideContext ) {
+			callback();
+		}
+
+		// Clear the flag from shadow root listeners to leave it clean for future events.
+		insideContext = false;
 	} );
+}
+
+/**
+ * Returns true when the given DOM event target is indide any of context elements.
+ */
+function isInsideContext( domEvt: Event, contextElements: Array<Element> ): boolean {
+	for ( const contextElement of contextElements ) {
+		if ( contextElement.contains( domEvt.target as Node ) ) {
+			return true;
+		}
+	}
+
+	return false;
 }

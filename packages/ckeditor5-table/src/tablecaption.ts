@@ -1,22 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecaption
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import TableCaptionEditing from './tablecaption/tablecaptionediting';
-import TableCaptionUI from './tablecaption/tablecaptionui';
-
-import '../theme/tablecaption.css';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { TableCaptionEditing } from './tablecaption/tablecaptionediting.js';
+import { TableCaptionUI } from './tablecaption/tablecaptionui.js';
 
 /**
  * The table caption plugin.
  */
-export default class TableCaption extends Plugin {
+export class TableCaption extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -27,7 +25,14 @@ export default class TableCaption extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ TableCaptionEditing, TableCaptionUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ TableCaptionEditing, TableCaptionUI ]> {
+		return [ TableCaptionEditing, TableCaptionUI ];
 	}
 }

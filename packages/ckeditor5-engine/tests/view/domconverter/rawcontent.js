@@ -1,23 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ViewDomConverter } from '../../../src/view/domconverter.js';
+import { ViewDocument } from '../../../src/view/document.js';
+import { ViewElement } from '../../../src/view/element.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
-import DomConverter from '../../../src/view/domconverter';
-import ViewDocument from '../../../src/view/document';
-import ViewElement from '../../../src/view/element';
-import { StylesProcessor } from '../../../src/view/stylesmap';
-
-import createElement from '@ckeditor/ckeditor5-utils/src/dom/createelement';
+import { createElement } from '@ckeditor/ckeditor5-utils';
 
 describe( 'DOMConverter raw content matcher', () => {
 	let converter, viewDocument;
 
 	beforeEach( () => {
 		viewDocument = new ViewDocument( new StylesProcessor() );
-		converter = new DomConverter( viewDocument );
+		converter = new ViewDomConverter( viewDocument );
 	} );
 
 	describe( 'domToView()', () => {
@@ -45,18 +44,18 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv ).to.be.an.instanceof( ViewElement );
-				expect( viewDiv.name ).to.equal( 'div' );
+				expect( viewDiv ).toBeInstanceOf( ViewElement );
+				expect( viewDiv.name ).toBe( 'div' );
 
-				expect( viewDiv.childCount ).to.equal( 4 );
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<!-- foo --><img>bar\n123' );
-				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).to.be.undefined;
-				expect( viewDiv.getChild( 2 ).childCount ).to.equal( 3 );
-				expect( viewDiv.getChild( 2 ).getChild( 0 ).getCustomProperty( '$rawContent' ) ).to.equal( 'foo' );
-				expect( viewDiv.getChild( 2 ).getChild( 1 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 2 ).getChild( 2 ).data ).to.equal( 'bar 123' );
-				expect( viewDiv.getChild( 3 ).data ).to.equal( 'abc' );
+				expect( viewDiv.childCount ).toBe( 4 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<!-- foo --><img>bar\n123' );
+				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).toBeUndefined();
+				expect( viewDiv.getChild( 2 ).childCount ).toBe( 3 );
+				expect( viewDiv.getChild( 2 ).getChild( 0 ).getCustomProperty( '$rawContent' ) ).toBe( 'foo' );
+				expect( viewDiv.getChild( 2 ).getChild( 1 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 2 ).getChild( 2 ).data ).toBe( 'bar 123' );
+				expect( viewDiv.getChild( 3 ).data ).toBe( 'abc' );
 			} );
 
 			it( 'should handle elements with more classes, styles and attributes not required by the matcher pattern', () => {
@@ -86,18 +85,18 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv ).to.be.an.instanceof( ViewElement );
-				expect( viewDiv.name ).to.equal( 'div' );
+				expect( viewDiv ).toBeInstanceOf( ViewElement );
+				expect( viewDiv.name ).toBe( 'div' );
 
-				expect( viewDiv.childCount ).to.equal( 4 );
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<!-- foo --><img>bar\n123' );
-				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).to.be.undefined;
-				expect( viewDiv.getChild( 2 ).childCount ).to.equal( 3 );
-				expect( viewDiv.getChild( 2 ).getChild( 0 ).getCustomProperty( '$rawContent' ) ).to.equal( 'foo' );
-				expect( viewDiv.getChild( 2 ).getChild( 1 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 2 ).getChild( 2 ).data ).to.equal( 'bar 123' );
-				expect( viewDiv.getChild( 3 ).data ).to.equal( 'abc' );
+				expect( viewDiv.childCount ).toBe( 4 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<!-- foo --><img>bar\n123' );
+				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).toBeUndefined();
+				expect( viewDiv.getChild( 2 ).childCount ).toBe( 3 );
+				expect( viewDiv.getChild( 2 ).getChild( 0 ).getCustomProperty( '$rawContent' ) ).toBe( 'foo' );
+				expect( viewDiv.getChild( 2 ).getChild( 1 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 2 ).getChild( 2 ).data ).toBe( 'bar 123' );
+				expect( viewDiv.getChild( 3 ).data ).toBe( 'abc' );
 			} );
 
 			it( 'should handle multiple matchers (but nested ones should not be matched)', () => {
@@ -141,23 +140,23 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv ).to.be.an.instanceof( ViewElement );
-				expect( viewDiv.name ).to.equal( 'div' );
+				expect( viewDiv ).toBeInstanceOf( ViewElement );
+				expect( viewDiv.name ).toBe( 'div' );
 
-				expect( viewDiv.childCount ).to.equal( 6 );
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal(
+				expect( viewDiv.childCount ).toBe( 6 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe(
 					'<!-- foo --><img><span data-foo="bar">nested span</span>bar\n123'
 				);
-				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).to.be.undefined;
-				expect( viewDiv.getChild( 2 ).childCount ).to.equal( 3 );
-				expect( viewDiv.getChild( 2 ).getChild( 0 ).getCustomProperty( '$rawContent' ) ).to.equal( 'foo' );
-				expect( viewDiv.getChild( 2 ).getChild( 1 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 2 ).getChild( 2 ).data ).to.equal( 'bar 123' );
-				expect( viewDiv.getChild( 3 ).getCustomProperty( '$rawContent' ) ).to.equal( 'some span' );
-				expect( viewDiv.getChild( 4 ).name ).to.equal( 'span' );
-				expect( viewDiv.getChild( 4 ).getChild( 0 ).data ).to.equal( 'other span' );
-				expect( viewDiv.getChild( 5 ).data ).to.equal( 'abc' );
+				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).toBeUndefined();
+				expect( viewDiv.getChild( 2 ).childCount ).toBe( 3 );
+				expect( viewDiv.getChild( 2 ).getChild( 0 ).getCustomProperty( '$rawContent' ) ).toBe( 'foo' );
+				expect( viewDiv.getChild( 2 ).getChild( 1 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 2 ).getChild( 2 ).data ).toBe( 'bar 123' );
+				expect( viewDiv.getChild( 3 ).getCustomProperty( '$rawContent' ) ).toBe( 'some span' );
+				expect( viewDiv.getChild( 4 ).name ).toBe( 'span' );
+				expect( viewDiv.getChild( 4 ).getChild( 0 ).data ).toBe( 'other span' );
+				expect( viewDiv.getChild( 5 ).data ).toBe( 'abc' );
 			} );
 
 			it( 'should handle elements by an attribute or class only', () => {
@@ -191,14 +190,14 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv ).to.be.an.instanceof( ViewElement );
-				expect( viewDiv.name ).to.equal( 'div' );
+				expect( viewDiv ).toBeInstanceOf( ViewElement );
+				expect( viewDiv.name ).toBe( 'div' );
 
-				expect( viewDiv.childCount ).to.equal( 4 );
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'img' );
-				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<!-- foo --><img>bar\n123' );
-				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).to.equal( '<!--bar-->123' );
-				expect( viewDiv.getChild( 3 ).data ).to.equal( 'abc' );
+				expect( viewDiv.childCount ).toBe( 4 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'img' );
+				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<!-- foo --><img>bar\n123' );
+				expect( viewDiv.getChild( 2 ).getCustomProperty( '$rawContent' ) ).toBe( '<!--bar-->123' );
+				expect( viewDiv.getChild( 3 ).data ).toBe( 'abc' );
 			} );
 		} );
 
@@ -219,10 +218,10 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewDiv = converter.domToView( domDiv );
 
-				expect( viewDiv.childCount ).to.equal( 3 );
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'p' );
-				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '  abc  ' );
-				expect( viewDiv.getChild( 2 ).name ).to.equal( 'p' );
+				expect( viewDiv.childCount ).toBe( 3 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'p' );
+				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '  abc  ' );
+				expect( viewDiv.getChild( 2 ).name ).toBe( 'p' );
 			} );
 
 			it( 'should trim whitespaces before or after non inline raw content element with deeper nesting', () => {
@@ -245,10 +244,10 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewDiv = converter.domToView( domDIv );
 
-				expect( viewDiv.childCount ).to.equal( 3 );
-				expect( viewDiv.getChild( 0 ).name ).to.equal( 'p' );
-				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<div class="raw">  abc  </div>' );
-				expect( viewDiv.getChild( 2 ).name ).to.equal( 'p' );
+				expect( viewDiv.childCount ).toBe( 3 );
+				expect( viewDiv.getChild( 0 ).name ).toBe( 'p' );
+				expect( viewDiv.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<div class="raw">  abc  </div>' );
+				expect( viewDiv.getChild( 2 ).name ).toBe( 'p' );
 			} );
 
 			it( 'should not trim whitespaces before or after raw content inline element', () => {
@@ -264,10 +263,10 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 3 );
-				expect( viewP.getChild( 0 ).data ).to.equal( 'foo ' );
-				expect( viewP.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '  abc  ' );
-				expect( viewP.getChild( 2 ).data ).to.equal( ' bar' );
+				expect( viewP.childCount ).toBe( 3 );
+				expect( viewP.getChild( 0 ).data ).toBe( 'foo ' );
+				expect( viewP.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '  abc  ' );
+				expect( viewP.getChild( 2 ).data ).toBe( ' bar' );
 			} );
 
 			it( 'should not trim whitespaces before or after raw content inline element with deeper nesting', () => {
@@ -287,10 +286,10 @@ describe( 'DOMConverter raw content matcher', () => {
 
 				const viewP = converter.domToView( domP );
 
-				expect( viewP.childCount ).to.equal( 3 );
-				expect( viewP.getChild( 0 ).data ).to.equal( 'foo ' );
-				expect( viewP.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<span>  abc  </span>' );
-				expect( viewP.getChild( 2 ).data ).to.equal( ' bar' );
+				expect( viewP.childCount ).toBe( 3 );
+				expect( viewP.getChild( 0 ).data ).toBe( 'foo ' );
+				expect( viewP.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<span>  abc  </span>' );
+				expect( viewP.getChild( 2 ).data ).toBe( ' bar' );
 			} );
 		} );
 	} );

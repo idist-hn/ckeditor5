@@ -1,45 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * General test utils for CKEditor.
  */
-const utils = {
-	sinon,
-
-	/**
-	 * Creates Sinon sandbox in {@link utils#sinon} and plugs `afterEach()` callback which
-	 * restores all spies and stubs created in this sandbox.
-	 *
-	 * See https://github.com/ckeditor/ckeditor5-design/issues/72 and http://sinonjs.org/docs/#sinon-sandbox
-	 *
-	 * Usage:
-	 *
-	 *		import testUtils from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-	 *
-	 *		describe( 'MyClass', () => {
-	 *			// Create Sinon sandbox inside top-level describe block:
-	 *			testUtils.createSinonSandbox();
-	 *
-	 *			// Then inside tests you can use testUtils.sinon:
-	 *			it( 'does something', () => {
-	 *				testUtils.sinon.spy( obj, 'method' );
-	 *			} );
-	 *		}
-	 *
-	 * **Note**: Do not use `testUtils.createSinonSandbox()` outside `describe()` block as it will attach `afterEach()` calls
-	 * to all test - not only those in current file.
-	 */
-
-	createSinonSandbox() {
-		// eslint-disable-next-line mocha/no-top-level-hooks
-		afterEach( () => {
-			utils.sinon.restore();
-		} );
-	},
-
+export const testUtils = {
 	/**
 	 * Executes specified assertions. It expects that at least one function will not throw an error.
 	 *
@@ -83,7 +50,7 @@ const utils = {
 	},
 
 	/**
-	 * Checks if given mixin i mixed to given class using {@link module:utils/mix mix} util.
+	 * Checks if given mixin is mixed to given class.
 	 *
 	 * @param {Function} targetClass Class to check.
 	 * @param {Object} mixin Mixin to check.
@@ -103,5 +70,3 @@ const utils = {
 		return isValid;
 	}
 };
-
-export default utils;

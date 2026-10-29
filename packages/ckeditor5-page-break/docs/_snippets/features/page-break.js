@@ -1,36 +1,48 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, document, console */
+import { PageBreak, Alignment, CKBox, CKBoxImageEdit, PictureEditing, ImageInsert, ImageResize, AutoImage, LinkImage } from 'ckeditor5';
+import {
+	TOKEN_URL,
+	ClassicEditor,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
-import { PageBreak } from '@ckeditor/ckeditor5-page-break';
-import { Alignment } from '@ckeditor/ckeditor5-alignment';
-import { CKBox } from '@ckeditor/ckeditor5-ckbox';
-import { PictureEditing, ImageResize, AutoImage } from '@ckeditor/ckeditor5-image';
-import { LinkImage } from '@ckeditor/ckeditor5-link';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-// Umberto combines all `packages/*/docs` into the `docs/` directory. The import path must be valid after merging all directories.
-import ClassicEditor from '../build-classic';
-
-ClassicEditor.builtinPlugins.push( Alignment, PageBreak, PictureEditing, ImageResize, AutoImage, LinkImage, CKBox );
+ClassicEditor.builtinPlugins.push(
+	Alignment,
+	PageBreak,
+	PictureEditing,
+	ImageInsert,
+	ImageResize,
+	AutoImage,
+	LinkImage,
+	CKBox,
+	CKBoxImageEdit );
 
 ClassicEditor
-	.create( document.querySelector( '#snippet-page-break' ), {
+	.create( {
+		attachTo: document.querySelector( '#snippet-page-break' ),
 		toolbar: {
 			items: [
 				'undo', 'redo', '|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed', 'pageBreak',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed', 'pageBreak',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		},
 		image: {
 			toolbar: [
@@ -39,28 +51,35 @@ ClassicEditor
 				'imageStyle:breakText',
 				'|',
 				'toggleImageCaption',
-				'imageTextAlternative'
+				'imageTextAlternative',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		table: {
 			contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells' ]
-		},
-		cloudServices: CS_CONFIG
+		}
 	} )
 	.then( editor => {
 		window.editor = editor;
 
 		// The "Print editor data" button logic.
 		document.querySelector( '#print-data-action' ).addEventListener( 'click', () => {
-			const snippetCSSElement = [ ...document.querySelectorAll( 'link' ) ]
-				.find( linkElement => linkElement.href.endsWith( 'snippet.css' ) );
+			const stylesheets = [
+				'ckeditor5.css',
+				'ckeditor5-premium-features.css'
+			];
+
+			const links = Array
+				.from( document.querySelectorAll( 'link' ) )
+				.filter( element => stylesheets.some( name => element.href.endsWith( name ) ) );
 
 			const iframeElement = document.querySelector( '#print-data-container' );
 
 			iframeElement.srcdoc = '<html>' +
 				'<head>' +
 					`<title>${ document.title }</title>` +
-					`<link rel="stylesheet" href="${ snippetCSSElement.href }" type="text/css">` +
+					links.map( link => `<link rel="stylesheet" href="${ link.href }">` ).join( '' ) +
 				'</head>' +
 				'<body class="ck-content">' +
 					editor.getData() +
@@ -71,8 +90,8 @@ ClassicEditor
 				'</html>';
 		} );
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar, item => item.label && item.label === 'Page break' ),
+		attachTourBalloon( {
+			target: findToolbarItem( editor.ui.view.toolbar, item => item.label && item.label === 'Page break' ),
 			text: 'Click to insert a page break.',
 			editor
 		} );

@@ -1,28 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module list/listproperties
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ListPropertiesEditing from './listproperties/listpropertiesediting';
-import ListPropertiesUI from './listproperties/listpropertiesui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ListPropertiesEditing } from './listproperties/listpropertiesediting.js';
+import { ListPropertiesUI } from './listproperties/listpropertiesui.js';
 
 /**
  * The list properties feature.
  *
- * This is a "glue" plugin that loads the {@link module:list/listproperties/listpropertiesediting~ListPropertiesEditing list properties
+ * This is a "glue" plugin that loads the
+ * {@link module:list/listproperties/listpropertiesediting~ListPropertiesEditing list properties
  * editing feature} and the {@link module:list/listproperties/listpropertiesui~ListPropertiesUI list properties UI feature}.
  */
-export default class ListProperties extends Plugin {
+export class ListProperties extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ListPropertiesEditing, ListPropertiesUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ ListPropertiesEditing, ListPropertiesUI ]> {
+		return [ ListPropertiesEditing, ListPropertiesUI ];
 	}
 
 	/**
@@ -30,5 +31,12 @@ export default class ListProperties extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ListProperties' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

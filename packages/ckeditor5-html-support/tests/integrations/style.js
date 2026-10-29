@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import GeneralHtmlSupport from '../../src/generalhtmlsupport';
-import { getModelDataWithAttributes } from '../_utils/utils';
-import { getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-/* global console, document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { GeneralHtmlSupport } from '../../src/generalhtmlsupport.js';
+import { getModelDataWithAttributes } from '../_utils/utils.js';
+import { _getModelData } from '@ckeditor/ckeditor5-engine';
+import { StyleElementSupport } from '../../src/integrations/style.js';
 
 describe( 'StyleElementSupport', () => {
 	const STYLE = 'div { color: red; }';
 
-	let editor, model, editorElement, dataFilter, warnStub;
+	let editor, model, editorElement, dataFilter;
 
 	beforeEach( async () => {
 		editorElement = document.createElement( 'div' );
@@ -28,28 +28,35 @@ describe( 'StyleElementSupport', () => {
 
 		dataFilter.allowElement( 'style' );
 
-		warnStub = sinon.stub( console, 'warn' );
+		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 	} );
 
 	afterEach( () => {
-		warnStub.restore();
 		editorElement.remove();
 
 		return editor.destroy();
 	} );
 
 	it( 'should be named', () => {
-		expect( editor.plugins.has( 'StyleElementSupport' ) ).to.be.true;
+		expect( editor.plugins.has( 'StyleElementSupport' ) ).toBe( true );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( StyleElementSupport.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( StyleElementSupport.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should allow element', () => {
 		editor.setData( `<p>Foo</p><style>${ STYLE }</style>` );
 
-		expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			`<paragraph>Foo</paragraph><htmlStyle htmlContent="${ STYLE }"></htmlStyle>`
 		);
 
-		expect( editor.getData() ).to.equal( `<p>Foo</p><style>${ STYLE }</style>` );
+		expect( editor.getData() ).toBe( `<p>Foo</p><style>${ STYLE }</style>` );
 	} );
 
 	it( 'should allow attributes', () => {
@@ -57,11 +64,10 @@ describe( 'StyleElementSupport', () => {
 
 		editor.setData( `<p>Foo</p><style type="c++" nonce="qwerty">${ STYLE }</style>` );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 			data: `<paragraph>Foo</paragraph><htmlStyle htmlContent="${ STYLE }" htmlStyleAttributes="(1)"></htmlStyle>`,
 			attributes: {
-				1: STYLE,
-				2: {
+				1: {
 					attributes: {
 						nonce: 'qwerty',
 						type: 'c++'
@@ -70,7 +76,7 @@ describe( 'StyleElementSupport', () => {
 			}
 		} );
 
-		expect( editor.getData() ).to.equal( `<p>Foo</p><style type="c++" nonce="qwerty">${ STYLE }</style>` );
+		expect( editor.getData() ).toBe( `<p>Foo</p><style type="c++" nonce="qwerty">${ STYLE }</style>` );
 	} );
 
 	it( 'should disallow attributes', () => {
@@ -79,11 +85,10 @@ describe( 'StyleElementSupport', () => {
 
 		editor.setData( `<p>Foo</p><style type="c++" nonce="qwerty">${ STYLE }</style>` );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 			data: `<paragraph>Foo</paragraph><htmlStyle htmlContent="${ STYLE }" htmlStyleAttributes="(1)"></htmlStyle>`,
 			attributes: {
-				1: STYLE,
-				2: {
+				1: {
 					attributes: {
 						type: 'c++'
 					}
@@ -91,18 +96,18 @@ describe( 'StyleElementSupport', () => {
 			}
 		} );
 
-		expect( editor.getData() ).to.equal( `<p>Foo</p><style type="c++">${ STYLE }</style>` );
+		expect( editor.getData() ).toBe( `<p>Foo</p><style type="c++">${ STYLE }</style>` );
 	} );
 
 	// See: https://github.com/ckeditor/ckeditor5/issues/11247
 	it( 'should allow element in the empty editor', () => {
 		editor.setData( `<style>${ STYLE }</style>` );
 
-		expect( getModelData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			`<htmlStyle htmlContent="${ STYLE }"></htmlStyle>`
 		);
 
-		expect( editor.getData() ).to.equal( `<style>${ STYLE }</style>` );
+		expect( editor.getData() ).toBe( `<style>${ STYLE }</style>` );
 	} );
 
 	describe( 'element position', () => {
@@ -142,9 +147,9 @@ describe( 'StyleElementSupport', () => {
 
 				editor.setData( data );
 
-				expect( getModelData( model, { withoutSelection: true } ) ).to.equal( modelData );
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe( modelData );
 
-				expect( editor.getData() ).to.equal( data );
+				expect( editor.getData() ).toBe( data );
 			} );
 		}
 	} );
@@ -160,15 +165,14 @@ describe( 'StyleElementSupport', () => {
 
 		editor.setData( `<p>Foo</p><style nonce="qwerty">${ STYLE }</style>` );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 			data: `<paragraph>Foo</paragraph><htmlStyle htmlContent="${ STYLE }" htmlStyleAttributes="(1)"></htmlStyle>`,
 			attributes: {
-				1: STYLE,
-				2: { attributes: { nonce: 'qwerty' } }
+				1: { attributes: { nonce: 'qwerty' } }
 			}
 		} );
 
-		expect( editor.getData() ).to.equal( `<p>Foo</p><style>${ STYLE }</style>` );
+		expect( editor.getData() ).toBe( `<p>Foo</p><style>${ STYLE }</style>` );
 	} );
 
 	it( 'should not consume attributes already consumed (upcast)', () => {
@@ -182,11 +186,10 @@ describe( 'StyleElementSupport', () => {
 
 		editor.setData( `<p>Foo</p><style type="text/css" nonce="qwerty">${ STYLE }</style>` );
 
-		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).to.deep.equal( {
+		expect( getModelDataWithAttributes( model, { withoutSelection: true } ) ).toEqual( {
 			data: `<paragraph>Foo</paragraph><htmlStyle htmlContent="${ STYLE }" htmlStyleAttributes="(1)"></htmlStyle>`,
 			attributes: {
-				1: STYLE,
-				2: { attributes: { type: 'text/css' } }
+				1: { attributes: { type: 'text/css' } }
 			}
 		} );
 	} );

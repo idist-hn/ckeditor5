@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/editorui/boxed/boxededitoruiview
  */
 
-import EditorUIView from '../editoruiview';
-import LabelView from '../../label/labelview';
-import type ViewCollection from '../../viewcollection';
+import { EditorUIView } from '../editoruiview.js';
+import { LabelView } from '../../label/labelview.js';
+import { type ViewCollection } from '../../viewcollection.js';
 
 import type { Locale } from '@ckeditor/ckeditor5-utils';
 
@@ -17,7 +17,7 @@ import type { Locale } from '@ckeditor/ckeditor5-utils';
  * The boxed editor UI view class. This class represents an editor interface
  * consisting of a toolbar and an editable area, enclosed within a box.
  */
-export default abstract class BoxedEditorUIView extends EditorUIView {
+export abstract class BoxedEditorUIView extends EditorUIView {
 	/**
 	 * Collection of the child views located in the top (`.ck-editor__top`)
 	 * area of the UI.

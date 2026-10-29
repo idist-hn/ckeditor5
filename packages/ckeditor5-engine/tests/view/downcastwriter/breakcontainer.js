@@ -1,36 +1,37 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import DowncastWriter from '../../../src/view/downcastwriter';
-import { stringify, parse } from '../../../src/dev-utils/view';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { ViewDowncastWriter } from '../../../src/view/downcastwriter.js';
+import { _stringifyView, _parseView } from '../../../src/dev-utils/view.js';
 
-import ContainerElement from '../../../src/view/containerelement';
-import Position from '../../../src/view/position';
-import Document from '../../../src/view/document';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { ViewContainerElement } from '../../../src/view/containerelement.js';
+import { ViewPosition } from '../../../src/view/position.js';
+import { ViewDocument } from '../../../src/view/document.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
 describe( 'DowncastWriter', () => {
 	describe( 'breakContainer()', () => {
 		let writer, document;
 
-		// Executes test using `parse` and `stringify` utils functions. Uses range delimiters `[]{}` to create and
+		// Executes test using `_parseView` and `_stringifyView` utils functions. Uses range delimiters `[]{}` to create and
 		// test break position.
 		//
 		// @param {String} input
 		// @param {String} expected
 		function testBreakContainer( input, expected ) {
-			const { view, selection } = parse( input );
+			const { view, selection } = _parseView( input );
 
 			const newPosition = writer.breakContainer( selection.getFirstPosition() );
-			expect( stringify( view.root, newPosition, { showType: true, showPriority: false } ) ).to.equal( expected );
+			expect( _stringifyView( view.root, newPosition, { showType: true, showPriority: false } ) ).toBe( expected );
 		}
 
-		before( () => {
-			document = new Document( new StylesProcessor() );
-			writer = new DowncastWriter( document );
+		beforeAll( () => {
+			document = new ViewDocument( new StylesProcessor() );
+			writer = new ViewDowncastWriter( document );
 		} );
 
 		it( 'break inside element - should break container element at given position', () => {
@@ -66,8 +67,27 @@ describe( 'DowncastWriter', () => {
 			);
 		} );
 
+		it( 'break inside element with attributes, styles, and classes - should break container element at given position', () => {
+			testBreakContainer(
+				'<container:div>' +
+					'<container:p class="abc" foo="bar" style="color:red">' +
+						'<attribute:b>foo</attribute:b>[]<attribute:u>bar</attribute:u>' +
+					'</container:p>' +
+				'</container:div>',
+
+				'<container:div>' +
+					'<container:p class="abc" foo="bar" style="color:red">' +
+						'<attribute:b>foo</attribute:b>' +
+					'</container:p>' +
+					'[]<container:p class="abc" foo="bar" style="color:red">' +
+						'<attribute:u>bar</attribute:u>' +
+					'</container:p>' +
+				'</container:div>'
+			);
+		} );
+
 		it( 'should throw if position parent is not container', () => {
-			const { selection } = parse( '<container:div>foo{}bar</container:div>' );
+			const { selection } = _parseView( '<container:div>foo{}bar</container:div>' );
 
 			expectToThrowCKEditorError( () => {
 				writer.breakContainer( selection.getFirstPosition() );
@@ -75,8 +95,8 @@ describe( 'DowncastWriter', () => {
 		} );
 
 		it( 'should throw if position parent is root', () => {
-			const element = new ContainerElement( document, 'div' );
-			const position = Position._createAt( element, 0 );
+			const element = new ViewContainerElement( document, 'div' );
+			const position = ViewPosition._createAt( element, 0 );
 
 			expectToThrowCKEditorError( () => {
 				writer.breakContainer( position );

@@ -1,17 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import BaseCommand from '../src/basecommand';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { UndoRedoBaseCommand } from '../src/basecommand.js';
 
-describe( 'BaseCommand', () => {
+describe( 'UndoRedoBaseCommand', () => {
 	let editor, base;
 
 	beforeEach( () => {
 		editor = new ModelTestEditor();
-		base = new BaseCommand( editor );
+		base = new UndoRedoBaseCommand( editor );
 	} );
 
 	afterEach( () => {
@@ -20,19 +21,19 @@ describe( 'BaseCommand', () => {
 
 	describe( 'constructor()', () => {
 		it( 'should create command with empty batch stack', () => {
-			expect( base.isEnabled ).to.be.false;
+			expect( base.isEnabled ).toBe( false );
 		} );
 	} );
 
 	describe( 'isEnabled', () => {
 		it( 'should be false if there are no batches in command stack', () => {
-			expect( base.isEnabled ).to.be.false;
+			expect( base.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true if there are batches in command stack', () => {
 			base.addBatch( editor.model.createBatch() );
 
-			expect( base.isEnabled ).to.be.true;
+			expect( base.isEnabled ).toBe( true );
 		} );
 	} );
 
@@ -41,7 +42,7 @@ describe( 'BaseCommand', () => {
 			base.addBatch( editor.model.createBatch() );
 			base.clearStack();
 
-			expect( base.isEnabled ).to.be.false;
+			expect( base.isEnabled ).toBe( false );
 		} );
 	} );
 } );

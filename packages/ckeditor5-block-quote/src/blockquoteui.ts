@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module block-quote/blockquoteui
  */
 
-import { Plugin, icons } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-import type BlockQuoteCommand from './blockquotecommand';
-
-import '../theme/blockquote.css';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { IconQuote } from '@ckeditor/ckeditor5-icons';
+import { ButtonView, MenuBarMenuListItemButtonView } from '@ckeditor/ckeditor5-ui';
 
 /**
  * The block quote UI plugin.
@@ -20,7 +18,7 @@ import '../theme/blockquote.css';
  *
  * @extends module:core/plugin~Plugin
  */
-export default class BlockQuoteUI extends Plugin {
+export class BlockQuoteUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -31,31 +29,62 @@ export default class BlockQuoteUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
-		const t = editor.t;
 
-		editor.ui.componentFactory.add( 'blockQuote', locale => {
-			const command: BlockQuoteCommand = editor.commands.get( 'blockQuote' )!;
-			const buttonView = new ButtonView( locale );
+		editor.ui.componentFactory.add( 'blockQuote', () => {
+			const buttonView = this._createButton( ButtonView );
 
 			buttonView.set( {
-				label: t( 'Block quote' ),
-				icon: icons.quote,
-				tooltip: true,
-				isToggleable: true
-			} );
-
-			// Bind button model to command.
-			buttonView.bind( 'isOn', 'isEnabled' ).to( command, 'value', 'isEnabled' );
-
-			// Execute command.
-			this.listenTo( buttonView, 'execute', () => {
-				editor.execute( 'blockQuote' );
-				editor.editing.view.focus();
+				tooltip: true
 			} );
 
 			return buttonView;
 		} );
+
+		editor.ui.componentFactory.add( 'menuBar:blockQuote', () => {
+			const buttonView = this._createButton( MenuBarMenuListItemButtonView );
+
+			buttonView.set( {
+				role: 'menuitemcheckbox'
+			} );
+
+			return buttonView;
+		} );
+	}
+
+	/**
+	 * Creates a button for block quote command to use either in toolbar or in menu bar.
+	 */
+	private _createButton<T extends typeof ButtonView | typeof MenuBarMenuListItemButtonView>( ButtonClass: T ): InstanceType<T> {
+		const editor = this.editor;
+		const locale = editor.locale;
+		const command = editor.commands.get( 'blockQuote' )!;
+		const view = new ButtonClass( editor.locale ) as InstanceType<T>;
+		const t = locale.t;
+
+		view.set( {
+			label: t( 'Block quote' ),
+			icon: IconQuote,
+			isToggleable: true
+		} );
+
+		view.bind( 'isEnabled' ).to( command, 'isEnabled' );
+		view.bind( 'isOn' ).to( command, 'value' );
+
+		// Execute the command.
+		this.listenTo( view, 'execute', () => {
+			editor.execute( 'blockQuote' );
+			editor.editing.view.focus();
+		} );
+
+		return view;
 	}
 }

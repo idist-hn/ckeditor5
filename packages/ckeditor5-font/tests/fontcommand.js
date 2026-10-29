@@ -1,13 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import FontCommand from '../src/fontcommand';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import Command from '@ckeditor/ckeditor5-core/src/command';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { FontCommand } from '../src/fontcommand.js';
+
+import { Command } from '@ckeditor/ckeditor5-core';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'FontCommand', () => {
 	let editor, model, doc, root, command;
@@ -33,62 +35,62 @@ describe( 'FontCommand', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	it( 'is a command', () => {
-		expect( FontCommand.prototype ).to.be.instanceOf( Command );
-		expect( command ).to.be.instanceOf( Command );
+		expect( FontCommand.prototype ).toBeInstanceOf( Command );
+		expect( command ).toBeInstanceOf( Command );
 	} );
 
 	describe( 'value', () => {
 		it( 'is set to font value when selection is in text with font attribute', () => {
-			setData( model, '<paragraph><$text font="foo">fo[]o</$text></paragraph>' );
+			_setModelData( model, '<paragraph><$text font="foo">fo[]o</$text></paragraph>' );
 
-			expect( command ).to.have.property( 'value', 'foo' );
+			expect( command ).toHaveProperty( 'value', 'foo' );
 		} );
 
 		it( 'is undefined when selection is not in text with font attribute', () => {
-			setData( model, '<paragraph>fo[]o</paragraph>' );
+			_setModelData( model, '<paragraph>fo[]o</paragraph>' );
 
-			expect( command ).to.have.property( 'value', undefined );
+			expect( command ).toHaveProperty( 'value', undefined );
 		} );
 	} );
 
 	describe( 'isEnabled', () => {
 		it( 'is true when selection is on text which can have font added', () => {
-			setData( model, '<paragraph>fo[]o</paragraph>' );
+			_setModelData( model, '<paragraph>fo[]o</paragraph>' );
 
-			expect( command ).to.have.property( 'isEnabled', true );
+			expect( command ).toHaveProperty( 'isEnabled', true );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'should do nothing if the command is disabled', () => {
-			setData( model, '<paragraph>fo[ob]ar</paragraph>' );
+			_setModelData( model, '<paragraph>fo[ob]ar</paragraph>' );
 
 			command.isEnabled = false;
 
 			command.execute( { value: 'foo' } );
 
-			expect( getData( model ) ).to.equal( '<paragraph>fo[ob]ar</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>fo[ob]ar</paragraph>' );
 		} );
 
 		it( 'should add font attribute on selected text', () => {
-			setData( model, '<paragraph>a[bc<$text font="foo">fo]obar</$text>xyz</paragraph>' );
+			_setModelData( model, '<paragraph>a[bc<$text font="foo">fo]obar</$text>xyz</paragraph>' );
 
-			expect( command.value ).to.be.undefined;
+			expect( command.value ).toBeUndefined();
 
 			command.execute( { value: 'foo' } );
 
-			expect( command.value ).to.equal( 'foo' );
+			expect( command.value ).toEqual( 'foo' );
 
-			expect( getData( model ) ).to.equal( '<paragraph>a[<$text font="foo">bcfo]obar</$text>xyz</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>a[<$text font="foo">bcfo]obar</$text>xyz</paragraph>' );
 		} );
 
 		it( 'should add font attribute on selected nodes (multiple nodes)', () => {
-			setData(
+			_setModelData(
 				model,
 				'<paragraph>abcabc[abc</paragraph>' +
 				'<paragraph>foofoofoo</paragraph>' +
@@ -97,9 +99,9 @@ describe( 'FontCommand', () => {
 
 			command.execute( { value: 'foo' } );
 
-			expect( command.value ).to.equal( 'foo' );
+			expect( command.value ).toEqual( 'foo' );
 
-			expect( getData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toEqual(
 				'<paragraph>abcabc[<$text font="foo">abc</$text></paragraph>' +
 				'<paragraph><$text font="foo">foofoofoo</$text></paragraph>' +
 				'<paragraph><$text font="foo">barbar</$text>]bar</paragraph>'
@@ -107,7 +109,7 @@ describe( 'FontCommand', () => {
 		} );
 
 		it( 'should change font attribute on selected nodes', () => {
-			setData(
+			_setModelData(
 				model,
 				'<paragraph>abc[abc<$text font="text-small">abc</$text></paragraph>' +
 				'<paragraph><$text font="text-small">foofoofoo</$text></paragraph>' +
@@ -116,9 +118,9 @@ describe( 'FontCommand', () => {
 
 			command.execute( { value: 'foo' } );
 
-			expect( command.value ).to.equal( 'foo' );
+			expect( command.value ).toEqual( 'foo' );
 
-			expect( getData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toEqual(
 				'<paragraph>abc[<$text font="foo">abcabc</$text></paragraph>' +
 				'<paragraph><$text font="foo">foofoofoo</$text></paragraph>' +
 				'<paragraph><$text font="foo">bar</$text>]<$text font="text-small">bar</$text>bar</paragraph>'
@@ -126,19 +128,19 @@ describe( 'FontCommand', () => {
 		} );
 
 		it( 'should remove font attribute on selected nodes when passing undefined value', () => {
-			setData(
+			_setModelData(
 				model,
 				'<paragraph>abcabc[<$text font="foo">abc</$text></paragraph>' +
 				'<paragraph><$text font="foo">foofoofoo</$text></paragraph>' +
 				'<paragraph><$text font="foo">barbar</$text>]bar</paragraph>'
 			);
-			expect( command.value ).to.equal( 'foo' );
+			expect( command.value ).toEqual( 'foo' );
 
 			command.execute();
 
-			expect( command.value ).to.be.undefined;
+			expect( command.value ).toBeUndefined();
 
-			expect( getData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toEqual(
 				'<paragraph>abcabc[abc</paragraph>' +
 				'<paragraph>foofoofoo</paragraph>' +
 				'<paragraph>barbar]bar</paragraph>'
@@ -146,23 +148,23 @@ describe( 'FontCommand', () => {
 		} );
 
 		it( 'should change selection attribute if selection is collapsed in non-empty parent', () => {
-			setData( model, '<paragraph>a[]bc<$text font="foo">foobar</$text>xyz</paragraph><paragraph></paragraph>' );
+			_setModelData( model, '<paragraph>a[]bc<$text font="foo">foobar</$text>xyz</paragraph><paragraph></paragraph>' );
 
-			expect( command.value ).to.be.undefined;
+			expect( command.value ).toBeUndefined();
 
 			command.execute( { value: 'foo' } );
 
-			expect( command.value ).to.equal( 'foo' );
-			expect( doc.selection.hasAttribute( 'font' ) ).to.be.true;
+			expect( command.value ).toEqual( 'foo' );
+			expect( doc.selection.hasAttribute( 'font' ) ).toBe( true );
 
 			command.execute();
 
-			expect( command.value ).to.be.undefined;
-			expect( doc.selection.hasAttribute( 'font' ) ).to.be.false;
+			expect( command.value ).toBeUndefined();
+			expect( doc.selection.hasAttribute( 'font' ) ).toBe( false );
 		} );
 
 		it( 'should not store attribute change on selection if selection is collapsed in non-empty parent', () => {
-			setData( model, '<paragraph>a[]bc<$text font="foo">foobar</$text>xyz</paragraph>' );
+			_setModelData( model, '<paragraph>a[]bc<$text font="foo">foobar</$text>xyz</paragraph>' );
 
 			command.execute( { value: 'foo' } );
 
@@ -176,18 +178,18 @@ describe( 'FontCommand', () => {
 				writer.setSelection( root.getNodeByPath( [ 0 ] ), 1 );
 			} );
 
-			expect( command.value ).to.be.undefined;
+			expect( command.value ).toBeUndefined();
 		} );
 
 		it( 'should change selection attribute and store it if selection is collapsed in empty parent', () => {
-			setData( model, '<paragraph>abc<$text font="foo">foobar</$text>xyz</paragraph><paragraph>[]</paragraph>' );
+			_setModelData( model, '<paragraph>abc<$text font="foo">foobar</$text>xyz</paragraph><paragraph>[]</paragraph>' );
 
-			expect( command.value ).to.be.undefined;
+			expect( command.value ).toBeUndefined();
 
 			command.execute( { value: 'foo' } );
 
-			expect( command.value ).to.equal( 'foo' );
-			expect( doc.selection.hasAttribute( 'font' ) ).to.be.true;
+			expect( command.value ).toEqual( 'foo' );
+			expect( doc.selection.hasAttribute( 'font' ) ).toBe( true );
 
 			// Attribute should be stored.
 			// Simulate clicking somewhere else in the editor.
@@ -195,7 +197,7 @@ describe( 'FontCommand', () => {
 				writer.setSelection( root.getNodeByPath( [ 0 ] ), 2 );
 			} );
 
-			expect( command.value ).to.be.undefined;
+			expect( command.value ).toBeUndefined();
 
 			// Go back to where attribute was stored.
 			model.change( writer => {
@@ -203,83 +205,97 @@ describe( 'FontCommand', () => {
 			} );
 
 			// Attribute should be restored.
-			expect( command.value ).to.equal( 'foo' );
+			expect( command.value ).toEqual( 'foo' );
 
 			command.execute();
 
-			expect( command.value ).to.be.undefined;
-			expect( doc.selection.hasAttribute( 'font' ) ).to.be.false;
+			expect( command.value ).toBeUndefined();
+			expect( doc.selection.hasAttribute( 'font' ) ).toBe( false );
 		} );
 
 		it( 'should not apply attribute change where it would invalid schema', () => {
 			model.schema.register( 'imageBlock', { inheritAllFrom: '$block' } );
-			setData( model, '<paragraph>ab[c<img></img><$text font="foo">foobar</$text>xy<img></img>]z</paragraph>' );
+			_setModelData( model, '<paragraph>ab[c<img></img><$text font="foo">foobar</$text>xy<img></img>]z</paragraph>' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 
 			command.execute( { value: 'foo' } );
 
-			expect( getData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toEqual(
 				'<paragraph>ab[<$text font="foo">c</$text><img></img><$text font="foo">foobarxy</$text><img></img>]z</paragraph>'
 			);
 		} );
 
 		it( 'should use parent batch for storing undo steps', () => {
-			setData( model, '<paragraph>a[bc<$text font="foo">fo]obar</$text>xyz</paragraph>' );
+			_setModelData( model, '<paragraph>a[bc<$text font="foo">fo]obar</$text>xyz</paragraph>' );
 
 			model.change( writer => {
-				expect( writer.batch.operations.length ).to.equal( 0 );
+				expect( writer.batch.operations.length ).toEqual( 0 );
 				command.execute( { value: 'foo' } );
-				expect( writer.batch.operations.length ).to.equal( 1 );
+				expect( writer.batch.operations.length ).toEqual( 1 );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph>a[<$text font="foo">bcfo]obar</$text>xyz</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>a[<$text font="foo">bcfo]obar</$text>xyz</paragraph>' );
 		} );
 
 		it( 'should use provided batch', () => {
-			setData( model, '<paragraph>a[bc<$text font="foo">fo]obar</$text>xyz</paragraph>' );
+			_setModelData( model, '<paragraph>a[bc<$text font="foo">fo]obar</$text>xyz</paragraph>' );
 			const batch = model.createBatch();
-			const spy = sinon.spy( model, 'enqueueChange' );
+			const spy = vi.spyOn( model, 'enqueueChange' );
 
 			command.execute( { value: '#f00', batch } );
-			sinon.assert.calledWith( spy, batch );
+			expect( spy ).toHaveBeenCalledWith( batch, expect.anything() );
+		} );
+
+		// https://github.com/ckeditor/ckeditor5/issues/18430
+		it( 'when applying font to range that includes empty paragraph, empty paragraph should get selection:font', () => {
+			_setModelData( model, '[<paragraph>foo</paragraph><paragraph></paragraph><paragraph>foo</paragraph>]' );
+
+			command.execute( { value: 'foo' } );
+
+			model.change( writer => {
+				writer.setSelection( root.getNodeByPath( [ 1 ] ), 0 );
+			} );
+
+			expect( _getModelData( model ) ).toContain( 'selection:font="foo"' );
+			expect( command.value ).toEqual( 'foo' );
 		} );
 
 		describe( 'should cause firing model change event', () => {
 			let spy;
 
 			beforeEach( () => {
-				spy = sinon.spy();
+				spy = vi.fn();
 			} );
 
 			it( 'collapsed selection in non-empty parent', () => {
-				setData( model, '<paragraph>x[]y</paragraph>' );
+				_setModelData( model, '<paragraph>x[]y</paragraph>' );
 
 				model.document.on( 'change', spy );
 
 				command.execute( { value: 'foo' } );
 
-				expect( spy.called ).to.be.true;
+				expect( spy ).toHaveBeenCalled();
 			} );
 
 			it( 'non-collapsed selection', () => {
-				setData( model, '<paragraph>[xy]</paragraph>' );
+				_setModelData( model, '<paragraph>[xy]</paragraph>' );
 
 				model.document.on( 'change', spy );
 
 				command.execute( { value: 'foo' } );
 
-				expect( spy.called ).to.be.true;
+				expect( spy ).toHaveBeenCalled();
 			} );
 
 			it( 'in empty parent', () => {
-				setData( model, '<paragraph>[]</paragraph>' );
+				_setModelData( model, '<paragraph>[]</paragraph>' );
 
 				model.document.on( 'change', spy );
 
 				command.execute( { value: 'foo' } );
 
-				expect( spy.called ).to.be.true;
+				expect( spy ).toHaveBeenCalled();
 			} );
 		} );
 	} );

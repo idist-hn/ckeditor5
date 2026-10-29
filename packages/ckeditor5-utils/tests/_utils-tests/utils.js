@@ -1,25 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import ObservableMixin from '../../src/observablemixin';
-import EmitterMixin from '../../src/emittermixin';
-import { createObserver } from '../_utils/utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { ObservableMixin } from '../../src/observablemixin.js';
+import { EmitterMixin } from '../../src/emittermixin.js';
+import { createObserver } from '../_utils/utils.js';
 
 describe( 'utils - testUtils', () => {
 	const Observable = ObservableMixin();
 	const Emitter = EmitterMixin();
 
-	afterEach( () => {
-		sinon.restore();
-	} );
-
 	describe( 'createObserver()', () => {
 		let observable, observable2, observer;
-
-		testUtils.createSinonSandbox();
 
 		beforeEach( () => {
 			observer = createObserver();
@@ -32,52 +27,50 @@ describe( 'utils - testUtils', () => {
 		} );
 
 		it( 'should create an observer', () => {
-			expect( observer ).to.be.instanceof( Emitter );
-			expect( observer.observe ).is.a( 'function' );
-			expect( observer.stopListening ).is.a( 'function' );
+			expect( observer ).toBeInstanceOf( Emitter );
+			expect( observer.observe ).toBeTypeOf( 'function' );
+			expect( observer.stopListening ).toBeTypeOf( 'function' );
 		} );
 
 		describe( 'Observer', () => {
-			/* global console:false  */
-
 			it( 'logs changes in the observable', () => {
-				const spy = sinon.stub( console, 'log' );
+				const spy = vi.spyOn( console, 'log' ).mockImplementation( () => {} );
 
 				observer.observe( 'Some observable', observable );
 				observer.observe( 'Some observable 2', observable2 );
 
 				observable.foo = 1;
-				expect( spy.callCount ).to.equal( 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 
 				observable.foo = 2;
 				observable2.bar = 3;
-				expect( spy.callCount ).to.equal( 3 );
+				expect( spy ).toHaveBeenCalledTimes( 3 );
 			} );
 
 			it( 'logs changes to specified properties', () => {
-				const spy = sinon.stub( console, 'log' );
+				const spy = vi.spyOn( console, 'log' ).mockImplementation( () => {} );
 
 				observer.observe( 'Some observable', observable, [ 'foo' ] );
 
 				observable.foo = 1;
-				expect( spy.callCount ).to.equal( 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 
 				observable.bar = 1;
-				expect( spy.callCount ).to.equal( 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 			} );
 
 			it( 'stops listening when asked to do so', () => {
-				const spy = sinon.stub( console, 'log' );
+				const spy = vi.spyOn( console, 'log' ).mockImplementation( () => {} );
 
 				observer.observe( 'Some observable', observable );
 
 				observable.foo = 1;
-				expect( spy.callCount ).to.equal( 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 
 				observer.stopListening();
 
 				observable.foo = 2;
-				expect( spy.callCount ).to.equal( 1 );
+				expect( spy ).toHaveBeenCalledTimes( 1 );
 			} );
 		} );
 	} );

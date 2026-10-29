@@ -1,18 +1,70 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+:root,
+:host {
+	--ck-table-properties-width: var(--ck-width-balloon-form);
+}
+
 .ck.ck-table-properties-form {
+	width: var(--ck-table-properties-width);
+
 	& .ck-form__row {
 		&.ck-table-properties-form__alignment-row {
+			align-self: flex-end;
 			flex-wrap: wrap;
 			flex-basis: 0;
 			align-content: baseline;
 
+			& .ck.ck-toolbar {
+				background: none;
+
+				/* Compensate for missing input label that would push the margin (toolbar has no inputs). */
+				margin-top: var(--ck-spacing-standard, var(--ck-spacing-base));
+
+				& .ck-toolbar__items > * {
+					flex: 1;
+				}
+			}
+
 			& .ck.ck-toolbar .ck-toolbar__items {
 				flex-wrap: nowrap;
 			}
+		}
+	}
+}
+
+:root,
+:host {
+	/* The variable is used by both editor and content styles. Keep it in sync with the identical declaration in `index-content.css`. */
+	--ck-content-table-style-spacing: 1.5em;
+}
+
+.ck-editor__editable {
+	& .table.layout-table {
+		&.table-style-align-center {
+			margin-left: auto;
+			margin-right: auto;
+		}
+
+		&.table-style-align-left {
+			margin-right: var(--ck-content-table-style-spacing);
+		}
+
+		&.table-style-align-right {
+			margin-left: var(--ck-content-table-style-spacing);
+		}
+
+		&.table-style-block-align-left {
+			margin-left: 0;
+			margin-right: auto;
+		}
+
+		&.table-style-block-align-right {
+			margin-left: auto;
+			margin-right: 0;
 		}
 	}
 }

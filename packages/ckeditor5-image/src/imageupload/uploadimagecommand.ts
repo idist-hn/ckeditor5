@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import { FileRepository } from 'ckeditor5/src/upload';
-import { Command } from 'ckeditor5/src/core';
-import { toArray, type ArrayOrItem } from 'ckeditor5/src/utils';
-import type { Position } from 'ckeditor5/src/engine';
-
-import type ImageUtils from '../imageutils';
 
 /**
  * @module image/imageupload/uploadimagecommand
  */
+
+import { FileRepository } from '@ckeditor/ckeditor5-upload';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { toArray, type ArrayOrItem } from '@ckeditor/ckeditor5-utils';
+import type { ModelPosition } from '@ckeditor/ckeditor5-engine';
+
+import { type ImageUtils } from '../imageutils.js';
 
 /**
  * The upload image command.
@@ -45,7 +45,27 @@ import type ImageUtils from '../imageutils';
  * } );
  * ```
  */
-export default class UploadImageCommand extends Command {
+export class UploadImageCommand extends Command {
+	/**
+	 * The command property: `false` if there is no permission on image upload, otherwise `true`.
+	 *
+	 * @observable
+	 * @internal
+	 */
+	declare public isAccessAllowed: boolean;
+
+	/**
+	 * Creates an instance of the `imageUlpoad` command. When executed, the command upload one of
+	 * the currently selected image from computer.
+	 *
+	 * @param editor The editor instance.
+	 */
+	constructor( editor: Editor ) {
+		super( editor );
+
+		this.set( 'isAccessAllowed', true );
+	}
+
 	/**
 	 * @inheritDoc
 	 */
@@ -98,7 +118,7 @@ export default class UploadImageCommand extends Command {
 	/**
 	 * Handles uploading single file.
 	 */
-	private _uploadImage( file: File, attributes: object, position?: Position ): void {
+	private _uploadImage( file: File, attributes: object, position?: ModelPosition ): void {
 		const editor = this.editor;
 		const fileRepository = editor.plugins.get( FileRepository );
 		const loader = fileRepository.createLoader( file );

@@ -1,17 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ManualDecorator from '../../src/utils/manualdecorator';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { LinkManualDecorator } from '../../src/utils/manualdecorator.js';
 
 describe( 'Manual Decorator', () => {
 	let manualDecorator;
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
-		manualDecorator = new ManualDecorator( {
+		manualDecorator = new LinkManualDecorator( {
 			id: 'foo',
 			label: 'bar',
 			attributes: {
@@ -21,14 +20,14 @@ describe( 'Manual Decorator', () => {
 	} );
 
 	it( 'constructor', () => {
-		expect( manualDecorator.id ).to.equal( 'foo' );
-		expect( manualDecorator.label ).to.equal( 'bar' );
-		expect( manualDecorator.attributes ).to.deep.equal( { one: 'two' } );
-		expect( manualDecorator.defaultValue ).to.deep.equal( undefined );
+		expect( manualDecorator.id ).toBe( 'foo' );
+		expect( manualDecorator.label ).toBe( 'bar' );
+		expect( manualDecorator.attributes ).toEqual( { one: 'two' } );
+		expect( manualDecorator.defaultValue ).toBeUndefined();
 	} );
 
 	it( 'constructor with defaultValue', () => {
-		manualDecorator = new ManualDecorator( {
+		manualDecorator = new LinkManualDecorator( {
 			id: 'foo',
 			label: 'bar',
 			attributes: {
@@ -37,24 +36,28 @@ describe( 'Manual Decorator', () => {
 			defaultValue: true
 		} );
 
-		expect( manualDecorator.id ).to.equal( 'foo' );
-		expect( manualDecorator.label ).to.equal( 'bar' );
-		expect( manualDecorator.attributes ).to.deep.equal( { one: 'two' } );
-		expect( manualDecorator.defaultValue ).to.deep.equal( true );
+		expect( manualDecorator.id ).toBe( 'foo' );
+		expect( manualDecorator.label ).toBe( 'bar' );
+		expect( manualDecorator.attributes ).toEqual( { one: 'two' } );
+		expect( manualDecorator.defaultValue ).toEqual( true );
 	} );
 
 	it( '#value is observable', () => {
-		const spy = testUtils.sinon.spy();
-		expect( manualDecorator.value ).to.be.undefined;
+		const spy = vi.fn();
+		expect( manualDecorator.value ).toBeUndefined();
 
 		manualDecorator.on( 'change:value', spy );
 		manualDecorator.value = true;
 
-		expect( spy.calledOnce ).to.be.true;
-		testUtils.sinon.assert.calledWithExactly( spy.firstCall, testUtils.sinon.match.any, 'value', true, undefined );
+		expect( spy ).toHaveBeenCalledOnce();
+		expect( spy.mock.calls[ 0 ][ 1 ] ).toBe( 'value' );
+		expect( spy.mock.calls[ 0 ][ 2 ] ).toBe( true );
+		expect( spy.mock.calls[ 0 ][ 3 ] ).toBeUndefined();
 
 		manualDecorator.value = false;
-		expect( spy.calledTwice ).to.be.true;
-		testUtils.sinon.assert.calledWithExactly( spy.secondCall, testUtils.sinon.match.any, 'value', false, true );
+		expect( spy ).toHaveBeenCalledTimes( 2 );
+		expect( spy.mock.calls[ 1 ][ 1 ] ).toBe( 'value' );
+		expect( spy.mock.calls[ 1 ][ 2 ] ).toBe( false );
+		expect( spy.mock.calls[ 1 ][ 3 ] ).toBe( true );
 	} );
 } );

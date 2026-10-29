@@ -1,16 +1,19 @@
-<head>
-	<style>
-		.ui-snippet {
-			margin: 0.8em 0;
-		}
-		.ui-balloon {
-			margin: 4em 0px 0.8em 0px;
-			text-align: center;
-		}
-		.ui-editor, .ck-editor {
-			display: none;
-		}
-	</style>
-</head>
+<style>
+	.doc.live-snippet {
+		margin: var(--spacing-7) 0 !important;
+		min-height: auto !important;
+		width: 100% !important;
+	}
+	.ui-balloon {
+		margin: 4em 0px 0.8em 0px;
+		text-align: center;
+	}
+	.ui-snippet-hidden {
+		display: none;
+	}
+	.ck.ck-balloon-panel {
+		z-index: var(--z-index-live-snippet);
+	}
+</style>
 
 <div class="ui-snippet ui-balloon">A balloon with a button inside.</div>

@@ -1,23 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { ButtonView } from '@ckeditor/ckeditor5-ui';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import TableCaptionEditing from '../../src/tablecaption/tablecaptionediting';
-import TableCaptionUI from '../../src/tablecaption/tablecaptionui';
-import TableEditing from '../../src/tableediting';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { TableCaptionEditing } from '../../src/tablecaption/tablecaptionediting.js';
+import { TableCaptionUI } from '../../src/tablecaption/tablecaptionui.js';
+import { TableEditing } from '../../src/tableediting.js';
 
 describe( 'TableCaptionUI', () => {
 	let editor, tableCaption, editorElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
@@ -37,20 +33,28 @@ describe( 'TableCaptionUI', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TableCaptionUI.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TableCaptionUI.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should register toggleTableCaption feature component', () => {
 		expect( tableCaption ).to.be.instanceOf( ButtonView );
-		expect( tableCaption.icon ).to.match( /<svg / );
-		expect( tableCaption.tooltip ).to.be.true;
-		expect( tableCaption.isToggleable ).to.be.true;
+		expect( tableCaption.icon ).toMatch( /<svg / );
+		expect( tableCaption.tooltip ).toBe( true );
+		expect( tableCaption.isToggleable ).toBe( true );
 	} );
 
 	it( 'should execute toggleTableCaption command on model execute event', () => {
-		const executeSpy = testUtils.sinon.spy( editor, 'execute' );
+		const executeSpy = vi.spyOn( editor, 'execute' );
 
 		tableCaption.fire( 'execute' );
 
-		sinon.assert.calledOnce( executeSpy );
-		sinon.assert.calledWithExactly( executeSpy, 'toggleTableCaption', {
+		expect( executeSpy ).toHaveBeenCalledOnce();
+		expect( executeSpy ).toHaveBeenCalledWith( 'toggleTableCaption', {
 			focusCaptionOnShow: true
 		} );
 	} );
@@ -58,41 +62,41 @@ describe( 'TableCaptionUI', () => {
 	it( 'should scroll the editing view to the caption on the #execute event if the caption showed up', () => {
 		editor.setData( '<figure class="table"><table><tr><td>foo</td></tr></table></figure>' );
 
-		const executeSpy = testUtils.sinon.spy( editor.editing.view, 'scrollToTheSelection' );
+		const executeSpy = vi.spyOn( editor.editing.view, 'scrollToTheSelection' );
 
 		tableCaption.fire( 'execute' );
 
-		sinon.assert.calledOnce( executeSpy );
+		expect( executeSpy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'should focus the editing view on the #execute event if the caption showed up', () => {
 		editor.setData( '<figure class="table"><table><tr><td>foo</td></tr></table></figure>' );
 
-		const focusSpy = testUtils.sinon.spy( editor.editing.view, 'focus' );
+		const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
 		tableCaption.fire( 'execute' );
 
-		sinon.assert.calledOnce( focusSpy );
+		expect( focusSpy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'should focus the editing view on the #execute event if the caption was hidden', () => {
 		editor.setData( '<figure class="table"><table><tr><td>foo</td></tr></table><figcaption>caption</figcaption></figure>' );
 
-		const focusSpy = testUtils.sinon.spy( editor.editing.view, 'focus' );
+		const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
 		tableCaption.fire( 'execute' );
 
-		sinon.assert.calledOnce( focusSpy );
+		expect( focusSpy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'should not scroll the editing view on the #execute event if the caption was hidden', () => {
 		editor.setData( '<figure class="table"><table><tr><td>foo</td></tr></table><figcaption>foo</figcaption></figure>' );
 
-		const executeSpy = testUtils.sinon.spy( editor.editing.view, 'scrollToTheSelection' );
+		const executeSpy = vi.spyOn( editor.editing.view, 'scrollToTheSelection' );
 
 		tableCaption.fire( 'execute' );
 
-		sinon.assert.notCalled( executeSpy );
+		expect( executeSpy ).not.toHaveBeenCalled();
 	} );
 
 	it( 'should highlight the figcaption element in the view on the #execute event if the caption showed up', () => {
@@ -102,37 +106,37 @@ describe( 'TableCaptionUI', () => {
 
 		const figcaptionElement = editor.editing.view.document.getRoot().getChild( 0 ).getChild( 2 );
 
-		expect( figcaptionElement.hasClass( 'table__caption_highlighted' ) ).to.be.true;
+		expect( figcaptionElement.hasClass( 'table__caption_highlighted' ) ).toBe( true );
 	} );
 
 	it( 'should not scroll or highlight anything if figcaption element is missing', () => {
-		sinon.stub( editor.editing.mapper, 'toViewElement' ).returns( null );
+		vi.spyOn( editor.editing.mapper, 'toViewElement' ).mockReturnValue( null );
 
 		editor.setData( '<figure class="table"><table><tr><td>foo</td></tr></table></figure>' );
 
-		const executeSpy = testUtils.sinon.spy( editor.editing.view, 'scrollToTheSelection' );
+		const executeSpy = vi.spyOn( editor.editing.view, 'scrollToTheSelection' );
 		const figcaptionElement = editor.editing.view.document.getRoot().getChild( 0 ).getChild( 2 );
 
 		tableCaption.fire( 'execute' );
 
-		sinon.assert.notCalled( executeSpy );
-		expect( figcaptionElement ).to.be.undefined;
+		expect( executeSpy ).not.toHaveBeenCalled();
+		expect( figcaptionElement ).toBeUndefined();
 	} );
 
 	it( 'should bind model to toggleTableCaption command', () => {
 		const command = editor.commands.get( 'toggleTableCaption' );
 
 		command.value = true;
-		expect( tableCaption.isOn ).to.be.true;
+		expect( tableCaption.isOn ).toBe( true );
 	} );
 
 	it( 'should have #label bound to the toggleTableCaption command', () => {
 		const command = editor.commands.get( 'toggleTableCaption' );
 
 		command.value = true;
-		expect( tableCaption.label ).to.equal( 'Toggle caption off' );
+		expect( tableCaption.label ).toEqual( 'Toggle caption off' );
 
 		command.value = false;
-		expect( tableCaption.label ).to.equal( 'Toggle caption on' );
+		expect( tableCaption.label ).toEqual( 'Toggle caption on' );
 	} );
 } );

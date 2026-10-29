@@ -1,86 +1,76 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Batch from '../../src/model/batch';
-import Operation from '../../src/model/operation/operation';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-
-/* globals console */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Batch } from '../../src/model/batch.js';
+import { Operation } from '../../src/model/operation/operation.js';
+import { Model } from '../../src/model/model.js';
 
 describe( 'Batch', () => {
 	describe( 'constructor', () => {
 		it( 'should set default types', () => {
 			const batch = new Batch();
 
-			expect( batch.isUndoable ).to.be.true;
-			expect( batch.isLocal ).to.be.true;
-			expect( batch.isUndo ).to.be.false;
-			expect( batch.isTyping ).to.be.false;
+			expect( batch.isUndoable ).toBe( true );
+			expect( batch.isLocal ).toBe( true );
+			expect( batch.isUndo ).toBe( false );
+			expect( batch.isTyping ).toBe( false );
 		} );
 
 		it( 'should set batch types accordingly', () => {
 			const batch = new Batch( { isUndoable: false, isLocal: false, isUndo: true, isTyping: true } );
 
-			expect( batch.isUndoable ).to.be.false;
-			expect( batch.isLocal ).to.be.false;
-			expect( batch.isUndo ).to.be.true;
-			expect( batch.isTyping ).to.be.true;
+			expect( batch.isUndoable ).toBe( false );
+			expect( batch.isLocal ).toBe( false );
+			expect( batch.isUndo ).toBe( true );
+			expect( batch.isTyping ).toBe( true );
 		} );
 
 		it( 'should allow setting only some of the batch types', () => {
 			const batch = new Batch( { isUndoable: false, isLocal: false } );
 
-			expect( batch.isUndoable ).to.be.false;
-			expect( batch.isLocal ).to.be.false;
-			expect( batch.isUndo ).to.be.false;
-			expect( batch.isTyping ).to.be.false;
+			expect( batch.isUndoable ).toBe( false );
+			expect( batch.isLocal ).toBe( false );
+			expect( batch.isUndo ).toBe( false );
+			expect( batch.isTyping ).toBe( false );
 		} );
 
 		describe( 'deprecated string type', () => {
 			let stub;
 
-			testUtils.createSinonSandbox();
-
 			beforeEach( () => {
-				stub = testUtils.sinon.stub( console, 'warn' );
+				stub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 			} );
 
 			it( 'when set to "default" should set default properties and log warning on console', () => {
 				const batch = new Batch( 'default' );
 
-				expect( batch.isUndoable ).to.be.true;
-				expect( batch.isLocal ).to.be.true;
-				expect( batch.isUndo ).to.be.false;
-				expect( batch.isTyping ).to.be.false;
+				expect( batch.isUndoable ).toBe( true );
+				expect( batch.isLocal ).toBe( true );
+				expect( batch.isUndo ).toBe( false );
+				expect( batch.isTyping ).toBe( false );
 
-				sinon.assert.calledWithMatch( stub, 'batch-constructor-deprecated-string-type' );
+				expect( stub ).toHaveBeenCalledWith(
+					expect.stringContaining( 'batch-constructor-deprecated-string-type' ),
+					expect.any( String )
+				);
 			} );
 
 			it( 'when set to "transparent" should set isUndoable to false and log warning on console', () => {
 				const batch = new Batch( 'transparent' );
 
-				expect( batch.isUndoable ).to.be.false;
-				expect( batch.isLocal ).to.be.true;
-				expect( batch.isUndo ).to.be.false;
-				expect( batch.isTyping ).to.be.false;
+				expect( batch.isUndoable ).toBe( false );
+				expect( batch.isLocal ).toBe( true );
+				expect( batch.isUndo ).toBe( false );
+				expect( batch.isTyping ).toBe( false );
 
-				sinon.assert.calledWithMatch( stub, 'batch-constructor-deprecated-string-type' );
+				expect( stub ).toHaveBeenCalledWith(
+					expect.stringContaining( 'batch-constructor-deprecated-string-type' ),
+					expect.any( String )
+				);
 			} );
-		} );
-	} );
-
-	describe( 'type', () => {
-		it( 'should return "default" and log warning on console', () => {
-			testUtils.createSinonSandbox();
-
-			const stub = testUtils.sinon.stub( console, 'warn' );
-			const batch = new Batch();
-
-			batch.type;
-
-			sinon.assert.calledWithMatch( stub, 'batch-type-deprecated' );
 		} );
 	} );
 
@@ -91,8 +81,8 @@ describe( 'Batch', () => {
 
 			batch.addOperation( op );
 
-			expect( batch.operations.length ).to.equal( 1 );
-			expect( batch.operations[ 0 ] ).to.equal( op );
+			expect( batch.operations.length ).toBe( 1 );
+			expect( batch.operations[ 0 ] ).toBe( op );
 		} );
 	} );
 
@@ -102,13 +92,13 @@ describe( 'Batch', () => {
 			const operation = new Operation( 2 );
 			batch.addOperation( operation );
 
-			expect( batch.baseVersion ).to.equal( 2 );
+			expect( batch.baseVersion ).toBe( 2 );
 		} );
 
 		it( 'should return null if there are no operations in batch', () => {
 			const batch = new Batch();
 
-			expect( batch.baseVersion ).to.be.null;
+			expect( batch.baseVersion ).toBeNull();
 		} );
 
 		it( 'should return null if all operations in batch have base version set to null', () => {
@@ -120,7 +110,31 @@ describe( 'Batch', () => {
 			batch.addOperation( opA );
 			batch.addOperation( opB );
 
-			expect( batch.baseVersion ).to.equal( null );
+			expect( batch.baseVersion ).toEqual( null );
+		} );
+
+		it( 'should skip operations with null baseVersion when looking for the first non-null', () => {
+			const batch = new Batch();
+			const opA = new Operation( 2 );
+
+			batch.addOperation( opA );
+			opA.baseVersion = null;
+
+			expect( batch.baseVersion ).toBeNull();
+		} );
+
+		it( 'should return a non-null base version for a batch produced by a real model change', () => {
+			const model = new Model();
+			const root = model.document.createRoot();
+
+			let batch;
+
+			model.change( writer => {
+				writer.insertText( 'foo', root, 0 );
+				batch = writer.batch;
+			} );
+
+			expect( batch.baseVersion ).toBeGreaterThanOrEqual( 0 );
 		} );
 	} );
 } );

@@ -1,12 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import { GeneralHtmlSupport } from '../src';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { GeneralHtmlSupport } from '../src/index.js';
+import { RemoveFormat } from '@ckeditor/ckeditor5-remove-format';
+import { SelectAll } from '@ckeditor/ckeditor5-select-all';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { Image, ImageCaption } from '@ckeditor/ckeditor5-image';
+import { Table, TableCaption, TableCellProperties, TableColumnResize, TableProperties } from '@ckeditor/ckeditor5-table';
+import { PageBreak } from '@ckeditor/ckeditor5-page-break';
+import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
+import { List, ListProperties } from '@ckeditor/ckeditor5-list';
+import { stubUid } from '@ckeditor/ckeditor5-list/tests/list/_utils/uid.js';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { _getModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'GeneralHtmlSupport', () => {
 	let editor, element, dataSchema, generalHtmlSupport;
@@ -29,6 +40,14 @@ describe( 'GeneralHtmlSupport', () => {
 		await editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( GeneralHtmlSupport.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( GeneralHtmlSupport.isPremiumPlugin ).toBe( false );
+	} );
+
 	describe( 'getGhsAttributeNameForElement()', () => {
 		beforeEach( () => {
 			dataSchema.registerBlockElement( { model: 'def', view: 'def1' } );
@@ -39,38 +58,417 @@ describe( 'GeneralHtmlSupport', () => {
 		} );
 
 		it( 'should return "htmlXAttributes" for block elements', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def1' ) ).to.equal( 'htmlDef1Attributes' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def2' ) ).to.equal( 'htmlDef2Attributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def1' ) ).toBe( 'htmlDef1Attributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def2' ) ).toBe( 'htmlDef2Attributes' );
 		} );
 
 		it( 'should return "htmlXAttributes" for inline object elements', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def5' ) ).to.equal( 'htmlDef5Attributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def5' ) ).toBe( 'htmlDef5Attributes' );
 		} );
 
 		it( 'should return model attribute name for inline elements with multiple view representations', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def3' ) ).to.equal( 'htmlDef' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def4' ) ).to.equal( 'htmlDef' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def3' ) ).toBe( 'htmlDef' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'def4' ) ).toBe( 'htmlDef' );
 		} );
 
 		it( 'should return model attribute name for block elements with multiple view representations', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'td' ) ).to.equal( 'htmlTdAttributes' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'th' ) ).to.equal( 'htmlThAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'td' ) ).toBe( 'htmlTdAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'th' ) ).toBe( 'htmlThAttributes' );
 		} );
 
 		it( 'should return model attribute name for list elements with multiple view representations', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'ul' ) ).to.equal( 'htmlUlAttributes' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'ol' ) ).to.equal( 'htmlOlAttributes' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'li' ) ).to.equal( 'htmlLiAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'ul' ) ).toBe( 'htmlUlAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'ol' ) ).toBe( 'htmlOlAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'li' ) ).toBe( 'htmlLiAttributes' );
 		} );
 
 		it( 'should return model attribute name for block elements', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'div' ) ).to.equal( 'htmlDivAttributes' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'p' ) ).to.equal( 'htmlPAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'div' ) ).toBe( 'htmlDivAttributes' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'p' ) ).toBe( 'htmlPAttributes' );
 		} );
 
 		it( 'should return model attribute name for inline elements', () => {
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'a' ) ).to.equal( 'htmlA' );
-			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'strong' ) ).to.equal( 'htmlStrong' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'a' ) ).toBe( 'htmlA' );
+			expect( generalHtmlSupport.getGhsAttributeNameForElement( 'strong' ) ).toBe( 'htmlStrong' );
 		} );
+	} );
+} );
+
+describe( 'GeneralHtmlSupport - RemoveFormatCommand integration', () => {
+	let editor, element, model, editingView;
+
+	beforeEach( async () => {
+		element = document.createElement( 'div' );
+		document.body.appendChild( element );
+
+		editor = await ClassicTestEditor.create( element, {
+			plugins: [
+				GeneralHtmlSupport, RemoveFormat, SelectAll,
+				Paragraph, Heading, Image, ImageCaption,
+				Table, TableProperties, TableCellProperties, TableColumnResize, TableCaption,
+				PageBreak, CodeBlock, BlockQuote, List, ListProperties
+			],
+			htmlSupport: {
+				allow: [
+					{
+						name: /^.*$/,
+						styles: true,
+						attributes: true,
+						classes: true
+					}
+				]
+			}
+		} );
+
+		model = editor.model;
+		editingView = editor.editing.view;
+	} );
+
+	afterEach( async () => {
+		element.remove();
+
+		await editor.destroy();
+	} );
+
+	it( 'should remove styles and classes from paragraph', () => {
+		editor.setData(
+			'<p id="test" data-foo="bar" class="test-class" style="color: red;">Test</p>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<p class="test-class" style="color:red;" id="test" data-foo="bar">Test</p>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<p id="test" data-foo="bar">Test</p>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<p data-foo="bar" id="test">Test</p>'
+		);
+	} );
+
+	it( 'should remove styles and classes from paragraph (no attributes are set)', () => {
+		editor.setData(
+			'<p class="test-class" style="color: red;">Test</p>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<p class="test-class" style="color:red;">Test</p>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<p>Test</p>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<p>Test</p>'
+		);
+	} );
+
+	it( 'should remove styles and classes from div', () => {
+		editor.setData(
+			'<div id="test" data-foo="bar" class="test-class" style="color: red;">Test</div>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<div class="test-class" style="color:red;" id="test" data-foo="bar">Test</div>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<div id="test" data-foo="bar">Test</div>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<div data-foo="bar" id="test">Test</div>'
+		);
+	} );
+
+	it( 'should remove styles and classes from heading', () => {
+		editor.setData(
+			'<h2 id="test" data-foo="bar" class="test-class" style="color: red;">Test</h2>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<h2 class="test-class" style="color:red;" id="test" data-foo="bar">Test</h2>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<h2 id="test" data-foo="bar">Test</h2>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<h2 data-foo="bar" id="test">Test</h2>'
+		);
+	} );
+
+	it( 'should remove styles and classes from GHS heading (not builtin feature)', () => {
+		editor.setData(
+			'<h1 id="test" data-foo="bar" class="test-class" style="color: red;">Test</h1>'
+		);
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<htmlH1 htmlH1Attributes="{"attributes":{"id":"test","data-foo":"bar"},"styles":{"color":"red"},"classes":["test-class"]}">' +
+				'Test' +
+			'</htmlH1>'
+		);
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<h1 class="test-class" style="color:red;" id="test" data-foo="bar">Test</h1>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<h1 id="test" data-foo="bar">Test</h1>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<h1 data-foo="bar" id="test">Test</h1>'
+		);
+	} );
+
+	it( 'should remove styles and classes from image', () => {
+		editor.setData(
+			'<figure class="image foo" id="test" data-foo="bar" style="color: red;">' +
+				'<img src="/sample.png" alt="122" class="bar" style="border-left: 2px solid blue;">' +
+				'<figcaption style="background: yellow;">abc</figcaption>' +
+			'</figure>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<figure class="image foo" style="color:red;" id="test" data-foo="bar">' +
+				'<img class="bar" style="border-left:2px solid blue;" src="/sample.png" alt="122">' +
+				'<figcaption style="background:yellow;">abc</figcaption>' +
+			'</figure>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<figure class="image" id="test" data-foo="bar">' +
+				'<img src="/sample.png" alt="122">' +
+				'<figcaption>abc</figcaption>' +
+			'</figure>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<figure class="ck-widget ck-widget_selected image" contenteditable="false" data-foo="bar" id="test">' +
+				'<img alt="122" src="/sample.png"></img>' +
+				'<figcaption aria-label="Caption for image: 122" class="ck-editor__editable ck-editor__nested-editable" ' +
+					'contenteditable="true" data-placeholder="Enter image caption" role="textbox" tabindex="-1">abc</figcaption>' +
+				'<div class="ck ck-reset_all ck-widget__type-around"></div>' +
+			'</figure>'
+		);
+	} );
+
+	it( 'should remove styles and classes from table', () => {
+		editor.setData(
+			'<figure class="table foo" id="test" data-foo="bar" style="color: red;float:right;background: blue;width:60%;">' +
+				'<table style="color:pink;">' +
+					'<colgroup>' +
+						'<col style="width: 30%; background:green;">' +
+						'<col style="width: 70%">' +
+					'</colgroup>' +
+					'<tr>' +
+						'<td style="color:yellow;">foo</td>' +
+						'<td style="color:black;">bar</td>' +
+					'</tr>' +
+				'</table>' +
+				'<figcaption style="background: yellow;">abc</figcaption>' +
+			'</figure>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<figure class="table table-style-align-right foo" ' +
+				'style="background:blue;color:red;width:60%;" ' +
+				'id="test" data-foo="bar"' +
+			'>' +
+				'<table class="ck-table-resized" style="color:pink;">' +
+					'<colgroup>' +
+						'<col style="background:green;width:30%;">' +
+						'<col style="width:70%;">' +
+					'</colgroup>' +
+					'<tbody>' +
+						'<tr>' +
+							'<td style="color:yellow;">foo</td>' +
+							'<td style="color:black;">bar</td>' +
+						'</tr>' +
+					'</tbody>' +
+				'</table>' +
+				'<figcaption style="background:yellow;">abc</figcaption>' +
+			'</figure>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<figure class="table" id="test" data-foo="bar">' +
+				'<table class="ck-table-resized">' +
+					'<colgroup>' +
+						'<col style="width:50%;">' +
+						'<col style="width:50%;">' +
+					'</colgroup>' +
+					'<tbody>' +
+						'<tr>' +
+							'<td>foo</td>' +
+							'<td>bar</td>' +
+						'</tr>' +
+					'</tbody>' +
+				'</table>' +
+				'<figcaption>abc</figcaption>' +
+			'</figure>'
+		);
+	} );
+
+	it( 'should remove styles and classes from page-break', () => {
+		editor.setData(
+			'<div data-foo="bar" class="page-break abc" style="border-left: 3px solid blue; page-break-after:always;">' +
+				'<span style="display:none;">&nbsp;</span>' +
+			'</div>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<div class="page-break abc" style="border-left:3px solid blue;page-break-after:always;" data-foo="bar">' +
+				'<span style="display:none;">&nbsp;</span>' +
+			'</div>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<div class="page-break" style="page-break-after:always;" data-foo="bar"><span style="display:none;">&nbsp;</span></div>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<div class="ck-widget ck-widget_selected page-break" contenteditable="false" data-foo="bar">' +
+				'<span class="page-break__label"></span>' +
+				'<div class="ck ck-reset_all ck-widget__type-around"></div>' +
+			'</div>'
+		);
+	} );
+
+	it( 'should remove styles and classes from code-block', () => {
+		editor.setData(
+			'<pre data-foo="bar" style="color:red"><code style="color:blue" data-bar="foo" class="language-javascript">foo</code></pre>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<pre style="color:red;" data-foo="bar"><code class="language-javascript" style="color:blue;" data-bar="foo">foo</code></pre>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<pre data-foo="bar"><code class="language-javascript" data-bar="foo">foo</code></pre>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<pre data-foo="bar" data-language="JavaScript" spellcheck="false">' +
+				'<code class="language-javascript" data-bar="foo">foo</code>' +
+			'</pre>'
+		);
+	} );
+
+	it( 'should remove styles and classes from block-quote', () => {
+		editor.setData(
+			'<p>a</p>' +
+			'<blockquote style="background: blue" class="abc" data-foo="bar"><p>foo</p><p>bar</p></blockquote>' +
+			'<p>b</p>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<p>a</p>' +
+			'<blockquote class="abc" style="background:blue;" data-foo="bar"><p>foo</p><p>bar</p></blockquote>' +
+			'<p>b</p>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<p>a</p>' +
+			'<blockquote data-foo="bar"><p>foo</p><p>bar</p></blockquote>' +
+			'<p>b</p>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<p>a</p>' +
+			'<blockquote data-foo="bar"><p>foo</p><p>bar</p></blockquote>' +
+			'<p>b</p>'
+		);
+	} );
+
+	it( 'should remove styles and classes from list', () => {
+		stubUid();
+
+		editor.setData(
+			'<ol id="test" data-foo="bar" class="abc" style="background: red">' +
+				'<li id="test1" data-bar="foo" class="123" style="background: yellow">foo</li>' +
+			'</ol>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<ol class="abc" style="background:red;" id="test" data-foo="bar">' +
+				'<li class="123" style="background:yellow;" id="test1" data-bar="foo" data-list-item-id="a00">foo</li>' +
+			'</ol>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<ol id="test" data-foo="bar">' +
+				'<li id="test1" data-bar="foo" data-list-item-id="a00">foo</li>' +
+			'</ol>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<ol data-foo="bar" id="test">' +
+				'<li data-bar="foo" id="test1"><span class="ck-list-bogus-paragraph">foo</span></li>' +
+			'</ol>'
+		);
+	} );
+
+	it( 'should remove styles and classes from div container', () => {
+		editor.setData(
+			'<p>a</p>' +
+			'<div id="test" data-foo="bar" class="abc" style="background: red">' +
+				'<p id="test1" data-bar="foo" class="123" style="background: yellow">foo</p>' +
+			'</div>' +
+			'<p>b</p>'
+		);
+
+		expect( editor.getData(), 'initial data' ).toBe(
+			'<p>a</p>' +
+			'<div class="abc" style="background:red;" id="test" data-foo="bar">' +
+				'<p class="123" style="background:yellow;" id="test1" data-bar="foo">foo</p>' +
+			'</div>' +
+			'<p>b</p>'
+		);
+
+		editor.execute( 'selectAll' );
+		editor.execute( 'removeFormat' );
+
+		expect( editor.getData(), 'data pipeline' ).toBe(
+			'<p>a</p>' +
+			'<div id="test" data-foo="bar">' +
+				'<p id="test1" data-bar="foo">foo</p>' +
+			'</div>' +
+			'<p>b</p>'
+		);
+		expect( _getViewData( editingView, { withoutSelection: true } ), 'editing view' ).toBe(
+			'<p>a</p>' +
+			'<div data-foo="bar" id="test">' +
+				'<p data-bar="foo" id="test1">foo</p>' +
+			'</div>' +
+			'<p>b</p>'
+		);
 	} );
 } );

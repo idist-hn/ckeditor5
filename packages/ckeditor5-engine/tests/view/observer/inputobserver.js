@@ -1,27 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { global, env } from '@ckeditor/ckeditor5-utils';
 
-import InputObserver from '../../../src/view/observer/inputobserver';
-import DataTransfer from '../../../src/view/datatransfer';
-import Range from '../../../src/view/range';
-import View from '../../../src/view/view';
-import { StylesProcessor } from '../../../src/view/stylesmap';
+import { InputObserver } from '../../../src/view/observer/inputobserver.js';
+import { ViewDataTransfer } from '../../../src/view/datatransfer.js';
+import { ViewRange } from '../../../src/view/range.js';
+import { EditingView } from '../../../src/view/view.js';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
 
-import createViewRoot from '../_utils/createroot';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import env from '@ckeditor/ckeditor5-utils/src/env';
+import { createViewRoot } from '../_utils/createroot.js';
 
 describe( 'InputObserver', () => {
 	let domEditable, view, viewRoot, viewDocument, observer, evtData, beforeInputSpy;
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( () => {
-		view = new View( new StylesProcessor() );
+		view = new EditingView( new StylesProcessor() );
 		viewDocument = view.document;
 		domEditable = global.document.createElement( 'div' );
 		viewRoot = createViewRoot( viewDocument );
@@ -40,7 +37,7 @@ describe( 'InputObserver', () => {
 
 		observer = view.getObserver( InputObserver );
 
-		beforeInputSpy = sinon.spy();
+		beforeInputSpy = vi.fn();
 		viewDocument.on( 'beforeinput', beforeInputSpy );
 	} );
 
@@ -50,13 +47,13 @@ describe( 'InputObserver', () => {
 	} );
 
 	it( 'should define domEventType', () => {
-		expect( observer.domEventType ).to.contains( 'beforeinput' );
+		expect( observer.domEventType ).toContain( 'beforeinput' );
 	} );
 
 	it( 'should fire the #beforeinput once for every DOM event', () => {
 		fireMockNativeBeforeInput();
 
-		sinon.assert.calledOnce( beforeInputSpy );
+		expect( beforeInputSpy ).toHaveBeenCalledOnce();
 	} );
 
 	describe( 'event data', () => {
@@ -65,14 +62,18 @@ describe( 'InputObserver', () => {
 				inputType: 'foo'
 			} );
 
-			expect( evtData.inputType ).to.equal( 'foo' );
+			expect( evtData.inputType ).toBe( 'foo' );
 		} );
 
 		describe( '#dataTransfer', () => {
 			it( 'should be an instance of DataTransfer if the DOM event passes data transfer', () => {
-				const dataTransferMock = sinon.stub();
+				const dataTransferMock = vi.fn();
 
-				dataTransferMock.withArgs( 'foo/bar' ).returns( 'baz' );
+				dataTransferMock.mockImplementation( type => {
+					if ( type === 'foo/bar' ) {
+						return 'baz';
+					}
+				} );
 
 				fireMockNativeBeforeInput( {
 					dataTransfer: {
@@ -80,14 +81,14 @@ describe( 'InputObserver', () => {
 					}
 				} );
 
-				expect( evtData.dataTransfer ).to.be.instanceOf( DataTransfer );
-				expect( evtData.dataTransfer.getData( 'foo/bar' ) ).to.equal( 'baz' );
+				expect( evtData.dataTransfer ).toBeInstanceOf( ViewDataTransfer );
+				expect( evtData.dataTransfer.getData( 'foo/bar' ) ).toBe( 'baz' );
 			} );
 
 			it( 'should be "null" if no data transfer was provided by the DOM event', () => {
 				fireMockNativeBeforeInput();
 
-				expect( evtData.dataTransfer ).to.be.null;
+				expect( evtData.dataTransfer ).toBeNull();
 			} );
 		} );
 
@@ -97,7 +98,7 @@ describe( 'InputObserver', () => {
 					getTargetRanges: () => []
 				} );
 
-				expect( evtData.targetRanges ).to.be.empty;
+				expect( evtData.targetRanges ).toHaveLength( 0 );
 			} );
 
 			it( 'should provide editing view ranges corresponding to DOM ranges passed along with the DOM event', () => {
@@ -114,23 +115,68 @@ describe( 'InputObserver', () => {
 					getTargetRanges: () => [ domRange1, domRange2 ]
 				} );
 
-				expect( evtData.targetRanges ).to.have.length( 2 );
+				expect( evtData.targetRanges ).toHaveLength( 2 );
 
 				const viewRange1 = evtData.targetRanges[ 0 ];
 				const viewRange2 = evtData.targetRanges[ 1 ];
 
-				expect( viewRange1 ).to.be.instanceOf( Range );
-				expect( viewRange2 ).to.be.instanceOf( Range );
+				expect( viewRange1 ).toBeInstanceOf( ViewRange );
+				expect( viewRange2 ).toBeInstanceOf( ViewRange );
 
-				expect( viewRange1.start.parent ).to.equal( viewRoot );
-				expect( viewRange1.start.offset ).to.equal( 0 );
-				expect( viewRange1.end.parent ).to.equal( viewRoot );
-				expect( viewRange1.end.offset ).to.equal( 1 );
+				expect( viewRange1.start.parent ).toBe( viewRoot );
+				expect( viewRange1.start.offset ).toBe( 0 );
+				expect( viewRange1.end.parent ).toBe( viewRoot );
+				expect( viewRange1.end.offset ).toBe( 1 );
 
-				expect( viewRange2.start.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( viewRange2.start.offset ).to.equal( 0 );
-				expect( viewRange2.end.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( viewRange2.end.offset ).to.equal( 2 );
+				expect( viewRange2.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange2.start.offset ).toBe( 0 );
+				expect( viewRange2.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange2.end.offset ).toBe( 2 );
+			} );
+
+			it( 'should exclude inline filler from target ranges', () => {
+				// <p><span>foo</span></p>
+				view.change( writer => {
+					const paragraph = writer.createContainerElement( 'p' );
+					const span = writer.createAttributeElement( 'span' );
+					const text = writer.createText( 'foo' );
+
+					writer.insert( writer.createPositionAt( paragraph, 0 ), text );
+					writer.insert( writer.createPositionAt( viewRoot, 0 ), paragraph );
+					writer.wrap( writer.createRangeIn( paragraph ), span );
+					writer.setSelection( writer.createPositionAt( paragraph, 1 ) );
+				} );
+
+				// <p><span>foo</span> </p> (space after an inline filler)
+				view.change( writer => {
+					writer.insert( writer.createPositionAt( viewRoot.getChild( 0 ), 1 ), writer.createText( ' ' ) );
+				} );
+
+				const domRange = global.document.createRange();
+				const preventDefaultSpy = vi.fn();
+
+				// Browser wants to replace last 2 chars with other text, but it includes an inline filler instead of a letter.
+				// <p><span>foo</span>[ ]</p>
+				domRange.setStart( domEditable.firstChild.childNodes[ 1 ], 6 );
+				domRange.setEnd( domEditable.firstChild.childNodes[ 1 ], 8 );
+
+				fireMockNativeBeforeInput( {
+					getTargetRanges: () => [ domRange ],
+					preventDefault: preventDefaultSpy
+				} );
+
+				expect( evtData.targetRanges ).toHaveLength( 1 );
+
+				const viewRange = evtData.targetRanges[ 0 ];
+
+				expect( viewRange ).toBeInstanceOf( ViewRange );
+
+				expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.start.offset ).toBe( 2 );
+				expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 1 ) );
+				expect( viewRange.end.offset ).toBe( 1 );
+
+				expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should provide fixed editing view ranges corresponding to DOM ranges passed along with the DOM event', () => {
@@ -145,33 +191,54 @@ describe( 'InputObserver', () => {
 					getTargetRanges: () => [ domRange ]
 				} );
 
-				expect( evtData.targetRanges ).to.have.length( 1 );
+				expect( evtData.targetRanges ).toHaveLength( 1 );
 
 				const viewRange = evtData.targetRanges[ 0 ];
 
-				expect( viewRange ).to.be.instanceOf( Range );
+				expect( viewRange ).toBeInstanceOf( ViewRange );
 
-				expect( viewRange.start.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( viewRange.start.offset ).to.equal( 2 );
-				expect( viewRange.end.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( viewRange.end.offset ).to.equal( 2 );
+				expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.start.offset ).toBe( 2 );
+				expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.end.offset ).toBe( 2 );
 			} );
 
-			it( 'should provide a range encompassing the selected object when selection is fake', () => {
+			it( 'should drop a DOM range that does not map to the editing view at all', () => {
+				const domElement = global.document.createElement( 'div' );
+
+				domElement.innerHTML = 'abc';
+				global.document.body.appendChild( domElement );
+
 				const domRange = global.document.createRange();
 
-				sinon.stub( viewDocument.selection, 'isFake' ).get( () => true );
-				sinon.stub( viewDocument.selection, 'getRanges' ).returns( [ 'fakeRange1', 'fakeRange2' ] );
+				// <div>[ab]c</div> (an element next to the editable, not represented in the editing view)
+				domRange.setStart( domElement.firstChild, 0 );
+				domRange.setEnd( domElement.firstChild, 2 );
 
 				fireMockNativeBeforeInput( {
 					getTargetRanges: () => [ domRange ]
 				} );
 
-				expect( evtData.targetRanges ).to.have.ordered.members( [ 'fakeRange1', 'fakeRange2' ] );
+				expect( evtData.targetRanges ).toHaveLength( 0 );
+
+				domElement.remove();
+			} );
+
+			it( 'should provide a range encompassing the selected object when selection is fake', () => {
+				const domRange = global.document.createRange();
+
+				vi.spyOn( viewDocument.selection, 'isFake', 'get' ).mockReturnValue( true );
+				vi.spyOn( viewDocument.selection, 'getRanges' ).mockReturnValue( [ 'fakeRange1', 'fakeRange2' ] );
+
+				fireMockNativeBeforeInput( {
+					getTargetRanges: () => [ domRange ]
+				} );
+
+				expect( evtData.targetRanges ).toEqual( [ 'fakeRange1', 'fakeRange2' ] );
 			} );
 
 			it( 'should provide editing view ranges corresponding to DOM selection ranges (Android)', () => {
-				testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+				vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 				const selection = domEditable.ownerDocument.defaultView.getSelection();
 
@@ -181,16 +248,266 @@ describe( 'InputObserver', () => {
 
 				fireMockNativeBeforeInput( { target: domEditable } );
 
-				expect( evtData.targetRanges ).to.have.length( 1 );
+				expect( evtData.targetRanges ).toHaveLength( 1 );
 
 				const viewRange = evtData.targetRanges[ 0 ];
 
-				expect( viewRange ).to.be.instanceOf( Range );
+				expect( viewRange ).toBeInstanceOf( ViewRange );
 
-				expect( viewRange.start.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( viewRange.start.offset ).to.equal( 0 );
-				expect( viewRange.end.parent ).to.equal( viewRoot.getChild( 0 ).getChild( 0 ) );
-				expect( viewRange.end.offset ).to.equal( 2 );
+				expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.start.offset ).toBe( 0 );
+				expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.end.offset ).toBe( 2 );
+			} );
+
+			it( 'should provide editing view ranges corresponding to DOM selection ranges inside a shadow root (Android)', () => {
+				vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
+
+				// Host the editing root inside a shadow tree, so the DOM selection must be resolved against
+				// the shadow root (shadow-scoped) rather than the document.
+				const shadowHost = global.document.createElement( 'div' );
+
+				global.document.body.appendChild( shadowHost );
+
+				const shadowRoot = shadowHost.attachShadow( { mode: 'open' } );
+				const shadowEditable = global.document.createElement( 'div' );
+
+				shadowRoot.appendChild( shadowEditable );
+
+				const shadowView = new EditingView( new StylesProcessor() );
+				const shadowViewDocument = shadowView.document;
+				const shadowViewRoot = createViewRoot( shadowViewDocument );
+
+				shadowView.attachDomRoot( shadowEditable );
+
+				// <p>foo</p>
+				shadowView.change( writer => {
+					const paragraph = writer.createContainerElement( 'p' );
+					const text = writer.createText( 'foo' );
+
+					writer.insert( writer.createPositionAt( paragraph, 0 ), text );
+					writer.insert( writer.createPositionAt( shadowViewRoot, 0 ), paragraph );
+				} );
+
+				const shadowObserver = shadowView.getObserver( InputObserver );
+				const shadowBeforeInputSpy = vi.fn();
+
+				shadowViewDocument.on( 'beforeinput', shadowBeforeInputSpy );
+
+				// <p>[fo]o</p> — a selection placed on nodes inside the shadow tree. On Blink this keeps the
+				// selection shadow-scoped, which is what the observer resolves against.
+				const selection = window.getSelection();
+
+				selection.collapse( shadowEditable.firstChild.firstChild, 0 );
+				selection.extend( shadowEditable.firstChild.firstChild, 2 );
+
+				shadowObserver.onDomEvent( {
+					type: 'beforeinput',
+					target: shadowEditable,
+					getTargetRanges: () => [],
+					preventDefault: vi.fn()
+				} );
+
+				const shadowEvtData = shadowBeforeInputSpy.mock.calls[ 0 ][ 1 ];
+
+				expect( shadowEvtData.targetRanges ).toHaveLength( 1 );
+
+				const viewRange = shadowEvtData.targetRanges[ 0 ];
+
+				expect( viewRange ).toBeInstanceOf( ViewRange );
+
+				expect( viewRange.start.parent ).toBe( shadowViewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.start.offset ).toBe( 0 );
+				expect( viewRange.end.parent ).toBe( shadowViewRoot.getChild( 0 ).getChild( 0 ) );
+				expect( viewRange.end.offset ).toBe( 2 );
+
+				shadowView.destroy();
+				shadowHost.remove();
+			} );
+
+			describe( 'target range followed by an inline filler', () => {
+				it( 'should prevent default if target range end touches an inline filler', () => {
+					// <p>om<span>w</span></p>
+					view.change( writer => {
+						const paragraph = writer.createContainerElement( 'p' );
+						const span = writer.createAttributeElement( 'span' );
+
+						writer.insert( writer.createPositionAt( paragraph, 0 ), writer.createText( 'omw' ) );
+						writer.insert( writer.createPositionAt( viewRoot, 0 ), paragraph );
+
+						writer.wrap( writer.createRange(
+							writer.createPositionAt( paragraph.getChild( 0 ), 2 ),
+							writer.createPositionAt( paragraph.getChild( 0 ), 3 )
+						), span );
+
+						writer.setSelection( writer.createPositionAt( paragraph, 2 ) );
+					} );
+
+					const domRange = global.document.createRange();
+					const preventDefaultSpy = vi.fn();
+
+					// The Browser wants to replace 'omw' with other text, but there is an inline filler just after it.
+					// <p>{om<span>w}</span>$INLINE_FILLER$</p> -> <p>{On my way!}$INLINE_FILLER$</p>
+					// So to avoid inline filler at the end of a text node, we must handle this in engine.
+					domRange.setStart( domEditable.firstChild.childNodes[ 0 ], 0 );
+					domRange.setEnd( domEditable.firstChild.childNodes[ 1 ].firstChild, 1 );
+
+					fireMockNativeBeforeInput( {
+						getTargetRanges: () => [ domRange ],
+						preventDefault: preventDefaultSpy
+					} );
+
+					expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+
+					expect( evtData.targetRanges ).toHaveLength( 1 );
+
+					const viewRange = evtData.targetRanges[ 0 ];
+
+					expect( viewRange ).toBeInstanceOf( ViewRange );
+
+					expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+					expect( viewRange.start.offset ).toBe( 0 );
+					expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 1 ).getChild( 0 ) );
+					expect( viewRange.end.offset ).toBe( 1 );
+				} );
+
+				it( 'should not prevent default if target range end does not touch an inline filler', () => {
+					// <p>foo<span>bar</span></p>
+					view.change( writer => {
+						const paragraph = writer.createContainerElement( 'p' );
+						const span = writer.createAttributeElement( 'span' );
+
+						writer.insert( writer.createPositionAt( paragraph, 0 ), writer.createText( 'foobar' ) );
+						writer.insert( writer.createPositionAt( viewRoot, 0 ), paragraph );
+
+						writer.wrap( writer.createRange(
+							writer.createPositionAt( paragraph.getChild( 0 ), 3 ),
+							writer.createPositionAt( paragraph.getChild( 0 ), 6 )
+						), span );
+
+						writer.setSelection( writer.createPositionAt( paragraph, 2 ) );
+					} );
+
+					const domRange = global.document.createRange();
+					const preventDefaultSpy = vi.fn();
+
+					// <p>{foo<span>ba}r</span>$INLINE_FILLER$</p>
+					domRange.setStart( domEditable.firstChild.childNodes[ 0 ], 0 );
+					domRange.setEnd( domEditable.firstChild.childNodes[ 1 ].firstChild, 2 );
+
+					fireMockNativeBeforeInput( {
+						getTargetRanges: () => [ domRange ],
+						preventDefault: preventDefaultSpy
+					} );
+
+					expect( preventDefaultSpy ).not.toHaveBeenCalled();
+
+					expect( evtData.targetRanges ).toHaveLength( 1 );
+
+					const viewRange = evtData.targetRanges[ 0 ];
+
+					expect( viewRange ).toBeInstanceOf( ViewRange );
+
+					expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+					expect( viewRange.start.offset ).toBe( 0 );
+					expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 1 ).getChild( 0 ) );
+					expect( viewRange.end.offset ).toBe( 2 );
+				} );
+
+				it( 'should prevent default if target range end touches an inline filler (deeper nesting)', () => {
+					// <p>foo<i><span>bar</span></i></p>
+					view.change( writer => {
+						const paragraph = writer.createContainerElement( 'p' );
+						const span = writer.createAttributeElement( 'span' );
+						const italic = writer.createAttributeElement( 'i' );
+
+						writer.insert( writer.createPositionAt( paragraph, 0 ), writer.createText( 'foobar' ) );
+						writer.insert( writer.createPositionAt( viewRoot, 0 ), paragraph );
+
+						writer.wrap( writer.createRange(
+							writer.createPositionAt( paragraph.getChild( 0 ), 3 ),
+							writer.createPositionAt( paragraph.getChild( 0 ), 6 )
+						), span );
+
+						writer.wrap( writer.createRangeIn( paragraph.getChild( 1 ) ), italic );
+
+						writer.setSelection( writer.createPositionAt( paragraph, 2 ) );
+					} );
+
+					const domRange = global.document.createRange();
+					const preventDefaultSpy = vi.fn();
+
+					// <p>{foo<i><span>bar}</i></span>$INLINE_FILLER$</p>
+					domRange.setStart( domEditable.firstChild.childNodes[ 0 ], 0 );
+					domRange.setEnd( domEditable.firstChild.childNodes[ 1 ].firstChild.firstChild, 3 );
+
+					fireMockNativeBeforeInput( {
+						getTargetRanges: () => [ domRange ],
+						preventDefault: preventDefaultSpy
+					} );
+
+					expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+
+					expect( evtData.targetRanges ).toHaveLength( 1 );
+
+					const viewRange = evtData.targetRanges[ 0 ];
+
+					expect( viewRange ).toBeInstanceOf( ViewRange );
+
+					expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+					expect( viewRange.start.offset ).toBe( 0 );
+					expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ) );
+					expect( viewRange.end.offset ).toBe( 3 );
+				} );
+
+				it( 'should not prevent default if target range end does not touch an inline filler (deeper nesting)', () => {
+					// <p>foo<span><strong>ba</strong>r</span></p>
+					view.change( writer => {
+						const paragraph = writer.createContainerElement( 'p' );
+						const span = writer.createAttributeElement( 'span' );
+						const strong = writer.createAttributeElement( 'strong' );
+
+						writer.insert( writer.createPositionAt( paragraph, 0 ), writer.createText( 'foobar' ) );
+						writer.insert( writer.createPositionAt( viewRoot, 0 ), paragraph );
+
+						writer.wrap( writer.createRange(
+							writer.createPositionAt( paragraph.getChild( 0 ), 3 ),
+							writer.createPositionAt( paragraph.getChild( 0 ), 6 )
+						), span );
+
+						writer.wrap( writer.createRange(
+							writer.createPositionAt( paragraph.getChild( 1 ).getChild( 0 ), 0 ),
+							writer.createPositionAt( paragraph.getChild( 1 ).getChild( 0 ), 2 )
+						), strong );
+
+						writer.setSelection( writer.createPositionAt( paragraph, 2 ) );
+					} );
+
+					const domRange = global.document.createRange();
+					const preventDefaultSpy = vi.fn();
+
+					// <p>{foo<span><strong>ba}</strong>r</span>$INLINE_FILLER$</p>
+					domRange.setStart( domEditable.firstChild.childNodes[ 0 ], 0 );
+					domRange.setEnd( domEditable.firstChild.childNodes[ 1 ].firstChild.firstChild, 2 );
+
+					fireMockNativeBeforeInput( {
+						getTargetRanges: () => [ domRange ],
+						preventDefault: preventDefaultSpy
+					} );
+
+					expect( preventDefaultSpy ).not.toHaveBeenCalled();
+
+					expect( evtData.targetRanges ).toHaveLength( 1 );
+
+					const viewRange = evtData.targetRanges[ 0 ];
+
+					expect( viewRange ).toBeInstanceOf( ViewRange );
+
+					expect( viewRange.start.parent ).toBe( viewRoot.getChild( 0 ).getChild( 0 ) );
+					expect( viewRange.start.offset ).toBe( 0 );
+					expect( viewRange.end.parent ).toBe( viewRoot.getChild( 0 ).getChild( 1 ).getChild( 0 ).getChild( 0 ) );
+					expect( viewRange.end.offset ).toBe( 2 );
+				} );
 			} );
 		} );
 
@@ -200,13 +517,17 @@ describe( 'InputObserver', () => {
 					data: 'foo'
 				} );
 
-				expect( evtData.data ).to.equal( 'foo' );
+				expect( evtData.data ).toBe( 'foo' );
 			} );
 
 			it( 'should attempt to use text/plain from #dataTransfer if InputEvent#data is unavailable', () => {
-				const dataTransferMock = sinon.stub();
+				const dataTransferMock = vi.fn();
 
-				dataTransferMock.withArgs( 'text/plain' ).returns( 'bar' );
+				dataTransferMock.mockImplementation( type => {
+					if ( type === 'text/plain' ) {
+						return 'bar';
+					}
+				} );
 
 				fireMockNativeBeforeInput( {
 					data: null,
@@ -215,13 +536,17 @@ describe( 'InputObserver', () => {
 					}
 				} );
 
-				expect( evtData.data ).to.equal( 'bar' );
+				expect( evtData.data ).toBe( 'bar' );
 			} );
 
 			it( 'should not use text/plain from #dataTransfer if InputEvent#data is an empty string', () => {
-				const dataTransferMock = sinon.stub();
+				const dataTransferMock = vi.fn();
 
-				dataTransferMock.withArgs( 'text/plain' ).returns( 'bar' );
+				dataTransferMock.mockImplementation( type => {
+					if ( type === 'text/plain' ) {
+						return 'bar';
+					}
+				} );
 
 				fireMockNativeBeforeInput( {
 					data: '',
@@ -230,7 +555,7 @@ describe( 'InputObserver', () => {
 					}
 				} );
 
-				expect( evtData.data ).to.equal( '' );
+				expect( evtData.data ).toBe( '' );
 			} );
 
 			it( 'should be "null" if both InputEvent#data and InputEvent#dataTransfer are unavailable', () => {
@@ -239,7 +564,7 @@ describe( 'InputObserver', () => {
 					dataTransfer: null
 				} );
 
-				expect( evtData.data ).to.be.null;
+				expect( evtData.data ).toBeNull();
 			} );
 		} );
 
@@ -249,7 +574,7 @@ describe( 'InputObserver', () => {
 					isComposing: true
 				} );
 
-				expect( evtData.isComposing ).to.be.true;
+				expect( evtData.isComposing ).toBe( true );
 			} );
 
 			it( 'should reflect InputEvent#isComposing when false', () => {
@@ -257,19 +582,19 @@ describe( 'InputObserver', () => {
 					isComposing: false
 				} );
 
-				expect( evtData.isComposing ).to.be.false;
+				expect( evtData.isComposing ).toBe( false );
 			} );
 
 			it( 'should reflect InputEvent#isComposing when not set', () => {
 				fireMockNativeBeforeInput();
 
-				expect( evtData.isComposing ).to.be.undefined;
+				expect( evtData.isComposing ).toBeUndefined();
 			} );
 		} );
 	} );
 
 	it( 'should fire insertParagraph if newline character is at the end of data on Android', () => {
-		testUtils.sinon.stub( env, 'isAndroid' ).value( true );
+		vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
 		const domRange = global.document.createRange();
 
@@ -281,11 +606,11 @@ describe( 'InputObserver', () => {
 			getTargetRanges: () => [ domRange ]
 		} );
 
-		expect( evtData.inputType ).to.equal( 'insertParagraph' );
-		expect( evtData.targetRanges.length ).to.equal( 1 );
+		expect( evtData.inputType ).toBe( 'insertParagraph' );
+		expect( evtData.targetRanges.length ).toBe( 1 );
 		expect( evtData.targetRanges[ 0 ].isEqual( view.createRange(
 			view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 'end' )
-		) ) ).to.be.true;
+		) ) ).toBe( true );
 	} );
 
 	describe( 'should split single insertText with new-line characters into separate events', () => {
@@ -298,7 +623,7 @@ describe( 'InputObserver', () => {
 			// Mocking view selection and offsets since there is no change in the model and view in this tests.
 			let i = 0;
 
-			sinon.stub( viewDocument.selection, 'getFirstRange' ).callsFake( () => {
+			vi.spyOn( viewDocument.selection, 'getFirstRange' ).mockImplementation( () => {
 				return view.createRange(
 					view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), i++ )
 				);
@@ -310,28 +635,73 @@ describe( 'InputObserver', () => {
 				getTargetRanges: () => [ domRange ]
 			} );
 
-			expect( beforeInputSpy.callCount ).to.equal( 3 );
+			expect( beforeInputSpy ).toHaveBeenCalledTimes( 3 );
 
-			const firstCallData = beforeInputSpy.getCall( 0 ).args[ 1 ];
-			const secondCallData = beforeInputSpy.getCall( 1 ).args[ 1 ];
-			const thirdCallData = beforeInputSpy.getCall( 2 ).args[ 1 ];
+			const firstCallData = beforeInputSpy.mock.calls[ 0 ][ 1 ];
+			const secondCallData = beforeInputSpy.mock.calls[ 1 ][ 1 ];
+			const thirdCallData = beforeInputSpy.mock.calls[ 2 ][ 1 ];
 
-			expect( firstCallData.inputType ).to.equal( 'insertText' );
-			expect( firstCallData.data ).to.equal( 'foo' );
+			expect( firstCallData.inputType ).toBe( 'insertText' );
+			expect( firstCallData.data ).toBe( 'foo' );
 			expect( firstCallData.targetRanges[ 0 ].isEqual( view.createRange(
 				view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 0 )
-			) ) ).to.be.true;
+			) ) ).toBe( true );
 
-			expect( secondCallData.inputType ).to.equal( 'insertParagraph' );
+			expect( secondCallData.inputType ).toBe( 'insertParagraph' );
 			expect( secondCallData.targetRanges[ 0 ].isEqual( view.createRange(
 				view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 1 )
-			) ) ).to.be.true;
+			) ) ).toBe( true );
 
-			expect( thirdCallData.inputType ).to.equal( 'insertText' );
-			expect( thirdCallData.data ).to.equal( 'bar' );
+			expect( thirdCallData.inputType ).toBe( 'insertText' );
+			expect( thirdCallData.data ).toBe( 'bar' );
 			expect( thirdCallData.targetRanges[ 0 ].isEqual( view.createRange(
 				view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 3 )
-			) ) ).to.be.true;
+			) ) ).toBe( true );
+		} );
+
+		it( 'single new-line surrounded by text (insertReplacementText)', () => {
+			const domRange = global.document.createRange();
+
+			domRange.setStart( domEditable.firstChild.firstChild, 0 );
+			domRange.setEnd( domEditable.firstChild.firstChild, 0 );
+
+			// Mocking view selection and offsets since there is no change in the model and view in this tests.
+			let i = 0;
+
+			vi.spyOn( viewDocument.selection, 'getFirstRange' ).mockImplementation( () => {
+				return view.createRange(
+					view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), i++ )
+				);
+			} );
+
+			fireMockNativeBeforeInput( {
+				inputType: 'insertReplacementText',
+				data: 'foo\nbar',
+				getTargetRanges: () => [ domRange ]
+			} );
+
+			expect( beforeInputSpy ).toHaveBeenCalledTimes( 3 );
+
+			const firstCallData = beforeInputSpy.mock.calls[ 0 ][ 1 ];
+			const secondCallData = beforeInputSpy.mock.calls[ 1 ][ 1 ];
+			const thirdCallData = beforeInputSpy.mock.calls[ 2 ][ 1 ];
+
+			expect( firstCallData.inputType ).toBe( 'insertReplacementText' );
+			expect( firstCallData.data ).toBe( 'foo' );
+			expect( firstCallData.targetRanges[ 0 ].isEqual( view.createRange(
+				view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 0 )
+			) ) ).toBe( true );
+
+			expect( secondCallData.inputType ).toBe( 'insertParagraph' );
+			expect( secondCallData.targetRanges[ 0 ].isEqual( view.createRange(
+				view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 1 )
+			) ) ).toBe( true );
+
+			expect( thirdCallData.inputType ).toBe( 'insertReplacementText' );
+			expect( thirdCallData.data ).toBe( 'bar' );
+			expect( thirdCallData.targetRanges[ 0 ].isEqual( view.createRange(
+				view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 3 )
+			) ) ).toBe( true );
 		} );
 
 		it( 'new-line after a text', () => {
@@ -340,7 +710,7 @@ describe( 'InputObserver', () => {
 			domRange.setStart( domEditable.firstChild.firstChild, 0 );
 			domRange.setEnd( domEditable.firstChild.firstChild, 0 );
 
-			sinon.stub( viewDocument.selection, 'getFirstRange' ).callsFake( () => {
+			vi.spyOn( viewDocument.selection, 'getFirstRange' ).mockImplementation( () => {
 				return view.createRange(
 					view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 0 )
 				);
@@ -352,15 +722,15 @@ describe( 'InputObserver', () => {
 				getTargetRanges: () => [ domRange ]
 			} );
 
-			expect( beforeInputSpy.callCount ).to.equal( 2 );
+			expect( beforeInputSpy ).toHaveBeenCalledTimes( 2 );
 
-			const firstCallData = beforeInputSpy.getCall( 0 ).args[ 1 ];
-			const secondCallData = beforeInputSpy.getCall( 1 ).args[ 1 ];
+			const firstCallData = beforeInputSpy.mock.calls[ 0 ][ 1 ];
+			const secondCallData = beforeInputSpy.mock.calls[ 1 ][ 1 ];
 
-			expect( firstCallData.inputType ).to.equal( 'insertText' );
-			expect( firstCallData.data ).to.equal( 'foo' );
+			expect( firstCallData.inputType ).toBe( 'insertText' );
+			expect( firstCallData.data ).toBe( 'foo' );
 
-			expect( secondCallData.inputType ).to.equal( 'insertParagraph' );
+			expect( secondCallData.inputType ).toBe( 'insertParagraph' );
 		} );
 
 		it( 'double new-line surrounded by text', () => {
@@ -369,7 +739,7 @@ describe( 'InputObserver', () => {
 			domRange.setStart( domEditable.firstChild.firstChild, 0 );
 			domRange.setEnd( domEditable.firstChild.firstChild, 0 );
 
-			sinon.stub( viewDocument.selection, 'getFirstRange' ).callsFake( () => {
+			vi.spyOn( viewDocument.selection, 'getFirstRange' ).mockImplementation( () => {
 				return view.createRange(
 					view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 0 )
 				);
@@ -381,19 +751,19 @@ describe( 'InputObserver', () => {
 				getTargetRanges: () => [ domRange ]
 			} );
 
-			expect( beforeInputSpy.callCount ).to.equal( 3 );
+			expect( beforeInputSpy ).toHaveBeenCalledTimes( 3 );
 
-			const firstCallData = beforeInputSpy.getCall( 0 ).args[ 1 ];
-			const secondCallData = beforeInputSpy.getCall( 1 ).args[ 1 ];
-			const thirdCallData = beforeInputSpy.getCall( 2 ).args[ 1 ];
+			const firstCallData = beforeInputSpy.mock.calls[ 0 ][ 1 ];
+			const secondCallData = beforeInputSpy.mock.calls[ 1 ][ 1 ];
+			const thirdCallData = beforeInputSpy.mock.calls[ 2 ][ 1 ];
 
-			expect( firstCallData.inputType ).to.equal( 'insertText' );
-			expect( firstCallData.data ).to.equal( 'foo' );
+			expect( firstCallData.inputType ).toBe( 'insertText' );
+			expect( firstCallData.data ).toBe( 'foo' );
 
-			expect( secondCallData.inputType ).to.equal( 'insertParagraph' );
+			expect( secondCallData.inputType ).toBe( 'insertParagraph' );
 
-			expect( thirdCallData.inputType ).to.equal( 'insertText' );
-			expect( thirdCallData.data ).to.equal( 'bar' );
+			expect( thirdCallData.inputType ).toBe( 'insertText' );
+			expect( thirdCallData.data ).toBe( 'bar' );
 		} );
 
 		it( 'tripple new-line surrounded by text', () => {
@@ -402,7 +772,7 @@ describe( 'InputObserver', () => {
 			domRange.setStart( domEditable.firstChild.firstChild, 0 );
 			domRange.setEnd( domEditable.firstChild.firstChild, 0 );
 
-			sinon.stub( viewDocument.selection, 'getFirstRange' ).callsFake( () => {
+			vi.spyOn( viewDocument.selection, 'getFirstRange' ).mockImplementation( () => {
 				return view.createRange(
 					view.createPositionAt( viewRoot.getChild( 0 ).getChild( 0 ), 0 )
 				);
@@ -414,30 +784,39 @@ describe( 'InputObserver', () => {
 				getTargetRanges: () => [ domRange ]
 			} );
 
-			expect( beforeInputSpy.callCount ).to.equal( 4 );
+			expect( beforeInputSpy ).toHaveBeenCalledTimes( 4 );
 
-			const firstCallData = beforeInputSpy.getCall( 0 ).args[ 1 ];
-			const secondCallData = beforeInputSpy.getCall( 1 ).args[ 1 ];
-			const thirdCallData = beforeInputSpy.getCall( 2 ).args[ 1 ];
-			const fourthCallData = beforeInputSpy.getCall( 3 ).args[ 1 ];
+			const firstCallData = beforeInputSpy.mock.calls[ 0 ][ 1 ];
+			const secondCallData = beforeInputSpy.mock.calls[ 1 ][ 1 ];
+			const thirdCallData = beforeInputSpy.mock.calls[ 2 ][ 1 ];
+			const fourthCallData = beforeInputSpy.mock.calls[ 3 ][ 1 ];
 
-			expect( firstCallData.inputType ).to.equal( 'insertText' );
-			expect( firstCallData.data ).to.equal( 'foo' );
+			expect( firstCallData.inputType ).toBe( 'insertText' );
+			expect( firstCallData.data ).toBe( 'foo' );
 
-			expect( secondCallData.inputType ).to.equal( 'insertParagraph' );
-			expect( thirdCallData.inputType ).to.equal( 'insertParagraph' );
+			expect( secondCallData.inputType ).toBe( 'insertParagraph' );
+			expect( thirdCallData.inputType ).toBe( 'insertParagraph' );
 
-			expect( fourthCallData.inputType ).to.equal( 'insertText' );
-			expect( fourthCallData.data ).to.equal( 'bar' );
+			expect( fourthCallData.inputType ).toBe( 'insertText' );
+			expect( fourthCallData.data ).toBe( 'bar' );
 		} );
 	} );
 
 	function fireMockNativeBeforeInput( domEvtMock ) {
-		observer.onDomEvent( Object.assign( {
+		const eventData = Object.assign( {
 			type: 'beforeinput',
-			getTargetRanges: () => []
-		}, domEvtMock ) );
+			getTargetRanges: () => [],
+			preventDefault: vi.fn()
+		}, domEvtMock );
 
-		evtData = beforeInputSpy.firstCall.args[ 1 ];
+		eventData.domEvent = {
+			get defaultPrevented() {
+				return eventData.preventDefault.mock.calls.length > 0;
+			}
+		};
+
+		observer.onDomEvent( eventData );
+
+		evtData = beforeInputSpy.mock.calls[ 0 ][ 1 ];
 	}
 } );

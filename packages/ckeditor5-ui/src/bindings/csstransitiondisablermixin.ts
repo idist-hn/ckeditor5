@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -9,7 +9,19 @@
 
 import type { Constructor, Mixed } from '@ckeditor/ckeditor5-utils';
 
-import type View from '../view';
+import { type View } from '../view.js';
+
+/**
+ * Constructor returned by {@link ~CssTransitionDisablerMixin}. Use it to name a mixin base class before extending it.
+ *
+ * ```ts
+ * const MyCssTransitionDisablerBase: CssTransitionDisablerMixinConstructor<typeof BaseClass> =
+ * 	CssTransitionDisablerMixin( BaseClass );
+ *
+ * class MyCssTransitionDisabler extends MyCssTransitionDisablerBase {}
+ * ```
+ */
+export type CssTransitionDisablerMixinConstructor<Base extends Constructor<View>> = Mixed<Base, ViewWithCssTransitionDisabler>;
 
 /**
  * A mixin that brings the possibility to temporarily disable CSS transitions using
@@ -37,7 +49,7 @@ import type View from '../view';
  *
  * @param view View instance that should get this functionality.
  */
-export default function CssTransitionDisablerMixin<Base extends Constructor<View>>( view: Base ): Mixed<Base, ViewWithCssTransitionDisabler>
+export function CssTransitionDisablerMixin<Base extends Constructor<View>>( view: Base ): CssTransitionDisablerMixinConstructor<Base>
 {
 	abstract class Mixin extends view {
 		declare public _isCssTransitionsDisabled: boolean;
@@ -58,20 +70,24 @@ export default function CssTransitionDisablerMixin<Base extends Constructor<View
 		}
 
 		protected initializeCssTransitionDisablerMixin(): void {
-			this.extendTemplate( {
-				attributes: {
-					class: [
-						this.bindTemplate.if( '_isCssTransitionsDisabled', 'ck-transitions-disabled' )
-					]
-				}
-			} );
+			if ( this.template ) {
+				this.extendTemplate( {
+					attributes: {
+						class: [
+							this.bindTemplate.if( '_isCssTransitionsDisabled', 'ck-transitions-disabled' )
+						]
+					}
+				} );
+			}
 		}
 	}
 
 	return Mixin as any;
 }
 
-export type ViewWithCssTransitionDisabler = View & {
-	disableCssTransitions(): void;
-	enableCssTransitions(): void;
+export declare class ViewWithCssTransitionDisabler extends View {
+	public disableCssTransitions(): void;
+	public enableCssTransitions(): void;
+
+	protected initializeCssTransitionDisablerMixin(): void;
 };

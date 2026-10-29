@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/subscript
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import SubscriptEditing from './subscript/subscriptediting';
-import SubscriptUI from './subscript/subscriptui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { SubscriptEditing } from './subscript/subscriptediting.js';
+import { SubscriptUI } from './subscript/subscriptui.js';
 
 /**
  * The subscript feature.
@@ -17,12 +17,12 @@ import SubscriptUI from './subscript/subscriptui';
  * It loads the {@link module:basic-styles/subscript/subscriptediting~SubscriptEditing} and
  * {@link module:basic-styles/subscript/subscriptui~SubscriptUI} plugins.
  */
-export default class Subscript extends Plugin {
+export class Subscript extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ SubscriptEditing, SubscriptUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ SubscriptEditing, SubscriptUI ]> {
+		return [ SubscriptEditing, SubscriptUI ];
 	}
 
 	/**
@@ -30,5 +30,12 @@ export default class Subscript extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Subscript' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

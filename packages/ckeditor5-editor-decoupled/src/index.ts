@@ -1,10 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module editor-decoupled
  */
 
-export { default as DecoupledEditor } from './decouplededitor';
+export { DecoupledEditor } from './decouplededitor.js';
+export { DecoupledEditorUI } from './decouplededitorui.js';
+export { DecoupledEditorUIView } from './decouplededitoruiview.js';

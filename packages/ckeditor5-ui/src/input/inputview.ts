@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,14 +8,12 @@
  */
 
 import { type Locale } from '@ckeditor/ckeditor5-utils';
-import InputBase from './inputbase';
-
-import '../../theme/components/input/input.css';
+import { InputBase } from './inputbase.js';
 
 /**
  * The input view class.
  */
-export default class InputView extends InputBase {
+export class InputView extends InputBase {
 	/**
 	 * Corresponds to the `inputmode` DOM attribute. Can be `text`, `numeric`, `decimal`, etc.
 	 *

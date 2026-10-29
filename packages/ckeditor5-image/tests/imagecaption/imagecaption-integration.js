@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Image from '../../src/image';
-import ImageCaption from '../../src/imagecaption';
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import Enter from '@ckeditor/ckeditor5-enter/src/enter';
-import ShiftEnter from '@ckeditor/ckeditor5-enter/src/shiftenter';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Image } from '../../src/image.js';
+import { ImageCaption } from '../../src/imagecaption.js';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { ViewDocumentDomEventData, _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { Enter, ShiftEnter } from '@ckeditor/ckeditor5-enter';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Typing } from '@ckeditor/ckeditor5-typing';
 
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
+import { global } from '@ckeditor/ckeditor5-utils';
 
 describe( 'ImageCaption integration', () => {
 	let editorElement, editor, model, view, viewDocument;
@@ -48,24 +47,24 @@ describe( 'ImageCaption integration', () => {
 		} );
 
 		it( 'does nothing if soft enter was pressed', () => {
-			setModelData(
+			_setModelData(
 				model,
 				'<paragraph>Foo.</paragraph>' +
-				'<imageBlock src="/assets/sample.png"><caption>Foo.[]</caption></imageBlock>' +
+				'<imageBlock src="/sample.png"><caption>Foo.[]</caption></imageBlock>' +
 				'<paragraph>Bar.</paragraph>'
 			);
 
-			const domEvent = new DomEventData( viewDocument, getDomEvent(), { isSoft: true } );
-			const preventDefaultOriginal = domEvent.preventDefault;
-			const preventDefaultStub = sinon.stub( domEvent, 'preventDefault' ).callsFake( preventDefaultOriginal );
+			const domEvent = new ViewDocumentDomEventData( viewDocument, getDomEvent(), { isSoft: true } );
+			const preventDefaultOriginal = domEvent.preventDefault.bind( domEvent );
+			const preventDefaultStub = vi.spyOn( domEvent, 'preventDefault' ).mockImplementation( preventDefaultOriginal );
 
 			viewDocument.fire( 'enter', domEvent );
 
-			expect( preventDefaultStub.callCount ).to.equal( 1 );
+			expect( preventDefaultStub.mock.calls.length ).toBe( 1 );
 
 			assertModelData(
 				'<paragraph>Foo.</paragraph>' +
-				'<imageBlock src="/assets/sample.png">' +
+				'<imageBlock src="/sample.png">' +
 					'<caption>Foo.[]</caption>' +
 				'</imageBlock>' +
 				'<paragraph>Bar.</paragraph>'
@@ -94,25 +93,25 @@ describe( 'ImageCaption integration', () => {
 		} );
 
 		it( 'inserts a soft break when soft enter was pressed', () => {
-			setModelData(
+			_setModelData(
 				model,
 				'<paragraph>Foo.</paragraph>' +
-				'<imageBlock src="/assets/sample.png"><caption>Foo.[]</caption></imageBlock>' +
+				'<imageBlock src="/sample.png"><caption>Foo.[]</caption></imageBlock>' +
 				'<paragraph>Bar.</paragraph>'
 			);
 
-			const domEvent = new DomEventData( viewDocument, getDomEvent(), { isSoft: true } );
-			const preventDefaultOriginal = domEvent.preventDefault;
-			const preventDefaultStub = sinon.stub( domEvent, 'preventDefault' ).callsFake( preventDefaultOriginal );
+			const domEvent = new ViewDocumentDomEventData( viewDocument, getDomEvent(), { isSoft: true } );
+			const preventDefaultOriginal = domEvent.preventDefault.bind( domEvent );
+			const preventDefaultStub = vi.spyOn( domEvent, 'preventDefault' ).mockImplementation( preventDefaultOriginal );
 
 			viewDocument.fire( 'enter', domEvent );
 
 			// One call comes from Enter plugin, the second one from ShiftEnter.
-			expect( preventDefaultStub.callCount ).to.equal( 2 );
+			expect( preventDefaultStub.mock.calls.length ).toBe( 2 );
 
 			assertModelData(
 				'<paragraph>Foo.</paragraph>' +
-					'<imageBlock src="/assets/sample.png">' +
+					'<imageBlock src="/sample.png">' +
 						'<caption>Foo.<softBreak></softBreak>[]</caption>' +
 					'</imageBlock>' +
 				'<paragraph>Bar.</paragraph>'
@@ -122,11 +121,11 @@ describe( 'ImageCaption integration', () => {
 
 	function getDomEvent() {
 		return {
-			preventDefault: sinon.spy()
+			preventDefault: vi.fn()
 		};
 	}
 
 	function assertModelData( output ) {
-		expect( getModelData( model ) ).to.equal( output );
+		expect( _getModelData( model ) ).toBe( output );
 	}
 } );

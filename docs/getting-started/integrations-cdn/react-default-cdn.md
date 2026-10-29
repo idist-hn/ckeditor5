@@ -1,0 +1,551 @@
+---
+menu-title: Default integration
+meta-title: Using CKEditor 5 with React from CDN | CKEditor 5 Documentation
+meta-description: Install, integrate, and configure CKEditor 5 using the React component with CDN.
+category: react-cdn
+order: 10
+modified_at: 2026-09-23
+---
+
+# Integrating CKEditor&nbsp;5 with React from CDN
+
+CKEditor&nbsp;5 has an official React integration that you can use to add a rich text editor to your application. It provides a `<CKEditor>` component that you configure with props for the editor build, its configuration, and event handlers. The component works with multiple editor types, including classic, inline, and decoupled (document). For the multi-root editor, use the dedicated {@link getting-started/integrations-cdn/react-multiroot-cdn multi-root editor hook}. This guide will help you install and configure it to use the CDN distribution of CKEditor&nbsp;5.
+
+{@snippet getting-started/use-builder}
+
+## Quick start
+
+This guide assumes that you already have a React project. If you do not have one, see the [React documentation](https://react.dev/learn/start-a-new-react-project) to learn how to create it.
+
+<info-box>
+	To use our Cloud CDN services, [create a free account](https://portal.ckeditor.com/checkout?plan=free). Learn more about {@link getting-started/licensing/license-key-and-activation license key activation}.
+</info-box>
+
+Start by installing the React integration for CKEditor&nbsp;5 from npm:
+
+```bash
+npm install @ckeditor/ckeditor5-react
+```
+
+Once the integration is installed, create a new React component called `Editor.jsx`. It will use the `useCKEditorCloud` helper to load the editor code from the CDN and the `<CKEditor>` component to run it, both of which come from the above package. The following example shows a component with open source and premium CKEditor&nbsp;5 plugins.
+
+```js
+import React from 'react';
+import { CKEditor, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
+
+const CKEditorDemo = () => {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}',
+		premium: true
+	} );
+
+	if ( cloud.status === 'error' ) {
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const {
+		ClassicEditor,
+		Essentials,
+		Paragraph,
+		Bold,
+		Italic
+	} = cloud.CKEditor;
+
+	const { FormatPainter } = cloud.CKEditorPremiumFeatures;
+
+	return (
+		<CKEditor
+			editor={ ClassicEditor }
+			data={ '<p>Hello world!</p>' }
+			config={ {
+				licenseKey: '<YOUR_LICENSE_KEY>',
+				plugins: [ Essentials, Paragraph, Bold, Italic, FormatPainter ],
+				toolbar: [ 'undo', 'redo', '|', 'bold', 'italic', '|', 'formatPainter' ]
+			} }
+		/>
+	);
+};
+```
+
+In the above example, the `useCKEditorCloud` helper is used to load the editor code and plugins from CDN. The `premium` option is set to also load premium plugins. For more information about the `useCKEditorCloud` helper, see the {@link getting-started/setup/loading-cdn-resources Loading CDN resources} guide.
+
+## Component properties
+
+The `<CKEditor>` component supports the following properties:
+
+* `editor` (required) &ndash; The {@link module:core/editor/editor~Editor `Editor`} constructor to use.
+* `data` &ndash; The initial data for the created editor. See the {@link getting-started/setup/getting-and-setting-data Getting and setting data} guide.
+* `config` &ndash; The editor configuration. See the {@link getting-started/setup/configuration Configuration} guide.
+* `id` &ndash; The editor ID. When this property changes, the component restarts the editor with new data instead of setting it on an initialized editor.
+* `disabled` &ndash; A Boolean value. The {@link module:core/editor/editor~Editor `editor`} is being switched to read-only mode if the property is set to `true`.
+* `onReady` &ndash; A function called when the editor is ready with an {@link module:core/editor/editor~Editor `editor`} instance.
+* `onAfterDestroy` &ndash; A function called after the successful destruction of an editor instance rendered by the component. The component is not guaranteed to be mounted when this function is called.
+* `onChange` &ndash; A function called when the editor data has changed. See the {@link module:engine/model/document~ModelDocument#event:change:data `editor.model.document#change:data`} event.
+* `onBlur` &ndash; A function called when the editor was blurred. See the {@link module:engine/view/document~ViewDocument#event:blur `editor.editing.view.document#blur`} event.
+* `onFocus` &ndash; A function called when the editor was focused. See the {@link module:engine/view/document~ViewDocument#event:focus `editor.editing.view.document#focus`} event.
+* `onError` &ndash; A function called when an error is reported for the editor, either during the initialization or at runtime. It receives two arguments: the error instance and the error details. Error details is an object that contains one property:
+  * `phase`: `'initialization'|'runtime'` &ndash; Informs when the error has occurred (during or after the editor/context initialization).
+
+The editor event callbacks (`onChange`, `onBlur`, `onFocus`) receive two arguments:
+
+1. An {@link module:utils/eventinfo~EventInfo `EventInfo`} object.
+2. An {@link module:core/editor/editor~Editor `Editor`} instance.
+
+A reported error does not stop the editor. Its state may no longer be consistent, so do not leave the error unhandled. Nothing is restarted and no data is restored for you, so what happens next is your application's decision. `<CKEditorContext>` has an `onError` of its own, with the same two arguments, for the errors of the context rather than of one of its editors.
+
+The {@link getting-started/setup/error-handling error handling} guide covers the options: telling the user and switching the editor to read-only, recreating it, and recovering its content. If you are moving off the Watchdog, the {@link updating/migration-from-watchdog migrating from the Watchdog} guide shows how to recreate the editor by changing the component's `key`, and when to do it.
+
+## Context feature
+
+The [`@ckeditor/ckeditor5-react`](https://www.npmjs.com/package/@ckeditor/ckeditor5-react) package provides a ready-to-use component for the {@link features/context-and-collaboration-features context feature} that is useful to use with some {@link features/collaboration CKEditor&nbsp;5 collaboration features}.
+
+```jsx
+import React from 'react';
+import { CKEditor, CKEditorContext, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
+
+export const CKEditorCloudContextDemo = () => {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}'
+	} );
+
+	if ( cloud.status === 'error' ) {
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const { ClassicEditor } = cloud.CKEditor;
+
+	return (
+		<CKEditorContext
+			context={ ClassicEditor.Context }
+			onChangeInitializedEditors={ editors => {
+				console.log( 'Initialized editors:', editors );
+			} }
+		>
+			<CKEditorNestedInstanceDemo
+				name='editor1'
+				content='<p>Editor 1</p>'
+			/>
+
+			<br />
+
+			<CKEditorNestedInstanceDemo
+				name='editor2'
+				content='<p>Editor 2</p>'
+			/>
+		</CKEditorContext>
+	);
+};
+
+function CKEditorNestedInstanceDemo( { name, content } ) {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}',
+		premium: true
+	} );
+
+	if ( cloud.status === 'error' ) {
+		console.error( cloud );
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const {
+		ClassicEditor,
+		Essentials,
+		Paragraph,
+		Bold,
+		Italic,
+		Mention
+	} = cloud.CKEditor;
+
+	return (
+		<CKEditor
+			contextItemMetadata={ {
+				name
+			} }
+			editor={ ClassicEditor }
+			data={ content }
+			config={ {
+				plugins: [
+					Essentials,
+					Paragraph,
+					Bold,
+					Italic,
+					Mention
+				],
+				toolbar: {
+					items: [ 'undo', 'redo', '|', 'bold', 'italic' ],
+				}
+			} }
+		/>
+	);
+}
+```
+
+The `CKEditorContext` component supports the following properties:
+
+* `context` (required) &ndash; {@link module:core/context~Context The CKEditor&nbsp;5 context class}.
+* `config` &ndash; The CKEditor&nbsp;5 context configuration.
+* `isLayoutReady` &ndash; A property that delays the context creation when set to `false`. It creates the context and the editor children once it is `true` or unset. Useful when the CKEditor&nbsp;5 annotations or a presence list are used.
+* `id` &ndash; The context ID. When this property changes, the component restarts the context with its editor and reinitializes it based on the current configuration.
+* `onChangeInitializedEditors` &ndash; A function called when any editor is initialized or destroyed in the tree. It receives a dictionary of fully initialized editors, where the key is the value of the `contextItemMetadata.name` property set on the `CKEditor` component. The editor's ID is the key if the `contextItemMetadata` property is absent. Additional data can be added to the `contextItemMetadata` in the `CKEditor` component, which will be passed to the `onChangeInitializedEditors` function.
+* `onReady` &ndash; A function called when the context is ready and all editors inside were initialized with the `context` instance.
+* `onError` &ndash; A function called when an error is reported for the context, either during the initialization or at runtime. It receives two arguments: the error instance and the error details. Error details is an object that contains one property:
+  * `phase`: `'initialization'|'runtime'` &ndash; Informs when the error has occurred (during or after the editor/context initialization).
+
+<info-box>
+	An example build that exposes both context and classic editor can be found in the [CKEditor&nbsp;5 collaboration sample](https://github.com/ckeditor/ckeditor5-collaboration-samples/tree/master/real-time-collaboration-comments-outside-of-editor).
+</info-box>
+
+## How to?
+
+### Using the document editor type
+
+If you use the {@link framework/document-editor document (decoupled) editor}, you need to {@link module:editor-decoupled/decouplededitor~DecoupledEditor.create add the toolbar to the DOM manually}:
+
+```jsx
+import { useEffect, useRef, useState } from 'react';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+
+function App() {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}'
+	} );
+
+	const editorToolbarRef = useRef( null );
+	const [ isMounted, setMounted ] = useState( false );
+
+	useEffect( () => {
+		setMounted( true );
+
+		return () => {
+			setMounted( false );
+		};
+	}, [] );
+
+	if ( cloud.status === 'error' ) {
+		console.error( cloud );
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const { DecoupledEditor, Essentials, Paragraph, Bold, Italic } = cloud.CKEditor;
+
+	return (
+		<div>
+			<div ref={ editorToolbarRef }></div>
+			<div>
+				{ isMounted && (
+					<CKEditor
+						editor={ DecoupledEditor }
+						data='<p>Hello from CKEditor 5 decoupled editor!</p>'
+						config={ {
+							plugins: [ Essentials, Paragraph, Bold, Italic ],
+							toolbar: [ 'undo', 'redo', '|', 'bold', 'italic' ]
+						} }
+						onReady={ ( editor ) => {
+							if ( editorToolbarRef.current ) {
+								editorToolbarRef.current.appendChild( editor.ui.view.toolbar.element );
+							}
+						}}
+						onAfterDestroy={ ( editor ) => {
+							if ( editorToolbarRef.current ) {
+								Array.from( editorToolbarRef.current.children ).forEach( child => child.remove() );
+							}
+						} }
+					/>
+				) }
+			</div>
+		</div>
+	);
+}
+
+export default App;
+```
+
+### Using an inline editor
+
+Single-root editors such as {@link module:editor-inline/inlineeditor~InlineEditor `InlineEditor`}, {@link module:editor-balloon/ballooneditor~BalloonEditor `BalloonEditor`}, and {@link module:editor-decoupled/decouplededitor~DecoupledEditor `DecoupledEditor`} can be configured as inline editors that accept only inline content (text, bold, italic, links) instead of blocks. This is useful for short fields such as titles, captions, or single-line inputs.
+
+Set {@link module:core/editor/editorconfig~RootConfig#modelElement `root.modelElement`} to `'$inlineRoot'` to restrict the root to inline content. Optionally, provide a custom {@link module:core/editor/editorconfig~RootConfig#element `root.element`} to render the editable host as a specific tag (for example, `<h1>` for a title) instead of the default `<div>`.
+
+```jsx
+import React from 'react';
+import { CKEditor, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
+
+const InlineTitleDemo = () => {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}'
+	} );
+
+	if ( cloud.status === 'error' ) {
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const { BalloonEditor, Essentials, Bold, Italic } = cloud.CKEditor;
+
+	return (
+		<CKEditor
+			editor={ BalloonEditor }
+			config={ {
+				licenseKey: '<YOUR_LICENSE_KEY>',
+				plugins: [ Essentials, Bold, Italic ],
+				toolbar: [ 'bold', 'italic' ],
+				root: {
+					element: 'h1',
+					modelElement: '$inlineRoot',
+					initialData: 'Document title',
+					placeholder: 'Enter title...'
+				}
+			} }
+		/>
+	);
+};
+```
+
+The `root.element` property accepts:
+
+* A tag name string, for example `'h1'` or `'section'`.
+* A descriptor object with `name`, `classes`, `styles`, and `attributes` fields.
+
+Without `modelElement: '$inlineRoot'`, only the host tag changes &ndash; the schema still permits blocks inside the root.
+
+<info-box important>
+	The `<CKEditor>` component always renders a `<div>` host for `ClassicEditor`, regardless of `root.element`. Classic editor wraps its toolbar and editable inside its own structure. Use `InlineEditor`, `BalloonEditor`, or `DecoupledEditor` to control the host element.
+</info-box>
+
+### Using inside a shadow root
+
+Rendering the editor inside a shadow root isolates it from the styles of the host page. The CDN loader injects the style sheets as `<link>` tags, so point it at the shadow root with the `injectedStylesheetsLocation` option of the `useCKEditorCloud()` hook. The whole editor UI, including the body collection that holds balloons and dropdown panels, stays inside the shadow root, so the scoped style sheets cover all of it. This happens because {@link module:core/editor/editorconfig~UiConfig#overlayContainer `config.ui.overlayContainer`} is not set, so the editor falls back to the root it is in and logs the `ui-overlay-container-not-configured` warning. For a more robust setup, set your own overlay container and load the same style sheets into it, as described in the {@link getting-started/setup/shadow-dom#where-the-floating-user-interface-mounts Where the floating user interface mounts} section of the Shadow DOM guide.
+
+Attach the shadow root before loading. A `<link>` that is not in the document never starts loading, which is why the hook is called from a component rendered into an already attached root rather than from the one that creates it.
+
+```jsx
+import { useCallback, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
+import { CKEditor, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
+
+function App() {
+	const [ shadowRoot, setShadowRoot ] = useState( null );
+
+	// `attachShadow()` can be called only once per element, and `host.shadowRoot` cannot
+	// report an existing root in closed mode, so track the call instead.
+	const attached = useRef( false );
+
+	const hostRef = useCallback( host => {
+		if ( host && !attached.current ) {
+			attached.current = true;
+
+			setShadowRoot( host.attachShadow( { mode: 'open' } ) );
+		}
+	}, [] );
+
+	return (
+		<div ref={ hostRef }>
+			{ shadowRoot && createPortal( <Editor shadowRoot={ shadowRoot } />, shadowRoot ) }
+		</div>
+	);
+}
+
+function Editor( { shadowRoot } ) {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}',
+		injectedStylesheetsLocation: {
+			targetNode: shadowRoot
+		}
+	} );
+
+	if ( cloud.status === 'error' ) {
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const { ClassicEditor, Essentials, Paragraph, Bold, Italic } = cloud.CKEditor;
+
+	return (
+		<CKEditor
+			editor={ ClassicEditor }
+			config={ {
+				licenseKey: '<YOUR_LICENSE_KEY>',
+				plugins: [ Essentials, Paragraph, Bold, Italic ],
+				toolbar: [ 'bold', 'italic' ],
+				root: {
+					initialData: '<p>Hello from a shadow root!</p>'
+				}
+			} }
+		/>
+	);
+}
+
+export default App;
+```
+
+<info-box important>
+	`attachShadow()` can be called only once per element. If the mode of the root has to change at runtime, give the component holding the host a `key` so that React remounts it.
+</info-box>
+
+An override of a `--ck-*` variable on `:root` has no effect on an editor inside a shadow root, so put it on the shadow host instead. The {@link getting-started/setup/shadow-dom Shadow DOM} guide explains why, and covers the known limitations.
+
+### Using the editor with collaboration plugins
+
+We provide **ready-to-use integration** featuring collaborative editing in a React application:
+
+* [CKEditor&nbsp;5 with real-time collaboration features](https://github.com/ckeditor/ckeditor5-collaboration-samples/tree/master/real-time-collaboration-for-react)
+
+It is not mandatory to build an application on top of the above samples, however, it should help you get started.
+
+### Localization
+
+CKEditor&nbsp;5 supports {@link getting-started/setup/ui-language multiple UI languages}, and so does the official React component. To translate the editor, pass the languages you need into the `translations` array inside the configuration of the `useCKEditorCloud` hook.
+
+```jsx
+import React from 'react';
+import { CKEditor, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
+
+const CKEditorDemo = () => {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}',
+		translations: [ 'es' ]
+	} );
+
+	if ( cloud.status === 'error' ) {
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const {
+		ClassicEditor,
+		Essentials,
+		Bold,
+		Italic,
+		Paragraph
+	} = cloud.CKEditor;
+
+	return (
+		<CKEditor
+			editor={ ClassicEditor }
+			data={ '<p>Hello world!</p>' }
+			config={ {
+				licenseKey: '<YOUR_LICENSE_KEY>',
+				toolbar: [ 'undo', 'redo', '|', 'bold', 'italic' ],
+				plugins: [ Bold, Essentials, Italic, Paragraph ],
+			} }
+		/>
+	);
+};
+```
+
+For more information, please refer to the {@link getting-started/setup/ui-language Setting the UI language} guide.
+
+### TypeScript support
+
+The official React integration for CKEditor&nbsp;5 is written in TypeScript and fully supports it. If you use TypeScript in your project, you can use the `CKEditor` component without additional configuration. However, if you want to use some specific types from the CKEditor&nbsp;5 packages, you can import them directly from a special package containing type definitions. Take a look at the following example:
+
+```tsx
+import React from 'react';
+import { CKEditor, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
+
+import type { EventInfo } from 'https://cdn.ckeditor.com/typings/ckeditor5.d.ts';
+
+const CKEditorDemo = () => {
+	const cloud = useCKEditorCloud( {
+		version: '{@var ckeditor5-version}',
+		translations: [ 'es' ]
+	} );
+
+	if ( cloud.status === 'error' ) {
+		return <div>Error!</div>;
+	}
+
+	if ( cloud.status === 'loading' ) {
+		return <div>Loading...</div>;
+	}
+
+	const {
+		ClassicEditor,
+		Essentials,
+		Bold,
+		Italic,
+		Paragraph
+	} = cloud.CKEditor;
+
+	return (
+		<CKEditor
+			editor={ ClassicEditor }
+			data={ '<p>Hello world!</p>' }
+			config={ {
+				licenseKey: '<YOUR_LICENSE_KEY>',
+				toolbar: [ 'undo', 'redo', '|', 'bold', 'italic' ],
+				plugins: [ Bold, Essentials, Italic, Paragraph ],
+			} }
+			onBlur={ ( event: EventInfo ) => {
+				// your event handler
+			} }
+		/>
+	);
+};
+```
+
+In the example above, the `EventInfo` type is imported from the `https://cdn.ckeditor.com/typings/ckeditor5.d.ts` package, while the editor itself loads from the CDN. Note that `https://cdn.ckeditor.com/typings/ckeditor5.d.ts` is not an actual URL to the CKEditor&nbsp;5 typings file but a synthetic TypeScript module providing typings for the editor. The `ckeditor5` package supplies the actual types, which depend on the `@ckeditor/ckeditor5-react` package.
+
+Although this setup might seem complex, it prevents users from directly importing anything from the `ckeditor5` package, which could lead to duplicated code issues.
+
+#### Type definitions for premium features
+
+If you want to use types for premium features, you can import them similarly to the base editor types. Remember that you need to install the `ckeditor5-premium-features` package to use them. You can do it by running the following command:
+
+```bash
+npm install --save-dev ckeditor5-premium-features
+```
+
+After installing the package, you can import the types in the following way:
+
+```html
+<script setup>
+// ...
+import type { Mention } from 'https://cdn.ckeditor.com/typings/ckeditor5-premium-features.d.ts';
+// ...
+</script>
+```
+
+## Known issues
+
+While type definitions for the base editor should be available out of the box, some bundlers do not install the `ckeditor5` package, which provides typing for the editor. If you encounter any issues with the type definitions, you can install the `ckeditor5` package manually:
+
+```bash
+npm install --save-dev ckeditor5
+```
+
+## Contributing and reporting issues
+
+The source code of rich text editor component for React is available on GitHub in [https://github.com/ckeditor/ckeditor5-react](https://github.com/ckeditor/ckeditor5-react).
+
+## Next steps
+
+* See how to manipulate the editor's data in the {@link getting-started/setup/getting-and-setting-data Getting and setting data} guide.
+* Refer to further guides in the {@link getting-started/setup/configuration setup section} to see how to customize your editor further.
+* Check the {@link features/index features category} to learn more about individual features.

@@ -1,23 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-embed/htmlembedui
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-import type { RawHtmlApi } from './htmlembedediting';
-import type HtmlEmbedCommand from './htmlembedcommand';
-
-import htmlEmbedIcon from '../theme/icons/html.svg';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { IconHtml } from '@ckeditor/ckeditor5-icons';
+import { ButtonView, MenuBarMenuListItemButtonView } from '@ckeditor/ckeditor5-ui';
+import type { RawHtmlApi } from './htmlembedediting.js';
+import { type HtmlEmbedCommand } from './htmlembedcommand.js';
 
 /**
  * The HTML embed UI plugin.
  */
-export default class HtmlEmbedUI extends Plugin {
+export class HtmlEmbedUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -28,36 +27,67 @@ export default class HtmlEmbedUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
-		const t = editor.t;
+		const locale = editor.locale;
+		const t = locale.t;
 
 		// Add the `htmlEmbed` button to feature components.
-		editor.ui.componentFactory.add( 'htmlEmbed', locale => {
-			const command: HtmlEmbedCommand = editor.commands.get( 'htmlEmbed' )!;
-			const view = new ButtonView( locale );
+		editor.ui.componentFactory.add( 'htmlEmbed', () => {
+			const buttonView = this._createButton( ButtonView );
 
-			view.set( {
-				label: t( 'Insert HTML' ),
-				icon: htmlEmbedIcon,
-				tooltip: true
+			buttonView.set( {
+				tooltip: true,
+				label: t( 'Insert HTML' )
 			} );
 
-			view.bind( 'isEnabled' ).to( command, 'isEnabled' );
-
-			// Execute the command.
-			this.listenTo( view, 'execute', () => {
-				editor.execute( 'htmlEmbed' );
-				editor.editing.view.focus();
-
-				const rawHtmlApi = editor.editing.view.document.selection
-					.getSelectedElement()!
-					.getCustomProperty( 'rawHtmlApi' ) as RawHtmlApi;
-
-				rawHtmlApi.makeEditable();
-			} );
-
-			return view;
+			return buttonView;
 		} );
+
+		editor.ui.componentFactory.add( 'menuBar:htmlEmbed', () => {
+			const buttonView = this._createButton( MenuBarMenuListItemButtonView );
+
+			buttonView.set( {
+				label: t( 'HTML snippet' )
+			} );
+
+			return buttonView;
+		} );
+	}
+
+	/**
+	 * Creates a button for html embed command to use either in toolbar or in menu bar.
+	 */
+	private _createButton<T extends typeof ButtonView | typeof MenuBarMenuListItemButtonView>( ButtonClass: T ): InstanceType<T> {
+		const editor = this.editor;
+		const command: HtmlEmbedCommand = editor.commands.get( 'htmlEmbed' )!;
+		const view = new ButtonClass( editor.locale ) as InstanceType<T>;
+
+		view.set( {
+			icon: IconHtml
+		} );
+
+		view.bind( 'isEnabled' ).to( command, 'isEnabled' );
+
+		// Execute the command.
+		this.listenTo( view, 'execute', () => {
+			editor.execute( 'htmlEmbed' );
+			editor.editing.view.focus();
+
+			const rawHtmlApi = editor.editing.view.document.selection
+				.getSelectedElement()!
+				.getCustomProperty( 'rawHtmlApi' ) as RawHtmlApi;
+
+			rawHtmlApi.makeEditable();
+		} );
+
+		return view;
 	}
 }

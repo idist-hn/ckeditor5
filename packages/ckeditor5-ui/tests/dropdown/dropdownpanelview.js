@@ -1,14 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global Event, console */
-
-import ViewCollection from '../../src/viewcollection';
-import DropdownPanelView from '../../src/dropdown/dropdownpanelview';
-import View from '../../src/view';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ViewCollection } from '../../src/viewcollection.js';
+import { DropdownPanelView } from '../../src/dropdown/dropdownpanelview.js';
+import { View } from '../../src/view.js';
 import { LabeledFieldView, createLabeledInputText } from '@ckeditor/ckeditor5-ui';
 
 describe( 'DropdownPanelView', () => {
@@ -23,42 +21,42 @@ describe( 'DropdownPanelView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets view#locale', () => {
-			expect( view.locale ).to.equal( locale );
+			expect( view.locale ).toBe( locale );
 		} );
 
 		it( 'sets view#isVisible false', () => {
-			expect( view.isVisible ).to.be.false;
+			expect( view.isVisible ).toBe( false );
 		} );
 
 		it( 'creates view#children collection', () => {
-			expect( view.children ).to.be.instanceOf( ViewCollection );
+			expect( view.children ).toBeInstanceOf( ViewCollection );
 		} );
 
 		it( 'creates element from template', () => {
-			expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-reset' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-dropdown__panel' ) ).to.be.true;
-			expect( view.element.getAttribute( 'tabindex' ) ).to.equal( '-1' );
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-reset' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-dropdown__panel' ) ).toBe( true );
+			expect( view.element.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		} );
 
 		describe( 'template bindings', () => {
 			describe( 'class', () => {
 				it( 'reacts on view#isVisible', () => {
-					expect( view.element.classList.contains( 'ck-dropdown__panel-visible' ) ).to.be.false;
+					expect( view.element.classList.contains( 'ck-dropdown__panel-visible' ) ).toBe( false );
 
 					view.isVisible = true;
-					expect( view.element.classList.contains( 'ck-dropdown__panel-visible' ) ).to.be.true;
+					expect( view.element.classList.contains( 'ck-dropdown__panel-visible' ) ).toBe( true );
 
 					view.isVisible = false;
-					expect( view.element.classList.contains( 'ck-dropdown__panel-visible' ) ).to.be.false;
+					expect( view.element.classList.contains( 'ck-dropdown__panel-visible' ) ).toBe( false );
 				} );
 
 				it( 'reacts on view#position', () => {
-					expect( view.element.classList.contains( 'ck-dropdown__panel_se' ) ).to.be.true;
+					expect( view.element.classList.contains( 'ck-dropdown__panel_se' ) ).toBe( true );
 
 					view.position = 'nw';
-					expect( view.element.classList.contains( 'ck-dropdown__panel_se' ) ).to.be.false;
-					expect( view.element.classList.contains( 'ck-dropdown__panel_nw' ) ).to.be.true;
+					expect( view.element.classList.contains( 'ck-dropdown__panel_se' ) ).toBe( false );
+					expect( view.element.classList.contains( 'ck-dropdown__panel_nw' ) ).toBe( true );
 				} );
 			} );
 
@@ -67,10 +65,10 @@ describe( 'DropdownPanelView', () => {
 					// https://github.com/ckeditor/ckeditor5-ui/issues/228
 					it( 'gets preventDefault called', () => {
 						const event = new Event( 'selectstart' );
-						const spy = sinon.spy( event, 'preventDefault' );
+						const spy = vi.spyOn( event, 'preventDefault' );
 
 						view.element.dispatchEvent( event );
-						sinon.assert.calledOnce( spy );
+						expect( spy ).toHaveBeenCalledOnce();
 					} );
 
 					it( 'does not get preventDefault called for the input field', () => {
@@ -82,10 +80,25 @@ describe( 'DropdownPanelView', () => {
 							bubbles: true,
 							cancelable: true
 						} );
-						const spy = sinon.spy( event, 'preventDefault' );
+						const spy = vi.spyOn( event, 'preventDefault' );
 
 						labeledInput.fieldView.element.dispatchEvent( event );
-						sinon.assert.notCalled( spy );
+						expect( spy ).not.toHaveBeenCalled();
+					} );
+
+					it( 'handles non-element targets', () => {
+						const textNode = document.createTextNode( 'Selectable text' );
+
+						view.element.appendChild( textNode );
+
+						const event = new Event( 'selectstart', {
+							bubbles: true,
+							cancelable: true
+						} );
+						const spy = vi.spyOn( event, 'preventDefault' );
+
+						textNode.dispatchEvent( event );
+						expect( spy ).toHaveBeenCalledOnce();
 					} );
 				} );
 			} );
@@ -94,29 +107,25 @@ describe( 'DropdownPanelView', () => {
 
 	describe( 'focus()', () => {
 		it( 'does nothing for empty panel', () => {
-			expect( () => view.focus() ).to.not.throw();
+			expect( () => view.focus() ).not.toThrow();
 		} );
 
 		it( 'focuses first child view', () => {
 			const firstChildView = new View();
 
-			firstChildView.focus = sinon.spy();
+			firstChildView.focus = vi.fn();
 
 			view.children.add( firstChildView );
 			view.children.add( new View() );
 
 			view.focus();
 
-			sinon.assert.calledOnce( firstChildView.focus );
+			expect( firstChildView.focus ).toHaveBeenCalledOnce();
 		} );
 
 		describe( 'should warn', () => {
 			beforeEach( () => {
-				testUtils.sinon.stub( console, 'warn' );
-			} );
-
-			afterEach( () => {
-				console.warn.restore();
+				vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 			} );
 
 			it( 'if the view does not implement the focus() method', () => {
@@ -128,12 +137,11 @@ describe( 'DropdownPanelView', () => {
 
 				view.focus();
 
-				sinon.assert.calledOnce( console.warn );
-				sinon.assert.calledWithExactly(
-					console.warn,
+				expect( console.warn ).toHaveBeenCalledOnce();
+				expect( console.warn ).toHaveBeenCalledWith(
 					'ui-dropdown-panel-focus-child-missing-focus',
 					{ childView: firstChildView, dropdownPanel: view },
-					sinon.match.string
+					expect.any( String )
 				);
 			} );
 		} );
@@ -141,33 +149,33 @@ describe( 'DropdownPanelView', () => {
 
 	describe( 'focusLast()', () => {
 		it( 'does nothing for empty panel', () => {
-			expect( () => view.focusLast() ).to.not.throw();
+			expect( () => view.focusLast() ).not.toThrow();
 		} );
 
 		it( 'focuses last child view', () => {
 			const lastChildView = new View();
 
-			lastChildView.focusLast = sinon.spy();
+			lastChildView.focusLast = vi.fn();
 
 			view.children.add( new View() );
 			view.children.add( lastChildView );
 
 			view.focusLast();
 
-			sinon.assert.calledOnce( lastChildView.focusLast );
+			expect( lastChildView.focusLast ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'focuses last child view even if it does not have focusLast() method', () => {
 			const lastChildView = new View();
 
-			lastChildView.focus = sinon.spy();
+			lastChildView.focus = vi.fn();
 
 			view.children.add( new View() );
 			view.children.add( lastChildView );
 
 			view.focusLast();
 
-			sinon.assert.calledOnce( lastChildView.focus );
+			expect( lastChildView.focus ).toHaveBeenCalledOnce();
 		} );
 	} );
 } );

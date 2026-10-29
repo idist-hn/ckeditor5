@@ -1,17 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module clipboard/clipboard
  */
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import ClipboardPipeline from './clipboardpipeline';
-import DragDrop from './dragdrop';
-import PastePlainText from './pasteplaintext';
+import { ClipboardPipeline } from './clipboardpipeline.js';
+import { DragDrop } from './dragdrop.js';
+import { PastePlainText } from './pasteplaintext.js';
+import { ClipboardMarkersUtils } from './clipboardmarkersutils.js';
 
 /**
  * The clipboard feature.
@@ -23,7 +24,7 @@ import PastePlainText from './pasteplaintext';
  * * {@link module:clipboard/dragdrop~DragDrop}
  * * {@link module:clipboard/pasteplaintext~PastePlainText}
  */
-export default class Clipboard extends Plugin {
+export class Clipboard extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -34,7 +35,40 @@ export default class Clipboard extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ClipboardPipeline, DragDrop, PastePlainText ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ClipboardMarkersUtils, ClipboardPipeline, DragDrop, PastePlainText ]> {
+		return [ ClipboardMarkersUtils, ClipboardPipeline, DragDrop, PastePlainText ];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public init(): void {
+		const editor = this.editor;
+		const t = this.editor.t;
+
+		// Add the information about the keystrokes to the accessibility database.
+		editor.accessibility.addKeystrokeInfos( {
+			keystrokes: [
+				{
+					label: t( 'Copy selected content' ),
+					keystroke: 'CTRL+C'
+				},
+				{
+					label: t( 'Paste content' ),
+					keystroke: 'CTRL+V'
+				},
+				{
+					label: t( 'Paste content as plain text' ),
+					keystroke: 'CTRL+SHIFT+V'
+				}
+			]
+		} );
 	}
 }

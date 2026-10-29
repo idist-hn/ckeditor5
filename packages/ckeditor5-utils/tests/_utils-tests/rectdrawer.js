@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
+import { describe, it, expect, afterEach } from 'vitest';
 
-import Rect from '../../src/dom/rect';
-import createElement from '../../src/dom/createelement';
-import RectDrawer from '../../tests/_utils/rectdrawer';
+import { Rect } from '../../src/dom/rect.js';
+import { createElement } from '../../src/dom/createelement.js';
+import { RectDrawer } from '../../tests/_utils/rectdrawer.js';
 
 const DEFAULT_STYLES = 'position: fixed; ' +
 	'outline: blue solid 1px; ' +
@@ -44,7 +44,7 @@ describe( 'utils', () => {
 
 				const rectPreview = document.querySelector( '.ck-rect-drawer-preview' );
 
-				expect( rectPreview.outerHTML ).to.equal(
+				expect( rectPreview.outerHTML ).toBe(
 					'<div ' +
 						'class="ck-rect-drawer-preview" ' +
 						'style="' +
@@ -79,7 +79,7 @@ describe( 'utils', () => {
 
 				const rectPreview = document.querySelector( '.ck-rect-drawer-preview' );
 
-				expect( rectPreview.outerHTML ).to.equal(
+				expect( rectPreview.outerHTML ).toBe(
 					'<div ' +
 						'class="ck-rect-drawer-preview" ' +
 						'style="' +
@@ -115,7 +115,7 @@ describe( 'utils', () => {
 
 				const rectPreview = document.querySelector( '.ck-rect-drawer-preview' );
 
-				expect( rectPreview.outerHTML ).to.equal(
+				expect( rectPreview.outerHTML ).toBe(
 					'<div ' +
 						'class="ck-rect-drawer-preview" ' +
 						'data-name="foo" ' +

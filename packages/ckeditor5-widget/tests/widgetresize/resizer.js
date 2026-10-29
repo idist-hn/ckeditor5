@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 
-import Resizer from '../../src/widgetresize/resizer';
+import { WidgetResizer } from '../../src/widgetresize/resizer.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { ArticlePluginSet } from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset.js';
 
 describe( 'Resizer', () => {
 	let editor, editorElement;
 
-	before( () => {
+	beforeAll( () => {
 		editorElement = document.createElement( 'div' );
 		document.body.append( editorElement );
 
@@ -46,7 +46,7 @@ describe( 'Resizer', () => {
 			} );
 	} );
 
-	after( () => {
+	afterAll( () => {
 		editorElement.remove();
 		return editor.destroy();
 	} );
@@ -54,29 +54,29 @@ describe( 'Resizer', () => {
 	it( 'constructs properly', () => {
 		const resizerInstance = createResizer();
 
-		expect( resizerInstance.isEnabled ).to.be.true;
+		expect( resizerInstance.isEnabled ).toBe( true );
 	} );
 
 	describe( 'markup', () => {
 		let resizerInstance, renderedElement;
 
-		before( () => {
+		beforeAll( () => {
 			resizerInstance = createResizer();
 			resizerInstance.attach();
 
 			renderedElement = resizerInstance._viewResizerWrapper.render( document );
 		} );
 
-		after( () => {
+		afterAll( () => {
 			renderedElement.remove();
 		} );
 
 		it( 'root element contains proper classes', () => {
 			const rootElementClasses = Array.from( renderedElement.classList );
 
-			expect( rootElementClasses ).to.include( 'ck' );
-			expect( rootElementClasses ).to.include( 'ck-reset_all' );
-			expect( rootElementClasses ).to.include( 'ck-widget__resizer' );
+			expect( rootElementClasses ).toContain( 'ck' );
+			expect( rootElementClasses ).toContain( 'ck-reset_all' );
+			expect( rootElementClasses ).toContain( 'ck-widget__resizer' );
 		} );
 
 		it( 'includes handle for each corner', () => {
@@ -88,12 +88,12 @@ describe( 'Resizer', () => {
 			];
 
 			for ( const selector of handleSelectors ) {
-				expect( renderedElement.querySelectorAll( selector ).length, `Selector "${ selector }" matches` ).to.equal( 1 );
+				expect( renderedElement.querySelectorAll( selector ).length, `Selector "${ selector }" matches` ).toBe( 1 );
 			}
 		} );
 
 		it( 'renders sizeUi', () => {
-			expect( renderedElement.querySelectorAll( '.ck-size-view' ).length ).to.equal( 1 );
+			expect( renderedElement.querySelectorAll( '.ck-size-view' ).length ).toBe( 1 );
 		} );
 	} );
 
@@ -107,7 +107,7 @@ describe( 'Resizer', () => {
 			resizerInstance.attach();
 
 			const domResizerWrapper = resizerInstance._viewResizerWrapper.render( document );
-			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).to.be.true;
+			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).toBe( true );
 		} );
 
 		it( 'shows the ui if the resizer is visible when attached', () => {
@@ -119,7 +119,7 @@ describe( 'Resizer', () => {
 			resizerInstance.attach();
 
 			const domResizerWrapper = resizerInstance._viewResizerWrapper.render( document );
-			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).to.be.false;
+			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).toBe( false );
 		} );
 
 		it( 'does not show in the UI when resizer is set as not visible', () => {
@@ -132,7 +132,7 @@ describe( 'Resizer', () => {
 			resizerInstance.isVisible = false;
 
 			const domResizerWrapper = resizerInstance._viewResizerWrapper.render( document );
-			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).to.be.true;
+			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).toBe( true );
 		} );
 
 		it( 'shows in the UI when resizer is set as visible', () => {
@@ -145,7 +145,7 @@ describe( 'Resizer', () => {
 			resizerInstance.isVisible = true;
 
 			const domResizerWrapper = resizerInstance._viewResizerWrapper.render( document );
-			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).to.be.false;
+			expect( domResizerWrapper.classList.contains( 'ck-hidden' ) ).toBe( false );
 		} );
 
 		it( 'is not visible when resizer is not selected', () => {
@@ -158,7 +158,7 @@ describe( 'Resizer', () => {
 
 			resizerInstance.isSelected = false;
 
-			expect( resizerInstance.isVisible ).to.be.false;
+			expect( resizerInstance.isVisible ).toBe( false );
 		} );
 
 		it( 'is not visible when resizer is disabled', () => {
@@ -170,7 +170,7 @@ describe( 'Resizer', () => {
 			resizerInstance.isEnabled = true;
 
 			resizerInstance.isEnabled = false;
-			expect( resizerInstance.isVisible ).to.be.false;
+			expect( resizerInstance.isVisible ).toBe( false );
 		} );
 
 		it( 'is visible when resizer is both enabled and selected', () => {
@@ -183,10 +183,10 @@ describe( 'Resizer', () => {
 			resizerInstance.isVisible = false;
 
 			resizerInstance.isEnabled = true;
-			expect( resizerInstance.isVisible ).to.be.false;
+			expect( resizerInstance.isVisible ).toBe( false );
 
 			resizerInstance.isSelected = true;
-			expect( resizerInstance.isVisible ).to.be.true;
+			expect( resizerInstance.isVisible ).toBe( true );
 		} );
 	} );
 
@@ -201,6 +201,10 @@ describe( 'Resizer', () => {
 			document.body.appendChild( renderedElement );
 
 			resizerInstance.redraw();
+
+			// The rect of the handle host was fetched and applied to the resizer wrapper.
+			expect( resizerInstance._viewResizerWrapper.getStyle( 'width' ) ).toMatch( /^\d+(\.\d+)?px$/ );
+			expect( resizerInstance._viewResizerWrapper.getStyle( 'height' ) ).toMatch( /^\d+(\.\d+)?px$/ );
 
 			// Cleanup.
 			renderedElement.remove();
@@ -217,24 +221,60 @@ describe( 'Resizer', () => {
 
 			document.body.appendChild( renderedElement );
 
-			const viewChangeSpy = sinon.spy( editor.editing.view, 'change' );
+			const viewChangeSpy = vi.spyOn( editor.editing.view, 'change' );
 
 			resizerInstance.redraw();
-			sinon.assert.calledOnce( viewChangeSpy );
+			expect( viewChangeSpy ).toHaveBeenCalledTimes( 1 );
 
 			resizerInstance.redraw();
-			sinon.assert.calledOnce( viewChangeSpy );
+			expect( viewChangeSpy ).toHaveBeenCalledTimes( 1 );
 
 			const host = resizerInstance._getHandleHost();
 
 			host.style.width = '123px';
 
 			resizerInstance.redraw();
-			sinon.assert.calledTwice( viewChangeSpy );
+			expect( viewChangeSpy ).toHaveBeenCalledTimes( 2 );
 
 			// Cleanup.
 			renderedElement.remove();
 		} );
+
+		for ( const mode of [ 'open', 'closed' ] ) {
+			it( `should redraw a resizer whose editing root lives in a ${ mode } shadow root`, () => {
+				const resizerInstance = createResizer( {
+					getHandleHost: widgetWrapper => widgetWrapper
+				} );
+
+				resizerInstance.attach();
+
+				// The resizer wrapper is mapped to a DOM element inside the editing root, so the editing
+				// root itself has to move into the shadow root for the resizer to end up there.
+				const domRoot = editor.editing.view.getDomRoot();
+				const originalParent = domRoot.parentElement;
+				const shadowHost = document.createElement( 'div' );
+
+				document.body.appendChild( shadowHost );
+				shadowHost.attachShadow( { mode } ).appendChild( domRoot );
+
+				const domWrapper = resizerInstance._domResizerWrapper;
+
+				// The resizer wrapper is connected, but an `ownerDocument.contains()` check does not see
+				// through the shadow boundary and would have made #redraw() bail out as if it was detached.
+				expect( document.contains( domWrapper ) ).toBe( false );
+				expect( domWrapper.isConnected ).toBe( true );
+
+				const viewChangeSpy = vi.spyOn( editor.editing.view, 'change' );
+
+				resizerInstance.redraw();
+
+				expect( viewChangeSpy ).toHaveBeenCalledTimes( 1 );
+
+				// Cleanup: the editor is shared by the whole suite, so put its editing root back.
+				originalParent.appendChild( domRoot );
+				shadowHost.remove();
+			} );
+		}
 	} );
 
 	describe( '_proposeNewSize()', () => {
@@ -265,9 +305,9 @@ describe( 'Resizer', () => {
 				pageY: 50
 			} );
 
-			expect( proposedSize.width, 'width' ).to.equal( 60 );
-			expect( proposedSize.height, 'height' ).to.equal( 60 );
-			expect( proposedSize.widthPercents, 'widthPercents' ).to.equal( 15 );
+			expect( proposedSize.width ).toBe( 60 );
+			expect( proposedSize.height ).toBe( 60 );
+			expect( proposedSize.widthPercents ).toBe( 15 );
 		} );
 
 		it( 'enlarges objects correctly', () => {
@@ -278,9 +318,9 @@ describe( 'Resizer', () => {
 				pageY: 50
 			} );
 
-			expect( proposedSize.width, 'width' ).to.equal( 50 );
-			expect( proposedSize.height, 'height' ).to.equal( 50 );
-			expect( proposedSize.widthPercents, 'widthPercents' ).to.equal( 12.5 );
+			expect( proposedSize.width ).toBe( 50 );
+			expect( proposedSize.height ).toBe( 50 );
+			expect( proposedSize.widthPercents ).toBe( 12.5 );
 		} );
 
 		it( 'rounds returned width and height properties', () => {
@@ -289,8 +329,8 @@ describe( 'Resizer', () => {
 				pageY: 50.000000000002
 			} );
 
-			expect( proposedSize.width, 'width' ).to.equal( 60 );
-			expect( proposedSize.height, 'height' ).to.equal( 60 );
+			expect( proposedSize.width ).toBe( 60 );
+			expect( proposedSize.height ).toBe( 60 );
 		} );
 	} );
 
@@ -311,15 +351,15 @@ describe( 'Resizer', () => {
 			// Render in some other document. This could be a document in an <iframe>.
 			resizerInstance._viewResizerWrapper.render( anotherDocument );
 
-			expect( resizerInstance._domResizerWrapper.ownerDocument ).to.equal( document );
-			expect( editor.editing.view.getDomRoot().contains( resizerInstance._domResizerWrapper ) ).to.be.true;
+			expect( resizerInstance._domResizerWrapper.ownerDocument ).toBe( document );
+			expect( editor.editing.view.getDomRoot().contains( resizerInstance._domResizerWrapper ) ).toBe( true );
 		} );
 	} );
 
 	function createResizer( customOptions ) {
-		setModelData( editor.model, '<resizable></resizable>' );
+		_setModelData( editor.model, '<resizable></resizable>' );
 
-		return new Resizer( Object.assign( {
+		return new WidgetResizer( Object.assign( {
 			modelElement: editor.model.document.getRoot().getChild( 0 ),
 			viewElement: editor.editing.view.document.getRoot().getChild( 0 ),
 			editor

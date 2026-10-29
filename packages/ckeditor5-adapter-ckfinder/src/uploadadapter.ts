@@ -1,24 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-/* globals XMLHttpRequest, FormData */
 
 /**
  * @module adapter-ckfinder/uploadadapter
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 import {
 	FileRepository,
 	type UploadAdapter as UploadAdapterInterface,
 	type FileLoader,
 	type UploadResponse
-} from 'ckeditor5/src/upload';
-import type { LocaleTranslate } from 'ckeditor5/src/utils';
+} from '@ckeditor/ckeditor5-upload';
+import type { LocaleTranslate } from '@ckeditor/ckeditor5-utils';
 
-import { getCsrfToken } from './utils';
+import { getCsrfToken } from './utils.js';
 
 /**
  * A plugin that enables file uploads in CKEditor 5 using the CKFinder server–side connector.
@@ -30,12 +28,12 @@ import { getCsrfToken } from './utils';
  * Check out the {@glink features/images/image-upload/image-upload comprehensive "Image upload overview"} guide to learn
  * about other ways to upload images into CKEditor 5.
  */
-export default class CKFinderUploadAdapter extends Plugin {
+export class CKFinderUploadAdapter extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ FileRepository ] as const;
+	public static get requires(): PluginDependenciesOf<[ FileRepository ]> {
+		return [ FileRepository ];
 	}
 
 	/**
@@ -43,6 +41,13 @@ export default class CKFinderUploadAdapter extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'CKFinderUploadAdapter' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -158,7 +163,7 @@ class UploadAdapter implements UploadAdapterInterface {
 		} );
 
 		// Upload progress when it's supported.
-		/* istanbul ignore else -- @preserve */
+		/* v8 ignore else -- @preserve */
 		if ( xhr.upload ) {
 			xhr.upload.addEventListener( 'progress', evt => {
 				if ( evt.lengthComputable ) {

@@ -4,20 +4,20 @@ category: api-reference
 
 # CKEditor&nbsp;5 decoupled editor implementation
 
-[![npm version](https://badge.fury.io/js/%40ckeditor%2Fckeditor5-editor-decoupled.svg)](https://www.npmjs.com/package/@ckeditor/ckeditor5-editor-decoupled)
-
 The decoupled editor implementation for CKEditor&nbsp;5. See the {@link examples/builds/document-editor demo}.
 
 ## Documentation
 
 This package contains the {@link module:editor-decoupled/decouplededitor~DecoupledEditor} class. Follow there to learn more about this type of editor and how to initialize it.
 
-This package contains the source version of the decoupled editor. This editor implementation is also available in the [decoupled build](https://www.npmjs.com/package/@ckeditor/ckeditor5-build-decoupled). Read more about {@link installation/index CKEditor&nbsp;5 builds}.
+This package contains the source version of the decoupled editor. Read more about {@link getting-started/setup/editor-types CKEditor&nbsp;5 editor types}.
 
 ## Installation
 
+This package is part of our open-source aggregate package.
+
 ```bash
-npm install --save @ckeditor/ckeditor5-editor-decoupled
+npm install ckeditor5
 ```
 
 ## Contribute

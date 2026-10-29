@@ -1,17 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window */
+import {
+	FindAndReplace,
+	CKBox,
+	CKBoxImageEdit,
+	PictureEditing,
+	ImageInsert,
+	ImageResize,
+	AutoImage
+} from 'ckeditor5';
+import { ExportPdf, ExportWord } from 'ckeditor5-premium-features';
+import { ClassicEditor } from '@snippets/index.js';
 
-import { FindAndReplace } from '@ckeditor/ckeditor5-find-and-replace';
-import { ExportPdf } from '@ckeditor/ckeditor5-export-pdf';
-import { ExportWord } from '@ckeditor/ckeditor5-export-word';
-import ClassicEditor from '../build-classic';
-
-ClassicEditor.builtinPlugins.push( FindAndReplace );
-ClassicEditor.builtinPlugins.push( ExportPdf );
-ClassicEditor.builtinPlugins.push( ExportWord );
-
-window.ClassicEditor = ClassicEditor;
+export class ReadOnlyEditor extends ClassicEditor {
+	static builtinPlugins = [
+		...ClassicEditor.builtinPlugins,
+		FindAndReplace,
+		CKBox,
+		CKBoxImageEdit,
+		PictureEditing,
+		ImageInsert,
+		ImageResize,
+		AutoImage,
+		ExportPdf,
+		ExportWord
+	];
+}

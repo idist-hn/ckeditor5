@@ -3,10 +3,13 @@ category: crash-course
 order: 60
 menu-title: Editor UI
 meta-title: CKEditor 5 crash course - Editor UI | CKEditor 5 Documentation
-modified_at: 2023-08-16
+meta-description: Explore the view layer in CKEditor 5 to manage how content is presented and interacted with in the editor UI.
+modified_at: 2025-03-14
 ---
 
 # Editor UI
+
+In this part of the crash course, you will add a toolbar button to the editor UI so users can apply the `highlight` feature without running commands manually.
 
 ## Interface parts
 
@@ -25,10 +28,11 @@ In this section, we will focus on updating the toolbar.
 
 ## Creating a new button
 
-Let's import the `ButtonView` contructor in the `src/plugin.js` file:
+Let's import the `ButtonView` constructor in the `src/plugin.js` file:
 
 ```js
-import { ButtonView } from 'ckeditor5/src/ui';
+// Import ButtonView by adding it to the previously added import.
+import { Command, ButtonView } from 'ckeditor5';
 ```
 
 Then add the following code at the bottom of the `Highlight` method:
@@ -63,19 +67,21 @@ In the callback we do four things:
 
 * Create a {@link module:ui/button/button~Button button} and set a few properties on it, one of which is the translated text created with the {@link module:utils/locale~Locale#t `editor.t()`} method.
 * Register a callback that will execute the `highlight` command and put the focus back to the editing view when the button is pressed.
-* Bind the `isOn` and `isEnabled` button properties to the `value` and `isEnabled` command properties. This ensures that the button is only clickable when the command can be executed, and that it's active when the selection is already highlighted.
+* Bind the `isOn` and `isEnabled` button properties to the `value` and `isEnabled` command properties. This ensures that the button is only clickable when the command can be executed, and that it is active when the selection is already highlighted.
 * Return the configured button.
 
 ## Registering a new button
 
 When we go back to the browser, we see that nothing has changed. The button we just created is not there.
 
-That's because to see the button, we need to register it in the editor's configuration. To do this, add the `'highlight'` string (the name we passed as the first argument to the `editor.ui.componentFactory.add()` method) to the `toolbar.items` array.
+This is because to see the button, we need to register it in the editor's configuration. To do this, add the `'highlight'` string (the name we passed as the first argument to the `editor.ui.componentFactory.add()` method) to the `toolbar.items` array.
 
 Open `src/main.js` and update the configuration of the editor:
 
 ```js
-const editor = await ClassicEditor.create( element, {
+const editor = await ClassicEditor.create( {
+	attachTo: element,
+	licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 	plugins: [
 		Essentials,
 		Paragraph,
@@ -99,7 +105,7 @@ Let's test our changes. In the browser, select some text in the editor and click
 
 If all went well, the text you selected should be highlighted in the editor and the button should be active. If you click the button again, the selection should be removed and the button should no longer be active.
 
-## What's next?
+## What's next
 
 Congratulations, you have just finished this tutorial!
 

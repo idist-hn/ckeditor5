@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/superscript
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import SuperscriptEditing from './superscript/superscriptediting';
-import SuperscriptUI from './superscript/superscriptui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { SuperscriptEditing } from './superscript/superscriptediting.js';
+import { SuperscriptUI } from './superscript/superscriptui.js';
 
 /**
  * The superscript feature.
@@ -17,12 +17,12 @@ import SuperscriptUI from './superscript/superscriptui';
  * It loads the {@link module:basic-styles/superscript/superscriptediting~SuperscriptEditing} and
  * {@link module:basic-styles/superscript/superscriptui~SuperscriptUI} plugins.
  */
-export default class Superscript extends Plugin {
+export class Superscript extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ SuperscriptEditing, SuperscriptUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ SuperscriptEditing, SuperscriptUI ]> {
+		return [ SuperscriptEditing, SuperscriptUI ];
 	}
 
 	/**
@@ -30,5 +30,12 @@ export default class Superscript extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Superscript' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

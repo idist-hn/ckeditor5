@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -11,21 +11,21 @@
  * Collection of methods for manipulating the {@link module:engine/model/model model} for testing purposes.
  */
 
-import RootElement from '../model/rootelement';
-import Model from '../model/model';
-import ModelRange from '../model/range';
-import ModelPosition from '../model/position';
-import ModelSelection from '../model/selection';
-import ModelDocumentFragment from '../model/documentfragment';
-import DocumentSelection from '../model/documentselection';
+import { ModelRootElement } from '../model/rootelement.js';
+import { Model } from '../model/model.js';
+import { ModelRange } from '../model/range.js';
+import { ModelPosition } from '../model/position.js';
+import { ModelSelection } from '../model/selection.js';
+import { ModelDocumentFragment } from '../model/documentfragment.js';
+import { ModelDocumentSelection } from '../model/documentselection.js';
 
-import View from '../view/view';
-import ViewContainerElement from '../view/containerelement';
-import ViewRootEditableElement from '../view/rooteditableelement';
+import { EditingView } from '../view/view.js';
+import { ViewContainerElement } from '../view/containerelement.js';
+import { ViewRootEditableElement } from '../view/rooteditableelement.js';
 
-import { parse as viewParse, stringify as viewStringify } from '../../src/dev-utils/view';
+import { _parseView, _stringifyView } from './view.js';
 
-import Mapper from '../conversion/mapper';
+import { Mapper } from '../conversion/mapper.js';
 import {
 	convertCollapsedSelection,
 	convertRangeSelection,
@@ -34,49 +34,75 @@ import {
 	insertText,
 	insertUIElement,
 	wrap
-} from '../conversion/downcasthelpers';
+} from '../conversion/downcasthelpers.js';
 
-import { StylesProcessor } from '../view/stylesmap';
+import { StylesProcessor } from '../view/stylesmap.js';
 
-import DowncastDispatcher, {
+import {
+	DowncastDispatcher,
 	type DowncastAddMarkerEvent,
 	type DowncastAttributeEvent,
 	type DowncastInsertEvent,
 	type DowncastSelectionEvent
-} from '../conversion/downcastdispatcher';
-import UpcastDispatcher, {
+} from '../conversion/downcastdispatcher.js';
+import {
+	UpcastDispatcher,
 	type UpcastDocumentFragmentEvent,
 	type UpcastElementEvent,
 	type UpcastTextEvent,
 	type UpcastConversionApi,
 	type UpcastConversionData
-} from '../conversion/upcastdispatcher';
-import type ViewDocumentSelection from '../view/documentselection';
-import type { BatchType } from '../model/batch';
-import type MarkerCollection from '../model/markercollection';
-import type ModelText from '../model/text';
-import type ModelTextProxy from '../model/textproxy';
-import type DowncastWriter from '../view/downcastwriter';
-import type { default as Schema, SchemaContextDefinition } from '../model/schema';
-import type { ViewDocumentFragment, ViewElement } from '../index';
-import type ViewNode from '../view/node';
-import type ViewText from '../view/text';
-import type Writer from '../model/writer';
-import type ModelNode from '../model/node';
-import type ModelElement from '../model/element';
+} from '../conversion/upcastdispatcher.js';
+import { type ViewDocumentSelection } from '../view/documentselection.js';
+import type { BatchType } from '../model/batch.js';
+import { type MarkerCollection } from '../model/markercollection.js';
+import { type ModelText } from '../model/text.js';
+import { type ModelTextProxy } from '../model/textproxy.js';
+import { type ViewDowncastWriter } from '../view/downcastwriter.js';
+import type { ModelSchema, ModelSchemaContextDefinition } from '../model/schema.js';
+import type { ViewDocumentFragment, ViewElement } from '../index.js';
+import { type ViewNode } from '../view/node.js';
+import { type ViewText } from '../view/text.js';
+import { type ModelWriter } from '../model/writer.js';
+import { type ModelNode } from '../model/node.js';
+import { type ModelElement } from '../model/element.js';
 
 import { toMap, type EventInfo } from '@ckeditor/ckeditor5-utils';
 
-import { isPlainObject } from 'lodash-es';
+import { isPlainObject } from 'es-toolkit/compat';
+
+type GetModelDataOptions = {
+	withoutSelection?: boolean;
+	rootName?: string;
+	convertMarkers?: boolean;
+};
+
+type GetModelData = {
+	( model: Model, options?: GetModelDataOptions ): string;
+	_stringify: typeof _stringifyModel;
+};
+
+type SetModelDataOptions = {
+	rootName?: string;
+	selectionAttributes?: Record<string, unknown>;
+	lastRangeBackward?: boolean;
+	batchType?: BatchType;
+	inlineObjectElements?: Array<string>;
+};
+
+type SetModelData = {
+	( model: Model, data: string, options?: SetModelDataOptions ): void;
+	_parse: typeof _parseModel;
+};
 
 /**
- * Writes the content of a model {@link module:engine/model/document~Document document} to an HTML-like string.
+ * Writes the content of a model {@link module:engine/model/document~ModelDocument document} to an HTML-like string.
  *
  * ```ts
  * getData( editor.model ); // -> '<paragraph>Foo![]</paragraph>'
  * ```
  *
- * **Note:** A {@link module:engine/model/text~Text text} node that contains attributes will be represented as:
+ * **Note:** A {@link module:engine/model/text~ModelText text} node that contains attributes will be represented as:
  *
  * ```xml
  * <$text attribute="value">Text data</$text>
@@ -92,33 +118,33 @@ import { isPlainObject } from 'lodash-es';
  * @param options.convertMarkers Whether to include markers in the returned string.
  * @returns The stringified data.
  */
-export function getData(
-	model: Model,
-	options: {
-		withoutSelection?: boolean;
-		rootName?: string;
-		convertMarkers?: boolean;
-	} = {}
-): string {
-	if ( !( model instanceof Model ) ) {
-		throw new TypeError( 'Model needs to be an instance of module:engine/model/model~Model.' );
-	}
+export const _getModelData: GetModelData = /* #__PURE__ */ ( () => {
+	const getModelData = function(
+		model: Model,
+		options: GetModelDataOptions = {}
+	): string {
+		if ( !( model instanceof Model ) ) {
+			throw new TypeError( 'Model needs to be an instance of module:engine/model/model~Model.' );
+		}
 
-	const rootName = options.rootName || 'main';
-	const root = model.document.getRoot( rootName )!;
+		const rootName = options.rootName || 'main';
+		const root = model.document.getRoot( rootName )!;
 
-	return getData._stringify(
-		root,
-		options.withoutSelection ? null : model.document.selection,
-		options.convertMarkers ? model.markers : null
-	);
-}
+		return getModelData._stringify(
+			root,
+			options.withoutSelection ? null : model.document.selection,
+			options.convertMarkers ? model.markers : null
+		);
+	} as GetModelData;
 
-// Set stringify as getData private method - needed for testing/spying.
-getData._stringify = stringify;
+	// Set stringify as getData private method - needed for testing/spying.
+	getModelData._stringify = _stringifyModel;
+
+	return getModelData;
+} )();
 
 /**
- * Sets the content of a model {@link module:engine/model/document~Document document} provided as an HTML-like string.
+ * Sets the content of a model {@link module:engine/model/document~ModelDocument document} provided as an HTML-like string.
  *
  * ```ts
  * setData( editor.model, '<paragraph>Foo![]</paragraph>' );
@@ -127,7 +153,7 @@ getData._stringify = stringify;
  * **Note:** Remember to register elements in the {@link module:engine/model/model~Model#schema model's schema} before
  * trying to use them.
  *
- * **Note:** To create a {@link module:engine/model/text~Text text} node that contains attributes use:
+ * **Note:** To create a {@link module:engine/model/text~ModelText text} node that contains attributes use:
  *
  * ```xml
  * <$text attribute="value">Text data</$text>
@@ -142,83 +168,82 @@ getData._stringify = stringify;
  * @param options.selectionAttributes A list of attributes which will be passed to the selection.
  * @param options.lastRangeBackward If set to `true`, the last range will be added as backward.
  * @param options.batchType Batch type used for inserting elements. See {@link module:engine/model/batch~Batch#constructor}.
- * See {@link module:engine/model/batch~Batch#type}.
  */
-export function setData(
-	model: Model,
-	data: string,
-	options: {
-		rootName?: string;
-		selectionAttributes?: Record<string, unknown>;
-		lastRangeBackward?: boolean;
-		batchType?: BatchType;
-	} = {}
-): void {
-	if ( !( model instanceof Model ) ) {
-		throw new TypeError( 'Model needs to be an instance of module:engine/model/model~Model.' );
-	}
+export const _setModelData: SetModelData = /* #__PURE__ */ ( () => {
+	const setModelData = function(
+		model: Model,
+		data: string,
+		options: SetModelDataOptions = {}
+	): void {
+		if ( !( model instanceof Model ) ) {
+			throw new TypeError( 'Model needs to be an instance of module:engine/model/model~Model.' );
+		}
 
-	let modelDocumentFragment: ModelNode | ModelDocumentFragment;
-	let selection: ModelSelection | null = null;
-	const modelRoot = model.document.getRoot( options.rootName || 'main' )!;
+		let modelDocumentFragment: ModelNode | ModelDocumentFragment;
+		let selection: ModelSelection | null = null;
+		const modelRoot = model.document.getRoot( options.rootName || 'main' )!;
 
-	// Parse data string to model.
-	const parsedResult = setData._parse( data, model.schema, {
-		lastRangeBackward: options.lastRangeBackward,
-		selectionAttributes: options.selectionAttributes,
-		context: [ modelRoot.name ]
-	} );
+		// Parse data string to model.
+		const parsedResult = setModelData._parse( data, model.schema, {
+			lastRangeBackward: options.lastRangeBackward,
+			selectionAttributes: options.selectionAttributes,
+			context: [ modelRoot.name ],
+			inlineObjectElements: options.inlineObjectElements
+		} );
 
-	// Retrieve DocumentFragment and Selection from parsed model.
-	if ( 'model' in parsedResult ) {
-		modelDocumentFragment = parsedResult.model;
-		selection = parsedResult.selection;
-	} else {
-		modelDocumentFragment = parsedResult;
-	}
+		// Retrieve DocumentFragment and Selection from parsed model.
+		if ( 'model' in parsedResult ) {
+			modelDocumentFragment = parsedResult.model;
+			selection = parsedResult.selection;
+		} else {
+			modelDocumentFragment = parsedResult;
+		}
 
-	if ( options.batchType !== undefined ) {
-		model.enqueueChange( options.batchType, writeToModel );
-	} else {
-		model.change( writeToModel );
-	}
+		if ( options.batchType !== undefined ) {
+			model.enqueueChange( options.batchType, writeToModel );
+		} else {
+			model.change( writeToModel );
+		}
 
-	function writeToModel( writer: Writer ) {
-		// Replace existing model in document by new one.
-		writer.remove( writer.createRangeIn( modelRoot ) );
-		writer.insert( modelDocumentFragment, modelRoot );
+		function writeToModel( writer: ModelWriter ) {
+			// Replace existing model in document by new one.
+			writer.remove( writer.createRangeIn( modelRoot ) );
+			writer.insert( modelDocumentFragment, modelRoot );
 
-		// Clean up previous document selection.
-		writer.setSelection( null );
-		writer.removeSelectionAttribute( model.document.selection.getAttributeKeys() );
+			// Clean up previous document selection.
+			writer.setSelection( null );
+			writer.removeSelectionAttribute( model.document.selection.getAttributeKeys() );
 
-		// Update document selection if specified.
-		if ( selection ) {
-			const ranges: Array<ModelRange> = [];
+			// Update document selection if specified.
+			if ( selection ) {
+				const ranges: Array<ModelRange> = [];
 
-			for ( const range of selection.getRanges() ) {
-				const start = new ModelPosition( modelRoot, range.start.path );
-				const end = new ModelPosition( modelRoot, range.end.path );
+				for ( const range of selection.getRanges() ) {
+					const start = new ModelPosition( modelRoot, range.start.path );
+					const end = new ModelPosition( modelRoot, range.end.path );
 
-				ranges.push( new ModelRange( start, end ) );
-			}
+					ranges.push( new ModelRange( start, end ) );
+				}
 
-			writer.setSelection( ranges, { backward: selection.isBackward } );
+				writer.setSelection( ranges, { backward: selection.isBackward } );
 
-			if ( options.selectionAttributes ) {
-				writer.setSelectionAttribute( selection.getAttributes() );
+				if ( options.selectionAttributes ) {
+					writer.setSelectionAttribute( selection.getAttributes() );
+				}
 			}
 		}
-	}
-}
+	} as SetModelData;
 
-// Set parse as setData private method - needed for testing/spying.
-setData._parse = parse;
+	// Set parse as setData private method - needed for testing/spying.
+	setModelData._parse = _parseModel;
+
+	return setModelData;
+} )();
 
 /**
  * Converts model nodes to HTML-like string representation.
  *
- * **Note:** A {@link module:engine/model/text~Text text} node that contains attributes will be represented as:
+ * **Note:** A {@link module:engine/model/text~ModelText text} node that contains attributes will be represented as:
  *
  * ```xml
  * <$text attribute="value">Text data</$text>
@@ -231,18 +256,18 @@ setData._parse = parse;
  * @param markers Markers to include.
  * @returns An HTML-like string representing the model.
  */
-export function stringify(
+export function _stringifyModel(
 	node: ModelNode | ModelDocumentFragment,
-	selectionOrPositionOrRange: ModelSelection | DocumentSelection | ModelPosition | ModelRange | null = null,
+	selectionOrPositionOrRange: ModelSelection | ModelDocumentSelection | ModelPosition | ModelRange | null = null,
 	markers: MarkerCollection | null = null
 ): string {
 	const model = new Model();
 	const mapper = new Mapper();
-	let selection: ModelSelection | DocumentSelection | null = null;
+	let selection: ModelSelection | ModelDocumentSelection | null = null;
 	let range: ModelRange;
 
 	// Create a range witch wraps passed node.
-	if ( node instanceof RootElement || node instanceof ModelDocumentFragment ) {
+	if ( node instanceof ModelRootElement || node instanceof ModelDocumentFragment ) {
 		range = model.createRangeIn( node );
 	} else {
 		// Node is detached - create new document fragment.
@@ -260,7 +285,7 @@ export function stringify(
 	// Get selection from passed selection or position or range if at least one is specified.
 	if ( selectionOrPositionOrRange instanceof ModelSelection ) {
 		selection = selectionOrPositionOrRange;
-	} else if ( selectionOrPositionOrRange instanceof DocumentSelection ) {
+	} else if ( selectionOrPositionOrRange instanceof ModelDocumentSelection ) {
 		selection = selectionOrPositionOrRange;
 	} else if ( selectionOrPositionOrRange instanceof ModelRange ) {
 		selection = new ModelSelection( selectionOrPositionOrRange );
@@ -271,7 +296,7 @@ export function stringify(
 	// Set up conversion.
 	// Create a temporary view controller.
 	const stylesProcessor = new StylesProcessor();
-	const view = new View( stylesProcessor );
+	const view = new EditingView( stylesProcessor );
 	const viewDocument = view.document;
 	const viewRoot = new ViewRootEditableElement( viewDocument, 'div' );
 
@@ -288,7 +313,7 @@ export function stringify(
 	downcastDispatcher.on<DowncastInsertEvent<ModelText | ModelTextProxy>>( 'insert:$text', insertText() );
 	downcastDispatcher.on<DowncastInsertEvent<ModelElement>>( 'insert', insertAttributesAndChildren(), { priority: 'lowest' } );
 	downcastDispatcher.on<DowncastAttributeEvent>( 'attribute', ( evt, data, conversionApi ) => {
-		if ( data.item instanceof ModelSelection || data.item instanceof DocumentSelection || data.item.is( '$textProxy' ) ) {
+		if ( data.item instanceof ModelSelection || data.item instanceof ModelDocumentSelection || data.item.is( '$textProxy' ) ) {
 			const converter = wrap( ( modelAttributeValue, { writer } ) => {
 				return writer.createAttributeElement(
 					'model-text-with-attributes',
@@ -324,7 +349,7 @@ export function stringify(
 	}
 
 	// Convert model to view.
-	const writer: DowncastWriter = ( view as any )._writer;
+	const writer: ViewDowncastWriter = ( view as any )._writer;
 	downcastDispatcher.convert( range, markersMap, writer );
 
 	// Convert model selection to view selection.
@@ -333,7 +358,7 @@ export function stringify(
 	}
 
 	// Parse view to data string.
-	let data = viewStringify( viewRoot, viewDocument.selection, { sameSelectionCharacters: true } );
+	let data = _stringifyView( viewRoot, viewDocument.selection, { sameSelectionCharacters: true } );
 
 	// Removing unnecessary <div> and </div> added because `viewRoot` was also stringified alongside input data.
 	data = data.substr( 5, data.length - 11 );
@@ -345,13 +370,20 @@ export function stringify(
 }
 
 /**
- * Parses an HTML-like string and returns the model {@link module:engine/model/rootelement~RootElement rootElement}.
+ * Parses an HTML-like string and returns the model {@link module:engine/model/rootelement~ModelRootElement rootElement}.
  *
- * **Note:** To create a {@link module:engine/model/text~Text text} node that contains attributes use:
+ * **Note:** To create a {@link module:engine/model/text~ModelText text} node that contains attributes use:
  *
  * ```xml
  * <$text attribute="value">Text data</$text>
  * ```
+ *
+ * **Note:** The default `options.context` value is `'$root'`, which only matches the generic root. When the editor
+ * uses a custom root {@link module:core/editor/editorconfig~RootConfig#modelElement `modelElement`}, pass the target
+ * {@link module:engine/model/rootelement~ModelRootElement root element} (or its configured model element name)
+ * explicitly, otherwise the conversion result may be wrong.
+ * See the {@glink framework/deep-dive/schema#custom-root-elements Custom root elements} section of the
+ * {@glink framework/deep-dive/schema Schema deep-dive} guide for more details.
  *
  * @param data HTML-like string to be parsed.
  * @param schema A schema instance used by converters for element validation.
@@ -362,13 +394,14 @@ export function stringify(
  * @returns Returns the parsed model node or an object with two fields: `model` and `selection`,
  * when selection ranges were included in the data to parse.
  */
-export function parse(
+export function _parseModel(
 	data: string,
-	schema: Schema,
+	schema: ModelSchema,
 	options: {
 		selectionAttributes?: Record<string, unknown> | Iterable<[ string, unknown ]>;
 		lastRangeBackward?: boolean;
-		context?: SchemaContextDefinition;
+		context?: ModelSchemaContextDefinition;
+		inlineObjectElements?: Array<string>;
 	} = {}
 ): ModelNode | ModelDocumentFragment | {
 	model: ModelNode | ModelDocumentFragment;
@@ -380,9 +413,10 @@ export function parse(
 	data = data.replace( new RegExp( '\\$text', 'g' ), 'model-text-with-attributes' );
 
 	// Parse data to view using view utils.
-	const parsedResult = viewParse( data, {
+	const parsedResult = _parseView( data, {
 		sameSelectionCharacters: true,
-		lastRangeBackward: !!options.lastRangeBackward
+		lastRangeBackward: !!options.lastRangeBackward,
+		inlineObjectElements: options.inlineObjectElements
 	} );
 
 	// Retrieve DocumentFragment and Selection from parsed view.
@@ -458,7 +492,7 @@ function convertToModelFragment( mapper: Mapper ) {
 
 		mapper.bindElements( data.modelCursor.parent, data.viewItem );
 
-		data = Object.assign( data, childrenResult );
+		Object.assign( data, childrenResult );
 
 		evt.stop();
 	};
@@ -497,7 +531,7 @@ function convertToModelElement( mapper: Mapper ) {
 function convertToModelText() {
 	return (
 		evt: EventInfo,
-		data: UpcastConversionData<ViewElement | ViewText >,
+		data: UpcastConversionData<ViewElement | ViewText>,
 		conversionApi: UpcastConversionApi
 	) => {
 		if ( !conversionApi.schema.checkChild( data.modelCursor, '$text' ) ) {
@@ -538,7 +572,7 @@ function convertToModelText() {
 function parseAttributeValue( attribute: string ): any {
 	try {
 		return JSON.parse( attribute );
-	} catch ( e ) {
+	} catch {
 		return attribute;
 	}
 }

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,23 +8,24 @@
  */
 
 import {
+	rootAcceptsBlocks,
 	type Editor
-} from 'ckeditor5/src/core';
+} from '@ckeditor/ckeditor5-core';
 
 import {
 	EditorUI,
 	type EditorUIReadyEvent,
 	type InlineEditableUIView
-} from 'ckeditor5/src/ui';
+} from '@ckeditor/ckeditor5-ui';
 
-import { enablePlaceholder } from 'ckeditor5/src/engine';
+import { enableViewPlaceholder } from '@ckeditor/ckeditor5-engine';
 
-import type MultiRootEditorUIView from './multirooteditoruiview';
+import { type MultiRootEditorUIView } from './multirooteditoruiview.js';
 
 /**
  * The multi-root editor UI class.
  */
-export default class MultiRootEditorUI extends EditorUI {
+export class MultiRootEditorUI extends EditorUI {
 	/**
 	 * The main (top–most) view of the editor UI.
 	 */
@@ -53,6 +54,15 @@ export default class MultiRootEditorUI extends EditorUI {
 	 */
 	public init(): void {
 		const view = this.view;
+		const editor = this.editor;
+
+		// Resolved during UI init rather than in the editor constructor: by this point the plugin
+		// initialization phase has finished, so the schema is fully populated and the check below
+		// reflects any plugin-registered root types or additional content rules.
+		// Done before `view.render()` so the CSS class lands on the DOM from the start.
+		for ( const editable of Object.values( this.view.editables ) ) {
+			editable.isInlineRoot = !rootAcceptsBlocks( editor, editable.name! );
+		}
 
 		view.render();
 
@@ -84,6 +94,7 @@ export default class MultiRootEditorUI extends EditorUI {
 		}
 
 		this._initToolbar();
+		this.initMenuBar( this.view.menuBarView! );
 		this.fire<EditorUIReadyEvent>( 'ready' );
 	}
 
@@ -100,6 +111,11 @@ export default class MultiRootEditorUI extends EditorUI {
 	 * {@link module:core/editor/editorconfig~EditorConfig#placeholder editor configuration} will be used (if it was provided).
 	 */
 	public addEditable( editable: InlineEditableUIView, placeholder?: string ): void {
+		// Mark every editing root (both the initial ones and those added dynamically via `addRoot`) as a main
+		// editing root. It adds the `ck-editor__editable_root` class so themes can target the roots without
+		// reaching secondary editables that share the `ck-editor__editable` class (comments, etc.).
+		editable.isMainFrameEditingRoot = true;
+
 		// The editable UI element in DOM is available for sure only after the editor UI view has been rendered.
 		// But it can be available earlier if a DOM element has been passed to `MultiRootEditor.create()`.
 		const editableElement = editable.element!;
@@ -156,7 +172,12 @@ export default class MultiRootEditorUI extends EditorUI {
 	 * @param editable Editable to remove from the editor UI.
 	 */
 	public removeEditable( editable: InlineEditableUIView ): void {
-		this.editor.editing.view.detachDomRoot( editable.name! );
+		const editingView = this.editor.editing.view;
+
+		if ( editingView.getDomRoot( editable.name! ) ) {
+			editingView.detachDomRoot( editable.name! );
+		}
+
 		editable.unbind( 'isFocused' );
 		this.removeEditableElement( editable.name! );
 	}
@@ -197,11 +218,7 @@ export default class MultiRootEditorUI extends EditorUI {
 	 */
 	private _initPlaceholder( editable: InlineEditableUIView, placeholder?: string ): void {
 		if ( !placeholder ) {
-			const configPlaceholder = this.editor.config.get( 'placeholder' );
-
-			if ( configPlaceholder ) {
-				placeholder = typeof configPlaceholder === 'string' ? configPlaceholder : configPlaceholder[ editable.name! ];
-			}
+			placeholder = this.editor.config.get( 'roots' )![ editable.name! ]?.placeholder;
 		}
 
 		const editingView = this.editor.editing.view;
@@ -211,10 +228,10 @@ export default class MultiRootEditorUI extends EditorUI {
 			editingRoot.placeholder = placeholder;
 		}
 
-		enablePlaceholder( {
+		enableViewPlaceholder( {
 			view: editingView,
 			element: editingRoot,
-			isDirectHost: false,
+			isDirectHost: editable.isInlineRoot,
 			keepOnFocus: true
 		} );
 	}

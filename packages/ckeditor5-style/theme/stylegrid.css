@@ -1,29 +1,120 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-:root {
+:root,
+:host {
+	--ck-style-panel-button-width: 120px;
+	--ck-style-panel-button-height: 80px;
+	--ck-style-panel-button-label-background: var(--ck-color-base-hover);
+	--ck-style-panel-button-hover-label-background: hsl(0, 0%, 92.1%);
+	--ck-style-panel-button-hover-border-color: hsl(0, 0%, 70%);
+	/* The border of the selected style, and of the selected style under the pointer. The first one uses the semantic
+	   accent border role (the same value as `--ck-color-base-active`); the hover one has no semantic match yet. */
+	--ck-style-panel-button-on-border-color: var(--ck-color-border-accent);
+	--ck-style-panel-button-on-hover-border-color: var(--ck-color-base-active-focus);
 	--ck-style-panel-columns: 3;
 }
 
 .ck.ck-style-panel .ck-style-grid {
+	row-gap: var(--ck-spacing-large, var(--ck-spacing-lg));
+	column-gap: var(--ck-spacing-large, var(--ck-spacing-lg));
 	display: grid;
 	grid-template-columns: repeat(var(--ck-style-panel-columns),auto);
-	justify-content: start;
 
 	& .ck-style-grid__button {
+		--ck-color-button-default-hover-background: var(--ck-color-base-background);
+		--ck-color-button-default-active-background: var(--ck-color-base-background);
+
+		padding: 0;
+		width: var(--ck-style-panel-button-width);
+		height: var(--ck-style-panel-button-height);
 		display: flex;
 		justify-content: space-between;
-		flex-direction: column;
+
+		/* Let default .ck-button :focus styles apply */
+		&:not(:focus) {
+			border: 1px solid var(--ck-color-base-border);
+		}
+
+		& .ck-button__label {
+			height: 22px;
+			line-height: 22px;
+			width: 100%;
+			padding: 0 var(--ck-spacing-medium, var(--ck-spacing-base));
+			overflow: hidden;
+			text-overflow: ellipsis;
+			flex-shrink: 0;
+		}
 
 		& .ck-style-grid__button__preview {
+			width: 100%;
+			overflow: hidden;
+			opacity: .9;
+
+			padding: var(--ck-spacing-medium, var(--ck-spacing-base));
+			background: var(--ck-color-base-background);
+			border: 2px solid var(--ck-color-base-background);
 			display: flex;
 			align-content: center;
 			justify-content: flex-start;
 			align-items: center;
 			flex-grow: 1;
 			flex-basis: 100%;
+
+			/* This element carries `.ck-reset_all-excluded`, so it no longer inherits `box-sizing`
+			from the global reset. Set it explicitly, since the layout below relies on border-box. */
+			box-sizing: border-box;
 		}
+
+		&.ck-disabled {
+			--ck-color-button-default-disabled-background: var(--ck-color-surface-subtle);
+
+			/* Let default .ck-button :focus styles apply */
+			&:not(:focus) {
+				border-color: var(--ck-style-panel-button-label-background);
+			}
+
+			& .ck-style-grid__button__preview {
+				opacity: .4;
+
+				border-color: var(--ck-color-surface-subtle);
+				filter: saturate(.3);
+			}
+		}
+
+		&.ck-on {
+			border-color: var(--ck-style-panel-button-on-border-color);
+
+			& .ck-button__label {
+				box-shadow: 0 -1px 0 var(--ck-style-panel-button-on-border-color);
+				z-index: 1; /* Stay on top of the preview with the shadow. */
+			}
+
+			&:hover {
+				border-color: var(--ck-style-panel-button-on-hover-border-color);
+			}
+		}
+
+		&:not(.ck-on) {
+			& .ck-button__label {
+				background: var(--ck-style-panel-button-label-background);
+			}
+
+			&:hover .ck-button__label {
+				background: var(--ck-style-panel-button-hover-label-background);
+			}
+		}
+
+		&:hover:not(.ck-disabled):not(.ck-on) {
+			border-color: var(--ck-style-panel-button-hover-border-color);
+
+			& .ck-style-grid__button__preview {
+				opacity: 1;
+			}
+		}
+		flex-direction: column
 	}
+	justify-content: start
 }

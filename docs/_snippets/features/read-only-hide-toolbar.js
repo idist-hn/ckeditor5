@@ -1,28 +1,72 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals ClassicEditor, console, window, document */
+import {
+	CS_CONFIG,
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { ReadOnlyEditor } from './read-only-build.js';
 
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-
-ClassicEditor
-	.create( document.querySelector( '#snippet-read-only-toolbar' ), {
+ReadOnlyEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-read-only-toolbar' ),
 		cloudServices: CS_CONFIG,
 		toolbar: {
 			items: [
 				'exportPdf', 'exportWord', 'findAndReplace',
 				'|', 'undo', 'redo', '|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
+			]
+		},
+		image: {
+			toolbar: [
+				'imageStyle:inline', 'imageStyle:block', 'imageStyle:wrapText', '|',
+				'toggleImageCaption', 'imageTextAlternative', '|', 'ckboxImageEdit'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			forceDemoLabel: true,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ]
+		},
+		exportPdf: {
+			stylesheets: [
+				'../assets/fonts.css',
+				'../assets/ckeditor5/ckeditor5.css',
+				'../assets/ckeditor5-premium-features/ckeditor5-premium-features.css',
+				'../assets/read-only-export-pdf.css'
+			],
+			fileName: 'export-pdf-demo.pdf',
+			appID: 'cke5-docs',
+			converterOptions: {
+				document: {
+					size: 'A4',
+					orientation: 'portrait',
+					margins: {
+						top: '15mm',
+						bottom: '15mm',
+						right: '15mm',
+						left: '15mm'
+					}
+				}
+			}
+		},
+		exportWord: {
+			fileName: 'export-word-demo.docx',
+			stylesheets: [
+				'../../assets/ckeditor5/ckeditor5.css',
+				'../../assets/ckeditor5-premium-features/ckeditor5-premium-features.css'
+			]
 		}
 	} )
 	.then( editor => {

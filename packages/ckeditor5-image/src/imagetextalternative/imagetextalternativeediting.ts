@@ -1,27 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagetextalternative/imagetextalternativeediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageTextAlternativeCommand from './imagetextalternativecommand';
-import ImageUtils from '../imageutils';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageTextAlternativeCommand } from './imagetextalternativecommand.js';
+import { ImageUtils } from '../imageutils.js';
 
 /**
  * The image text alternative editing plugin.
  *
  * Registers the `'imageTextAlternative'` command.
  */
-export default class ImageTextAlternativeEditing extends Plugin {
+export class ImageTextAlternativeEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageUtils ]> {
+		return [ ImageUtils ];
 	}
 
 	/**
@@ -29,6 +29,13 @@ export default class ImageTextAlternativeEditing extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageTextAlternativeEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { FocusableView } from '../focuscycler';
 
 /**
  * @module ui/search/filteredview
  */
 
+import type { FocusableView } from '../focuscycler.js';
+
 /**
  * A view that can be filtered by a {@link module:ui/search/text/searchtextview~SearchTextView}.
  */
-export default interface FilteredView extends FocusableView {
+export interface FilteredView extends FocusableView {
 
 	/**
 	 * Filters the view by the given regular expression.

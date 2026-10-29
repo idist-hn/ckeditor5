@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -28,7 +28,7 @@
 export interface RestrictedEditingConfig {
 
 	/**
-	 * The command names allowed in non-restricted areas of the content.
+	 * The command names allowed in inline non-restricted areas of the content.
 	 *
 	 * Defines which feature commands should be enabled in the restricted editing mode. The commands used for typing and deleting text
 	 * (`'input'`, `'delete'` and `'deleteForward'`) are allowed by the feature inside non-restricted regions and do not need to be defined.
@@ -44,13 +44,16 @@ export interface RestrictedEditingConfig {
 	 * };
 	 * ```
 	 *
-	 * To make a command always enabled (also outside non-restricted areas) use
+	 * Only inline content inserting or editing commands are allowed in this setting. Block content commands such as
+	 * `insertTable` or `enter` cannot be allowed via this setting, as they are not supported in the restricted editing mode.
+	 *
+	 * To make a command always enabled (also outside non-restricted areas) use the
 	 * {@link module:restricted-editing/restrictededitingmodeediting~RestrictedEditingModeEditing#enableCommand} method.
 	 */
 	allowedCommands: Array<string>;
 
 	/**
-	 * The text attribute names allowed when pasting content ot non-restricted areas.
+	 * The text attribute names allowed when pasting content in inline non-restricted areas.
 	 *
 	 * The default value is:
 	 *

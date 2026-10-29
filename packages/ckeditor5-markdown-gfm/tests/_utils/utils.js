@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import MarkdownDataProcessor from '../../src/gfmdataprocessor';
-import { stringify } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import ViewDocument from '@ckeditor/ckeditor5-engine/src/view/document';
-import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
+import { expect } from 'vitest';
+import { MarkdownGfmDataProcessor } from '../../src/gfmdataprocessor.js';
+import { _stringifyView, ViewDocument, StylesProcessor } from '@ckeditor/ckeditor5-engine';
 
 /**
- * Tests MarkdownDataProcessor.
+ * Tests MarkdownGfmDataProcessor.
  *
  * @param {String} markdown Markdown to be processed to view.
  * @param {String} viewString Expected view structure.
@@ -17,27 +16,27 @@ import { StylesProcessor } from '@ckeditor/ckeditor5-engine/src/view/stylesmap';
  * @param {Object} [options] Additional options.
  * @param {Function} [options.setup] A function that receives the data processor instance before its execution.
  * markdown string (which will be used if this parameter is not provided).
- * @returns {module:engine/view/documentfragment~DocumentFragment}
+ * @returns {module:engine/view/documentfragment~ViewDocumentFragment}
  */
 export function testDataProcessor( markdown, viewString, normalizedMarkdown, options ) {
 	const viewDocument = new ViewDocument( new StylesProcessor() );
 
-	const dataProcessor = new MarkdownDataProcessor( viewDocument );
+	const dataProcessor = new MarkdownGfmDataProcessor( viewDocument );
 
 	if ( options && options.setup ) {
 		options.setup( dataProcessor );
 	}
-	const viewFragment = dataProcessor.toView( markdown );
 
-	const html = cleanHtml( stringify( viewFragment ) );
+	const viewFragment = dataProcessor.toView( markdown );
+	const html = cleanHtml( _stringifyView( viewFragment ) );
 
 	// Check if view has correct data.
-	expect( html ).to.equal( viewString );
+	expect( JSON.stringify( html ) ).toEqual( JSON.stringify( viewString ) );
 
 	// Check if converting back gives the same result.
 	const normalized = typeof normalizedMarkdown !== 'undefined' ? normalizedMarkdown : markdown;
 
-	expect( cleanMarkdown( dataProcessor.toData( viewFragment ) ) ).to.equal( normalized );
+	expect( JSON.stringify( cleanMarkdown( dataProcessor.toData( viewFragment ) ) ) ).toEqual( JSON.stringify( normalized ) );
 
 	return viewFragment;
 }

@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module alignment/alignment
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import AlignmentEditing from './alignmentediting';
-import AlignmentUI from './alignmentui';
+import { AlignmentEditing } from './alignmentediting.js';
+import { AlignmentUI } from './alignmentui.js';
 
 /**
  * The text alignment plugin.
@@ -21,12 +21,12 @@ import AlignmentUI from './alignmentui';
  * This is a "glue" plugin which loads the {@link module:alignment/alignmentediting~AlignmentEditing} and
  * {@link module:alignment/alignmentui~AlignmentUI} plugins.
  */
-export default class Alignment extends Plugin {
+export class Alignment extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ AlignmentEditing, AlignmentUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ AlignmentEditing, AlignmentUI ]> {
+		return [ AlignmentEditing, AlignmentUI ];
 	}
 
 	/**
@@ -34,5 +34,12 @@ export default class Alignment extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Alignment' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

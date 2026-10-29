@@ -1,18 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module restricted-editing/standardeditingmode
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import StandardEditingModeEditing from './standardeditingmodeediting';
-import StandardEditingModeUI from './standardeditingmodeui';
-
-import '../theme/restrictedediting.css';
+import { StandardEditingModeEditing } from './standardeditingmodeediting.js';
+import { StandardEditingModeUI } from './standardeditingmodeui.js';
 
 /**
  * The standard editing mode plugin.
@@ -22,7 +20,7 @@ import '../theme/restrictedediting.css';
  * * The {@link module:restricted-editing/standardeditingmodeediting~StandardEditingModeEditing standard mode editing feature}.
  * * The {@link module:restricted-editing/standardeditingmodeui~StandardEditingModeUI standard mode UI feature}.
  */
-export default class StandardEditingMode extends Plugin {
+export class StandardEditingMode extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -30,8 +28,14 @@ export default class StandardEditingMode extends Plugin {
 		return 'StandardEditingMode' as const;
 	}
 
-	public static get requires() {
-		return [ StandardEditingModeEditing, StandardEditingModeUI ] as const;
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	public static get requires(): PluginDependenciesOf<[ StandardEditingModeEditing, StandardEditingModeUI ]> {
+		return [ StandardEditingModeEditing, StandardEditingModeUI ];
 	}
 }
-

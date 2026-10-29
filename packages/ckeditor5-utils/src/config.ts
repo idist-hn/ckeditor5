@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/config
  */
 
-import { isPlainObject, isElement, cloneDeepWith } from 'lodash-es';
+import { isPlainObject, isElement, cloneDeepWith } from 'es-toolkit/compat';
 
 /**
  * Handles a configuration dictionary.
  *
  * @typeParam Cfg A type of the configuration dictionary.
  */
-export default class Config<Cfg> {
+export class Config<Cfg> {
 	/**
 	 * Store for the whole configuration.
 	 */
@@ -27,12 +27,11 @@ export default class Config<Cfg> {
 	 * @param defaultConfigurations The default configurations. Usually, provided by the system.
 	 */
 	constructor( configurations?: Partial<Cfg>, defaultConfigurations?: Partial<Cfg> ) {
-		this._config = {};
+		this._config = Object.create( null );
 
 		// Set default configuration.
 		if ( defaultConfigurations ) {
-			// Clone the configuration to make sure that the properties will not be shared
-			// between editors and make the watchdog feature work correctly.
+			// Clone the configuration to make sure that the properties will not be shared between editors.
 			this.define( cloneConfig( defaultConfigurations ) );
 		}
 
@@ -195,7 +194,7 @@ export default class Config<Cfg> {
 		for ( const part of parts ) {
 			// If there is no object for specified part then create one.
 			if ( !isPlainObject( target[ part ] ) ) {
-				target[ part ] = {};
+				target[ part ] = Object.create( null );
 			}
 
 			// Nested object becomes a target.
@@ -206,7 +205,7 @@ export default class Config<Cfg> {
 		if ( isPlainObject( value ) ) {
 			// We take care of proper config structure.
 			if ( !isPlainObject( target[ name ] ) ) {
-				target[ name ] = {};
+				target[ name ] = Object.create( null );
 			}
 
 			target = target[ name ];
@@ -272,15 +271,16 @@ export default class Config<Cfg> {
  * Clones configuration object or value.
  */
 function cloneConfig<T>( source: T ): T {
-	return cloneDeepWith( source, leaveDOMReferences );
+	return cloneDeepWith( source, leaveItemReferences );
 }
 
 /**
  * A customized function for cloneDeepWith.
- * It will leave references to DOM Elements instead of cloning them.
+ * In case if it's a DOM Element it will leave references to DOM Elements instead of cloning them.
+ * If it's a function it will leave reference to actuall function.
  */
-function leaveDOMReferences( value: unknown ): unknown {
-	return isElement( value ) ? value : undefined;
+function leaveItemReferences( value: unknown ): unknown {
+	return isElement( value ) || typeof value === 'function' ? value : undefined;
 }
 
 /**

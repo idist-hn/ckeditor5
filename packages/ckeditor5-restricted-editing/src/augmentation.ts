@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 import type {
@@ -12,8 +12,10 @@ import type {
 	StandardEditingModeUI,
 	RestrictedEditingConfig,
 	RestrictedEditingExceptionCommand,
-	RestrictedEditingModeNavigationCommand
-} from './index';
+	RestrictedEditingModeNavigationCommand,
+	RestrictedEditingExceptionBlockCommand,
+	RestrictedEditingExceptionAutoCommand
+} from './index.js';
 
 declare module '@ckeditor/ckeditor5-core' {
 	interface PluginsMap {
@@ -29,6 +31,8 @@ declare module '@ckeditor/ckeditor5-core' {
 		restrictedEditingException: RestrictedEditingExceptionCommand;
 		goToPreviousRestrictedEditingException: RestrictedEditingModeNavigationCommand;
 		goToNextRestrictedEditingException: RestrictedEditingModeNavigationCommand;
+		restrictedEditingExceptionBlock: RestrictedEditingExceptionBlockCommand;
+		restrictedEditingExceptionAuto: RestrictedEditingExceptionAutoCommand;
 	}
 
 	interface EditorConfig {

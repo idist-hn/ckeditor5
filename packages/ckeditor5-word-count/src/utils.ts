@@ -1,25 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module word-count/utils
  */
 
-import type { Element, Item } from 'ckeditor5/src/engine';
+import type { ModelElement, ModelItem } from '@ckeditor/ckeditor5-engine';
 
 /**
  * Returns a plain text representation of an element and its children.
  *
+ * @internal
  * @returns Plain text representing the model's data.
  */
-export function modelElementToPlainText( item: Item ): string {
+export function modelElementToPlainText( item: ModelItem ): string {
 	if ( item.is( '$text' ) || item.is( '$textProxy' ) ) {
 		return item.data;
 	}
 
-	const element = item as Element;
+	const element = item as ModelElement;
 	let text = '';
 	let prev = null;
 

@@ -1,15 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals ClassicEditor, CKEditorPlugins, console, window, document */
+import {
+	TableProperties,
+	TableCellProperties
+} from 'ckeditor5';
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { TableEditor } from './build-table-source.js';
 
-ClassicEditor
-	.create( document.querySelector( '#snippet-table-default-properties' ), {
+TableEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-table-default-properties' ),
 		extraPlugins: [
-			CKEditorPlugins.TableProperties,
-			CKEditorPlugins.TableCellProperties
+			TableProperties,
+			TableCellProperties
 		],
 		table: {
 			contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells', 'tableProperties', 'tableCellProperties' ],
@@ -34,17 +43,26 @@ ClassicEditor
 		image: {
 			toolbar: [
 				'imageStyle:block',
-				'imageStyle:side',
+				'imageStyle:wrapText',
 				'|',
-				'imageTextAlternative'
+				'imageTextAlternative',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		},
-		placeholder: 'Insert the new table with the default styles applied.'
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
+		},
+		root: {
+			placeholder: 'Insert the new table with the default styles applied.'
+		}
 	} )
 	.then( editor => {
 		window.editorDefaultStyles = editor;

@@ -1,17 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/textarea/textareaview
  */
 
-import { Rect, type Locale, toUnit, getBorderWidths, global, CKEditorError } from '@ckeditor/ckeditor5-utils';
-import InputBase from '../input/inputbase';
-
-import '../../theme/components/input/input.css';
-import '../../theme/components/textarea/textarea.css';
+import {
+	Rect,
+	type Locale,
+	toUnit,
+	getBorderWidths,
+	global,
+	CKEditorError,
+	isVisible,
+	ResizeObserver,
+	getParentNode
+} from '@ckeditor/ckeditor5-utils';
+import { InputBase } from '../input/inputbase.js';
 
 /**
  * The textarea view class.
@@ -27,7 +34,7 @@ import '../../theme/components/textarea/textarea.css';
  * document.body.append( textareaView.element );
  * ```
  */
-export default class TextareaView extends InputBase<HTMLTextAreaElement> {
+export class TextareaView extends InputBase<HTMLTextAreaElement> {
 	/**
 	 * Specifies the visible height of a text area, in lines.
 	 *
@@ -62,6 +69,20 @@ export default class TextareaView extends InputBase<HTMLTextAreaElement> {
 	declare public _height: number | null;
 
 	/**
+	 * An instance of the resize observer used to detect when the view is visible or not and update
+	 * its height if any changes that affect it were made while it was invisible.
+	 *
+	 * **Note:** Created in {@link #render}.
+	 */
+	private _resizeObserver: ResizeObserver | null;
+
+	/**
+	 * A flag that indicates whether the {@link #_updateAutoGrowHeight} method should be called when the view becomes
+	 * visible again. See {@link #_resizeObserver}.
+	 */
+	private _isUpdateAutoGrowHeightPending: boolean = false;
+
+	/**
 	 * @inheritDoc
 	 */
 	constructor( locale?: Locale ) {
@@ -73,6 +94,7 @@ export default class TextareaView extends InputBase<HTMLTextAreaElement> {
 		this.set( 'maxRows', 5 );
 		this.set( '_height', null );
 		this.set( 'resize', 'none' );
+		this._resizeObserver = null;
 
 		this.on( 'change:minRows', this._validateMinMaxRows.bind( this ) );
 		this.on( 'change:maxRows', this._validateMinMaxRows.bind( this ) );
@@ -99,18 +121,47 @@ export default class TextareaView extends InputBase<HTMLTextAreaElement> {
 	public override render(): void {
 		super.render();
 
+		let wasVisible: boolean = false;
+
 		this.on( 'input', () => {
 			this._updateAutoGrowHeight( true );
 			this.fire<TextareaViewUpdateEvent>( 'update' );
 		} );
 
-		this.on( 'change:value', () => {
-			// The content needs to be updated by the browser after the value is changed. It takes a few ms.
-			global.window.requestAnimationFrame( () => {
-				this._updateAutoGrowHeight();
-				this.fire<TextareaViewUpdateEvent>( 'update' );
-			} );
+		// The height depends on the value but also on the placeholder, which is rendered whenever the textarea
+		// is empty and, when long enough, wraps into multiple lines.
+		this.on( 'change:value', () => this._updateAutoGrowHeightWhenVisible() );
+		this.on( 'change:placeholder', () => this._updateAutoGrowHeightWhenVisible() );
+
+		// It may occur that the Textarea size needs to be updated (e.g. because it's content was changed)
+		// when it is not visible or detached from DOM.
+		// In such case, we need to detect the moment when it becomes visible again and update its height then.
+		// We're using ResizeObserver for that as it is the most reliable way to detect when the element becomes visible.
+		// IntersectionObserver didn't work well with the absolute positioned containers.
+		this._resizeObserver = new ResizeObserver( this.element!, evt => {
+			const isVisible = !!evt.contentRect.width && !!evt.contentRect.height;
+
+			if ( !wasVisible && isVisible && this._isUpdateAutoGrowHeightPending ) {
+				// We're wrapping the auto-grow logic in RAF because otherwise there is an error thrown
+				// by the browser about recursive calls to the ResizeObserver. It used to happen in unit
+				// tests only, though. Since there is no risk of infinite loop here, it can stay here.
+				global.window.requestAnimationFrame( () => {
+					this._updateAutoGrowHeight();
+					this.fire<TextareaViewUpdateEvent>( 'update' );
+				} );
+			}
+
+			wasVisible = isVisible;
 		} );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public override destroy(): void {
+		if ( this._resizeObserver ) {
+			this._resizeObserver.destroy();
+		}
 	}
 
 	/**
@@ -124,12 +175,40 @@ export default class TextareaView extends InputBase<HTMLTextAreaElement> {
 	}
 
 	/**
+	 * Updates the {@link #_height} of the view once the DOM element reflects the change that triggered the update.
+	 * If the view is not visible at that moment, the update is deferred until it becomes visible again
+	 * (see {@link #_resizeObserver}).
+	 */
+	private _updateAutoGrowHeightWhenVisible(): void {
+		// The DOM element needs to be updated by the browser first. It takes a few ms.
+		global.window.requestAnimationFrame( () => {
+			if ( !isVisible( this.element ) ) {
+				this._isUpdateAutoGrowHeightPending = true;
+
+				return;
+			}
+
+			this._updateAutoGrowHeight();
+			this.fire<TextareaViewUpdateEvent>( 'update' );
+		} );
+	}
+
+	/**
 	 * Updates the {@link #_height} of the view depending on {@link #minRows}, {@link #maxRows}, and the current content size.
 	 *
 	 * **Note**: This method overrides manual resize done by the user using a handle. It's a known bug.
 	 */
 	private _updateAutoGrowHeight( shouldScroll?: boolean ): void {
 		const viewElement = this.element!;
+
+		if ( !viewElement.offsetParent ) {
+			this._isUpdateAutoGrowHeightPending = true;
+
+			return;
+		}
+
+		this._isUpdateAutoGrowHeightPending = false;
+
 		const singleLineContentClone = getTextareaElementClone( viewElement, '1' );
 		const fullTextValueClone = getTextareaElementClone( viewElement, viewElement.value );
 		const singleLineContentStyles = singleLineContentClone.ownerDocument.defaultView!.getComputedStyle( singleLineContentClone );
@@ -175,9 +254,9 @@ export default class TextareaView extends InputBase<HTMLTextAreaElement> {
 			 * The minimum number of rows is greater than the maximum number of rows.
 			 *
 			 * @error ui-textarea-view-min-rows-greater-than-max-rows
-			 * @param textareaView The misconfigured textarea view instance.
-			 * @param minRows The value of `minRows` property.
-			 * @param maxRows The value of `maxRows` property.
+			 * @param {module:ui/textarea/textareaview~TextareaView} textareaView The misconfigured textarea view instance.
+			 * @param {number} minRows The value of `minRows` property.
+			 * @param {number} maxRows The value of `maxRows` property.
 			 */
 			throw new CKEditorError( 'ui-textarea-view-min-rows-greater-than-max-rows', {
 				textareaView: this,
@@ -201,7 +280,7 @@ function getTextareaElementClone( element: HTMLTextAreaElement, value: string ):
 	clone.rows = 1;
 	clone.value = value;
 
-	element.parentNode!.insertBefore( clone, element );
+	getParentNode( element )!.insertBefore( clone, element );
 
 	return clone;
 }

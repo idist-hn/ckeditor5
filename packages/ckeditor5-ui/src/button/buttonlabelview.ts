@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/button/buttonlabelview
  */
 
-import View from '../view';
-import type ButtonLabel from './buttonlabel';
+import { View } from '../view.js';
+import { type ButtonLabel } from './buttonlabel.js';
 
 /**
  * A default implementation of the button view's label. It comes with a dynamic text support
  * via {@link module:ui/button/buttonlabelview~ButtonLabelView#text} property.
  */
-export default class ButtonLabelView extends View implements ButtonLabel {
+export class ButtonLabelView extends View implements ButtonLabel {
 	/**
 	 * @inheritDoc
 	 */

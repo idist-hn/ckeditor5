@@ -1,28 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module mention/mentionui
  */
 
-import {
-	Plugin,
-	type Editor
-} from 'ckeditor5/src/core';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
 import type {
 	ViewDocumentKeyDownEvent,
 	Marker,
-	Position
-} from 'ckeditor5/src/engine';
+	ModelPosition
+} from '@ckeditor/ckeditor5-engine';
 
 import {
-	ButtonView,
 	ContextualBalloon,
+	ListItemButtonView,
 	clickOutsideHandler
-} from 'ckeditor5/src/ui';
+} from '@ckeditor/ckeditor5-ui';
 
 import {
 	CKEditorError,
@@ -31,24 +28,24 @@ import {
 	env,
 	keyCodes,
 	logWarning,
-	type PositionOptions
-} from 'ckeditor5/src/utils';
+	type DomOptimalPositionOptions
+} from '@ckeditor/ckeditor5-utils';
 
-import { TextWatcher, type TextWatcherMatchedEvent } from 'ckeditor5/src/typing';
+import { TextWatcher, type TextWatcherMatchedEvent } from '@ckeditor/ckeditor5-typing';
 
-import { debounce } from 'lodash-es';
+import { debounce } from 'es-toolkit/compat';
 
-import MentionsView from './ui/mentionsview';
-import DomWrapperView from './ui/domwrapperview';
-import MentionListItemView from './ui/mentionlistitemview';
+import { MentionsView } from './ui/mentionsview.js';
+import { MentionDomWrapperView } from './ui/domwrapperview.js';
+import { MentionListItemView } from './ui/mentionlistitemview.js';
 
 import type {
-	FeedCallback,
+	MentionFeedbackCallback,
 	MentionFeed,
 	MentionFeedItem,
-	ItemRenderer,
+	MentionItemRenderer,
 	MentionFeedObjectItem
-} from './mentionconfig';
+} from './mentionconfig.js';
 
 const VERTICAL_SPACING = 3;
 
@@ -68,7 +65,7 @@ const defaultCommitKeyCodes = [
 /**
  * The mention UI feature.
  */
-export default class MentionUI extends Plugin {
+export class MentionUI extends Plugin {
 	/**
 	 * The mention view.
 	 */
@@ -89,7 +86,7 @@ export default class MentionUI extends Plugin {
 	private _lastRequested?: string;
 
 	/**
-	 * Debounced feed requester. It uses `lodash#debounce` method to delay function call.
+	 * Debounced feed requester. It uses `es-toolkit#debounce` method to delay function call.
 	 */
 	private _requestFeedDebounced: ( marker: string, feedText: string ) => void;
 
@@ -103,8 +100,15 @@ export default class MentionUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ContextualBalloon ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ContextualBalloon ]> {
+		return [ ContextualBalloon ];
 	}
 
 	/**
@@ -179,7 +183,7 @@ export default class MentionUI extends Plugin {
 				 * See {@link module:mention/mentionconfig~MentionConfig}.
 				 *
 				 * @error mentionconfig-incorrect-marker
-				 * @param marker Configured marker
+				 * @param {string} marker Configured marker
 				 */
 				throw new CKEditorError( 'mentionconfig-incorrect-marker', null, { marker } );
 			}
@@ -212,7 +216,7 @@ export default class MentionUI extends Plugin {
 	public override destroy(): void {
 		super.destroy();
 
-		// Destroy created UI components as they are not automatically destroyed (see ckeditor5#1341).
+		// Destroy created UI components as they are not automatically destroyed (see https://github.com/ckeditor/ckeditor5/issues/1341).
 		this._mentionsView.destroy();
 	}
 
@@ -237,7 +241,7 @@ export default class MentionUI extends Plugin {
 
 			const { dropdownLimit: markerDropdownLimit } = this._mentionsConfigurations.get( marker )!;
 
-			// Set to 10 by default for backwards compatibility. See: #10479
+			// Set to 10 by default for backwards compatibility. See: https://github.com/ckeditor/ckeditor5/issues/10479
 			const dropdownLimit = markerDropdownLimit || this.editor.config.get( 'mention.dropdownLimit' ) || 10;
 
 			if ( mentionsView.items.length >= dropdownLimit ) {
@@ -295,7 +299,7 @@ export default class MentionUI extends Plugin {
 	/**
 	 * Returns item renderer for the marker.
 	 */
-	private _getItemRenderer( marker: string ): ItemRenderer | undefined {
+	private _getItemRenderer( marker: string ): MentionItemRenderer | undefined {
 		const { itemRenderer } = this._mentionsConfigurations.get( marker )!;
 
 		return itemRenderer;
@@ -425,11 +429,21 @@ export default class MentionUI extends Plugin {
 	private _handleFeedResponse( data: RequestFeedResponseEvent['args'][0] ) {
 		const { feed, marker } = data;
 
-		// eslint-disable-next-line max-len
+		// eslint-disable-next-line @stylistic/max-len
 		// @if CK_DEBUG_MENTION // console.log( `%c[Feed]%c Response for "${ data.feedText }" (${ feed.length })`, 'color: blue', 'color: black', feed );
 
 		// If the marker is not in the document happens when the selection had changed and the 'mention' marker was removed.
 		if ( !checkIfStillInCompletionMode( this.editor ) ) {
+			return;
+		}
+
+		// Do not show the mention UI if the mention command is disabled
+		// (e.g. the cursor was moved into a code block after the feed was requested).
+		const mentionCommand = this.editor.commands.get( 'mention' )!;
+
+		if ( !mentionCommand.isEnabled ) {
+			this._hideUIAndRemoveMarker();
+
 			return;
 		}
 
@@ -467,7 +481,8 @@ export default class MentionUI extends Plugin {
 			this._balloon!.add( {
 				view: this._mentionsView,
 				position: this._getBalloonPanelPositionData( markerMarker, this._mentionsView.position ),
-				singleViewMode: true
+				singleViewMode: true,
+				balloonClassName: 'ck-mention-balloon'
 			} );
 		}
 
@@ -500,7 +515,7 @@ export default class MentionUI extends Plugin {
 	/**
 	 * Renders a single item in the autocomplete list.
 	 */
-	private _renderItem( item: MentionFeedObjectItem, marker: string ): DomWrapperView | ButtonView {
+	private _renderItem( item: MentionFeedObjectItem, marker: string ): MentionDomWrapperView | ListItemButtonView {
 		const editor = this.editor;
 
 		let view;
@@ -512,14 +527,14 @@ export default class MentionUI extends Plugin {
 			const renderResult = renderer( item );
 
 			if ( typeof renderResult != 'string' ) {
-				view = new DomWrapperView( editor.locale, renderResult );
+				view = new MentionDomWrapperView( editor.locale, renderResult );
 			} else {
 				label = renderResult;
 			}
 		}
 
 		if ( !view ) {
-			const buttonView = new ButtonView( editor.locale );
+			const buttonView = new ListItemButtonView( editor.locale );
 
 			buttonView.label = label;
 			buttonView.withText = true;
@@ -536,7 +551,10 @@ export default class MentionUI extends Plugin {
 	 * @param mentionMarker
 	 * @param preferredPosition The name of the last matched position name.
 	 */
-	private _getBalloonPanelPositionData( mentionMarker: Marker, preferredPosition: MentionsView['position'] ): Partial<PositionOptions> {
+	private _getBalloonPanelPositionData(
+		mentionMarker: Marker,
+		preferredPosition: MentionsView['position']
+	): Partial<DomOptimalPositionOptions> {
 		const editor = this.editor;
 		const editing = editor.editing;
 		const domConverter = editing.view.domConverter;
@@ -580,13 +598,13 @@ export default class MentionUI extends Plugin {
 function getBalloonPanelPositions(
 	preferredPosition: MentionsView['position'],
 	uiLanguageDirection: string
-): PositionOptions['positions'] {
-	const positions: Record<string, PositionOptions['positions'][0]> = {
+): DomOptimalPositionOptions['positions'] {
+	const positions: Record<string, DomOptimalPositionOptions['positions'][0]> = {
 		// Positions the panel to the southeast of the caret rectangle.
-		'caret_se': ( targetRect: Rect ) => {
+		'caret_se': ( targetRect: Rect, balloonRect: Rect, viewportRect: Rect ) => {
 			return {
 				top: targetRect.bottom + VERTICAL_SPACING,
-				left: targetRect.right,
+				left: fitLeftInViewport( targetRect.right, balloonRect, viewportRect ),
 				name: 'caret_se',
 				config: {
 					withArrow: false
@@ -595,10 +613,10 @@ function getBalloonPanelPositions(
 		},
 
 		// Positions the panel to the northeast of the caret rectangle.
-		'caret_ne': ( targetRect: Rect, balloonRect: Rect ) => {
+		'caret_ne': ( targetRect: Rect, balloonRect: Rect, viewportRect: Rect ) => {
 			return {
 				top: targetRect.top - balloonRect.height - VERTICAL_SPACING,
-				left: targetRect.right,
+				left: fitLeftInViewport( targetRect.right, balloonRect, viewportRect ),
 				name: 'caret_ne',
 				config: {
 					withArrow: false
@@ -607,10 +625,10 @@ function getBalloonPanelPositions(
 		},
 
 		// Positions the panel to the southwest of the caret rectangle.
-		'caret_sw': ( targetRect: Rect, balloonRect: Rect ) => {
+		'caret_sw': ( targetRect: Rect, balloonRect: Rect, viewportRect: Rect ) => {
 			return {
 				top: targetRect.bottom + VERTICAL_SPACING,
-				left: targetRect.right - balloonRect.width,
+				left: fitLeftInViewport( targetRect.right - balloonRect.width, balloonRect, viewportRect ),
 				name: 'caret_sw',
 				config: {
 					withArrow: false
@@ -619,10 +637,10 @@ function getBalloonPanelPositions(
 		},
 
 		// Positions the panel to the northwest of the caret rect.
-		'caret_nw': ( targetRect: Rect, balloonRect: Rect ) => {
+		'caret_nw': ( targetRect: Rect, balloonRect: Rect, viewportRect: Rect ) => {
 			return {
 				top: targetRect.top - balloonRect.height - VERTICAL_SPACING,
-				left: targetRect.right - balloonRect.width,
+				left: fitLeftInViewport( targetRect.right - balloonRect.width, balloonRect, viewportRect ),
 				name: 'caret_nw',
 				config: {
 					withArrow: false
@@ -650,6 +668,16 @@ function getBalloonPanelPositions(
 		positions.caret_nw,
 		positions.caret_ne
 	];
+}
+
+/**
+ * Keeps the panel within the viewport horizontally, so it does not get cut off
+ * when the caret is close to the screen edge (e.g. on mobile).
+ *
+ * See https://github.com/ckeditor/ckeditor5/issues/20182.
+ */
+function fitLeftInViewport( left: number, balloonRect: Rect, viewportRect: Rect ): number {
+	return Math.max( viewportRect.left, Math.min( left, viewportRect.right - balloonRect.width ) );
 }
 
 /**
@@ -700,21 +728,30 @@ function getLastValidMarkerInText(
  * Creates a RegExp pattern for the marker.
  *
  * Function has to be exported to achieve 100% code coverage.
+ *
+ * @internal
  */
 export function createRegExp( marker: string, minimumCharacters: number ): RegExp {
 	const numberOfCharacters = minimumCharacters == 0 ? '*' : `{${ minimumCharacters },}`;
-
 	const openAfterCharacters = env.features.isRegExpUnicodePropertySupported ? '\\p{Ps}\\p{Pi}"\'' : '\\(\\[{"\'';
 	const mentionCharacters = '.';
 
+	// I wanted to make an util out of it, but since this regexp uses "u" flag, it became difficult.
+	// When "u" flag is used, the regexp has "strict" escaping rules, i.e. if you try to escape a character that does not need
+	// to be escaped, RegExp() will throw. It made it difficult to write a generic util, because different characters are
+	// allowed in different context. For example, escaping "-" sometimes was correct, but sometimes it threw an error.
+	marker = marker.replace( /[.*+?^${}()\-|[\]\\]/g, '\\$&' );
+
 	// The pattern consists of 3 groups:
+	//
 	// - 0 (non-capturing): Opening sequence - start of the line, space or an opening punctuation character like "(" or "\"",
-	// - 1: The marker character,
+	// - 1: The marker character(s),
 	// - 2: Mention input (taking the minimal length into consideration to trigger the UI),
 	//
 	// The pattern matches up to the caret (end of string switch - $).
-	//               (0:      opening sequence       )(1:   marker  )(2:                typed mention              )$
-	const pattern = `(?:^|[ ${ openAfterCharacters }])([${ marker }])(${ mentionCharacters }${ numberOfCharacters })$`;
+	//               (0:      opening sequence       )(1: marker  )(2:                typed mention              )$
+	const pattern = `(?:^|[ ${ openAfterCharacters }])(${ marker })(${ mentionCharacters }${ numberOfCharacters })$`;
+
 	return new RegExp( pattern, 'u' );
 }
 
@@ -783,7 +820,7 @@ function createFeedCallback( feedItems: Array<MentionFeedItem> ) {
 /**
  * Checks if position in inside or right after a text with a mention.
  */
-function isPositionInExistingMention( position: Position ): boolean | null {
+function isPositionInExistingMention( position: ModelPosition ): boolean | null {
 	// The text watcher listens only to changed range in selection - so the selection attributes are not yet available
 	// and you cannot use selection.hasAttribute( 'mention' ) just yet.
 	// See https://github.com/ckeditor/ckeditor5-engine/issues/1723.
@@ -799,7 +836,7 @@ function isPositionInExistingMention( position: Position ): boolean | null {
  *
  * See https://github.com/ckeditor/ckeditor5/issues/11400.
  */
-function isMarkerInExistingMention( markerPosition: Position ): boolean | null {
+function isMarkerInExistingMention( markerPosition: ModelPosition ): boolean | null {
 	const nodeAfter = markerPosition.nodeAfter;
 
 	return nodeAfter && nodeAfter.is( '$text' ) && nodeAfter.hasAttribute( 'mention' );
@@ -808,8 +845,8 @@ function isMarkerInExistingMention( markerPosition: Position ): boolean | null {
 /**
  * Checks if string is a valid mention marker.
  */
-function isValidMentionMarker( marker: string ): boolean | string {
-	return marker && marker.length == 1;
+function isValidMentionMarker( marker: string ): boolean {
+	return !!marker;
 }
 
 /**
@@ -872,8 +909,8 @@ type RequestFeedErrorEvent = {
 
 type Definition = {
 	marker: string;
-	feedCallback: FeedCallback;
-	itemRenderer?: ItemRenderer;
+	feedCallback: MentionFeedbackCallback;
+	itemRenderer?: MentionItemRenderer;
 	dropdownLimit?: number;
 };
 

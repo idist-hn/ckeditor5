@@ -1,19 +1,84 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+:root,
+:host {
+	--ck-table-properties-error-arrow-size: 6px;
+	--ck-table-properties-min-error-width: 150px;
+}
+
 .ck.ck-table-form {
+	--ck-table-form-default-input-width: 80px;
+
 	& .ck-form__row {
 		&.ck-table-form__border-row {
-			flex-wrap: wrap;
-		}
+			/* Style, width and color fill the row as three equal-width columns. Each column is an
+			   explicit third of the row minus the two inter-column gaps (rather than flex-grow, which
+			   distributes unevenly across these heterogeneous controls). The row keeps its default
+			   justify-content: the columns sum to the full width, so there is no free space to spread. */
+			& .ck-table-form__border-style,
+			& .ck-table-form__border-width,
+			& .ck-table-form__border-color {
+				flex: 0 0 auto;
+				width: calc((100% - 2 * var(--ck-spacing-large, var(--ck-spacing-lg))) / 3);
+				min-width: 0;
+			}
 
-		&.ck-table-form__background-row {
-			flex-wrap: wrap;
+			/* The style control is a dropdown (inline-block by default); make it fill its column. */
+			& .ck-table-form__border-style .ck-dropdown {
+				width: 100%;
+			}
 		}
 
 		&.ck-table-form__dimensions-row {
+			/* Two thirds of the row, aligned to the first two border-row columns (two equal columns plus one gap). */
+			--ck-table-form-dimensions-input-width: calc((100% - 2 * var(--ck-spacing-large, var(--ck-spacing-lg))) / 3 * 2 + var(--ck-spacing-large, var(--ck-spacing-lg)));
+
+			width: var(--ck-table-form-dimensions-input-width);
+			max-width: var(--ck-table-form-dimensions-input-width);
+			min-width: var(--ck-table-form-dimensions-input-width);
+			padding: 0;
+
+			& .ck-table-form__dimensions-row__width,
+			& .ck-table-form__dimensions-row__height {
+				/* The two inputs split the dimensions row equally, filling its two-thirds width. */
+				flex: 1 1 0;
+				margin: 0
+			}
+
+			& .ck-table-form__dimension-operator {
+				position: relative;
+				left: -0.5ch;
+				width: 0;
+				overflow: visible;
+				align-self: flex-end;
+				display: inline-block;
+				height: var(--ck-size-control-min-height);
+				line-height: var(--ck-size-control-min-height);
+				/* Half a column gap on each side, so the total space around the operator matches the
+				   gap between the other columns (and Width/Height line up with the border columns). */
+				margin: 0 calc(var(--ck-spacing-large, var(--ck-spacing-lg)) / 2);
+			}
+		}
+		&.ck-table-form__background-row {
+			/* One third of the row, aligned to the last border-row column. */
+			--ck-table-form-background-width: calc((100% - 2 * var(--ck-spacing-large, var(--ck-spacing-lg))) / 3);
+
+			width: var(--ck-table-form-background-width);
+			max-width: var(--ck-table-form-background-width);
+			min-width: var(--ck-table-form-background-width);
+		}
+
+		&.ck-table-form__border-row,
+		&.ck-table-form__background-row,
+		&.ck-table-form__cell-type-row {
+			flex-wrap: wrap;
+		}
+
+		&.ck-table-form__dimensions-row,
+		&.ck-table-form__cell-type-row {
 			flex-wrap: wrap;
 			align-items: center;
 
@@ -26,34 +91,69 @@
 					flex-grow: 0;
 				}
 			}
+		}
 
-			& .ck-table-form__dimension-operator {
-				flex-grow: 0;
-			}
+		/* Ignore labels that work as fieldset legends */
+		/* Fallback for table dimension operator */
+		&:not(.ck-table-form__action-row) > *:not(.ck-label, .ck-table-form__dimension-operator) {
+			flex-grow: 1;
 		}
 	}
 
 	& .ck.ck-labeled-field-view {
-		/* Allow absolute positioning of the status (error) balloons. */
-		position: relative;
+		padding-top: var(--ck-spacing-standard, var(--ck-spacing-base));
 
 		& .ck.ck-labeled-field-view__status {
+			border-radius: var(--ck-rounded-corners-radius, var(--ck-radius-corners));
+			background: var(--ck-color-base-error);
+			color: var(--ck-color-base-background);
+			padding: var(--ck-spacing-small, var(--ck-spacing-sm)) var(--ck-spacing-medium, var(--ck-spacing-base));
+			min-width: var(--ck-table-properties-min-error-width);
+			text-align: center;
+
+			animation: ck-table-form-labeled-view-status-appear .15s ease both;
 			position: absolute;
 			left: 50%;
 			bottom: calc( -1 * var(--ck-table-properties-error-arrow-size) );
 			transform: translate(-50%,100%);
 
-			/* Make sure the balloon status stays on top of other form elements. */
-			z-index: 1;
-
 			/* The arrow pointing towards the field. */
 			&::after {
+				border-color: transparent transparent var(--ck-color-base-error) transparent;
+				border-width: 0 var(--ck-table-properties-error-arrow-size) var(--ck-table-properties-error-arrow-size) var(--ck-table-properties-error-arrow-size);
+				border-style: solid;
 				content: "";
 				position: absolute;
 				top: calc( -1 * var(--ck-table-properties-error-arrow-size) );
 				left: 50%;
 				transform: translateX( -50% );
 			}
+
+			@media (prefers-reduced-motion: reduce) {
+				animation: none;
+			}
+
+			/* Make sure the balloon status stays on top of other form elements. */
+			z-index: 1
+
+			/* The arrow pointing towards the field. */
 		}
+
+		/* Hide the error balloon when the field is blurred. Makes the experience much more clear. */
+		& .ck-input.ck-error:not(:focus) + .ck.ck-labeled-field-view__status {
+			display: none;
+		}
+		/* Allow absolute positioning of the status (error) balloons. */
+		position: relative
+	}
+}
+
+@keyframes ck-table-form-labeled-view-status-appear {
+	0% {
+		opacity: 0;
+	}
+
+	100% {
+		opacity: 1;
 	}
 }

@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module media-embed/converters
  */
 
-import type { GetCallback } from 'ckeditor5/src/utils';
-import type { DowncastAttributeEvent, DowncastDispatcher, Element, ViewElement } from 'ckeditor5/src/engine';
-import type MediaRegistry from './mediaregistry';
-import type { MediaOptions } from './utils';
+import type { GetCallback } from '@ckeditor/ckeditor5-utils';
+import type { DowncastAttributeEvent, DowncastDispatcher, ModelElement, ViewElement } from '@ckeditor/ckeditor5-engine';
+import { type MediaRegistry } from './mediaregistry.js';
+import type { MediaOptions } from './utils.js';
 
 /**
  * Returns a function that converts the model "url" attribute to the view representation.
@@ -41,6 +41,8 @@ import type { MediaOptions } from './utils';
  * - renderMediaPreview When `true`, the converter will create the view in the non-semantic form.
  * - renderForEditingView When `true`, the converter will create a view specific for the
  * editing pipeline (e.g. including CSS classes, content placeholders).
+ *
+ * @internal
  */
 export function modelToViewUrlAttributeConverter(
 	registry: MediaRegistry,
@@ -53,7 +55,7 @@ export function modelToViewUrlAttributeConverter(
 
 		const url = data.attributeNewValue as string;
 		const viewWriter = conversionApi.writer;
-		const figure = conversionApi.mapper.toViewElement( data.item as Element )!;
+		const figure = conversionApi.mapper.toViewElement( data.item as ModelElement )!;
 		const mediaContentElement = [ ...figure.getChildren() ]
 			.find( child => ( child as ViewElement ).getCustomProperty( 'media-content' ) )!;
 

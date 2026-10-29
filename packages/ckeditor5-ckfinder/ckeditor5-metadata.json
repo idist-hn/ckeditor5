@@ -5,17 +5,20 @@
 			"className": "CKFinder",
 			"description": "An image upload tool. It provides a full, server-side and client-side integration with CKFinder and all its features, including multiple file uploads, image editor and file management.",
 			"docs": "features/file-management/ckfinder.html",
-			"path": "src/ckfinder.js",
+			"path": "src/ckfinder.ts",
 			"requires": [
 				"CKFinderUploadAdapter",
 				"Link",
-				"Image"
+				[
+					"ImageBlock",
+					"ImageInline"
+				]
 			],
 			"uiComponents": [
 				{
 					"name": "CKFinder",
 					"type": "Button",
-					"iconPath": "theme/icons/browse-files.svg"
+					"iconName": "IconBrowseFiles"
 				}
 			]
 		}

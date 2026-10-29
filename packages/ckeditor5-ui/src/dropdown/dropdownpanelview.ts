@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/dropdown/dropdownpanelview
  */
 
-import View from '../view';
-import type ViewCollection from '../viewcollection';
-import type DropdownPanelFocusable from './dropdownpanelfocusable';
+import { View } from '../view.js';
+import { type ViewCollection } from '../viewcollection.js';
+import { type DropdownPanelFocusable } from './dropdownpanelfocusable.js';
 
 import { logWarning, type Locale } from '@ckeditor/ckeditor5-utils';
 
@@ -18,7 +18,7 @@ import { logWarning, type Locale } from '@ckeditor/ckeditor5-utils';
  *
  * See {@link module:ui/dropdown/dropdownview~DropdownView} to learn about the common usage.
  */
-export default class DropdownPanelView extends View implements DropdownPanelFocusable {
+export class DropdownPanelView extends View implements DropdownPanelFocusable {
 	/**
 	 * Collection of the child views in this panel.
 	 *
@@ -79,7 +79,9 @@ export default class DropdownPanelView extends View implements DropdownPanelFocu
 				// Drag and drop in the panel should not break the selection in the editor.
 				// https://github.com/ckeditor/ckeditor5-ui/issues/228
 				selectstart: bind.to( evt => {
-					if ( ( evt.target as HTMLElement ).tagName.toLocaleLowerCase() === 'input' ) {
+					const target = evt.target;
+
+					if ( target instanceof Element && target.tagName.toLocaleLowerCase() === 'input' ) {
 						return;
 					}
 
@@ -113,8 +115,8 @@ export default class DropdownPanelView extends View implements DropdownPanelFocu
 				 * provides the `focus()` method for the best user experience.
 				 *
 				 * @error ui-dropdown-panel-focus-child-missing-focus
-				 * @param childView
-				 * @param dropdownPanel
+				 * @param {module:ui/view~View} childView Child view.
+				 * @param {module:ui/dropdown/dropdownpanelview~DropdownPanelView} dropdownPanel A parent of a child.
 				 */
 				logWarning( 'ui-dropdown-panel-focus-child-missing-focus', { childView: this.children.first, dropdownPanel: this } );
 			}

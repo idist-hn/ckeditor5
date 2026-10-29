@@ -1,57 +1,51 @@
 ---
 category: framework-deep-dive-ui
+meta-title: Document editor | CKEditor 5 Framework Documentation
+meta-description: Explore CKEditor 5 Document Editor UI, its architecture, features, and how to customize the editing interface for complex documents.
 order: 30
 ---
 
 # Document editor
 
-The {@link examples/builds/document-editor document editor example} showcases the {@link installation/getting-started/predefined-builds#document-editor document editor build} designed for document editing with a customized UI representing the layout of a sheet of paper. It was created on top of the {@link module:editor-decoupled/decouplededitor~DecoupledEditor `DecoupledEditor`} class and makes the best of what it offers: the freedom to choose the location of the crucial UI elements in the application.
-
-In this tutorial, you will learn how to create your own document editor with a customized user interface, step–by–step.
+This tutorial builds a document editor with a customized, paper-like UI on top of the {@link module:editor-decoupled/decouplededitor~DecoupledEditor `DecoupledEditor`} class, which lets you place the editor's UI elements anywhere in your application. See the {@link examples/builds/document-editor document editor example} for the end result.
 
 {@snippet examples/document-editor}
 
 ## The editor
 
-The document editor build includes all the necessary features for the task. All you need to do is import it and create a new instance.
-
-<info-box>
-	See the {@link installation/getting-started/predefined-builds#document-editor Predefined builds guide} to learn how to install the document editor build.
-</info-box>
-
-Document editor can be created using the existing data container in the DOM. It can also accept a raw data string and create the editable by itself. To get the output data, use the {@link module:core/editor/utils/dataapimixin~DataApi#getData `getData()`} method.
+Document editor can be created using the existing data container in the DOM. It can also accept a raw data string and create the editable by itself. To get the output data, use the {@link module:core/editor/editor~Editor#getData `getData()`} method.
 
 <info-box>
 	See the {@link module:editor-decoupled/decouplededitor~DecoupledEditor.create `DecoupledEditor.create()`} method to learn about different approaches to the initialization of the editor.
 </info-box>
 
+<code-switcher>
 ```js
-import DecoupledEditor from '@ckeditor/ckeditor5-build-decoupled-document/src/ckeditor';
+import { DecoupledEditor } from 'ckeditor5';
 
-DecoupledEditor
-	.create( document.querySelector( '.document-editor__editable' ), {
-		cloudServices: {
-			// A configuration of CKEditor Cloud Services.
-			// ...
-		}
-	} )
-	.then( editor => {
-		const toolbarContainer = document.querySelector( '.document-editor__toolbar' );
+DecoupledEditor.create( {
+	root: {
+		element: document.querySelector( '.document-editor__editable' )
+	},
+	cloudServices: {
+		// A configuration of CKEditor Cloud Services.
+		// ...
+	}
+} )
+.then( editor => {
+	const toolbarContainer = document.querySelector( '.document-editor__toolbar' );
 
-		toolbarContainer.appendChild( editor.ui.view.toolbar.element );
+	toolbarContainer.appendChild( editor.ui.view.toolbar.element );
 
-		window.editor = editor;
-	} )
-	.catch( err => {
-		console.error( err );
-	} );
+	window.editor = editor;
+} )
+.catch( err => {
+	console.error( err );
+} );
 ```
+</code-switcher>
 
 You may have noticed that you have to make sure the editor UI is injected into your application after it fires the {@link module:ui/editorui/editorui~EditorUI#event:ready `EditorUI#ready`} event. The toolbar element can be found under `editor.ui.view.toolbar.element`.
-
-<info-box>
-	Document editor supports the Easy Image plugin provided by [CKEditor Cloud Services](https://ckeditor.com/ckeditor-cloud-services/) out of the box. Please refer to the {@link features/easy-image Easy Image documentation} to learn more.
-</info-box>
 
 ## The user interface
 
@@ -80,12 +74,12 @@ The `<div class="document-editor">...</<div>` element is the outermost container
 
 ### Styles
 
-Styles are what the document editor really needs to materialize. Begin with the styles of the main container:
+Styles are what the document editor needs to materialize. Begin with the styles of the main container:
 
 ```css
 .document-editor {
-	border: 1px solid var(--ck-color-base-border);
-	border-radius: var(--ck-border-radius);
+	border: 1px solid var(--ck-color-border-container);
+	border-radius: var(--ck-border-radius-surface);
 
 	/* Set vertical boundaries for the document editor. */
 	max-height: 700px;
@@ -107,7 +101,7 @@ Then, make the toolbar look like it floats over the "page":
 	box-shadow: 0 0 5px hsla( 0,0%,0%,.2 );
 
 	/* Use the CKEditor CSS variables to keep the UI consistent. */
-	border-bottom: 1px solid var(--ck-color-toolbar-border);
+	border-bottom: 1px solid var(--ck-toolbar-border-color);
 }
 
 /* Adjust the look of the toolbar inside the container. */
@@ -122,7 +116,7 @@ The editable should look like a sheet of paper, centered in its scrollable conta
 ```css
 /* Make the editable container look like the inside of a native word processor application. */
 .document-editor__editable-container {
-	padding: calc( 2 * var(--ck-spacing-large) );
+	padding: calc( 2 * var(--ck-spacing-padding-comfortable) );
 	background: var(--ck-color-base-foreground);
 
 	/* Make it possible to scroll the "page" of the edited content. */
@@ -138,7 +132,7 @@ The editable should look like a sheet of paper, centered in its scrollable conta
 	padding: 1cm 2cm 2cm;
 
 	border: 1px hsl( 0,0%,82.7% ) solid;
-	border-radius: var(--ck-border-radius);
+	border-radius: var(--ck-border-radius-surface);
 	background: white;
 
 	/* The "page" should cast a slight shadow (3D illusion). */
@@ -201,7 +195,7 @@ Preserve the relative scale, though. */
 }
 
 .document-editor .ck-heading-dropdown .ck-heading_heading2.ck-on .ck-button__label {
-	color: var(--ck-color-list-button-on-text);
+	color: var(--ck-list-button-on-text-color);
 }
 
 /* Set the styles for "Heading 2". */
@@ -239,8 +233,8 @@ A finishing touch that makes the block quotes more sophisticated and the styling
 /* Make the block quoted text serif with some additional spacing. */
 .document-editor .ck-content blockquote {
 	font-family: Georgia, serif;
-	margin-left: calc( 2 * var(--ck-spacing-large) );
-	margin-right: calc( 2 * var(--ck-spacing-large) );
+	margin-left: calc( 2 * var(--ck-spacing-gap-comfortable) );
+	margin-right: calc( 2 * var(--ck-spacing-gap-comfortable) );
 }
 ```
 
@@ -248,4 +242,4 @@ A finishing touch that makes the block quotes more sophisticated and the styling
 
 The document editor is ready to use. Still, you may want to configure some features like {@link module:highlight/highlightconfig~HighlightConfig highlight}, {@link module:font/fontconfig~FontSizeConfig font size} or {@link module:font/fontconfig~FontFamilyConfig font family} for the best editing experience.
 
-Thanks to the {@link module:editor-decoupled/decouplededitor~DecoupledEditor `DecoupledEditor`} used as a foundation, you can experiment and create custom user interface layouts quickly while preserving the feature set, accessibility support (e.g. {@link features/keyboard-support keyboard navigation} in the toolbar) and more.
+Thanks to the {@link module:editor-decoupled/decouplededitor~DecoupledEditor `DecoupledEditor`} used as a foundation, you can experiment and create custom user interface layouts quickly while preserving the feature set, accessibility support (for example, {@link features/accessibility#keyboard-shortcuts keyboard navigation} in the toolbar), and more.

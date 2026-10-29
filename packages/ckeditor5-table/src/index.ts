@@ -1,64 +1,222 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table
  */
 
-export { default as PlainTableOutput } from './plaintableoutput';
-export { default as Table } from './table';
-export { default as TableEditing } from './tableediting';
-export { default as TableUI } from './tableui';
-export { default as TableToolbar } from './tabletoolbar';
-export { default as TableCellProperties } from './tablecellproperties';
-export { default as TableCellPropertiesEditing } from './tablecellproperties/tablecellpropertiesediting';
-export { default as TableCellPropertiesUI } from './tablecellproperties/tablecellpropertiesui';
-export { default as TableCellWidthEditing } from './tablecellwidth/tablecellwidthediting';
-export { default as TableProperties } from './tableproperties';
-export { default as TablePropertiesEditing } from './tableproperties/tablepropertiesediting';
-export { default as TablePropertiesUI } from './tableproperties/tablepropertiesui';
-export { default as TableCaption } from './tablecaption';
-export { default as TableCaptionEditing } from './tablecaption/tablecaptionediting';
-export { default as TableCaptionUI } from './tablecaption/tablecaptionui';
-export { default as TableClipboard } from './tableclipboard';
-export { default as TableMouse } from './tablemouse';
-export { default as TableKeyboard } from './tablekeyboard';
-export { default as TableSelection } from './tableselection';
-export { default as TableUtils } from './tableutils';
-export { default as TableColumnResize } from './tablecolumnresize';
-export { default as TableColumnResizeEditing } from './tablecolumnresize/tablecolumnresizeediting';
+export { PlainTableOutput } from './plaintableoutput.js';
+export { Table } from './table.js';
+export { TableWalker, TableSlot, type TableWalkerOptions } from './tablewalker.js';
+export { TableEditing, type TableConversionAdditionalSlot } from './tableediting.js';
+export { TableUI } from './tableui.js';
+export { TableToolbar } from './tabletoolbar.js';
+export { TableCellProperties } from './tablecellproperties.js';
+export { TableCellPropertiesEditing } from './tablecellproperties/tablecellpropertiesediting.js';
+export { TableCellPropertiesUI } from './tablecellproperties/tablecellpropertiesui.js';
+export { TableCellPropertiesView, type TableCellPropertiesViewOptions } from './tablecellproperties/ui/tablecellpropertiesview.js';
+export { TableCellWidthEditing } from './tablecellwidth/tablecellwidthediting.js';
+export { TableLayout } from './tablelayout.js';
+export { TableLayoutEditing } from './tablelayout/tablelayoutediting.js';
+export { TableLayoutUI } from './tablelayout/tablelayoutui.js';
+export { TableProperties } from './tableproperties.js';
+export { TablePropertiesEditing } from './tableproperties/tablepropertiesediting.js';
+export { TablePropertiesUI } from './tableproperties/tablepropertiesui.js';
+export { TablePropertiesView, type TablePropertiesViewOptions } from './tableproperties/ui/tablepropertiesview.js';
+export { TableCaption } from './tablecaption.js';
+export { TableCaptionEditing } from './tablecaption/tablecaptionediting.js';
+export { TableCaptionUI } from './tablecaption/tablecaptionui.js';
+export { TableClipboard } from './tableclipboard.js';
+export { TableMouse } from './tablemouse.js';
+export { TableKeyboard } from './tablekeyboard.js';
+export { TableSelection } from './tableselection.js';
+export { TableScroll } from './tablescroll.js';
+export { TableScrollEditing } from './tablescroll/tablescrollediting.js';
+export { TableUtils, type TableIndexesObject, type UpdateTableHeadingsOptions } from './tableutils.js';
+export { TableColumnResize } from './tablecolumnresize.js';
+export { TableColumnResizeEditing } from './tablecolumnresize/tablecolumnresizeediting.js';
+export { TableWidthsCommand, type TableWidthsCommandOptions } from './tablecolumnresize/tablewidthscommand.js';
+export { TableColumnWidthCommand } from './tablecolumnresize/commands/tablecolumnwidthcommand.js';
 
-export type { TableConfig } from './tableconfig';
-export type { default as InsertColumnCommand } from './commands/insertcolumncommand';
-export type { default as InsertRowCommand } from './commands/insertrowcommand';
-export type { default as InsertTableCommand } from './commands/inserttablecommand';
-export type { default as MergeCellCommand } from './commands/mergecellcommand';
-export type { default as MergeCellsCommand } from './commands/mergecellscommand';
-export type { default as RemoveColumnCommand } from './commands/removecolumncommand';
-export type { default as RemoveRowCommand } from './commands/removerowcommand';
-export type { default as SelectColumnCommand } from './commands/selectcolumncommand';
-export type { default as SelectRowCommand } from './commands/selectrowcommand';
-export type { default as SetHeaderColumnCommand } from './commands/setheadercolumncommand';
-export type { default as SetHeaderRowCommand } from './commands/setheaderrowcommand';
-export type { default as SplitCellCommand } from './commands/splitcellcommand';
-export type { default as ToggleTableCaptionCommand } from './tablecaption/toggletablecaptioncommand';
-export type { default as TableCellBackgroundColorCommand } from './tablecellproperties/commands/tablecellbackgroundcolorcommand';
-export type { default as TableCellBorderColorCommand } from './tablecellproperties/commands/tablecellbordercolorcommand';
-export type { default as TableCellBorderStyleCommand } from './tablecellproperties/commands/tablecellborderstylecommand';
-export type { default as TableCellBorderWidthCommand } from './tablecellproperties/commands/tablecellborderwidthcommand';
-export type { default as TableCellHeightCommand } from './tablecellproperties/commands/tablecellheightcommand';
-export type { default as TableCellHorizontalAlignmentCommand } from './tablecellproperties/commands/tablecellhorizontalalignmentcommand';
-export type { default as TableCellPaddingCommand } from './tablecellproperties/commands/tablecellpaddingcommand';
-export type { default as TableCellVerticalAlignmentCommand } from './tablecellproperties/commands/tablecellverticalalignmentcommand';
-export type { default as TableCellWidthCommand } from './tablecellwidth/commands/tablecellwidthcommand';
-export type { default as TableAlignmentCommand } from './tableproperties/commands/tablealignmentcommand';
-export type { default as TableBackgroundColorCommand } from './tableproperties/commands/tablebackgroundcolorcommand';
-export type { default as TableBorderColorCommand } from './tableproperties/commands/tablebordercolorcommand';
-export type { default as TableBorderStyleCommand } from './tableproperties/commands/tableborderstylecommand';
-export type { default as TableBorderWidthCommand } from './tableproperties/commands/tableborderwidthcommand';
-export type { default as TableHeightCommand } from './tableproperties/commands/tableheightcommand';
-export type { default as TableWidthCommand } from './tableproperties/commands/tablewidthcommand';
+export { InsertColumnCommand } from './commands/insertcolumncommand.js';
+export { InsertRowCommand } from './commands/insertrowcommand.js';
+export { InsertTableCommand } from './commands/inserttablecommand.js';
+export { InsertTableLayoutCommand } from './commands/inserttablelayoutcommand.js';
+export { TableTypeCommand } from './tablelayout/commands/tabletypecommand.js';
+export { MergeCellCommand } from './commands/mergecellcommand.js';
+export { MergeCellsCommand } from './commands/mergecellscommand.js';
+export { RemoveColumnCommand } from './commands/removecolumncommand.js';
+export { RemoveRowCommand } from './commands/removerowcommand.js';
+export { SelectColumnCommand } from './commands/selectcolumncommand.js';
+export { SelectRowCommand } from './commands/selectrowcommand.js';
+export { SetHeaderColumnCommand } from './commands/setheadercolumncommand.js';
+export { SetHeaderRowCommand } from './commands/setheaderrowcommand.js';
+export { SetFooterRowCommand } from './commands/setfooterrowcommand.js';
+export { SplitCellCommand } from './commands/splitcellcommand.js';
+export { ToggleTableCaptionCommand } from './tablecaption/toggletablecaptioncommand.js';
+export { TableCellBackgroundColorCommand } from './tablecellproperties/commands/tablecellbackgroundcolorcommand.js';
+export { TableCellBorderColorCommand } from './tablecellproperties/commands/tablecellbordercolorcommand.js';
+export { TableCellBorderStyleCommand } from './tablecellproperties/commands/tablecellborderstylecommand.js';
+export { TableCellBorderWidthCommand } from './tablecellproperties/commands/tablecellborderwidthcommand.js';
+export { TableCellHeightCommand } from './tablecellproperties/commands/tablecellheightcommand.js';
+export { TableCellHorizontalAlignmentCommand } from './tablecellproperties/commands/tablecellhorizontalalignmentcommand.js';
+export { TableCellPaddingCommand } from './tablecellproperties/commands/tablecellpaddingcommand.js';
+export { TableCellVerticalAlignmentCommand } from './tablecellproperties/commands/tablecellverticalalignmentcommand.js';
+export { TableCellWidthCommand } from './tablecellwidth/commands/tablecellwidthcommand.js';
+export { TableAlignmentCommand } from './tableproperties/commands/tablealignmentcommand.js';
+export { TableBackgroundColorCommand } from './tableproperties/commands/tablebackgroundcolorcommand.js';
+export { TableBorderColorCommand } from './tableproperties/commands/tablebordercolorcommand.js';
+export { TableBorderStyleCommand } from './tableproperties/commands/tableborderstylecommand.js';
+export { TableBorderWidthCommand } from './tableproperties/commands/tableborderwidthcommand.js';
+export { TableHeightCommand } from './tableproperties/commands/tableheightcommand.js';
+export { TableWidthCommand } from './tableproperties/commands/tablewidthcommand.js';
+export { TablePropertyCommand, type TablePropertyCommandExecuteOptions } from './tableproperties/commands/tablepropertycommand.js';
+export { TableCellTypeCommand } from './tablecellproperties/commands/tablecelltypecommand.js';
+export { isTableHeaderCellType, type TableCellType } from './tablecellproperties/tablecellpropertiesutils.js';
+export {
+	TableCellPropertyCommand,
+	type TableCellPropertyCommandAfterExecuteEvent,
+	type TableCellPropertyCommandAfterExecuteEventData
+} from './tablecellproperties/commands/tablecellpropertycommand.js';
 
-import './augmentation';
+export type { ViewDocumentTableMouseMoveEvent, ViewDocumentTableMouseLeaveEvent } from './tablemouse/mouseeventsobserver.js';
+
+export type {
+	TableConfig,
+	TableScrollConfig,
+	TableAlignmentConfig,
+	TablePropertiesConfig,
+	TablePropertiesOptions,
+	TableCellPropertiesConfig,
+	TableColorConfig,
+	TableCellPropertiesOptions,
+	TableLayoutConfig,
+	TableCaptionConfig,
+	TableType
+} from './tableconfig.js';
+
+// Internal exports.
+export {
+	downcastTable as _downcastTable,
+	downcastRow as _downcastTableRow,
+	downcastCell as _downcastTableCell,
+	convertParagraphInTableCell as _convertParagraphInTableCell,
+	isSingleParagraphWithoutAttributes as _isSingleTableParagraphWithoutAttributes
+} from './converters/downcast.js';
+export type { DowncastTableOptions as _DowncastTableOptions } from './converters/downcast.js';
+export { injectTableCaptionPostFixer as _injectTableCaptionPostFixer } from './converters/table-caption-post-fixer.js';
+export { injectTableCellParagraphPostFixer as _injectTableCellParagraphPostFixer } from './converters/table-cell-paragraph-post-fixer.js';
+export { tableCellRefreshHandler as _tableCellRefreshHandler } from './converters/table-cell-refresh-handler.js';
+export { tableStructureRefreshHandler as _tableStructureRefreshHandler } from './converters/table-structure-refresh-handler.js';
+export { injectTableLayoutPostFixer as _injectTableLayoutPostFixer } from './converters/table-layout-post-fixer.js';
+export {
+	upcastStyleToAttribute as _upcastNormalizedTableStyleToAttribute,
+	upcastBorderStyles as _upcastTableBorderStyles,
+	downcastAttributeToStyle as _downcastTableAttributeToStyle,
+	downcastTableAttribute as _downcastTableAttribute,
+	getDefaultValueAdjusted as _getDefaultTableValueAdjusted
+} from './converters/tableproperties.js';
+export type { StyleValues as _TableStyleValues } from './converters/tableproperties.js';
+export {
+	upcastTableFigure as _upcastTableFigure,
+	upcastTable as _upcastTable,
+	skipEmptyTableRow as _skipEmptyTableRow,
+	ensureParagraphInTableCell as _ensureParagraphInTableCell
+} from './converters/upcasttable.js';
+export {
+	isTable as _isTableModelElement,
+	getCaptionFromTableModelElement as _getTableCaptionFromModelElement,
+	getCaptionFromModelSelection as _getTableCaptionFromModelSelection,
+	matchTableCaptionViewElement as _matchTableCaptionViewElement
+} from './tablecaption/utils.js';
+export {
+	COLUMN_MIN_WIDTH_AS_PERCENTAGE as _TABLE_COLUMN_MIN_WIDTH_AS_PERCENTAGE,
+	COLUMN_MIN_WIDTH_IN_PIXELS as _TABLE_COLUMN_MIN_WIDTH_IN_PIXELS,
+	COLUMN_WIDTH_PRECISION as _TABLE_COLUMN_WIDTH_PRECISION,
+	COLUMN_RESIZE_DISTANCE_THRESHOLD as _TABLE_COLUMN_RESIZE_DISTANCE_THRESHOLD
+} from './tablecolumnresize/constants.js';
+export {
+	upcastColgroupElement as _upcastTableColgroupElement,
+	downcastTableResizedClass as _downcastTableResizedClass
+} from './tablecolumnresize/converters.js';
+export {
+	getChangedResizedTables as _getChangedResizedTables,
+	getColumnMinWidthAsPercentage as _getTableColumnMinWidthAsPercentage,
+	getTableWidthInPixels as _getTableWidthInPixels,
+	getElementWidthInPixels as _getElementWidthInPixels,
+	getColumnEdgesIndexes as _getTableColumnEdgesIndexes,
+	toPrecision as _toPrecision,
+	clamp as _clamp,
+	createFilledArray as _createFilledArray,
+	sumArray as _sumArray,
+	normalizeColumnWidths as _normalizeTableColumnWidths,
+	getDomCellOuterWidth as _getDomTableCellOuterWidth,
+	updateColumnElements as _updateTableColumnElements,
+	getColumnGroupElement as _getTableColumnGroupElement,
+	getTableColumnElements as _getTableColumnElements,
+	getTableColumnsWidths as _getTableColumnsWidths,
+	translateColSpanAttribute as _translateTableColspanAttribute
+} from './tablecolumnresize/utils.js';
+export { MouseEventsObserver as _TableMouseEventsObserver } from './tablemouse/mouseeventsobserver.js';
+export type { ColorInputViewOptions as _TableColorInputViewOptions } from './ui/colorinputview.js';
+export { ColorInputView as _TableColorInputView } from './ui/colorinputview.js';
+export { InsertTableView as _InsertTableView } from './ui/inserttableview.js';
+export {
+	updateNumericAttribute as _updateTableNumericAttribute,
+	createEmptyTableCell as _createEmptyTableCell,
+	isHeadingColumnCell as _isTableHeadingColumnCell,
+	enableProperty as _enableTableCellProperty,
+	getSelectionAffectedTable as _getSelectionAffectedTable
+} from './utils/common.js';
+export {
+	cropTableToDimensions as _cropTableToDimensions,
+	getVerticallyOverlappingCells as _getVerticallyOverlappingTableCells,
+	splitHorizontally as _splitTableCellHorizontally,
+	getHorizontallyOverlappingCells as _getHorizontallyOverlappingTableCells,
+	splitVertically as _splitTableCellVertically,
+	trimTableCellIfNeeded as _trimTableCellIfNeeded,
+	removeEmptyColumns as _removeEmptyTableColumns,
+	removeEmptyRows as _removeEmptyTableRows,
+	removeEmptyRowsColumns as _removeEmptyTableRowsColumns,
+	adjustLastRowIndex as _adjustLastTableRowIndex,
+	adjustLastColumnIndex as _adjustLastTableColumnIndex
+} from './utils/structure.js';
+export {
+	getSingleValue as _getTableBorderBoxSingleValue,
+	addDefaultUnitToNumericValue as _addDefaultUnitToNumericValue,
+	getNormalizedDefaultProperties as _getNormalizedDefaultTableBaseProperties,
+	getNormalizedDefaultTableProperties as _getNormalizedDefaultTableProperties,
+	getNormalizedDefaultCellProperties as _getNormalizedDefaultTableCellProperties
+} from './utils/table-properties.js';
+export type {
+	NormalizedDefaultProperties as _NormalizedTableDefaultProperties,
+	NormalizeTableDefaultPropertiesOptions as _NormalizeTableDefaultPropertiesOptions
+} from './utils/table-properties.js';
+export {
+	repositionContextualBalloon as _repositionTableContextualBalloon,
+	getBalloonTablePositionData as _getBalloonTablePositionData,
+	getBalloonCellPositionData as _getBalloonTableCellPositionData
+} from './utils/ui/contextualballoon.js';
+export {
+	getBorderStyleLabels as _getBorderTableStyleLabels,
+	getLocalizedColorErrorText as _getLocalizedTableColorErrorText,
+	getLocalizedLengthErrorText as _getLocalizedTableLengthErrorText,
+	colorFieldValidator as _colorTableFieldValidator,
+	lengthFieldValidator as _lengthTableFieldValidator,
+	lineWidthFieldValidator as _lineWidthTableFieldValidator,
+	getBorderStyleDefinitions as _getTableOrCellBorderStyleDefinitions,
+	fillToolbar as _fillTableOrCellToolbar,
+	defaultColors as _TABLE_DEFAULT_COLORS,
+	getLabeledColorInputCreator as _getLabeledTableColorInputCreator
+} from './utils/ui/table-properties.js';
+export {
+	getSelectionAffectedTableWidget as _getSelectionAffectedTableWidget,
+	getSelectedTableWidget as _getSelectedTableWidget,
+	getTableWidgetAncestor as _getTableWidgetAncestor
+} from './utils/ui/widget.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

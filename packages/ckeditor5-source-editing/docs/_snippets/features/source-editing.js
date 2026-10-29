@@ -1,21 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document, ClassicEditor */
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
+import { SourceEditingEditor } from './source-editing-imports.js';
 
 import './source-editing.css';
 
-ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+SourceEditingEditor
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
 		toolbar: {
 			items: [
 				'undo', 'redo',
 				'|', 'sourceEditing',
 				'|', 'heading',
 				'|', 'bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript', 'code',
-				'-', 'link', 'uploadImage', 'insertTable', 'blockQuote', 'mediaEmbed', 'codeBlock',
+				'-', 'link', 'insertImage', 'insertTable', 'blockQuote', 'mediaEmbed', 'codeBlock',
 				'|', 'alignment',
 				'|', 'bulletedList', 'numberedList', 'todoList', 'outdent', 'indent'
 			],
@@ -32,10 +39,12 @@ ClassicEditor
 				'linkImage',
 				'|',
 				'imageStyle:block',
-				'imageStyle:side',
+				'imageStyle:wrapText',
 				'|',
 				'imageTextAlternative',
-				'toggleImageCaption'
+				'toggleImageCaption',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		htmlSupport: {
@@ -60,16 +69,20 @@ ClassicEditor
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
 		}
 	} )
 	.then( editor => {
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar,
-				item => item.label && item.label === 'Source' ),
+		attachTourBalloon( {
+			target: findToolbarItem( editor.ui.view.toolbar, item => item.label && item.label === 'Source' ),
 			text: 'Switch to the source mode to edit the HTML source.',
 			editor,
 			tippyOptions: {

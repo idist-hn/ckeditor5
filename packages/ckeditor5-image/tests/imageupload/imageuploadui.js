@@ -1,27 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Image } from '../../src/image.js';
+import {
+	FileDialogButtonView,
+	Notification,
+	ButtonView,
+	UIModel,
+	MenuBarMenuListItemButtonView,
+	MenuBarMenuListItemFileDialogButtonView
+} from '@ckeditor/ckeditor5-ui';
+import { FileRepository } from '@ckeditor/ckeditor5-upload';
+import { ImageInlineEditing } from '../../src/image/imageinlineediting.js';
+import { ImageUploadUI } from '../../src/imageupload/imageuploadui.js';
+import { ImageUploadEditing } from '../../src/imageupload/imageuploadediting.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Clipboard } from '@ckeditor/ckeditor5-clipboard';
+import { IconImageUpload } from '@ckeditor/ckeditor5-icons';
 
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
-import Image from '../../src/image';
-import FileDialogButtonView from '@ckeditor/ckeditor5-upload/src/ui/filedialogbuttonview';
-import FileRepository from '@ckeditor/ckeditor5-upload/src/filerepository';
-import ImageUploadUI from '../../src/imageupload/imageuploadui';
-import ImageUploadEditing from '../../src/imageupload/imageuploadediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Notification from '@ckeditor/ckeditor5-ui/src/notification/notification';
-import Clipboard from '@ckeditor/ckeditor5-clipboard/src/clipboard';
-
-import { createNativeFileMock, UploadAdapterMock } from '@ckeditor/ckeditor5-upload/tests/_utils/mocks';
-import { setData as setModelData, getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { createNativeFileMock, UploadAdapterMock } from '@ckeditor/ckeditor5-upload/tests/_utils/mocks.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'ImageUploadUI', () => {
-	let editor, model, editorElement, fileRepository;
+	let editor, model, editorElement, fileRepository, button;
 
 	class UploadAdapterPluginMock extends Plugin {
 		init() {
@@ -38,7 +45,12 @@ describe( 'ImageUploadUI', () => {
 
 		return ClassicEditor
 			.create( editorElement, {
-				plugins: [ Paragraph, Image, ImageUploadEditing, ImageUploadUI, FileRepository, UploadAdapterPluginMock, Clipboard ]
+				plugins: [ Paragraph, Image, ImageUploadEditing, ImageUploadUI, FileRepository, UploadAdapterPluginMock, Clipboard ],
+				image: {
+					upload: {
+						types: [ 'svg+xml', 'jpeg', 'vnd.microsoft.icon', 'x-xbitmap' ]
+					}
+				}
 			} )
 			.then( newEditor => {
 				editor = newEditor;
@@ -56,151 +68,351 @@ describe( 'ImageUploadUI', () => {
 		return editor.destroy();
 	} );
 
-	it( 'should register uploadImage button', () => {
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-
-		expect( button ).to.be.instanceOf( FileDialogButtonView );
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageUploadUI.isOfficialPlugin ).toBe( true );
 	} );
 
-	it( 'should register imageUpload button as an alias for uploadImage button', () => {
-		const buttonCreator = editor.ui.componentFactory._components.get( 'uploadImage'.toLowerCase() );
-		const buttonAliasCreator = editor.ui.componentFactory._components.get( 'imageUpload'.toLowerCase() );
-
-		expect( buttonCreator.callback ).to.equal( buttonAliasCreator.callback );
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageUploadUI.isPremiumPlugin ).toBe( false );
 	} );
 
-	it( 'should set proper accepted mime-types for uploadImage button as defined in configuration', () => {
-		editor.config.set( 'image.upload.types', [ 'svg+xml', 'jpeg', 'vnd.microsoft.icon', 'x-xbitmap' ] );
+	describe( 'toolbar button', () => {
+		describe( 'uploadImage', () => {
+			beforeEach( () => {
+				button = editor.ui.componentFactory.create( 'uploadImage' );
+			} );
 
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
+			testButton( 'uploadImage', 'Upload image from computer', ButtonView );
 
-		expect( button.acceptedType ).to.equal( 'image/svg+xml,image/jpeg,image/vnd.microsoft.icon,image/x-xbitmap' );
+			it( 'should have tooltip', () => {
+				expect( button.tooltip ).toBe( true );
+			} );
+		} );
+
+		// Check backward compatibility.
+		describe( 'imageUpload', () => {
+			beforeEach( () => {
+				button = editor.ui.componentFactory.create( 'imageUpload' );
+			} );
+
+			testButton( 'uploadImage', 'Upload image from computer', ButtonView );
+
+			it( 'should have tooltip', () => {
+				expect( button.tooltip ).toBe( true );
+			} );
+		} );
 	} );
 
-	it( 'should be disabled while UploadImageCommand is disabled', () => {
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const command = editor.commands.get( 'uploadImage' );
+	describe( 'menu bar button', () => {
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'menuBar:uploadImage' );
+		} );
 
-		command.isEnabled = true;
-
-		expect( button.buttonView.isEnabled ).to.true;
-
-		command.isEnabled = false;
-
-		expect( button.buttonView.isEnabled ).to.false;
+		testButton( 'uploadImage', 'Image from computer', MenuBarMenuListItemFileDialogButtonView );
 	} );
 
-	// ckeditor5-upload/#77
-	it( 'should be properly bound with UploadImageCommand', () => {
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const command = editor.commands.get( 'uploadImage' );
-		const spy = sinon.spy();
+	describe( 'InsertImageUI toolbar integration', () => {
+		it( 'should create FileDialogButtonView in split button dropdown button', () => {
+			mockAnotherIntegration();
 
-		button.render();
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+			const dropdownButton = dropdown.buttonView.actionView;
 
-		button.buttonView.on( 'execute', spy );
+			expect( dropdownButton ).toBeInstanceOf( FileDialogButtonView );
+			expect( dropdownButton.withText ).toBe( false );
+			expect( dropdownButton.icon ).toBe( IconImageUpload );
+		} );
 
-		command.isEnabled = false;
+		it( 'should create FileDialogButtonView in dropdown panel', () => {
+			mockAnotherIntegration();
 
-		button.buttonView.element.dispatchEvent( new Event( 'click' ) );
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
 
-		sinon.assert.notCalled( spy );
+			dropdown.isOpen = true;
+
+			const formView = dropdown.panelView.children.get( 0 );
+			const buttonView = formView.children.get( 0 );
+
+			expect( buttonView ).toBeInstanceOf( FileDialogButtonView );
+			expect( buttonView.withText ).toBe( true );
+			expect( buttonView.icon ).toBe( IconImageUpload );
+		} );
+
+		it( 'should bind to #isImageSelected and #isAccessAllowed', () => {
+			const insertImageUI = editor.plugins.get( 'ImageInsertUI' );
+			const uploadImageCommand = editor.commands.get( 'uploadImage' );
+
+			mockAnotherIntegration();
+
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+
+			dropdown.isOpen = true;
+
+			const dropdownButton = dropdown.buttonView.actionView;
+			const formView = dropdown.panelView.children.get( 0 );
+			const buttonView = formView.children.get( 0 );
+
+			insertImageUI.isImageSelected = false;
+			expect( dropdownButton.label ).toBe( 'Upload image from computer' );
+			expect( buttonView.label ).toBe( 'Upload from computer' );
+
+			insertImageUI.isImageSelected = true;
+			expect( dropdownButton.label ).toBe( 'Replace image from computer' );
+			expect( buttonView.label ).toBe( 'Replace from computer' );
+
+			uploadImageCommand.isAccessAllowed = false;
+			expect( dropdownButton.label ).toBe( 'You have no image upload permissions.' );
+			expect( buttonView.label ).toBe( 'Replace from computer' );
+
+			insertImageUI.isImageSelected = false;
+			uploadImageCommand.isAccessAllowed = false;
+			expect( dropdownButton.label ).toBe( 'You have no image upload permissions.' );
+			expect( buttonView.label ).toBe( 'Upload from computer' );
+		} );
+
+		it( 'should close dropdown on execute', () => {
+			mockAnotherIntegration();
+
+			const dropdown = editor.ui.componentFactory.create( 'insertImage' );
+
+			dropdown.isOpen = true;
+
+			const formView = dropdown.panelView.children.get( 0 );
+			const buttonView = formView.children.get( 0 );
+
+			vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+
+			buttonView.fire( 'execute' );
+
+			expect( dropdown.isOpen ).toBe( false );
+		} );
 	} );
 
-	it( 'should execute uploadImage command', () => {
-		const executeStub = sinon.stub( editor, 'execute' );
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const files = [ createNativeFileMock() ];
+	describe( 'InsertImageUI menu bar integration', () => {
+		it( 'should create FileDialogButtonView in insert image submenu', () => {
+			mockAnotherIntegration();
 
-		button.fire( 'done', files );
-		sinon.assert.calledOnce( executeStub );
-		expect( executeStub.firstCall.args[ 0 ] ).to.equal( 'uploadImage' );
-		expect( executeStub.firstCall.args[ 1 ].file ).to.deep.equal( files );
+			const submenu = editor.ui.componentFactory.create( 'menuBar:insertImage' );
+
+			button = submenu.panelView.children.first.items.first.children.first;
+
+			expect( button ).toBeInstanceOf( MenuBarMenuListItemFileDialogButtonView );
+			expect( button.withText ).toBe( true );
+			expect( button.icon ).toBe( IconImageUpload );
+			expect( button.label ).toBe( 'From computer' );
+		} );
+
+		it( 'should create FileDialogButtonView in insert image submenu - only integration', () => {
+			const submenu = editor.ui.componentFactory.create( 'menuBar:insertImage' );
+
+			button = submenu.panelView.children.first.items.first.children.first;
+
+			expect( button ).toBeInstanceOf( MenuBarMenuListItemFileDialogButtonView );
+			expect( button.withText ).toBe( true );
+			expect( button.icon ).toBe( IconImageUpload );
+			expect( button.label ).toBe( 'Image' );
+		} );
 	} );
 
-	it( 'should execute uploadImage command with multiple files', () => {
-		const executeStub = sinon.stub( editor, 'execute' );
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const files = [ createNativeFileMock(), createNativeFileMock(), createNativeFileMock() ];
+	describe( 'without ImageInsertUI', () => {
+		let editorWithoutInsertUI, editorElementWithoutInsertUI;
 
-		button.fire( 'done', files );
-		sinon.assert.calledOnce( executeStub );
-		expect( executeStub.firstCall.args[ 0 ] ).to.equal( 'uploadImage' );
-		expect( executeStub.firstCall.args[ 1 ].file ).to.deep.equal( files );
+		class UploadAdapterPluginMockLocal extends Plugin {
+			init() {
+				const fileRepo = this.editor.plugins.get( FileRepository );
+				fileRepo.createUploadAdapter = loaderInstance => new UploadAdapterMock( loaderInstance );
+			}
+		}
+
+		beforeEach( () => {
+			editorElementWithoutInsertUI = document.createElement( 'div' );
+			document.body.appendChild( editorElementWithoutInsertUI );
+
+			return ClassicEditor
+				.create( editorElementWithoutInsertUI, {
+					// Use only the editing layer plugins — ImageInlineEditing does NOT pull in ImageInsertUI.
+					plugins: [ Paragraph, ImageInlineEditing, ImageUploadEditing, ImageUploadUI, FileRepository,
+						UploadAdapterPluginMockLocal, Clipboard ]
+				} )
+				.then( newEditor => {
+					editorWithoutInsertUI = newEditor;
+				} );
+		} );
+
+		afterEach( () => {
+			editorElementWithoutInsertUI.remove();
+
+			return editorWithoutInsertUI.destroy();
+		} );
+
+		it( 'should register the uploadImage button in the component factory even when ImageInsertUI is not loaded', () => {
+			expect( editorWithoutInsertUI.plugins.has( 'ImageInsertUI' ) ).toBe( false );
+			expect( editorWithoutInsertUI.ui.componentFactory.has( 'uploadImage' ) ).toBe( true );
+			expect( editorWithoutInsertUI.ui.componentFactory.has( 'imageUpload' ) ).toBe( true );
+		} );
 	} );
 
-	it( 'should optimize the insertion position', () => {
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const files = [ createNativeFileMock() ];
+	function mockAnotherIntegration() {
+		const insertImageUI = editor.plugins.get( 'ImageInsertUI' );
+		const observable = new UIModel( { isEnabled: true } );
 
-		setModelData( model, '<paragraph>f[]oo</paragraph>' );
+		insertImageUI.registerIntegration( {
+			name: 'assetManager',
+			observable,
+			buttonViewCreator() {
+				const button = new ButtonView( editor.locale );
 
-		button.fire( 'done', files );
+				button.label = 'foo';
 
-		const id = fileRepository.getLoader( files[ 0 ] ).id;
+				return button;
+			},
+			formViewCreator() {
+				const button = new ButtonView( editor.locale );
 
-		expect( getModelData( model ) ).to.equal(
-			'<paragraph>' +
-				`f[<imageInline uploadId="${ id }" uploadStatus="reading"></imageInline>]oo` +
-			'</paragraph>'
-		);
-	} );
+				button.label = 'bar';
 
-	it( 'should correctly insert multiple files', () => {
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const files = [ createNativeFileMock(), createNativeFileMock() ];
+				return button;
+			},
+			menuBarButtonViewCreator() {
+				const button = new MenuBarMenuListItemButtonView( editor.locale );
 
-		setModelData( model, '<paragraph>foo[]</paragraph><paragraph>bar</paragraph>' );
+				button.label = 'menu foo';
 
-		button.fire( 'done', files );
+				return button;
+			}
+		} );
+	}
 
-		const id1 = fileRepository.getLoader( files[ 0 ] ).id;
-		const id2 = fileRepository.getLoader( files[ 1 ] ).id;
+	function testButton( featureName, label, Component ) {
+		it( 'should register feature component', () => {
+			expect( button ).toBeInstanceOf( Component );
+		} );
 
-		expect( getModelData( model ) ).to.equal(
-			'<paragraph>' +
-				`foo<imageInline uploadId="${ id1 }" uploadStatus="reading"></imageInline>` +
-				`[<imageInline uploadId="${ id2 }" uploadStatus="reading"></imageInline>]` +
-			'</paragraph>' +
+		it( 'should create UI component with correct attribute values', () => {
+			expect( button.isOn ).toBe( false );
+			expect( button.label ).toBe( label );
+			expect( button.allowMultipleFiles ).toBe( true );
+			expect( button.icon ).toBe( IconImageUpload );
+		} );
+
+		it( 'should set proper accepted mime-types for uploadImage button as defined in configuration', () => {
+			expect( button.acceptedType ).toBe( 'image/svg+xml,image/jpeg,image/vnd.microsoft.icon,image/x-xbitmap' );
+		} );
+
+		it( `should bind #isEnabled to ${ featureName } command`, () => {
+			const command = editor.commands.get( featureName );
+
+			expect( button.isOn ).toBe( false );
+
+			const initState = command.isEnabled;
+			expect( button.isEnabled ).toBe( initState );
+
+			command.isEnabled = !initState;
+			expect( button.isEnabled ).toBe( !initState );
+		} );
+
+		// ckeditor5-upload/#77
+		it( 'should be properly bound with UploadImageCommand', () => {
+			const command = editor.commands.get( 'uploadImage' );
+			const spy = vi.fn();
+
+			button.render();
+
+			button.on( 'execute', spy );
+
+			command.isEnabled = false;
+
+			button.element.dispatchEvent( new Event( 'click' ) );
+
+			expect( spy ).not.toHaveBeenCalled();
+		} );
+
+		it( 'should execute uploadImage command', () => {
+			const executeStub = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+			const files = [ createNativeFileMock() ];
+
+			button.fire( 'done', files );
+			expect( executeStub ).toHaveBeenCalledTimes( 1 );
+			expect( executeStub.mock.calls[ 0 ][ 0 ] ).toBe( 'uploadImage' );
+			expect( executeStub.mock.calls[ 0 ][ 1 ].file ).toEqual( files );
+		} );
+
+		it( 'should execute uploadImage command with multiple files', () => {
+			const executeStub = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+			const files = [ createNativeFileMock(), createNativeFileMock(), createNativeFileMock() ];
+
+			button.fire( 'done', files );
+			expect( executeStub ).toHaveBeenCalledTimes( 1 );
+			expect( executeStub.mock.calls[ 0 ][ 0 ] ).toBe( 'uploadImage' );
+			expect( executeStub.mock.calls[ 0 ][ 1 ].file ).toEqual( files );
+		} );
+
+		it( 'should optimize the insertion position', () => {
+			const files = [ createNativeFileMock() ];
+
+			_setModelData( model, '<paragraph>f[]oo</paragraph>' );
+
+			button.fire( 'done', files );
+
+			const id = fileRepository.getLoader( files[ 0 ] ).id;
+
+			expect( _getModelData( model ) ).toBe(
+				`[<imageBlock uploadId="${ id }" uploadStatus="reading"></imageBlock>]` +
+			'<paragraph>foo</paragraph>'
+			);
+		} );
+
+		it( 'should correctly insert multiple files', () => {
+			const files = [ createNativeFileMock(), createNativeFileMock() ];
+
+			_setModelData( model, '<paragraph>foo[]</paragraph><paragraph>bar</paragraph>' );
+
+			button.fire( 'done', files );
+
+			const id1 = fileRepository.getLoader( files[ 0 ] ).id;
+			const id2 = fileRepository.getLoader( files[ 1 ] ).id;
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+			`<imageBlock uploadId="${ id1 }" uploadStatus="reading"></imageBlock>` +
+			`[<imageBlock uploadId="${ id2 }" uploadStatus="reading"></imageBlock>]` +
 			'<paragraph>bar</paragraph>'
-		);
-	} );
+			);
+		} );
 
-	it( 'should not execute uploadImage if the file is not an image', () => {
-		const executeStub = sinon.stub( editor, 'execute' );
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const file = {
-			type: 'media/mp3',
-			size: 1024
-		};
+		it( 'should not execute uploadImage if the file is not an image', () => {
+			const executeStub = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+			const file = {
+				type: 'media/mp3',
+				size: 1024
+			};
 
-		button.fire( 'done', [ file ] );
-		sinon.assert.notCalled( executeStub );
-	} );
+			button.fire( 'done', [ file ] );
+			expect( executeStub ).not.toHaveBeenCalled();
+		} );
 
-	it( 'should work even if the FileList does not support iterators', () => {
-		const executeStub = sinon.stub( editor, 'execute' );
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const files = {
-			0: createNativeFileMock(),
-			length: 1
-		};
+		it( 'should work even if the FileList does not support iterators', () => {
+			const executeStub = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+			const files = {
+				0: createNativeFileMock(),
+				length: 1
+			};
 
-		button.fire( 'done', files );
-		sinon.assert.calledOnce( executeStub );
-		expect( executeStub.firstCall.args[ 0 ] ).to.equal( 'uploadImage' );
-		expect( executeStub.firstCall.args[ 1 ].file ).to.deep.equal( [ files[ 0 ] ] );
-	} );
+			button.fire( 'done', files );
+			expect( executeStub ).toHaveBeenCalledTimes( 1 );
+			expect( executeStub.mock.calls[ 0 ][ 0 ] ).toBe( 'uploadImage' );
+			expect( executeStub.mock.calls[ 0 ][ 1 ].file ).toEqual( [ files[ 0 ] ] );
+		} );
 
-	it( 'should move focus to editable after executing the command', () => {
-		const spy = sinon.spy( editor.editing.view, 'focus' );
-		const button = editor.ui.componentFactory.create( 'uploadImage' );
-		const file = [ createNativeFileMock() ];
+		it( 'should move focus to editable after executing the command', () => {
+			const spy = vi.spyOn( editor.editing.view, 'focus' );
+			const file = [ createNativeFileMock() ];
 
-		setModelData( model, '<paragraph>f[]oo</paragraph>' );
+			_setModelData( model, '<paragraph>f[]oo</paragraph>' );
 
-		button.fire( 'done', file );
+			button.fire( 'done', file );
 
-		expect( spy ).to.be.calledOnce;
-	} );
+			expect( spy ).toHaveBeenCalledTimes( 1 );
+		} );
+	}
 } );

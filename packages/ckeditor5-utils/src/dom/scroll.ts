@@ -1,22 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/dom/scroll
  */
 
-import isRange from './isrange';
-import Rect from './rect';
-import isText from './istext';
+import { isRange } from './isrange.js';
+import { Rect } from './rect.js';
+import { isText } from './istext.js';
+import { getLayoutParentElement } from './getlayoutparentelement.js';
+import { isShadowRoot } from './isshadowroot.js';
 
-type IfTrue<T> = T extends true ? true : never;
+export type IfTrue<T> = T extends true ? true : never;
 
 /**
  * Makes any page `HTMLElement` or `Range` (`target`) visible inside the browser viewport.
  * This helper will scroll all `target` ancestors and the web browser viewport to reveal the target to
  * the user. If the `target` is already visible, nothing will happen.
+ *
+ * **Note**: The ancestor walk crosses shadow DOM boundaries, continuing from the host element of a shadow root
+ * instead of stopping at it, so scrollable ancestors in the surrounding document are scrolled too. Works for open
+ * and closed shadow roots alike.
  *
  * @param options Additional configuration of the scrolling behavior.
  * @param options.target A target, which supposed to become visible to the user.
@@ -90,9 +96,9 @@ export function scrollViewportToShowTarget<T extends boolean, U extends IfTrue<T
 		// start scrolling the closest parent of the target. If not, scroll the closest parent
 		// of an iframe that resides in the current window.
 		if ( currentWindow == targetWindow ) {
-			firstAncestorToScroll = getParentElement( target );
+			firstAncestorToScroll = getTargetParentElement( target );
 		} else {
-			firstAncestorToScroll = getParentElement( currentFrame! );
+			firstAncestorToScroll = getTargetParentElement( currentFrame! );
 		}
 
 		// Scroll the target's ancestors first. Once done, scrolling the viewport is easy.
@@ -113,7 +119,25 @@ export function scrollViewportToShowTarget<T extends boolean, U extends IfTrue<T
 
 		// Obtain the rect of the target after it has been scrolled within its ancestors.
 		// It's time to scroll the viewport.
-		const targetRect = getRectRelativeToWindow( target, currentWindow );
+		let targetRect = getRectRelativeToWindow( target, currentWindow );
+
+		// Detect situation where the target is higher than the first scrollable ancestor.
+		// In such case scrolling the viewport to reveal the target might be malfunctioning because
+		// the target `.top` position is lower than the ancestor's `.top` position. If it's large enough it can be negative.
+		// It causes the `scrollWindowToShowRect` to scroll the viewport to the negative top position which is not possible
+		// and leads to the viewport being scrolled to the absolute top of the document. To prevent this, the target's rect
+		// must be shifted to the ancestor's top position. It should not affect the target's visibility because the ancestor
+		// is already scrolled to reveal the target.
+		// See more: https://github.com/ckeditor/ckeditor5/issues/17079
+		const ancestorWindowRelativeRect = getRectRelativeToWindow( firstAncestorToScroll, currentWindow );
+
+		if ( targetRect.height > ancestorWindowRelativeRect.height ) {
+			const ancestorTargetIntersection = targetRect.getIntersection( ancestorWindowRelativeRect );
+
+			if ( ancestorTargetIntersection ) {
+				targetRect = ancestorTargetIntersection;
+			}
+		}
 
 		scrollWindowToShowRect( {
 			window: currentWindow,
@@ -148,20 +172,38 @@ export function scrollViewportToShowTarget<T extends boolean, U extends IfTrue<T
  * Makes any page `HTMLElement` or `Range` (target) visible within its scrollable ancestors,
  * e.g. if they have `overflow: scroll` CSS style.
  *
+ * **Note**: The ancestor walk crosses shadow DOM boundaries, continuing from the host element of a shadow root
+ * instead of stopping at it, so scrollable ancestors in the surrounding document are scrolled too. Works for open
+ * and closed shadow roots alike.
+ *
  * @param target A target, which supposed to become visible to the user.
  * @param ancestorOffset An offset between the target and the boundary of scrollable ancestors
  * to be maintained while scrolling.
  * @param limiterElement The outermost ancestor that should be scrolled. If specified, it can prevent
  * scrolling the whole page.
+ * @param alignToTop When set `true`, the function will make sure the `target` is scrolled up
+ * to the top boundary of the scrollable ancestors if scrolled up. When not set (default), the `target`
+ * will be revealed by scrolling as little as possible. This option will not affect target elements that must be
+ * scrolled down because they will appear at the top of the boundary anyway.
+ * @param forceScroll When set `true`, the `target` will be aligned to the top of scrollable ancestors
+ * whether it is already visible or not. This option will only work when `alignToTop` is `true`
  */
-export function scrollAncestorsToShowTarget( target: HTMLElement | Range, ancestorOffset?: number, limiterElement?: HTMLElement ): void {
-	const targetParent = getParentElement( target );
+export function scrollAncestorsToShowTarget(
+	target: HTMLElement | Range,
+	ancestorOffset?: number,
+	limiterElement?: HTMLElement,
+	alignToTop?: boolean,
+	forceScroll?: true
+): void {
+	const targetParent = getTargetParentElement( target );
 
 	scrollAncestorsToShowRect( {
 		parent: targetParent,
 		getRect: () => new Rect( target ),
 		ancestorOffset,
-		limiterElement
+		limiterElement,
+		alignToTop,
+		forceScroll
 	} );
 }
 
@@ -319,34 +361,39 @@ function scrollAncestorsToShowRect<T extends boolean, U extends IfTrue<T>>(
 
 	const limiter = limiterElement || parentWindow.document.body;
 
-	while ( parent != limiter ) {
+	// The walk below crosses shadow DOM boundaries, so it yields elements only and ends at the root element
+	// instead of passing through the document. The `currentParent` check makes sure that running out of
+	// ancestors before reaching the limiter ends the walk instead of continuing with a `null` cursor.
+	let currentParent: HTMLElement | null = parent;
+
+	while ( currentParent && currentParent != limiter ) {
 		targetRect = getRect();
-		parentRect = new Rect( parent ).excludeScrollbarsAndBorders();
+		parentRect = new Rect( currentParent ).excludeScrollbarsAndBorders();
 		targetFitsInTarget = parentRect.contains( targetRect );
 
 		if ( forceScrollToTop ) {
-			parent.scrollTop -= ( parentRect.top - targetRect.top ) + ancestorOffset;
+			currentParent.scrollTop -= ( parentRect.top - targetRect.top ) + ancestorOffset;
 		} else if ( !targetFitsInTarget ) {
 			if ( isAbove( targetRect, parentRect ) ) {
-				parent.scrollTop -= parentRect.top - targetRect.top + ancestorOffset;
+				currentParent.scrollTop -= parentRect.top - targetRect.top + ancestorOffset;
 			} else if ( isBelow( targetRect, parentRect ) ) {
 				if ( alignToTop ) {
-					parent.scrollTop += targetRect.top - parentRect.top - ancestorOffset;
+					currentParent.scrollTop += targetRect.top - parentRect.top - ancestorOffset;
 				} else {
-					parent.scrollTop += targetRect.bottom - parentRect.bottom + ancestorOffset;
+					currentParent.scrollTop += targetRect.bottom - parentRect.bottom + ancestorOffset;
 				}
 			}
 		}
 
 		if ( !targetFitsInTarget ) {
 			if ( isLeftOf( targetRect, parentRect ) ) {
-				parent.scrollLeft -= parentRect.left - targetRect.left + ancestorOffset;
+				currentParent.scrollLeft -= parentRect.left - targetRect.left + ancestorOffset;
 			} else if ( isRightOf( targetRect, parentRect ) ) {
-				parent.scrollLeft += targetRect.right - parentRect.right + ancestorOffset;
+				currentParent.scrollLeft += targetRect.right - parentRect.right + ancestorOffset;
 			}
 		}
 
-		parent = parent.parentNode as HTMLElement;
+		currentParent = getLayoutParentElement( currentParent ) as HTMLElement | null;
 	}
 }
 
@@ -391,19 +438,31 @@ function getWindow( elementOrRange: HTMLElement | Range ): Window {
 
 /**
  * Returns the closest parent of an element or DOM range.
+ *
+ * The lookup runs over the flattened tree, so for a target at the top of a shadow root it returns the host
+ * instead of the shadow root itself, and for slotted content it returns the `<slot>` the content renders in.
+ * The result only seeds the ancestor walk of {@link ~scrollAncestorsToShowRect} – a cursor, not something
+ * measured, as that walk takes the target rect separately – so a slot, which generates no box of its own, is a
+ * valid answer and the walk carries on from inside the shadow tree.
  */
-function getParentElement( elementOrRange: HTMLElement | Range ): HTMLElement {
+function getTargetParentElement( elementOrRange: HTMLElement | Range ): HTMLElement {
 	if ( isRange( elementOrRange ) ) {
 		let parent = elementOrRange.commonAncestorContainer as HTMLElement;
 
+		// A range spanning the top level of a shadow root has that root as its common ancestor. The root
+		// cannot be measured or scrolled, and has no parent to continue from, so use the host instead.
+		if ( isShadowRoot( parent ) ) {
+			return parent.host as HTMLElement;
+		}
+
 		// If a Range is attached to the Text, use the closest element ancestor.
 		if ( isText( parent ) ) {
-			parent = parent.parentNode as HTMLElement;
+			parent = getLayoutParentElement( parent ) as HTMLElement;
 		}
 
 		return parent;
 	} else {
-		return elementOrRange.parentNode as HTMLElement;
+		return getLayoutParentElement( elementOrRange ) as HTMLElement;
 	}
 }
 

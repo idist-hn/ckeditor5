@@ -1,13 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ShiftEnter from '@ckeditor/ckeditor5-enter/src/shiftenter';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ShiftEnter } from '@ckeditor/ckeditor5-enter';
 
-import { getData as getModelData, setData as setModelData } from '../../src/dev-utils/model';
+import { _getModelData, _setModelData } from '../../src/dev-utils/model.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'Bug ckeditor5#5564', () => {
 	let editor;
@@ -27,23 +28,23 @@ describe( 'Bug ckeditor5#5564', () => {
 	it( 'does not create an excessive new line when loading <p>x</p><p><br></p><p>x</p>', () => {
 		editor.setData( '<p>x</p><p><br></p><p>x</p>' );
 
-		expect( getModelData( editor.model ) ).to.equal(
+		expect( _getModelData( editor.model ) ).toBe(
 			'<paragraph>[]x</paragraph><paragraph></paragraph><paragraph>x</paragraph>'
 		);
 	} );
 
 	it( 'preserves a soft break in an empty paragraph', () => {
-		setModelData( editor.model, '<paragraph>x</paragraph><paragraph><softBreak /></paragraph><paragraph>x</paragraph>' );
+		_setModelData( editor.model, '<paragraph>x</paragraph><paragraph><softBreak /></paragraph><paragraph>x</paragraph>' );
 
 		const expectedData = '<p>x</p><p><br>&nbsp;</p><p>x</p>';
 		const actualData = editor.getData();
 
-		expect( actualData ).to.equal( expectedData );
+		expect( actualData ).toBe( expectedData );
 
 		// Loading this data into the editor will actually create an excessive space as &nbsp; here isn't recognized as a filler.
 		// It's a known issue.
 		editor.setData( actualData );
 
-		expect( editor.getData() ).to.equal( expectedData );
+		expect( editor.getData() ).toBe( expectedData );
 	} );
 } );

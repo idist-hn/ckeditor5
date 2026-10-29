@@ -1,18 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, DOMParser */
-
-import XmlDataProcessor from '../../src/dataprocessor/xmldataprocessor';
-import BasicHtmlWriter from '../../src/dataprocessor/basichtmlwriter';
-import DomConverter from '../../src//view/domconverter';
-import xssTemplates from '../../tests/dataprocessor/_utils/xsstemplates';
-import ViewDocumentFragment from '../../src/view/documentfragment';
-import ViewDocument from '../../src/view/document';
-import { stringify, parse } from '../../src/dev-utils/view';
-import { StylesProcessor } from '../../src/view/stylesmap';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { XmlDataProcessor } from '../../src/dataprocessor/xmldataprocessor.js';
+import { BasicHtmlWriter } from '../../src/dataprocessor/basichtmlwriter.js';
+import { ViewDomConverter } from '../../src/view/domconverter.js';
+import { xssTemplates } from '../../tests/dataprocessor/_utils/xsstemplates.js';
+import { ViewDocumentFragment } from '../../src/view/documentfragment.js';
+import { ViewDocument } from '../../src/view/document.js';
+import { _stringifyView, _parseView } from '../../src/dev-utils/view.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
 
 describe( 'XmlDataProcessor', () => {
 	let dataProcessor, viewDocument;
@@ -24,43 +23,45 @@ describe( 'XmlDataProcessor', () => {
 
 	describe( 'constructor', () => {
 		it( 'should set public properties', () => {
-			expect( dataProcessor ).to.have.property( 'namespaces' );
-			expect( dataProcessor ).to.have.property( 'domParser' );
-			expect( dataProcessor ).to.have.property( 'domConverter' );
-			expect( dataProcessor ).to.have.property( 'htmlWriter' );
-			expect( dataProcessor ).to.have.property( 'skipComments' );
+			expect( dataProcessor ).toHaveProperty( 'namespaces' );
+			expect( dataProcessor ).toHaveProperty( 'domParser' );
+			expect( dataProcessor ).toHaveProperty( 'domConverter' );
+			expect( dataProcessor ).toHaveProperty( 'htmlWriter' );
+			expect( dataProcessor ).toHaveProperty( 'skipComments' );
+			expect( dataProcessor ).toHaveProperty( 'skipProcessingInstructions' );
 
-			expect( dataProcessor.namespaces ).to.be.an.instanceOf( Array );
-			expect( dataProcessor.domParser ).to.be.an.instanceOf( DOMParser );
-			expect( dataProcessor.domConverter ).to.be.an.instanceOf( DomConverter );
-			expect( dataProcessor.htmlWriter ).to.be.an.instanceOf( BasicHtmlWriter );
-			expect( dataProcessor.skipComments ).to.be.true;
+			expect( dataProcessor.namespaces ).toBeInstanceOf( Array );
+			expect( dataProcessor.domParser ).toBeInstanceOf( DOMParser );
+			expect( dataProcessor.domConverter ).toBeInstanceOf( ViewDomConverter );
+			expect( dataProcessor.htmlWriter ).toBeInstanceOf( BasicHtmlWriter );
+			expect( dataProcessor.skipComments ).toBe( true );
+			expect( dataProcessor.skipProcessingInstructions ).toBe( true );
 		} );
 	} );
 
 	describe( 'toView', () => {
 		it( 'should return empty DocumentFragment when empty string is passed', () => {
 			const fragment = dataProcessor.toView( '' );
-			expect( fragment ).to.be.an.instanceOf( ViewDocumentFragment );
-			expect( fragment.childCount ).to.equal( 0 );
+			expect( fragment ).toBeInstanceOf( ViewDocumentFragment );
+			expect( fragment.childCount ).toBe( 0 );
 		} );
 
 		it( 'should convert XML to DocumentFragment with single text node', () => {
 			const fragment = dataProcessor.toView( 'foo bar' );
 
-			expect( stringify( fragment ) ).to.equal( 'foo bar' );
+			expect( _stringifyView( fragment ) ).toBe( 'foo bar' );
 		} );
 
 		it( 'should convert HTML to DocumentFragment with multiple child nodes', () => {
 			const fragment = dataProcessor.toView( '<p>foo</p><p>bar</p>' );
 
-			expect( stringify( fragment ) ).to.equal( '<p>foo</p><p>bar</p>' );
+			expect( _stringifyView( fragment ) ).toBe( '<p>foo</p><p>bar</p>' );
 		} );
 
 		it( 'should not add any additional nodes', () => {
 			const fragment = dataProcessor.toView( 'foo <b>bar</b> text' );
 
-			expect( stringify( fragment ) ).to.equal( 'foo <b>bar</b> text' );
+			expect( _stringifyView( fragment ) ).toBe( 'foo <b>bar</b> text' );
 		} );
 
 		it( 'should allow to use registered namespaces', () => {
@@ -70,34 +71,34 @@ describe( 'XmlDataProcessor', () => {
 
 			const fragment = dataProcessor.toView( '<foo:a><bar:b></bar:b></foo:a><bar:b><foo:a></foo:a></bar:b>' );
 
-			expect( stringify( fragment ) ).to.equal( '<foo:a><bar:b></bar:b></foo:a><bar:b><foo:a></foo:a></bar:b>' );
+			expect( _stringifyView( fragment ) ).toBe( '<foo:a><bar:b></bar:b></foo:a><bar:b><foo:a></foo:a></bar:b>' );
 		} );
 
 		it( 'should throw an error when use not registered namespaces', () => {
 			expect( () => {
 				dataProcessor.toView( '<foo:a></foo:a>' );
-			} ).to.throw( Error, /Parse error/ );
+			} ).toThrow( /Parse error/ );
 		} );
 
 		it( 'should thrown an error when markup is invalid', () => {
 			expect( () => {
 				dataProcessor.toView( '<b>missing closing tag' );
-			} ).to.throw( Error, /Parse error/ );
+			} ).toThrow( /Parse error/ );
 		} );
 
 		// Test against XSS attacks.
 		for ( const name in xssTemplates ) {
 			const input = xssTemplates[ name ].replace( /%xss%/g, 'testXss()' );
 
-			it( 'should prevent XSS attacks: ' + name, done => {
-				window.testXss = sinon.spy();
+			it( 'should prevent XSS attacks: ' + name, () => new Promise( resolve => {
+				window.testXss = vi.fn();
 				dataProcessor.toView( input );
 
 				window.setTimeout( () => {
-					sinon.assert.notCalled( window.testXss );
-					done();
+					expect( window.testXss ).not.toHaveBeenCalled();
+					resolve();
 				}, 10 );
-			} );
+			} ) );
 		}
 	} );
 
@@ -105,20 +106,20 @@ describe( 'XmlDataProcessor', () => {
 		it( 'should return empty string when empty DocumentFragment is passed', () => {
 			const fragment = new ViewDocumentFragment( viewDocument );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '' );
 		} );
 
 		it( 'should return text if document fragment with single text node is passed', () => {
 			const fragment = new ViewDocumentFragment( viewDocument );
-			fragment._appendChild( parse( 'foo bar' ) );
+			fragment._appendChild( _parseView( 'foo bar' ) );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( 'foo bar' );
+			expect( dataProcessor.toData( fragment ) ).toBe( 'foo bar' );
 		} );
 
 		it( 'should convert HTML to DocumentFragment with multiple child nodes', () => {
-			const fragment = parse( '<p>foo</p><p>bar</p>' );
+			const fragment = _parseView( '<p>foo</p><p>bar</p>' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p>foo</p><p>bar</p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p>foo</p><p>bar</p>' );
 		} );
 	} );
 
@@ -136,24 +137,24 @@ describe( 'XmlDataProcessor', () => {
 				'<p>bar</p>'
 			);
 
-			expect( stringify( fragment ) ).to.equal( '<p>foo</p><div class="raw"></div><p>bar</p>' );
-			expect( fragment.getChild( 1 ).getCustomProperty( '$rawContent' ) ).to.equal( '<!-- 123 --> abc <!-- 456 -->' );
+			expect( _stringifyView( fragment ) ).toBe( '<p>foo</p><div class="raw"></div><p>bar</p>' );
+			expect( fragment.getChild( 1 ).getCustomProperty( '$rawContent' ) ).toBe( '<!-- 123 --> abc <!-- 456 -->' );
 		} );
 	} );
 
 	describe( 'useFillerType()', () => {
 		it( 'should turn on and off using marked block fillers', () => {
-			const fragment = parse( '<container:p></container:p>' );
+			const fragment = _parseView( '<container:p></container:p>' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p>&nbsp;</p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p>&nbsp;</p>' );
 
 			dataProcessor.useFillerType( 'marked' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p><span data-cke-filler="true">&nbsp;</span></p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p><span data-cke-filler="true">&nbsp;</span></p>' );
 
 			dataProcessor.useFillerType( 'default' );
 
-			expect( dataProcessor.toData( fragment ) ).to.equal( '<p>&nbsp;</p>' );
+			expect( dataProcessor.toData( fragment ) ).toBe( '<p>&nbsp;</p>' );
 		} );
 	} );
 
@@ -169,7 +170,7 @@ describe( 'XmlDataProcessor', () => {
 				'<!-- Comment 3 -->'
 			);
 
-			expect( stringify( fragment ) ).to.equal( '<foo>barbaz</foo>' );
+			expect( _stringifyView( fragment ) ).toBe( '<foo>barbaz</foo>' );
 		} );
 
 		it( 'should preserve comments when `false`', () => {
@@ -185,7 +186,91 @@ describe( 'XmlDataProcessor', () => {
 				'<!-- Comment 3 -->'
 			);
 
-			expect( stringify( fragment ) ).to.equal( '<$comment></$comment><foo>bar<$comment></$comment>baz</foo><$comment></$comment>' );
+			expect(
+				_stringifyView( fragment )
+			).toBe( '<$comment></$comment><foo>bar<$comment></$comment>baz</foo><$comment></$comment>' );
+		} );
+	} );
+
+	describe( 'skipProcessingInstructions', () => {
+		it( 'should pass the default flags to the DOM converter', () => {
+			const spy = vi.spyOn( dataProcessor.domConverter, 'domToView' );
+
+			dataProcessor.toView( '<foo>bar</foo>' );
+
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+				skipComments: true,
+				skipProcessingInstructions: true
+			} ) );
+		} );
+
+		it( 'should pass the changed flags to the DOM converter', () => {
+			const spy = vi.spyOn( dataProcessor.domConverter, 'domToView' );
+
+			dataProcessor.skipComments = false;
+			dataProcessor.skipProcessingInstructions = false;
+
+			dataProcessor.toView( '<foo>bar</foo>' );
+
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+				skipComments: false,
+				skipProcessingInstructions: false
+			} ) );
+		} );
+
+		it( 'should pass the flags independently of each other', () => {
+			const spy = vi.spyOn( dataProcessor.domConverter, 'domToView' );
+
+			dataProcessor.skipComments = false;
+
+			dataProcessor.toView( '<foo>bar</foo>' );
+
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( expect.objectContaining( {
+				skipComments: false,
+				skipProcessingInstructions: true
+			} ) );
+		} );
+
+		it( 'should skip processing instructions when `true`', () => {
+			const fragment = dataProcessor.toView(
+				'<?instruction 1?>' +
+				'<foo>' +
+					'bar' +
+					'<?instruction 2?>' +
+					'baz' +
+				'</foo>' +
+				'<?instruction 3?>'
+			);
+
+			expect( _stringifyView( fragment ) ).toBe( '<foo>barbaz</foo>' );
+		} );
+
+		it( 'should preserve processing instructions when `false`', () => {
+			dataProcessor.skipProcessingInstructions = false;
+
+			const fragment = dataProcessor.toView(
+				'<?instruction 1?>' +
+				'<foo>' +
+					'bar' +
+					'<?instruction 2?>' +
+					'baz' +
+				'</foo>' +
+				'<?instruction 3?>'
+			);
+
+			expect( _stringifyView( fragment ) ).toBe(
+				'<$processingInstruction></$processingInstruction>' +
+				'<foo>bar<$processingInstruction></$processingInstruction>baz</foo>' +
+				'<$processingInstruction></$processingInstruction>'
+			);
+		} );
+
+		it( 'should still skip processing instructions when only comments are preserved', () => {
+			dataProcessor.skipComments = false;
+
+			const fragment = dataProcessor.toView( '<foo>bar<!-- c --><?instruction 1?>baz</foo>' );
+
+			expect( _stringifyView( fragment ) ).toBe( '<foo>bar<$comment></$comment>baz</foo>' );
 		} );
 	} );
 } );

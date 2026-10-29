@@ -1,29 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/linkimageui
  */
 
-import { ButtonView } from 'ckeditor5/src/ui';
-import { Plugin } from 'ckeditor5/src/core';
+import { ButtonView } from '@ckeditor/ckeditor5-ui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { IconLink } from '@ckeditor/ckeditor5-icons';
 import type {
-	DocumentSelection,
-	Selection,
+	ModelDocumentSelection,
+	ModelSelection,
 	ViewDocumentClickEvent
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
-import type { ImageUtils } from '@ckeditor/ckeditor5-image';
+import { ImageBlockEditing, type ImageUtils } from '@ckeditor/ckeditor5-image';
 
-import LinkUI from './linkui';
-import LinkEditing from './linkediting';
-import type LinkCommand from './linkcommand';
+import { LinkUI } from './linkui.js';
+import { LinkEditing } from './linkediting.js';
+import { type LinkCommand } from './linkcommand.js';
 
-import { LINK_KEYSTROKE } from './utils';
-
-import linkIcon from '../theme/icons/link.svg';
+import { LINK_KEYSTROKE } from './utils.js';
 
 /**
  * The link image UI plugin.
@@ -31,12 +30,12 @@ import linkIcon from '../theme/icons/link.svg';
  * This plugin provides the `'linkImage'` button that can be displayed in the {@link module:image/imagetoolbar~ImageToolbar}.
  * It can be used to wrap images in links.
  */
-export default class LinkImageUI extends Plugin {
+export class LinkImageUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ LinkEditing, LinkUI, 'ImageBlockEditing' ] as const;
+	public static get requires(): PluginDependenciesOf<[ LinkEditing, LinkUI, ImageBlockEditing ]> {
+		return [ LinkEditing, LinkUI, ImageBlockEditing ];
 	}
 
 	/**
@@ -44,6 +43,13 @@ export default class LinkImageUI extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'LinkImageUI' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -71,7 +77,7 @@ export default class LinkImageUI extends Plugin {
 	 * Creates a `LinkImageUI` button view.
 	 *
 	 * Clicking this button shows a {@link module:link/linkui~LinkUI#_balloon} attached to the selection.
-	 * When an image is already linked, the view shows {@link module:link/linkui~LinkUI#actionsView} or
+	 * When an image is already linked, the view shows {@link module:link/linkui~LinkUI#toolbarView} or
 	 * {@link module:link/linkui~LinkUI#formView} if it is not.
 	 */
 	private _createToolbarLinkImageButton(): void {
@@ -86,7 +92,7 @@ export default class LinkImageUI extends Plugin {
 			button.set( {
 				isEnabled: true,
 				label: t( 'Link image' ),
-				icon: linkIcon,
+				icon: IconLink,
 				keystroke: LINK_KEYSTROKE,
 				tooltip: true,
 				isToggleable: true
@@ -99,7 +105,7 @@ export default class LinkImageUI extends Plugin {
 			// Show the actionsView or formView (both from LinkUI) on button click depending on whether the image is linked already.
 			this.listenTo( button, 'execute', () => {
 				if ( this._isSelectedLinkedImage( editor.model.document.selection ) ) {
-					plugin._addActionsView();
+					plugin._addToolbarView();
 				} else {
 					plugin._showUI( true );
 				}
@@ -113,7 +119,7 @@ export default class LinkImageUI extends Plugin {
 	 * Returns true if a linked image (either block or inline) is the only selected element
 	 * in the model document.
 	 */
-	private _isSelectedLinkedImage( selection: DocumentSelection | Selection ): boolean {
+	private _isSelectedLinkedImage( selection: ModelDocumentSelection | ModelSelection ): boolean {
 		const selectedModelElement = selection.getSelectedElement();
 		const imageUtils: ImageUtils = this.editor.plugins.get( 'ImageUtils' );
 

@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import RemoveFormatCommand from '../src/removeformatcommand';
-import Command from '@ckeditor/ckeditor5-core/src/command';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { RemoveFormatCommand } from '../src/removeformatcommand.js';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
 import {
-	getData,
-	setData
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+	_getModelData,
+	_setModelData
+} from '@ckeditor/ckeditor5-engine';
 
 describe( 'RemoveFormatCommand', () => {
 	let editor, model, command;
@@ -50,20 +51,48 @@ describe( 'RemoveFormatCommand', () => {
 				model.schema.setAttributeProperties( 'someBlockFormatting', {
 					isFormatting: true
 				} );
+
+				// Custom attribute handling.
+				model.schema.extend( 'p', { allowAttributes: [ 'fooA', 'fooB' ] } );
+
+				command.registerCustomAttribute(
+					attributeName => attributeName.startsWith( 'foo' ),
+					( attributeName, itemRange, writer ) => {
+						for ( const item of itemRange.getItems( { shallow: true } ) ) {
+							const value = item.getAttribute( attributeName );
+
+							if ( value ) {
+								writer.setAttribute( attributeName, value.toUpperCase(), item );
+							}
+						}
+					}
+				);
+
+				model.schema.register( 'mockTable', {
+					inheritAllFrom: '$blockObject'
+				} );
+
+				model.schema.register( 'mockCell', {
+					allowContentOf: '$container',
+					allowIn: 'mockTable',
+					allowAttributes: 'someBlockFormatting',
+					isLimit: true,
+					isSelectable: true
+				} );
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	it( 'is a command', () => {
-		expect( RemoveFormatCommand.prototype ).to.be.instanceOf( Command );
-		expect( command ).to.be.instanceOf( Command );
+		expect( RemoveFormatCommand.prototype ).toBeInstanceOf( Command );
+		expect( command ).toBeInstanceOf( Command );
 	} );
 
 	describe( 'isEnabled', () => {
-		const expectEnabledPropertyToBe = expectedValue => expect( command ).to.have.property( 'isEnabled', expectedValue );
+		const expectEnabledPropertyToBe = expectedValue => expect( command ).toHaveProperty( 'isEnabled', expectedValue );
 		const cases = {
 			'state when in non-formatting markup': {
 				input: '<p>fo[]o</p>',
@@ -101,6 +130,19 @@ describe( 'RemoveFormatCommand', () => {
 				assert: () => expectEnabledPropertyToBe( true )
 			},
 
+			'state with selection attribute markers on an element': {
+				input: '<p>fo[]o</p>',
+				beforeAssert: () => {
+					model.change( writer => {
+						const p = model.document.getRoot().getChild( 0 );
+						writer.setAttribute( 'selection:someBlockFormatting', 'foo', p );
+						writer.setAttribute( 'selection:fooA', 'bar', p );
+						writer.setAttribute( 'selection:irrelevant', 'true', p );
+					} );
+				},
+				assert: () => expectEnabledPropertyToBe( true )
+			},
+
 			'state with block formatting': {
 				input: '<p someBlockFormatting="foo">f[oo</p><p>]bar</p>',
 				assert: () => expectEnabledPropertyToBe( true )
@@ -109,6 +151,11 @@ describe( 'RemoveFormatCommand', () => {
 			'state with block formatting (collapsed selection)': {
 				input: '<p someBlockFormatting="foo">f[]oo</p>',
 				assert: () => expectEnabledPropertyToBe( true )
+			},
+
+			'state with custom block formatting': {
+				input: '<p fooA="bar">f[oo</p><p fooB="baz">b]ar</p>',
+				assert: () => expectEnabledPropertyToBe( true )
 			}
 		};
 
@@ -116,7 +163,7 @@ describe( 'RemoveFormatCommand', () => {
 	} );
 
 	describe( 'execute()', () => {
-		const expectModelToBeEqual = expectedValue => expect( getData( model ) ).to.equal( expectedValue );
+		const expectModelToBeEqual = expectedValue => expect( _getModelData( model ) ).toEqual( expectedValue );
 		const cases = {
 			'state when in non-formatting markup': {
 				input: '<p>fo[]o</p>',
@@ -152,11 +199,37 @@ describe( 'RemoveFormatCommand', () => {
 					}
 				},
 				assert: () => {
-					expect( model.document.selection.hasAttribute( 'bold' ) ).to.equal( false );
-					expect( model.document.selection.hasAttribute( 'irrelevant' ) ).to.equal( true );
+					expect( model.document.selection.hasAttribute( 'bold' ) ).toEqual( false );
+					expect( model.document.selection.hasAttribute( 'irrelevant' ) ).toEqual( true );
 				}
 			},
-
+			'state with formatted selection alone (selection attribute marker)': {
+				input: '<p>fo[]o</p>',
+				setDataOptions: {
+					selectionAttributes: {
+						'selection:someBlockFormatting': 'foo',
+						'selection:fooA': 'bar',
+						'selection:irrelevant': true
+					}
+				},
+				assert: () => {
+					expect( model.document.selection.hasAttribute( 'selection:someBlockFormatting' ) ).toBe( false );
+					expect( model.document.selection.hasAttribute( 'selection:fooA' ) ).toBe( false );
+					expect( model.document.selection.hasAttribute( 'selection:irrelevant' ) ).toBe( true );
+				}
+			},
+			'state with selection attribute markers on an element': {
+				input: '<p>fo[]o</p>',
+				beforeAssert: () => {
+					model.change( writer => {
+						const p = model.document.getRoot().getChild( 0 );
+						writer.setAttribute( 'selection:someBlockFormatting', 'foo', p );
+						writer.setAttribute( 'selection:fooA', 'bar', p );
+						writer.setAttribute( 'selection:irrelevant', 'true', p );
+					} );
+				},
+				assert: () => expectModelToBeEqual( '<p selection:fooA="BAR" selection:irrelevant="true">fo[]o</p>' )
+			},
 			'state with block formatting': {
 				input: '<p someBlockFormatting="foo">f[oo</p><p someBlockFormatting="bar">]bar</p>',
 				assert: () => expectModelToBeEqual( '<p>f[oo</p><p someBlockFormatting="bar">]bar</p>' )
@@ -165,8 +238,102 @@ describe( 'RemoveFormatCommand', () => {
 			'state with block formatting (collapsed selection)': {
 				input: '<p someBlockFormatting="foo">f[]oo</p><p someBlockFormatting="bar">bar</p>',
 				assert: () => expectModelToBeEqual( '<p>f[]oo</p><p someBlockFormatting="bar">bar</p>' )
-			}
+			},
 
+			'state with custom block formatting': {
+				input: '<p fooA="bar">f[oo</p><p fooB="baz">b]ar</p>',
+				assert: () => expectModelToBeEqual( '<p fooA="BAR">f[oo</p><p fooB="BAZ">b]ar</p>' )
+			},
+
+			'removes formatting from a nested table (selection within paragraph in cell)': {
+				input:
+					'<mockTable>' +
+						'<mockCell someBlockFormatting="blue">' +
+							'<p someBlockFormatting="red">Foo</p>' +
+						'</mockCell>' +
+						'<mockCell>' +
+							'<mockTable>' +
+								'<mockCell someBlockFormatting="yellow">' +
+									'<p someBlockFormatting="orange">B[a<$text bold="true">r</$text> B]az</p>' +
+								'</mockCell>' +
+							'</mockTable>' +
+						'</mockCell>' +
+					'</mockTable>',
+				assert: () => expectModelToBeEqual(
+					'<mockTable>' +
+						'<mockCell someBlockFormatting="blue">' +
+							'<p someBlockFormatting="red">Foo</p>' +
+						'</mockCell>' +
+						'<mockCell>' +
+							'<mockTable>' +
+								'<mockCell someBlockFormatting="yellow">' +
+									'<p>B[ar B]az</p>' +
+								'</mockCell>' +
+							'</mockTable>' +
+						'</mockCell>' +
+					'</mockTable>'
+				)
+			},
+
+			'removes formatting from a nested table (whole nested cell selected)': {
+				input:
+					'<mockTable>' +
+						'<mockCell someBlockFormatting="blue">' +
+							'<p someBlockFormatting="red">Foo</p>' +
+						'</mockCell>' +
+						'<mockCell>' +
+							'<mockTable>' +
+								'[<mockCell someBlockFormatting="yellow">' +
+									'<p someBlockFormatting="orange"><$text bold="true">Bar</$text> Baz</p>' +
+								'</mockCell>]' +
+							'</mockTable>' +
+						'</mockCell>' +
+					'</mockTable>',
+				assert: () => expectModelToBeEqual(
+					'<mockTable>' +
+						'<mockCell someBlockFormatting="blue">' +
+							'<p someBlockFormatting="red">Foo</p>' +
+						'</mockCell>' +
+						'<mockCell>' +
+							'<mockTable>' +
+								'[<mockCell>' +
+									'<p>Bar Baz</p>' +
+								'</mockCell>]' +
+							'</mockTable>' +
+						'</mockCell>' +
+					'</mockTable>'
+				)
+			},
+
+			'removes formatting from a table content (whole content selected)': {
+				input:
+					'<p someBlockFormatting="foo">start</p>' +
+					'<p someBlockFormatting="bar">abc[def</p>' +
+					'<mockTable>' +
+						'<mockCell someBlockFormatting="blue">' +
+							'<p someBlockFormatting="abc">Foo</p>' +
+						'</mockCell>' +
+						'<mockCell>' +
+							'<p someBlockFormatting="123"><$text bold="red">Bar</$text> Baz</p>' +
+						'</mockCell>' +
+					'</mockTable>' +
+					'<p someBlockFormatting="foo">abc]def</p>' +
+					'<p someBlockFormatting="bar">end</p>',
+				assert: () => expectModelToBeEqual(
+					'<p someBlockFormatting="foo">start</p>' +
+					'<p>abc[def</p>' +
+					'<mockTable>' +
+						'<mockCell>' +
+							'<p>Foo</p>' +
+						'</mockCell>' +
+						'<mockCell>' +
+							'<p>Bar Baz</p>' +
+						'</mockCell>' +
+					'</mockTable>' +
+					'<p>abc]def</p>' +
+					'<p someBlockFormatting="bar">end</p>'
+				)
+			}
 		};
 
 		generateTypicalUseCases( cases, {
@@ -176,8 +343,12 @@ describe( 'RemoveFormatCommand', () => {
 
 	function generateTypicalUseCases( useCases, options ) {
 		for ( const [ key, testConfig ] of Object.entries( useCases ) ) {
-			it( key, () => {
-				setData( model, testConfig.input, testConfig.setDataOptions );
+			it( 'handles ' + key, () => {
+				_setModelData( model, testConfig.input, testConfig.setDataOptions );
+
+				if ( testConfig.beforeAssert ) {
+					testConfig.beforeAssert();
+				}
 
 				if ( options && options.beforeAssert ) {
 					options.beforeAssert();

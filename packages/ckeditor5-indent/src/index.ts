@@ -1,18 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module indent
  */
 
-export { default as Indent } from './indent';
-export { default as IndentEditing } from './indentediting';
-export { default as IndentUI } from './indentui';
-export { default as IndentBlock } from './indentblock';
+export { Indent } from './indent.js';
+export { IndentEditing } from './indentediting.js';
+export { IndentUI } from './indentui.js';
+export { IndentBlock } from './indentblock.js';
+export { IndentBlockCommand } from './indentblockcommand.js';
+export { IndentBlockListIntegration } from './integrations/indentblocklistintegration.js';
+export { IndentBlockListCommand } from './integrations/indentblocklistcommand.js';
+export { IndentBlockListItemCommand } from './integrations/indentblocklistitemcommand.js';
 
-export type { IndentBlockConfig } from './indentconfig';
-export type { default as IndentBlockCommand } from './indentblockcommand';
+export type { IndentBlockConfig } from './indentconfig.js';
 
-import './augmentation';
+export type { IndentBehavior } from './indentcommandbehavior/indentbehavior.js';
+export { IndentUsingClasses as _IndentUsingClasses } from './indentcommandbehavior/indentusingclasses.js';
+export { IndentUsingOffset as _IndentUsingOffset } from './indentcommandbehavior/indentusingoffset.js';
+
+import './augmentation.js';

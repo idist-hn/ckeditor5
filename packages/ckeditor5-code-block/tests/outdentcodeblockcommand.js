@@ -1,24 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import CodeBlockEditing from '../src/codeblockediting';
-import OutdentCodeBlockCommand from '../src/outdentcodeblockcommand';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { CodeBlockEditing } from '../src/codeblockediting.js';
+import { OutdentCodeBlockCommand } from '../src/outdentcodeblockcommand.js';
 
-import AlignmentEditing from '@ckeditor/ckeditor5-alignment/src/alignmentediting';
-import BoldEditing from '@ckeditor/ckeditor5-basic-styles/src/bold/boldediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import BlockQuoteEditing from '@ckeditor/ckeditor5-block-quote/src/blockquoteediting';
+import { AlignmentEditing } from '@ckeditor/ckeditor5-alignment';
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'OutdentCodeBlockCommand', () => {
 	let editor, model, outdentCommand;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return ModelTestEditor
@@ -38,98 +36,235 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 	describe( '#isEnabled', () => {
 		it( 'should be true when the selection is in a line containing the indent sequence', () => {
-			setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
 
 			// <codeBlock language="foo">	f[]oo</codeBlock>
 			model.change( writer => {
 				writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.true;
+			expect( outdentCommand.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true when any line in the selection contains more than the indent sequence', () => {
-			setModelData( model, '<codeBlock language="foo">f[oo</codeBlock><paragraph>ba]r</paragraph>' );
+			_setModelData( model, '<codeBlock language="foo">f[oo</codeBlock><paragraph>ba]r</paragraph>' );
 
 			// <codeBlock language="foo">	f[oo</codeBlock><paragraph>ba]r</paragraph>
 			model.change( writer => {
 				writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.true;
+			expect( outdentCommand.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true when any line in the selection contains the indent sequence', () => {
-			setModelData( model, '<codeBlock language="foo">f[oo</codeBlock><codeBlock language="foo">ba]r</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[oo</codeBlock><codeBlock language="foo">ba]r</codeBlock>' );
 
 			// <codeBlock language="foo">f[oo</codeBlock><codeBlock language="foo">	ba]r</codeBlock>
 			model.change( writer => {
 				writer.insertText( '	', model.document.getRoot().getChild( 1 ) );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.true;
+			expect( outdentCommand.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false when the indent sequence is in other element', () => {
-			setModelData( model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 			// <paragraph>	foo[]</paragraph>
 			model.change( writer => {
 				writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when there is no indent sequence in the line (caret inside text)', () => {
-			setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when there is no indent sequence in the line (empty line)', () => {
-			setModelData( model, '<codeBlock language="foo">[]</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">[]</codeBlock>' );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when there is no indent sequence in the line (caret at the end of a block)', () => {
-			setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when there is no corrent sequence in the line', () => {
-			setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
 
 			// <codeBlock language="foo">    foo[]</codeBlock>
 			model.change( writer => {
 				writer.insertText( '    ', model.document.getRoot().getChild( 0 ) );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when the sequence is not in leading characters of the line', () => {
-			setModelData( model, '<codeBlock language="foo">barfoo[]</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">barfoo[]</codeBlock>' );
 
 			// <codeBlock language="foo">bar	foo[]</codeBlock>
 			model.change( writer => {
 				writer.insertText( '	', model.document.getRoot().getChild( 0 ), 3 );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when the sequence is not in leading characters of the line (after other white-space characters)', () => {
-			setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
 
 			// <codeBlock language="foo">foo[]</codeBlock>
 			model.change( writer => {
 				writer.insertText( '    	    ', model.document.getRoot().getChild( 0 ), 0 );
 			} );
 
-			expect( outdentCommand.isEnabled ).to.be.false;
+			expect( outdentCommand.isEnabled ).toBe( false );
+		} );
+
+		describe( 'if an element is allowed and present in the code block', () => {
+			beforeEach( () => {
+				model.schema.register( 'inlineElement', {
+					allowWhere: '$text'
+				} );
+			} );
+
+			it( 'should be true when any line in the selection contains the indent sequence and an inline element ' +
+				'(caret before element)', () => {
+				_setModelData( model, '<codeBlock language="foo">f[]oo<inlineElement></inlineElement></codeBlock>' );
+
+				// <codeBlock language="foo">	f[]oo<inlineElement></inlineElement></codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true when any line in the selection contains the indent sequence and an inline element ' +
+				'(caret after element)', () => {
+				_setModelData( model, '<codeBlock language="foo">foo<inlineElement></inlineElement>b[]ar</codeBlock>' );
+
+				// <codeBlock language="foo">	foo<inlineElement></inlineElement>b[]ar</codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true when the selection is in a line containing only the indent sequence and an inline element ' +
+				'(caret before element)', () => {
+				_setModelData( model, '<codeBlock language="foo">[]<inlineElement></inlineElement></codeBlock>' );
+
+				// <codeBlock language="foo">	[]<inlineElement></inlineElement></codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true when the selection is in a line containing only the indent sequence and an inline element ' +
+				'(caret after element)', () => {
+				_setModelData( model, '<codeBlock language="foo"><inlineElement></inlineElement>[]</codeBlock>' );
+
+				// <codeBlock language="foo">	<inlineElement></inlineElement>[]</codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true when the selection is in a line containing the indent sequence, an inline element ' +
+				'and text after it (caret before element)', () => {
+				_setModelData( model, '<codeBlock language="foo">[]<inlineElement></inlineElement>foo</codeBlock>' );
+
+				// <codeBlock language="foo">	[]<inlineElement></inlineElement>foo</codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true when the selection is in a line containing the indent sequence, an inline element ' +
+				'and text after it (caret after element)', () => {
+				_setModelData( model, '<codeBlock language="foo"><inlineElement></inlineElement>foo[]</codeBlock>' );
+
+				// <codeBlock language="foo">	<inlineElement></inlineElement>foo[]</codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be false when the sequence is not in leading characters of the line (before the inline element)', () => {
+				_setModelData( model, '<codeBlock language="foo">barfoo[]<inlineElement></inlineElement></codeBlock>' );
+
+				// <codeBlock language="foo">bar	foo[]<inlineElement></inlineElement></codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ), 3 );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false when the sequence is not in leading characters of the line (after the inline element)', () => {
+				_setModelData( model, '<codeBlock language="foo">barfoo<inlineElement></inlineElement>f[]oo</codeBlock>' );
+
+				// <codeBlock language="foo">barfoo<inlineElement></inlineElement>f	[]oo</codeBlock>
+				model.change( writer => {
+					writer.insertText( '	', model.document.getRoot().getChild( 0 ), 8 );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false when there is no corrent sequence in the line with the inline element', () => {
+				_setModelData( model, '<codeBlock language="foo">foo[]<inlineElement></inlineElement></codeBlock>' );
+
+				// <codeBlock language="foo">    foo[]<inlineElement></inlineElement></codeBlock>
+				model.change( writer => {
+					writer.insertText( '    ', model.document.getRoot().getChild( 0 ) );
+				} );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false when there is no indent sequence in the line (caret before inline element)', () => {
+				_setModelData( model, '<codeBlock language="foo">foo[]<inlineElement></inlineElement></codeBlock>' );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false when there is no indent sequence in the line (caret after inline element)', () => {
+				_setModelData( model, '<codeBlock language="foo">foo<inlineElement></inlineElement>[]</codeBlock>' );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false when the line contains only inline element (caret before inline element)', () => {
+				_setModelData( model, '<codeBlock language="foo">[]<inlineElement></inlineElement></codeBlock>' );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false when the line contains only inline element (caret after inline element)', () => {
+				_setModelData( model, '<codeBlock language="foo"><inlineElement></inlineElement>[]</codeBlock>' );
+
+				expect( outdentCommand.isEnabled ).toBe( false );
+			} );
 		} );
 
 		describe( 'config.codeBlock.indentSequence', () => {
@@ -146,14 +281,14 @@ describe( 'OutdentCodeBlockCommand', () => {
 						const model = editor.model;
 						const outdentCommand = new OutdentCodeBlockCommand( editor );
 
-						setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
+						_setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
 
 						// <codeBlock language="foo">    foo[]</codeBlock>
 						model.change( writer => {
 							writer.insertText( '    ', model.document.getRoot().getChild( 0 ) );
 						} );
 
-						expect( outdentCommand.isEnabled ).to.be.true;
+						expect( outdentCommand.isEnabled ).toBe( true );
 
 						return editor.destroy();
 					} );
@@ -172,14 +307,14 @@ describe( 'OutdentCodeBlockCommand', () => {
 						const model = editor.model;
 						const outdentCommand = new OutdentCodeBlockCommand( editor );
 
-						setModelData( model, '<codeBlock language="foo"> foo[]</codeBlock>' );
+						_setModelData( model, '<codeBlock language="foo"> foo[]</codeBlock>' );
 
 						// <codeBlock language="foo"> foo[]</codeBlock>
 						model.change( writer => {
 							writer.insertText( ' ', model.document.getRoot().getChild( 0 ) );
 						} );
 
-						expect( outdentCommand.isEnabled ).to.be.false;
+						expect( outdentCommand.isEnabled ).toBe( false );
 
 						return editor.destroy();
 					} );
@@ -198,14 +333,14 @@ describe( 'OutdentCodeBlockCommand', () => {
 						const model = editor.model;
 						const outdentCommand = new OutdentCodeBlockCommand( editor );
 
-						setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
+						_setModelData( model, '<codeBlock language="foo">foo[]</codeBlock>' );
 
 						// <codeBlock language="foo">	foo[]</codeBlock>
 						model.change( writer => {
 							writer.insertText( '	', model.document.getRoot().getChild( 0 ) );
 						} );
 
-						expect( outdentCommand.isEnabled ).to.be.false;
+						expect( outdentCommand.isEnabled ).toBe( false );
 
 						return editor.destroy();
 					} );
@@ -215,7 +350,7 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 	describe( 'execute()', () => {
 		it( 'should outdent a single line', () => {
-			setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
 
 			// <codeBlock language="foo">	f[]oo</codeBlock>
 			model.change( writer => {
@@ -224,11 +359,11 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 			outdentCommand.execute();
 
-			expect( getModelData( model ) ).to.equal( '<codeBlock language="foo">f[]oo</codeBlock>' );
+			expect( _getModelData( model ) ).toBe( '<codeBlock language="foo">f[]oo</codeBlock>' );
 		} );
 
 		it( 'should outdent only one level in a single line', () => {
-			setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
 
 			// <codeBlock language="foo">		f[]oo</codeBlock>
 			model.change( writer => {
@@ -237,11 +372,11 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 			outdentCommand.execute();
 
-			expect( getModelData( model ) ).to.equal( '<codeBlock language="foo">	f[]oo</codeBlock>' );
+			expect( _getModelData( model ) ).toBe( '<codeBlock language="foo">	f[]oo</codeBlock>' );
 		} );
 
 		it( 'should outdent multiple lines', () => {
-			setModelData( model, '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
 
 			// <codeBlock language="foo">	f[oo<softBreak></softBreak>	ba]r</codeBlock>
 			model.change( writer => {
@@ -251,11 +386,11 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 			outdentCommand.execute();
 
-			expect( getModelData( model ) ).to.equal( '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
+			expect( _getModelData( model ) ).toBe( '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
 		} );
 
 		it( 'should outdent only one level across multiple lines', () => {
-			setModelData( model, '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
 
 			// <codeBlock language="foo">	f[oo<softBreak></softBreak>		ba]r</codeBlock>
 			model.change( writer => {
@@ -265,11 +400,11 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 			outdentCommand.execute();
 
-			expect( getModelData( model ) ).to.equal( '<codeBlock language="foo">f[oo<softBreak></softBreak>	ba]r</codeBlock>' );
+			expect( _getModelData( model ) ).toBe( '<codeBlock language="foo">f[oo<softBreak></softBreak>	ba]r</codeBlock>' );
 		} );
 
 		it( 'should outdent some lines', () => {
-			setModelData( model, '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
 
 			// <codeBlock language="foo">f[oo<softBreak></softBreak>	ba]r</codeBlock>
 			model.change( writer => {
@@ -278,16 +413,16 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 			outdentCommand.execute();
 
-			expect( getModelData( model ) ).to.equal( '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
+			expect( _getModelData( model ) ).toBe( '<codeBlock language="foo">f[oo<softBreak></softBreak>ba]r</codeBlock>' );
 		} );
 
 		// Need to ensure that deleteContent() will not be reverted to model.change() to not break integration
 		// with Track Changes.
 		it( 'should outdent with deleteContent()', () => {
-			const deleteContentSpy = sinon.spy( model, 'deleteContent' );
-			const modelChangeSpy = sinon.spy( model, 'change' );
+			const deleteContentSpy = vi.spyOn( model, 'deleteContent' );
+			const modelChangeSpy = vi.spyOn( model, 'change' );
 
-			setModelData( model, '<codeBlock language="foo">[]Foo</codeBlock>' );
+			_setModelData( model, '<codeBlock language="foo">[]Foo</codeBlock>' );
 
 			model.change( writer => {
 				writer.insertText( '	', model.document.getRoot().getChild( 0 ), 0 );
@@ -295,8 +430,10 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 			outdentCommand.execute();
 
-			expect( deleteContentSpy.calledOnce ).to.be.true;
-			expect( modelChangeSpy.calledAfter( deleteContentSpy ) ).to.be.true;
+			expect( deleteContentSpy ).toHaveBeenCalledOnce();
+			const deleteOrder = deleteContentSpy.mock.invocationCallOrder[ 0 ];
+			const lastChangeOrder = Math.max( ...modelChangeSpy.mock.invocationCallOrder );
+			expect( lastChangeOrder ).toBeGreaterThan( deleteOrder );
 		} );
 
 		describe( 'config.codeBlock.indentSequence', () => {
@@ -313,7 +450,7 @@ describe( 'OutdentCodeBlockCommand', () => {
 						const model = editor.model;
 						const outdentCommand = new OutdentCodeBlockCommand( editor );
 
-						setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
+						_setModelData( model, '<codeBlock language="foo">f[]oo</codeBlock>' );
 
 						// <codeBlock language="foo">  f[]oo</codeBlock>
 						model.change( writer => {
@@ -322,7 +459,7 @@ describe( 'OutdentCodeBlockCommand', () => {
 
 						outdentCommand.execute();
 
-						expect( getModelData( model ) ).to.equal( '<codeBlock language="foo">f[]oo</codeBlock>' );
+						expect( _getModelData( model ) ).toBe( '<codeBlock language="foo">f[]oo</codeBlock>' );
 
 						return editor.destroy();
 					} );

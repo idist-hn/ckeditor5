@@ -1,70 +1,87 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import { getData as getModelData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { keyCodes } from '@ckeditor/ckeditor5-utils';
+import { _getModelData, _setModelData, Batch } from '@ckeditor/ckeditor5-engine';
 
-import Undo from '@ckeditor/ckeditor5-undo/src/undo';
-import Batch from '@ckeditor/ckeditor5-engine/src/model/batch';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import ContextualBalloon from '@ckeditor/ckeditor5-ui/src/panel/balloon/contextualballoon';
+import { Undo } from '@ckeditor/ckeditor5-undo';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ButtonView, ContextualBalloon, _DEFAULT_COLOR_GRID_COLUMNS as defaultColorGridColumns } from '@ckeditor/ckeditor5-ui';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { WidgetResize } from '@ckeditor/ckeditor5-widget';
 
-import Table from '../../src/table';
-import TableCellPropertiesEditing from '../../src/tablecellproperties/tablecellpropertiesediting';
-import TableCellWidthEditing from '../../src/tablecellwidth/tablecellwidthediting';
-import TableCellPropertiesUI from '../../src/tablecellproperties/tablecellpropertiesui';
-import TableCellPropertiesUIView from '../../src/tablecellproperties/ui/tablecellpropertiesview';
-import { defaultColors } from '../../src/utils/ui/table-properties';
-import { modelTable } from '../_utils/utils';
+import { Table } from '../../src/table.js';
+import { TableColumnResize } from '../../src/tablecolumnresize.js';
+import { TableLayout } from '../../src/tablelayout.js';
+import { TableCellPropertiesEditing } from '../../src/tablecellproperties/tablecellpropertiesediting.js';
+import { TableCellWidthEditing } from '../../src/tablecellwidth/tablecellwidthediting.js';
+import { TableCellPropertiesUI } from '../../src/tablecellproperties/tablecellpropertiesui.js';
+
+import { TableCellPropertiesView } from '../../src/tablecellproperties/ui/tablecellpropertiesview.js';
+import { defaultColors } from '../../src/utils/ui/table-properties.js';
+import { modelTable } from '../_utils/utils.js';
 
 describe( 'table cell properties', () => {
 	describe( 'TableCellPropertiesUI', () => {
 		let editor, editorElement, contextualBalloon,
-			tableCellPropertiesUI, tableCellPropertiesView, tableCellPropertiesButton,
-			clock;
+			tableCellPropertiesUI, tableCellPropertiesView, tableCellPropertiesButton;
 
-		testUtils.createSinonSandbox();
+		afterEach( () => {
+			vi.useRealTimers();
+		} );
 
-		beforeEach( () => {
-			clock = sinon.useFakeTimers();
+		beforeEach( async () => {
+			vi.useFakeTimers();
 			editorElement = document.createElement( 'div' );
 			document.body.appendChild( editorElement );
 
-			return ClassicTestEditor
-				.create( editorElement, {
-					plugins: [ Table, TableCellPropertiesEditing, TableCellPropertiesUI, TableCellWidthEditing, Paragraph, Undo ],
-					initialData: '<table><tr><td>foo</td></tr></table><p>bar</p>'
-				} )
-				.then( newEditor => {
-					editor = newEditor;
-
-					tableCellPropertiesUI = editor.plugins.get( TableCellPropertiesUI );
-					tableCellPropertiesButton = editor.ui.componentFactory.create( 'tableCellProperties' );
-					contextualBalloon = editor.plugins.get( ContextualBalloon );
-					tableCellPropertiesView = tableCellPropertiesUI.view;
-
-					// There is no point to execute BalloonPanelView attachTo and pin methods so lets override it.
-					testUtils.sinon.stub( contextualBalloon.view, 'attachTo' ).returns( {} );
-					testUtils.sinon.stub( contextualBalloon.view, 'pin' ).returns( {} );
-				} );
+			await initEditor();
 		} );
 
 		afterEach( () => {
-			clock.restore();
 			editorElement.remove();
 
 			return editor.destroy();
 		} );
 
+		async function initEditor() {
+			await editor?.destroy();
+
+			editor = await ClassicTestEditor
+				.create( editorElement, {
+					plugins: [
+						Table, TableCellPropertiesEditing,
+						TableCellPropertiesUI, TableCellWidthEditing,
+						Paragraph, Undo, ClipboardPipeline
+					],
+					initialData: '<table><tr><td>foo</td></tr></table><p>bar</p>'
+				} );
+
+			tableCellPropertiesUI = editor.plugins.get( TableCellPropertiesUI );
+			tableCellPropertiesButton = editor.ui.componentFactory.create( 'tableCellProperties' );
+			contextualBalloon = editor.plugins.get( ContextualBalloon );
+			tableCellPropertiesView = tableCellPropertiesUI.view;
+
+			// There is no point to execute BalloonPanelView attachTo and pin methods so lets override it.
+			vi.spyOn( contextualBalloon.view, 'attachTo' ).mockReturnValue( {} );
+			vi.spyOn( contextualBalloon.view, 'pin' ).mockReturnValue( {} );
+		}
+
 		it( 'should be named', () => {
-			expect( TableCellPropertiesUI.pluginName ).to.equal( 'TableCellPropertiesUI' );
+			expect( TableCellPropertiesUI.pluginName ).toEqual( 'TableCellPropertiesUI' );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( TableCellPropertiesUI.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( TableCellPropertiesUI.isPremiumPlugin ).toBe( false );
 		} );
 
 		it( 'should load ContextualBalloon', () => {
@@ -76,42 +93,49 @@ describe( 'table cell properties', () => {
 				expect( editor.config.get( 'table.tableCellProperties' ) ).to.be.an( 'object' );
 
 				expect( editor.config.get( 'table.tableCellProperties' ) ).to.have.property( 'borderColors' );
-				expect( editor.config.get( 'table.tableCellProperties.borderColors' ) ).to.deep.equal( defaultColors );
+				expect( editor.config.get( 'table.tableCellProperties.borderColors' ) ).toEqual( defaultColors );
 				expect( editor.config.get( 'table.tableCellProperties' ) ).to.have.property( 'backgroundColors' );
-				expect( editor.config.get( 'table.tableCellProperties.backgroundColors' ) ).to.deep.equal( defaultColors );
+				expect( editor.config.get( 'table.tableCellProperties.backgroundColors' ) ).toEqual( defaultColors );
+				expect( editor.config.get( 'table.tableCellProperties.colorGridColumns' ) ).toBe( defaultColorGridColumns );
 			} );
 		} );
 
 		describe( 'init()', () => {
 			it( 'should set a batch', () => {
-				expect( tableCellPropertiesUI._undoStepBatch ).to.be.undefined;
+				expect( tableCellPropertiesUI._undoStepBatch ).toBeUndefined();
 			} );
 
 			describe( '#view', () => {
 				it( 'should not be created', () => {
-					expect( tableCellPropertiesUI.view ).to.be.null;
+					expect( tableCellPropertiesUI.view ).toBeNull();
 				} );
 
 				it( 'should be created on first show', () => {
 					tableCellPropertiesUI._showView();
-					expect( tableCellPropertiesUI.view ).to.be.instanceOf( TableCellPropertiesUIView );
+					expect( tableCellPropertiesUI.view ).to.be.instanceOf( TableCellPropertiesView );
 				} );
 
 				it( 'should be rendered', () => {
 					tableCellPropertiesUI._showView();
-					expect( tableCellPropertiesUI.view.isRendered ).to.be.true;
+					expect( tableCellPropertiesUI.view.isRendered ).toBe( true );
 				} );
 
 				it( 'should get the border colors configurations', () => {
 					tableCellPropertiesUI._showView();
 					tableCellPropertiesView = tableCellPropertiesUI.view;
-					expect( tableCellPropertiesView.options.borderColors ).to.have.length( 15 );
+					expect( tableCellPropertiesView.options.borderColors ).to.have.length( defaultColors.length );
 				} );
 
 				it( 'should get the background colors configurations', () => {
 					tableCellPropertiesUI._showView();
 					tableCellPropertiesView = tableCellPropertiesUI.view;
-					expect( tableCellPropertiesView.options.backgroundColors ).to.have.length( 15 );
+					expect( tableCellPropertiesView.options.backgroundColors ).to.have.length( defaultColors.length );
+				} );
+
+				it( 'should get the color palette columns configuration', () => {
+					tableCellPropertiesUI._showView();
+					tableCellPropertiesView = tableCellPropertiesUI.view;
+					expect( tableCellPropertiesView.options.colorGridColumns ).toBe( defaultColorGridColumns );
 				} );
 			} );
 
@@ -121,18 +145,18 @@ describe( 'table cell properties', () => {
 				} );
 
 				it( 'should have a label', () => {
-					expect( tableCellPropertiesButton.label ).to.equal( 'Cell properties' );
+					expect( tableCellPropertiesButton.label ).toEqual( 'Cell properties' );
 				} );
 
 				it( 'should have a tooltip', () => {
-					expect( tableCellPropertiesButton.tooltip ).to.be.true;
+					expect( tableCellPropertiesButton.tooltip ).toBe( true );
 				} );
 
 				it( 'should call #_showView upon #execute', () => {
-					const spy = testUtils.sinon.stub( tableCellPropertiesUI, '_showView' ).returns( {} );
+					const spy = vi.spyOn( tableCellPropertiesUI, '_showView' ).mockReturnValue( {} );
 
 					tableCellPropertiesButton.fire( 'execute' );
-					sinon.assert.calledOnce( spy );
+					expect( spy ).toHaveBeenCalledOnce();
 				} );
 
 				it( 'should be disabled if all of the table cell properties commands are disabled', () => {
@@ -149,11 +173,11 @@ describe( 'table cell properties', () => {
 						editor.commands.get( command ).isEnabled = false;
 					} );
 
-					expect( tableCellPropertiesButton.isEnabled ).to.be.false;
+					expect( tableCellPropertiesButton.isEnabled ).toBe( false );
 
 					editor.commands.get( 'tableCellBackgroundColor' ).isEnabled = true;
 
-					expect( tableCellPropertiesButton.isEnabled ).to.be.true;
+					expect( tableCellPropertiesButton.isEnabled ).toBe( true );
 				} );
 			} );
 		} );
@@ -163,11 +187,11 @@ describe( 'table cell properties', () => {
 				tableCellPropertiesUI._showView();
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				const spy = sinon.spy( tableCellPropertiesView, 'destroy' );
+				const spy = vi.spyOn( tableCellPropertiesView, 'destroy' );
 
 				tableCellPropertiesUI.destroy();
 
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 
@@ -182,16 +206,16 @@ describe( 'table cell properties', () => {
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				tableCellPropertiesView.fire( 'submit' );
-				expect( contextualBalloon.visibleView ).to.be.null;
+				expect( contextualBalloon.visibleView ).toBeNull();
 			} );
 
 			describe( '#cancel event', () => {
 				// https://github.com/ckeditor/ckeditor5/issues/6180
 				it( 'should not undo if it there were no changes made to the property fields', () => {
-					const spy = sinon.spy( editor, 'execute' );
+					const spy = vi.spyOn( editor, 'execute' );
 
 					// Show the view. New batch will be created.
 					tableCellPropertiesButton.fire( 'execute' );
@@ -200,11 +224,11 @@ describe( 'table cell properties', () => {
 					// Cancel the view immediately.
 					tableCellPropertiesView.fire( 'cancel' );
 
-					sinon.assert.notCalled( spy );
+					expect( spy ).not.toHaveBeenCalled();
 				} );
 
 				it( 'should undo the entire batch of changes if there were some', () => {
-					const spy = sinon.spy( editor, 'execute' );
+					const spy = vi.spyOn( editor, 'execute' );
 
 					// Show the view. New batch will be created.
 					tableCellPropertiesButton.fire( 'execute' );
@@ -214,106 +238,115 @@ describe( 'table cell properties', () => {
 					tableCellPropertiesView.borderStyle = 'dotted';
 					tableCellPropertiesView.backgroundColor = 'red';
 
-					expect( getModelData( editor.model ) ).to.equal(
-						'<table>' +
+					expect( _getModelData( editor.model ) ).toEqual( '<table>' +
 							'<tableRow>' +
 								'<tableCell tableCellBackgroundColor="red" tableCellBorderStyle="dotted">' +
 									'<paragraph>[]foo</paragraph>' +
 								'</tableCell>' +
 							'</tableRow>' +
 						'</table>' +
-						'<paragraph>bar</paragraph>'
-					);
+						'<paragraph>bar</paragraph>' );
 
 					tableCellPropertiesView.fire( 'cancel' );
 
-					expect( getModelData( editor.model ) ).to.equal(
-						'<table>' +
+					expect( _getModelData( editor.model ) ).toEqual( '<table>' +
 							'<tableRow>' +
 								'<tableCell>' +
 									'<paragraph>[]foo</paragraph>' +
 								'</tableCell>' +
 							'</tableRow>' +
 						'</table>' +
-						'<paragraph>bar</paragraph>'
-					);
+						'<paragraph>bar</paragraph>' );
 
-					sinon.assert.calledWith( spy, 'undo', tableCellPropertiesUI._undoStepBatch );
+					expect( spy ).toHaveBeenCalledWith( 'undo', tableCellPropertiesUI._undoStepBatch );
 				} );
 
 				it( 'should hide the view', () => {
 					tableCellPropertiesButton.fire( 'execute' );
 					tableCellPropertiesView = tableCellPropertiesUI.view;
 
-					expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+					expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 					tableCellPropertiesView.fire( 'cancel' );
-					expect( contextualBalloon.visibleView ).to.be.null;
+					expect( contextualBalloon.visibleView ).toBeNull();
 				} );
 			} );
 
 			it( 'should hide on the Esc key press', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.esc,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				tableCellPropertiesView.keystrokes.press( keyEvtData );
-				expect( contextualBalloon.visibleView ).to.be.null;
+				expect( contextualBalloon.visibleView ).toBeNull();
 			} );
 
 			it( 'should hide if the table cell is no longer selected on EditorUI#update', () => {
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				editor.model.change( writer => {
 					// Set selection in the paragraph.
 					writer.setSelection( editor.model.document.getRoot().getChild( 1 ), 0 );
 				} );
 
-				expect( contextualBalloon.visibleView ).to.be.null;
+				expect( contextualBalloon.visibleView ).toBeNull();
 			} );
 
 			it( 'should reposition if table cell is still selected on on EditorUI#update', () => {
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				editor.model.change( writer => {
 					writer.insertText( 'qux', editor.model.document.selection.getFirstPosition() );
 				} );
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 			} );
 
 			it( 'should not reposition if view is not visible', () => {
-				const spy = sinon.spy( contextualBalloon, 'updatePosition' );
+				const spy = vi.spyOn( contextualBalloon, 'updatePosition' );
 
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesUI.view = false;
 				editor.ui.fire( 'update' );
 
-				expect( spy.called ).to.be.false;
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should hide if clicked outside the balloon', () => {
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				document.body.dispatchEvent( new Event( 'mousedown', { bubbles: true } ) );
 
-				expect( contextualBalloon.visibleView ).to.be.null;
+				expect( contextualBalloon.visibleView ).toBeNull();
+			} );
+
+			it( 'should bind cellTypeDropdown enabled state to tableCellType command', async () => {
+				const command = editor.commands.get( 'tableCellType' );
+
+				tableCellPropertiesButton.fire( 'execute' );
+				tableCellPropertiesView = tableCellPropertiesUI.view;
+
+				command.isEnabled = true;
+				expect( tableCellPropertiesView.cellTypeDropdown.isEnabled ).toBe( true );
+
+				command.isEnabled = false;
+				expect( tableCellPropertiesView.cellTypeDropdown.isEnabled ).toBe( false );
 			} );
 
 			describe( 'property changes', () => {
@@ -329,220 +362,231 @@ describe( 'table cell properties', () => {
 
 				describe( '#borderStyle', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.borderStyle = 'dotted';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellBorderStyle', { value: 'dotted', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBorderStyle', { value: 'dotted', batch } );
 					} );
 				} );
 
 				describe( '#borderColor', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.borderColor = '#FFAAFF';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellBorderColor', { value: '#FFAAFF', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBorderColor', { value: '#FFAAFF', batch } );
 					} );
 
 					it( 'should display an error message if value is invalid', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						// First, let's pass an invalid value and check what happens.
 						tableCellPropertiesView.borderColor = '42';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.borderColorInput.errorText ).to.match( /^The color is invalid/ );
-						sinon.assert.notCalled( spy );
+						expect( tableCellPropertiesView.borderColorInput.errorText ).toMatch( /^The color is invalid/ );
+						expect( spy ).not.toHaveBeenCalled();
 
 						// And now let's pass a valid value and check if the error text will be gone.
 						tableCellPropertiesView.borderColor = '#AAA';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.borderColorInput.errorText ).to.be.null;
-						sinon.assert.calledWithExactly( spy, 'tableCellBorderColor', { value: '#AAA', batch } );
+						expect( tableCellPropertiesView.borderColorInput.errorText ).toBeNull();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBorderColor', { value: '#AAA', batch } );
 					} );
 				} );
 
 				describe( '#borderWidth', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.borderWidth = '12px';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellBorderWidth', { value: '12px', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBorderWidth', { value: '12px', batch } );
 					} );
 
 					it( 'should display an error message if value is invalid', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						// First, let's pass an invalid value and check what happens.
 						tableCellPropertiesView.borderWidth = 'wrong';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.borderWidthInput.errorText ).to.match( /^The value is invalid/ );
-						sinon.assert.notCalled( spy );
+						expect( tableCellPropertiesView.borderWidthInput.errorText ).toMatch( /^The value is invalid/ );
+						expect( spy ).not.toHaveBeenCalled();
 
 						// And now let's pass a valid value and check if the error text will be gone.
 						tableCellPropertiesView.borderWidth = '3em';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.backgroundInput.errorText ).to.be.null;
-						sinon.assert.calledWithExactly( spy, 'tableCellBorderWidth', { value: '3em', batch } );
+						expect( tableCellPropertiesView.backgroundInput.errorText ).toBeNull();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBorderWidth', { value: '3em', batch } );
 					} );
 				} );
 
 				describe( '#width', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.width = '12px';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellWidth', { value: '12px', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellWidth', { value: '12px', batch } );
 					} );
 
 					it( 'should display an error message if value is invalid', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						// First, let's pass an invalid value and check what happens.
 						tableCellPropertiesView.width = 'wrong';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.widthInput.errorText ).to.match( /^The value is invalid/ );
-						sinon.assert.notCalled( spy );
+						expect( tableCellPropertiesView.widthInput.errorText ).toMatch( /^The value is invalid/ );
+						expect( spy ).not.toHaveBeenCalled();
 
 						// And now let's pass a valid value and check if the error text will be gone.
 						tableCellPropertiesView.width = '3em';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.backgroundInput.errorText ).to.be.null;
-						sinon.assert.calledWithExactly( spy, 'tableCellWidth', { value: '3em', batch } );
+						expect( tableCellPropertiesView.backgroundInput.errorText ).toBeNull();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellWidth', { value: '3em', batch } );
 					} );
 				} );
 
 				describe( '#height', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.height = '12px';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellHeight', { value: '12px', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellHeight', { value: '12px', batch } );
 					} );
 
 					it( 'should display an error message if value is invalid', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						// First, let's pass an invalid value and check what happens.
 						tableCellPropertiesView.height = 'wrong';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.heightInput.errorText ).to.match( /^The value is invalid/ );
-						sinon.assert.notCalled( spy );
+						expect( tableCellPropertiesView.heightInput.errorText ).toMatch( /^The value is invalid/ );
+						expect( spy ).not.toHaveBeenCalled();
 
 						// And now let's pass a valid value and check if the error text will be gone.
 						tableCellPropertiesView.height = '3em';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.backgroundInput.errorText ).to.be.null;
-						sinon.assert.calledWithExactly( spy, 'tableCellHeight', { value: '3em', batch } );
+						expect( tableCellPropertiesView.backgroundInput.errorText ).toBeNull();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellHeight', { value: '3em', batch } );
 					} );
 				} );
 
 				describe( '#padding', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.padding = '12px';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellPadding', { value: '12px', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellPadding', { value: '12px', batch } );
 					} );
 
 					it( 'should display an error message if value is invalid', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						// First, let's pass an invalid value and check what happens.
 						tableCellPropertiesView.padding = 'wrong';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.paddingInput.errorText ).to.match( /^The value is invalid/ );
-						sinon.assert.notCalled( spy );
+						expect( tableCellPropertiesView.paddingInput.errorText ).toMatch( /^The value is invalid/ );
+						expect( spy ).not.toHaveBeenCalled();
 
 						// And now let's pass a valid value and check if the error text will be gone.
 						tableCellPropertiesView.padding = '3em';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.backgroundInput.errorText ).to.be.null;
-						sinon.assert.calledWithExactly( spy, 'tableCellPadding', { value: '3em', batch } );
+						expect( tableCellPropertiesView.backgroundInput.errorText ).toBeNull();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellPadding', { value: '3em', batch } );
 					} );
 				} );
 
 				describe( '#backgroundColor', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.backgroundColor = '#FFAAFF';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellBackgroundColor', { value: '#FFAAFF', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBackgroundColor', { value: '#FFAAFF', batch } );
 					} );
 
 					it( 'should display an error message if value is invalid', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						// First, let's pass an invalid value and check what happens.
 						tableCellPropertiesView.backgroundColor = '42';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.backgroundInput.errorText ).to.match( /^The color is invalid/ );
-						sinon.assert.notCalled( spy );
+						expect( tableCellPropertiesView.backgroundInput.errorText ).toMatch( /^The color is invalid/ );
+						expect( spy ).not.toHaveBeenCalled();
 
 						// And now let's pass a valid value and check if the error text will be gone.
 						tableCellPropertiesView.backgroundColor = '#AAA';
 
-						clock.tick( 500 );
+						vi.advanceTimersByTime( 500 );
 
-						expect( tableCellPropertiesView.backgroundInput.errorText ).to.be.null;
-						sinon.assert.calledWithExactly( spy, 'tableCellBackgroundColor', { value: '#AAA', batch } );
+						expect( tableCellPropertiesView.backgroundInput.errorText ).toBeNull();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellBackgroundColor', { value: '#AAA', batch } );
 					} );
 				} );
 
 				describe( '#horizontalAlignment', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.horizontalAlignment = 'right';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellHorizontalAlignment', { value: 'right', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellHorizontalAlignment', { value: 'right', batch } );
 					} );
 				} );
 
 				describe( '#verticalAlignment', () => {
 					it( 'should affect the editor state', () => {
-						const spy = testUtils.sinon.stub( editor, 'execute' );
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 						tableCellPropertiesView.verticalAlignment = 'right';
 
-						sinon.assert.calledOnce( spy );
-						sinon.assert.calledWithExactly( spy, 'tableCellVerticalAlignment', { value: 'right', batch } );
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellVerticalAlignment', { value: 'right', batch } );
+					} );
+				} );
+
+				describe( '#cellType', () => {
+					it( 'should affect the editor state', () => {
+						const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+
+						tableCellPropertiesView.cellType = 'header';
+
+						expect( spy ).toHaveBeenCalledOnce();
+						expect( spy ).toHaveBeenCalledWith( 'tableCellType', { value: 'header', batch } );
 					} );
 				} );
 
@@ -550,25 +594,25 @@ describe( 'table cell properties', () => {
 					// First, let's pass an invalid value.
 					tableCellPropertiesView.borderColor = '#';
 
-					clock.tick( 100 );
+					vi.advanceTimersByTime( 100 );
 
 					// Then the user managed to quickly type the correct value.
 					tableCellPropertiesView.borderColor = '#aaa';
 
-					clock.tick( 400 );
+					vi.advanceTimersByTime( 400 );
 
 					// Because they were quick, they should see no error
-					expect( tableCellPropertiesView.borderColorInput.errorText ).to.be.null;
+					expect( tableCellPropertiesView.borderColorInput.errorText ).toBeNull();
 				} );
 
 				it( 'should not affect the editor state if internal property has changed', () => {
-					const spy = testUtils.sinon.stub( editor, 'execute' );
+					const spy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 					tableCellPropertiesView.set( 'internalProp', 'foo' );
 
 					tableCellPropertiesView.internalProp = 'bar';
 
-					sinon.assert.notCalled( spy );
+					expect( spy ).not.toHaveBeenCalled();
 				} );
 			} );
 		} );
@@ -584,23 +628,24 @@ describe( 'table cell properties', () => {
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				const firstBatch = tableCellPropertiesUI._undoStepBatch;
 				expect( firstBatch ).to.be.instanceOf( Batch );
 
 				tableCellPropertiesView.fire( 'submit' );
-				expect( contextualBalloon.visibleView ).to.be.null;
+				expect( contextualBalloon.visibleView ).toBeNull();
 
 				tableCellPropertiesButton.fire( 'execute' );
 
 				const secondBatch = tableCellPropertiesUI._undoStepBatch;
 				expect( secondBatch ).to.be.instanceOf( Batch );
-				expect( firstBatch ).to.not.equal( secondBatch );
+				expect( firstBatch ).not.toBe( secondBatch );
 			} );
 
 			it( 'should show the ui for multi-cell selection', () => {
-				setData( editor.model, modelTable( [ [ '01', '02' ] ] ) );
+				_setModelData( editor.model, modelTable( [ [ '01', '02' ] ] ) );
+
 				editor.model.change( writer => {
 					writer.setSelection( [
 						writer.createRangeOn( editor.model.document.getRoot().getNodeByPath( [ 0, 0, 0 ] ) ),
@@ -611,22 +656,22 @@ describe( 'table cell properties', () => {
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 			} );
 
 			describe( 'initial data', () => {
 				it( 'should not execute commands before changing the data', () => {
 					const tableCellBackgroundCommand = editor.commands.get( 'tableCellBackgroundColor' );
-					const spy = sinon.spy( tableCellBackgroundCommand, 'execute' );
+					const spy = vi.spyOn( tableCellBackgroundCommand, 'execute' );
 
 					tableCellPropertiesUI._showView();
 					tableCellPropertiesView = tableCellPropertiesUI.view;
 
-					expect( spy.called ).to.be.false;
+					expect( spy ).not.toHaveBeenCalled();
 
 					tableCellPropertiesView.backgroundColor = 'red';
 
-					expect( spy.called ).to.be.true;
+					expect( spy ).toHaveBeenCalled();
 				} );
 
 				it( 'should be set before adding the form to the the balloon to avoid unnecessary input animations', () => {
@@ -635,17 +680,18 @@ describe( 'table cell properties', () => {
 					tableCellPropertiesUI._hideView();
 					tableCellPropertiesView = tableCellPropertiesUI.view;
 
-					const balloonAddSpy = testUtils.sinon.spy( editor.plugins.get( ContextualBalloon ), 'add' );
-					const borderStyleChangeSpy = testUtils.sinon.spy();
+					const balloonAddSpy = vi.spyOn( editor.plugins.get( ContextualBalloon ), 'add' );
+					const borderStyleChangeSpy = vi.fn();
 
 					tableCellPropertiesView.on( 'change:borderStyle', borderStyleChangeSpy );
 
 					editor.commands.get( 'tableCellBorderStyle' ).value = 'a';
 					tableCellPropertiesButton.fire( 'execute' );
 
-					sinon.assert.calledOnce( borderStyleChangeSpy );
-					sinon.assert.calledOnce( balloonAddSpy );
-					sinon.assert.callOrder( borderStyleChangeSpy, balloonAddSpy );
+					expect( borderStyleChangeSpy ).toHaveBeenCalledOnce();
+					expect( balloonAddSpy ).toHaveBeenCalledOnce();
+					expect( borderStyleChangeSpy.mock.invocationCallOrder[ 0 ] )
+						.to.be.lessThan( balloonAddSpy.mock.invocationCallOrder[ 0 ] );
 				} );
 
 				it( 'should be set from the command values', () => {
@@ -661,7 +707,7 @@ describe( 'table cell properties', () => {
 					tableCellPropertiesButton.fire( 'execute' );
 					tableCellPropertiesView = tableCellPropertiesUI.view;
 
-					expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+					expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 					expect( tableCellPropertiesView ).to.include( {
 						borderStyle: 'a',
 						borderColor: 'b',
@@ -687,11 +733,11 @@ describe( 'table cell properties', () => {
 					tableCellPropertiesButton.fire( 'execute' );
 					tableCellPropertiesView = tableCellPropertiesUI.view;
 
-					expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+					expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 					expect( tableCellPropertiesView ).to.include( {
-						borderStyle: 'none',
-						borderColor: '',
-						borderWidth: '',
+						borderStyle: 'solid',
+						borderColor: 'hsl(0, 0%, 75%)',
+						borderWidth: '1px',
 						height: '',
 						padding: '',
 						backgroundColor: '',
@@ -701,17 +747,35 @@ describe( 'table cell properties', () => {
 				} );
 			} );
 
+			it( 'should handle missing commands gracefully', () => {
+				const originalGet = editor.commands.get.bind( editor.commands );
+
+				vi.spyOn( editor.commands, 'get' ).mockImplementation( command => {
+					if ( command === 'tableCellType' ) {
+						return undefined;
+					}
+
+					return originalGet( command );
+				} );
+
+				tableCellPropertiesButton.fire( 'execute' );
+				tableCellPropertiesView = tableCellPropertiesUI.view;
+
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
+				expect( tableCellPropertiesView.borderStyle ).toEqual( 'solid' );
+			} );
+
 			it( 'should focus the form view', () => {
 				// Trigger lazy init.
 				tableCellPropertiesUI._showView();
 				tableCellPropertiesUI._hideView();
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				const spy = testUtils.sinon.spy( tableCellPropertiesView, 'focus' );
+				const spy = vi.spyOn( tableCellPropertiesView, 'focus' );
 
 				tableCellPropertiesButton.fire( 'execute' );
 
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 
@@ -723,31 +787,31 @@ describe( 'table cell properties', () => {
 			} );
 
 			it( 'should stop listening to EditorUI#update', () => {
-				const spy = testUtils.sinon.spy( tableCellPropertiesUI, 'stopListening' );
+				const spy = vi.spyOn( tableCellPropertiesUI, 'stopListening' );
 
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				tableCellPropertiesView.fire( 'submit' );
-				expect( contextualBalloon.visibleView ).to.be.null;
+				expect( contextualBalloon.visibleView ).toBeNull();
 
-				sinon.assert.calledOnce( spy );
-				sinon.assert.calledWithExactly( spy, editor.ui, 'update' );
+				expect( spy ).toHaveBeenCalledOnce();
+				expect( spy ).toHaveBeenCalledWith( editor.ui, 'update' );
 			} );
 
 			it( 'should focus the editing view so the focus is not lost', () => {
-				const spy = testUtils.sinon.spy( editor.editing.view, 'focus' );
+				const spy = vi.spyOn( editor.editing.view, 'focus' );
 
 				tableCellPropertiesButton.fire( 'execute' );
 				tableCellPropertiesView = tableCellPropertiesUI.view;
 
-				expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+				expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 
 				tableCellPropertiesView.fire( 'submit' );
 
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 
@@ -755,16 +819,20 @@ describe( 'table cell properties', () => {
 			let editor, editorElement, contextualBalloon,
 				tableCellPropertiesUI, tableCellPropertiesView, tableCellPropertiesButton;
 
-			testUtils.createSinonSandbox();
-
 			beforeEach( () => {
 				editorElement = document.createElement( 'div' );
 				document.body.appendChild( editorElement );
 
 				return ClassicTestEditor
 					.create( editorElement, {
-						plugins: [ Table, TableCellPropertiesEditing, TableCellPropertiesUI, TableCellWidthEditing, Paragraph, Undo ],
-						initialData: '<table><tr><td>foo</td></tr></table><p>bar</p>',
+						plugins: [
+							Table, TableCellPropertiesEditing, TableCellPropertiesUI, TableCellWidthEditing,
+							ClipboardPipeline, Paragraph, Undo, TableLayout
+						],
+						initialData:
+							'<table class="content-table"><tr><td>foo</td></tr></table>' +
+							'<p>bar</p>' +
+							'<table class="layout-table"><tr><td>foo</td></tr></table>',
 						table: {
 							tableCellProperties: {
 								defaultProperties: {
@@ -790,8 +858,8 @@ describe( 'table cell properties', () => {
 						tableCellPropertiesView = tableCellPropertiesUI.view;
 
 						// There is no point to execute BalloonPanelView attachTo and pin methods so lets override it.
-						testUtils.sinon.stub( contextualBalloon.view, 'attachTo' ).returns( {} );
-						testUtils.sinon.stub( contextualBalloon.view, 'pin' ).returns( {} );
+						vi.spyOn( contextualBalloon.view, 'attachTo' ).mockReturnValue( {} );
+						vi.spyOn( contextualBalloon.view, 'pin' ).mockReturnValue( {} );
 					} );
 			} );
 
@@ -816,7 +884,7 @@ describe( 'table cell properties', () => {
 
 				describe( '#view', () => {
 					it( 'should get the default table cell properties configurations', () => {
-						expect( tableCellPropertiesView.options.defaultTableCellProperties ).to.deep.equal( {
+						expect( tableCellPropertiesView.options.defaultTableCellProperties ).toEqual( {
 							horizontalAlignment: 'center',
 							verticalAlignment: 'bottom',
 							borderStyle: 'dashed',
@@ -831,7 +899,7 @@ describe( 'table cell properties', () => {
 				} );
 			} );
 
-			describe( 'Showing the #view', () => {
+			describe( 'Showing the #view (content table)', () => {
 				beforeEach( () => {
 					editor.model.change( writer => {
 						writer.setSelection( editor.model.document.getRoot().getChild( 0 ).getChild( 0 ).getChild( 0 ), 0 );
@@ -858,7 +926,7 @@ describe( 'table cell properties', () => {
 
 						tableCellPropertiesButton.fire( 'execute' );
 
-						expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+						expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 						expect( tableCellPropertiesView ).to.include( {
 							borderStyle: 'dashed',
 							borderColor: '#ff0',
@@ -877,7 +945,7 @@ describe( 'table cell properties', () => {
 
 						tableCellPropertiesButton.fire( 'execute' );
 
-						expect( contextualBalloon.visibleView ).to.equal( tableCellPropertiesView );
+						expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
 						expect( tableCellPropertiesView ).to.include( {
 							borderStyle: 'none',
 							borderColor: '',
@@ -887,6 +955,49 @@ describe( 'table cell properties', () => {
 							padding: '10px',
 							horizontalAlignment: 'center',
 							verticalAlignment: 'bottom'
+						} );
+					} );
+				} );
+			} );
+
+			describe( 'Showing the #view (layout table)', () => {
+				beforeEach( () => {
+					editor.model.change( writer => {
+						writer.setSelection( editor.model.document.getRoot().getChild( 2 ).getChild( 0 ).getChild( 0 ), 0 );
+					} );
+
+					// Trigger lazy init.
+					tableCellPropertiesUI._showView();
+					tableCellPropertiesUI._hideView();
+
+					tableCellPropertiesView = tableCellPropertiesUI.view;
+				} );
+
+				describe( 'initial data', () => {
+					it( 'should use hardcoded defaults for layout table instead of configuration', () => {
+						editor.commands.get( 'tableCellBorderStyle' ).value = null;
+						editor.commands.get( 'tableCellBorderColor' ).value = null;
+						editor.commands.get( 'tableCellBorderWidth' ).value = null;
+						editor.commands.get( 'tableCellBackgroundColor' ).value = null;
+						editor.commands.get( 'tableCellWidth' ).value = null;
+						editor.commands.get( 'tableCellHeight' ).value = null;
+						editor.commands.get( 'tableCellPadding' ).value = null;
+						editor.commands.get( 'tableCellHorizontalAlignment' ).value = null;
+						editor.commands.get( 'tableCellVerticalAlignment' ).value = null;
+
+						tableCellPropertiesButton.fire( 'execute' );
+
+						expect( contextualBalloon.visibleView ).toEqual( tableCellPropertiesView );
+						expect( tableCellPropertiesView ).to.include( {
+							borderStyle: 'none',
+							borderColor: '',
+							borderWidth: '',
+							backgroundColor: '',
+							width: '',
+							height: '',
+							padding: '',
+							horizontalAlignment: 'left',
+							verticalAlignment: 'middle'
 						} );
 					} );
 				} );
@@ -902,7 +1013,7 @@ describe( 'table cell properties', () => {
 
 				return ClassicTestEditor
 					.create( editorElement, {
-						plugins: [ Table, TableCellPropertiesEditing, TableCellPropertiesUI, TableCellWidthEditing ],
+						plugins: [ Table, TableCellPropertiesEditing, TableCellPropertiesUI, TableCellWidthEditing, ClipboardPipeline ],
 						table: {
 							tableCellProperties: {
 								colorPicker: false
@@ -917,8 +1028,8 @@ describe( 'table cell properties', () => {
 						tableCellPropertiesView = tableCellPropertiesUI.view;
 
 						// There is no point to execute BalloonPanelView attachTo and pin methods so lets override it.
-						testUtils.sinon.stub( contextualBalloon.view, 'attachTo' ).returns( {} );
-						testUtils.sinon.stub( contextualBalloon.view, 'pin' ).returns( {} );
+						vi.spyOn( contextualBalloon.view, 'attachTo' ).mockReturnValue( {} );
+						vi.spyOn( contextualBalloon.view, 'pin' ).mockReturnValue( {} );
 					} );
 			} );
 
@@ -929,16 +1040,92 @@ describe( 'table cell properties', () => {
 			} );
 
 			it( 'should define table.tableCellProperties.colorPicker', () => {
-				expect( editor.config.get( 'table.tableCellProperties.colorPicker' ) ).to.be.false;
+				expect( editor.config.get( 'table.tableCellProperties.colorPicker' ) ).toBe( false );
 			} );
 
 			it( 'should not have color picker in dropdown', () => {
 				tableCellPropertiesUI._showView();
 
-				const panelView = tableCellPropertiesUI.view.borderColorInput.fieldView.dropdownView.panelView;
-				const colorPicker = panelView.children.get( 0 ).colorPickerFragmentView.element;
+				const dropdownView = tableCellPropertiesUI.view.borderColorInput.fieldView.dropdownView;
 
-				expect( colorPicker ).to.be.null;
+				dropdownView.isOpen = true;
+
+				const colorPicker = dropdownView.panelView.children.get( 0 ).colorPickerFragmentView.element;
+
+				expect( colorPicker ).toBeNull();
+			} );
+		} );
+
+		describe( 'width field routing to the column width command (resized table)', () => {
+			let localEditor, localElement, ui, balloon;
+
+			beforeEach( async () => {
+				vi.useFakeTimers();
+				localElement = document.createElement( 'div' );
+				document.body.appendChild( localElement );
+
+				localEditor = await ClassicTestEditor.create( localElement, {
+					plugins: [
+						Table, TableColumnResize, TableCellPropertiesEditing,
+						TableCellPropertiesUI, TableCellWidthEditing, Paragraph, Undo, ClipboardPipeline, WidgetResize
+					]
+				} );
+
+				ui = localEditor.plugins.get( TableCellPropertiesUI );
+				balloon = localEditor.plugins.get( ContextualBalloon );
+
+				vi.spyOn( balloon.view, 'attachTo' ).mockReturnValue( {} );
+				vi.spyOn( balloon.view, 'pin' ).mockReturnValue( {} );
+			} );
+
+			afterEach( async () => {
+				vi.useRealTimers();
+				await localEditor.destroy();
+				localElement.remove();
+			} );
+
+			it( 'should execute the tableColumnWidth command for a single cell in a resized table', () => {
+				_setModelData( localEditor.model, modelTable( [
+					[ '[]00', '01' ]
+				], { columnWidths: '40%,60%', tableWidth: '80%' } ) );
+
+				const batch = localEditor.model.createBatch();
+
+				ui._undoStepBatch = batch;
+				ui._showView();
+
+				const spy = vi.spyOn( localEditor, 'execute' ).mockImplementation( () => {} );
+
+				ui.view.width = '120px';
+
+				expect( spy ).toHaveBeenCalledWith( 'tableColumnWidth', { value: '120px', batch } );
+			} );
+
+			it( 'should fill the width field from the tableColumnWidth command value', () => {
+				_setModelData( localEditor.model, modelTable( [
+					[ '[]00', '01' ]
+				], { columnWidths: '40%,60%', tableWidth: '80%' } ) );
+
+				ui._showView();
+
+				expect( ui.view.width ).toEqual( '40%' );
+			} );
+
+			it( 'should execute the tableColumnWidth command for a multi-cell selection', () => {
+				_setModelData( localEditor.model, modelTable( [
+					[ { contents: '00', isSelected: true }, { contents: '01', isSelected: true } ]
+				], { columnWidths: '40%,60%', tableWidth: '80%' } ) );
+
+				const batch = localEditor.model.createBatch();
+
+				ui._undoStepBatch = batch;
+				ui._showView();
+
+				const spy = vi.spyOn( localEditor, 'execute' ).mockImplementation( () => {} );
+
+				ui.view.width = '120px';
+
+				expect( spy ).toHaveBeenCalledWith( 'tableColumnWidth', { value: '120px', batch } );
 			} );
 		} );
 	} );

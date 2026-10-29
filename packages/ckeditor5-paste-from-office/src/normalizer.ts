@@ -1,14 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module paste-from-office/normalizer
  */
 
-import type { ClipboardInputTransformationData } from 'ckeditor5/src/clipboard';
-import type { ParseHtmlResult } from './filters/parse';
+import type { ClipboardInputTransformationData } from '@ckeditor/ckeditor5-clipboard';
 
 /**
  * Interface defining a content transformation pasted from an external editor.
@@ -17,7 +16,7 @@ import type { ParseHtmlResult } from './filters/parse';
  * {@link module:clipboard/clipboardpipeline~ClipboardPipeline#event:inputTransformation inputTransformation event}.
  * They detect environment-specific quirks and transform it into a form compatible with other CKEditor features.
  */
-export interface Normalizer {
+export interface PasteFromOfficeNormalizer {
 
 	/**
 	 * Must return `true` if the `htmlString` contains content which this normalizer can transform.
@@ -27,10 +26,5 @@ export interface Normalizer {
 	/**
 	 * Executes the normalization of a given data.
 	 */
-	execute( data: NormalizerData ): void;
-}
-
-export interface NormalizerData extends ClipboardInputTransformationData {
-	_isTransformedWithPasteFromOffice?: boolean;
-	_parsedData: ParseHtmlResult;
+	execute( data: ClipboardInputTransformationData ): void;
 }

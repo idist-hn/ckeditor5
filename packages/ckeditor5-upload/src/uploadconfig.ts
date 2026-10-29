@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,7 +12,7 @@
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
  * 		simpleUpload: {
  * 			// The URL the images are uploaded to.
  * 			uploadUrl: 'http://example.com',
@@ -44,29 +44,38 @@ export interface SimpleUploadConfig {
 	uploadUrl: string;
 
 	/**
-	 * An object that defines additional [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) sent with
-	 * the request to the server during the upload. This is the right place to implement security mechanisms like
-	 * authentication and [CSRF](https://developer.mozilla.org/en-US/docs/Glossary/CSRF) protection.
+	 * [Headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) sent with the request to the server during the upload.
+	 * This is the right place to implement security mechanisms like authentication and
+	 * [CSRF](https://developer.mozilla.org/en-US/docs/Glossary/CSRF) protection.
+	 *
+	 * The value can be specified either as an object of key-value pairs or a callback function that returns such an object:
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
 	 * 		simpleUpload: {
+	 * 			// Set headers statically:
 	 * 			headers: {
 	 * 				'X-CSRF-TOKEN': 'CSRF-Token',
 	 * 				Authorization: 'Bearer <JSON Web Token>'
 	 * 			}
+	 *
+	 * 			// Or dynamically, based on the file:
+	 * 			headers: ( file ) => {
+	 * 				return {
+	 * 					'X-File-Name': file.name,
+	 * 					'X-File-Size': file.size
+	 * 				};
+	 * 			}
 	 * 		}
 	 * 	} );
-	 * 	.then( ... )
-	 * 	.catch( ... );
 	 * ```
 	 *
 	 * Learn more about the server application requirements in the
 	 * {@glink features/images/image-upload/simple-upload-adapter#server-side-configuration "Server-side configuration"} section
 	 * of the feature guide.
 	 */
-	headers?: Record<string, string>;
+	headers?: Record<string, string> | ( ( file: File ) => Record<string, string> );
 
 	/**
 	 * This flag enables the
@@ -76,7 +85,7 @@ export interface SimpleUploadConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
 	 * 		simpleUpload: {
 	 * 			withCredentials: true
 	 * 		}

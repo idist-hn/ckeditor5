@@ -1,35 +1,42 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module editor-decoupled/decouplededitoruiview
  */
 
-import { EditorUIView, InlineEditableUIView, ToolbarView } from 'ckeditor5/src/ui';
-import type { Locale } from 'ckeditor5/src/utils';
-import type { View } from 'ckeditor5/src/engine';
+import { EditorUIView, InlineEditableUIView, MenuBarView, ToolbarView } from '@ckeditor/ckeditor5-ui';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
+import type { EditingView } from '@ckeditor/ckeditor5-engine';
+import type { ViewRootElementDefinition } from '@ckeditor/ckeditor5-core';
 
 /**
  * The decoupled editor UI view. It is a virtual view providing an inline
- * {@link module:editor-decoupled/decouplededitoruiview~DecoupledEditorUIView#editable} and a
- * {@link module:editor-decoupled/decouplededitoruiview~DecoupledEditorUIView#toolbar}, but without any
+ * {@link module:editor-decoupled/decouplededitoruiview~DecoupledEditorUIView#editable},
+ * {@link module:editor-decoupled/decouplededitoruiview~DecoupledEditorUIView#toolbar}, and a
+ * {@link module:editor-decoupled/decouplededitoruiview~DecoupledEditorUIView#menuBarView} but without any
  * specific arrangement of the components in the DOM.
  *
  * See {@link module:editor-decoupled/decouplededitor~DecoupledEditor.create `DecoupledEditor.create()`}
  * to learn more about this view.
  */
-export default class DecoupledEditorUIView extends EditorUIView {
+export class DecoupledEditorUIView extends EditorUIView {
 	/**
 	 * The main toolbar of the decoupled editor UI.
 	 */
-	public readonly toolbar: ToolbarView;
+	public override readonly toolbar: ToolbarView;
 
 	/**
 	 * The editable of the decoupled editor UI.
 	 */
 	public readonly editable: InlineEditableUIView;
+
+	/**
+	 * Menu bar view instance.
+	 */
+	public override menuBarView: MenuBarView;
 
 	/**
 	 * Creates an instance of the decoupled editor UI view.
@@ -42,27 +49,28 @@ export default class DecoupledEditorUIView extends EditorUIView {
 	 * @param options.shouldToolbarGroupWhenFull When set `true` enables automatic items grouping
 	 * in the main {@link module:editor-decoupled/decouplededitoruiview~DecoupledEditorUIView#toolbar toolbar}.
 	 * See {@link module:ui/toolbar/toolbarview~ToolbarOptions#shouldGroupWhenFull} to learn more.
+	 * @param options.label When set, this value will be used as an accessible `aria-label` of the
+	 * {@link module:ui/editableui/editableuiview~EditableUIView editable view}.
 	 */
 	constructor(
 		locale: Locale,
-		editingView: View,
+		editingView: EditingView,
 		options: {
-			editableElement?: HTMLElement;
+			editableElement?: HTMLElement | ViewRootElementDefinition;
 			shouldToolbarGroupWhenFull?: boolean;
+			label?: string | Record<string, string>;
 		} = {}
 	) {
 		super( locale );
-
-		const t = locale.t;
 
 		this.toolbar = new ToolbarView( locale, {
 			shouldGroupWhenFull: options.shouldToolbarGroupWhenFull
 		} );
 
+		this.menuBarView = new MenuBarView( locale );
+
 		this.editable = new InlineEditableUIView( locale, editingView, options.editableElement, {
-			label: editableView => {
-				return t( 'Rich Text Editor. Editing area: %0', editableView.name! );
-			}
+			label: options.label
 		} );
 
 		// This toolbar may be placed anywhere in the page so things like font size need to be reset in it.
@@ -70,6 +78,16 @@ export default class DecoupledEditorUIView extends EditorUIView {
 		// Also, make sure the toolbar has the proper dir attribute because its ancestor may not have one
 		// and some toolbar item styles depend on this attribute.
 		this.toolbar.extendTemplate( {
+			attributes: {
+				class: [
+					'ck-reset_all',
+					'ck-rounded-corners'
+				],
+				dir: locale.uiLanguageDirection
+			}
+		} );
+
+		this.menuBarView.extendTemplate( {
 			attributes: {
 				class: [
 					'ck-reset_all',
@@ -86,6 +104,6 @@ export default class DecoupledEditorUIView extends EditorUIView {
 	public override render(): void {
 		super.render();
 
-		this.registerChild( [ this.toolbar, this.editable ] );
+		this.registerChild( [ this.menuBarView, this.toolbar, this.editable ] );
 	}
 }

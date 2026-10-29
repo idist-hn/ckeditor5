@@ -1,14 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../../src/model/model';
-import Element from '../../../src/model/element';
-import RenameOperation from '../../../src/model/operation/renameoperation';
-import Position from '../../../src/model/position';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model } from '../../../src/model/model.js';
+import { ModelElement } from '../../../src/model/element.js';
+import { RenameOperation } from '../../../src/model/operation/renameoperation.js';
+import { ModelPosition } from '../../../src/model/position.js';
 
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 describe( 'RenameOperation', () => {
 	const oldName = 'oldName';
@@ -21,16 +22,16 @@ describe( 'RenameOperation', () => {
 		doc = model.document;
 		root = doc.createRoot();
 
-		element = new Element( oldName );
+		element = new ModelElement( oldName );
 		root._appendChild( element );
 
-		position = Position._createBefore( element );
+		position = ModelPosition._createBefore( element );
 	} );
 
 	it( 'should have type equal to rename', () => {
 		const op = new RenameOperation( position, oldName, newName, doc.version );
 
-		expect( op.type ).to.equal( 'rename' );
+		expect( op.type ).toBe( 'rename' );
 	} );
 
 	it( 'should change name of given element', () => {
@@ -38,18 +39,18 @@ describe( 'RenameOperation', () => {
 
 		model.applyOperation( op );
 
-		expect( element.name ).to.equal( newName );
+		expect( element.name ).toBe( newName );
 	} );
 
 	it( 'should create a RenameOperation as a reverse', () => {
 		const op = new RenameOperation( position, oldName, newName, doc.version );
 		const reverse = op.getReversed();
 
-		expect( reverse ).to.be.an.instanceof( RenameOperation );
-		expect( reverse.baseVersion ).to.equal( 1 );
-		expect( reverse.position.isEqual( position ) ).to.be.true;
-		expect( reverse.oldName ).to.equal( newName );
-		expect( reverse.newName ).to.equal( oldName );
+		expect( reverse ).toBeInstanceOf( RenameOperation );
+		expect( reverse.baseVersion ).toBe( 1 );
+		expect( reverse.position.isEqual( position ) ).toBe( true );
+		expect( reverse.oldName ).toBe( newName );
+		expect( reverse.newName ).toBe( oldName );
 	} );
 
 	it( 'should undo renaming element by applying reverse operation', () => {
@@ -59,13 +60,13 @@ describe( 'RenameOperation', () => {
 		model.applyOperation( op );
 		model.applyOperation( reverse );
 
-		expect( doc.version ).to.equal( 2 );
-		expect( element.name ).to.equal( oldName );
+		expect( doc.version ).toBe( 2 );
+		expect( element.name ).toBe( oldName );
 	} );
 
 	describe( '_validate()', () => {
 		it( 'should throw an error if position is not before an element', () => {
-			const op = new RenameOperation( Position._createAt( root, 'end' ), oldName, newName, doc.version );
+			const op = new RenameOperation( ModelPosition._createAt( root, 'end' ), oldName, newName, doc.version );
 
 			expectToThrowCKEditorError( () => {
 				op._validate();
@@ -85,30 +86,30 @@ describe( 'RenameOperation', () => {
 
 			expect( () => {
 				op._validate();
-			} ).to.not.throw();
+			} ).not.toThrow();
 		} );
 	} );
 
 	it( 'should create a RenameOperation with the same parameters when cloned', () => {
-		const op = new RenameOperation( Position._createAt( root, 'end' ), oldName, newName, doc.version );
+		const op = new RenameOperation( ModelPosition._createAt( root, 'end' ), oldName, newName, doc.version );
 		const clone = op.clone();
 
 		// New instance rather than a pointer to the old instance.
-		expect( clone ).not.to.equal( op );
+		expect( clone ).not.toBe( op );
 
-		expect( clone ).to.be.instanceof( RenameOperation );
-		expect( clone.baseVersion ).to.equal( op.baseVersion );
-		expect( clone.position.isEqual( op.position ) ).to.be.true;
-		expect( clone.oldName ).to.equal( oldName );
-		expect( clone.newName ).to.equal( newName );
+		expect( clone ).toBeInstanceOf( RenameOperation );
+		expect( clone.baseVersion ).toBe( op.baseVersion );
+		expect( clone.position.isEqual( op.position ) ).toBe( true );
+		expect( clone.oldName ).toBe( oldName );
+		expect( clone.newName ).toBe( newName );
 	} );
 
 	describe( 'toJSON', () => {
 		it( 'should create proper serialized object', () => {
-			const op = new RenameOperation( Position._createAt( root, 'end' ), oldName, newName, doc.version );
+			const op = new RenameOperation( ModelPosition._createAt( root, 'end' ), oldName, newName, doc.version );
 			const serialized = op.toJSON();
 
-			expect( serialized ).to.deep.equal( {
+			expect( serialized ).toEqual( {
 				__className: 'RenameOperation',
 				baseVersion: 0,
 				position: op.position.toJSON(),
@@ -120,12 +121,12 @@ describe( 'RenameOperation', () => {
 
 	describe( 'fromJSON', () => {
 		it( 'should create proper AttributeOperation from json object', () => {
-			const op = new RenameOperation( Position._createAt( root, 'end' ), oldName, newName, doc.version );
+			const op = new RenameOperation( ModelPosition._createAt( root, 'end' ), oldName, newName, doc.version );
 
 			const serialized = op.toJSON();
 			const deserialized = RenameOperation.fromJSON( serialized, doc );
 
-			expect( deserialized ).to.deep.equal( op );
+			expect( deserialized ).toEqual( op );
 		} );
 	} );
 } );

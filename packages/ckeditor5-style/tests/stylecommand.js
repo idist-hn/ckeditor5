@@ -1,29 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, console */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { ImageBlock, ImageCaption } from '@ckeditor/ckeditor5-image';
+import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { Table } from '@ckeditor/ckeditor5-table';
+import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import GeneralHtmlSupport from '@ckeditor/ckeditor5-html-support/src/generalhtmlsupport';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ImageBlock from '@ckeditor/ckeditor5-image/src/imageblock';
-import ImageCaption from '@ckeditor/ckeditor5-image/src/imagecaption';
-import CodeBlock from '@ckeditor/ckeditor5-code-block/src/codeblock';
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import HorizontalLine from '@ckeditor/ckeditor5-horizontal-line/src/horizontalline';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-import Style from '../src/style';
+import { Style } from '../src/style.js';
 
 describe( 'StyleCommand', () => {
 	let editor, editorElement, command, model, doc, root;
-
-	testUtils.createSinonSandbox();
 
 	const inlineStyles = [
 		{
@@ -141,32 +136,34 @@ describe( 'StyleCommand', () => {
 	describe( '#enabledStyles', () => {
 		describe( 'block styles', () => {
 			it( 'should enable styles for paragraph', () => {
-				setData( model, '<paragraph>foo[bar]baz</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]baz</paragraph>' );
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 6 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockParagraphStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for heading', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<heading1>bar[]</heading1>'
 				);
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 7 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockHeadingStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for block quote', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<blockQuote>' +
 						'<paragraph>bar[]</paragraph>' +
@@ -176,15 +173,16 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 7 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockParagraphStyles.map( ( { name } ) => name ),
 					...blockQuoteBlockStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for div (as container)', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<htmlDiv>' +
 						'<paragraph>bar[]</paragraph>' +
@@ -194,15 +192,16 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 7 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockParagraphStyles.map( ( { name } ) => name ),
 					...blockDivStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for div (as block)', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<htmlDivParagraph>bar[]</htmlDivParagraph>' +
 					'<paragraph>baz</paragraph>'
@@ -210,17 +209,18 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 6 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockDivStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for paragraphs when nested inside html section', () => {
 				const dataFilter = editor.plugins.get( 'DataFilter' );
 				dataFilter.allowElement( 'htmlSection' );
 
-				setData( model,
+				_setModelData( model,
 					'<htmlSection><paragraph>[Foo</paragraph></htmlSection>' +
 					'<htmlSection><paragraph>Bar</paragraph></htmlSection>' +
 					'<htmlSection><paragraph>Baz]</paragraph></htmlSection>'
@@ -228,7 +228,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Red paragraph' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<htmlSection><paragraph htmlPAttributes="{"classes":["red"]}">[Foo</paragraph></htmlSection>' +
 					'<htmlSection><paragraph htmlPAttributes="{"classes":["red"]}">Bar</paragraph></htmlSection>' +
 					'<htmlSection><paragraph htmlPAttributes="{"classes":["red"]}">Baz]</paragraph></htmlSection>'
@@ -236,17 +236,18 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should enable styles for the code block', () => {
-				setData( model, '<codeBlock language="plaintext">foo[bar]baz</codeBlock>' );
+				_setModelData( model, '<codeBlock language="plaintext">foo[bar]baz</codeBlock>' );
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 3 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...blockCodeBlockStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for the closest widget but no outer blocks', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockQuote>' +
 						'<table>' +
 							'<tableRow>' +
@@ -260,14 +261,15 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 3 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...blockParagraphStyles.map( ( { name } ) => name ),
 					...blockWidgetStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for view elements that does not map to model element', () => {
-				setData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'[<tableCell>' +
@@ -279,14 +281,15 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 3 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...blockParagraphStyles.map( ( { name } ) => name ),
 					...blockWidgetStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should enable styles for the first selected block', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<heading1>b[ar</heading1>' +
 					'<paragraph>ba]z</paragraph>'
@@ -294,10 +297,11 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 7 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...blockHeadingStyles.map( ( { name } ) => name ),
 					...inlineStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should not enable styles for blocks that disable GHS', () => {
@@ -307,17 +311,18 @@ describe( 'StyleCommand', () => {
 					}
 				} );
 
-				setData( model, '<paragraph>bar[]</paragraph>' );
+				_setModelData( model, '<paragraph>bar[]</paragraph>' );
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 5 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should not enable styles for elements outside an object element', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockQuote>' +
 						'<table>' +
 							'<tableRow>' +
@@ -331,80 +336,85 @@ describe( 'StyleCommand', () => {
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 8 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockParagraphStyles.map( ( { name } ) => name ),
 					...blockWidgetStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should not crash if there are no selected blocks', () => {
-				setData( model, '<paragraph>foo</paragraph>' );
+				_setModelData( model, '<paragraph>foo</paragraph>' );
 
 				model.change( writer => {
 					writer.setSelection( root, 0 );
 
 					command.refresh();
 
-					expect( command.enabledStyles ).to.have.members( [
+					expect( command.enabledStyles ).toHaveLength( 5 );
+					expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 						...inlineStyles.map( ( { name } ) => name )
-					] );
+					] ) );
 				} );
 			} );
 		} );
 
 		describe( 'inline styles', () => {
 			it( 'should enable styles for text', () => {
-				setData( model, '<paragraph>foo[bar]baz</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]baz</paragraph>' );
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 6 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...inlineStyles.map( ( { name } ) => name ),
 					...blockParagraphStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 
 			it( 'should not enable styles for text in code block', () => {
-				setData( model, '<codeBlock language="plaintext">foo[bar]baz</codeBlock>' );
+				_setModelData( model, '<codeBlock language="plaintext">foo[bar]baz</codeBlock>' );
 
 				command.refresh();
 
-				expect( command.enabledStyles ).to.have.members( [
+				expect( command.enabledStyles ).toHaveLength( 3 );
+				expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 					...blockCodeBlockStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 		} );
 	} );
 
 	describe( '#isEnabled', () => {
 		it( 'should be disabled if none of styles applies to selection', () => {
-			setData( model, '[<horizontalLine></horizontalLine>]' );
+			_setModelData( model, '[<horizontalLine></horizontalLine>]' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be enabled if selection is on a block widget but there are nested blocks that allow inline style', () => {
-			setData( model, '[<imageBlock><caption>foo</caption></imageBlock>]' );
+			_setModelData( model, '[<imageBlock><caption>foo</caption></imageBlock>]' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 	} );
 
 	describe( '#value', () => {
 		describe( 'block styles', () => {
 			it( 'should detect a single style applied', () => {
-				setData( model, '<paragraph>fo[]o</paragraph>' );
+				_setModelData( model, '<paragraph>fo[]o</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlPAttributes', { classes: [ 'red' ] }, root.getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Red paragraph' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Red paragraph' ] ) );
 			} );
 
 			it( 'should detect styles for heading', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<heading1>bar[]</heading1>'
 				);
@@ -413,11 +423,12 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlH2Attributes', { classes: [ 'big-heading' ] }, root.getChild( 1 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Big heading' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Big heading' ] ) );
 			} );
 
 			it( 'should detect style for specified element if style shares an element name', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>fo[]o</paragraph>' +
 					'<heading1>bar</heading1>'
 				);
@@ -427,17 +438,19 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlH2Attributes', { classes: [ 'red' ] }, root.getChild( 1 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Red paragraph' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Red paragraph' ] ) );
 
 				model.change( writer => {
 					writer.setSelection( root.getChild( 1 ), 0 );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Red heading' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Red heading' ] ) );
 			} );
 
 			it( 'should detect styles for block quote', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>foo</paragraph>' +
 					'<blockQuote>' +
 						'<paragraph>bar[]</paragraph>' +
@@ -449,21 +462,23 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlBlockquoteAttributes', { classes: [ 'side-quote' ] }, root.getChild( 1 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Side quote' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Side quote' ] ) );
 			} );
 
 			it( 'should detect styles for the code block', () => {
-				setData( model, '<codeBlock language="plaintext">foo[bar]baz</codeBlock>' );
+				_setModelData( model, '<codeBlock language="plaintext">foo[bar]baz</codeBlock>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlPreAttributes', { classes: [ 'vibrant-code' ] }, root.getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Vibrant code block' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Vibrant code block' ] ) );
 			} );
 
 			it( 'should detect styles for the div (as container)', () => {
-				setData( model,
+				_setModelData( model,
 					'<htmlDiv>' +
 						'<paragraph>foo[bar]baz</paragraph>' +
 					'</htmlDiv>'
@@ -473,11 +488,12 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlDivAttributes', { classes: [ 'callout' ] }, root.getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Div style' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Div style' ] ) );
 			} );
 
 			it( 'should detect styles for the div (as block)', () => {
-				setData( model,
+				_setModelData( model,
 					'<htmlDivParagraph>foo[bar]baz</htmlDivParagraph>'
 				);
 
@@ -485,11 +501,12 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlDivAttributes', { classes: [ 'callout' ] }, root.getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Div style' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Div style' ] ) );
 			} );
 
 			it( 'should not detect styles for elements outside a widget element', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockQuote>' +
 						'<table>' +
 							'<tableRow>' +
@@ -507,11 +524,12 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlPAttributes', { classes: [ 'red' ] }, root.getNodeByPath( [ 0, 0, 0, 0, 0 ] ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Red paragraph', 'Table style' ] );
+				expect( command.value ).toHaveLength( 2 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Red paragraph', 'Table style' ] ) );
 			} );
 
 			it( 'should detect styles for selected widget element only', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockQuote>' +
 						'[<table>' +
 							'<tableRow>' +
@@ -529,11 +547,12 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlPAttributes', { classes: [ 'red' ] }, root.getNodeByPath( [ 0, 0, 0, 0, 0 ] ) );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Table style' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Table style' ] ) );
 			} );
 
 			it( 'should detect styles for view elements that does not map to model element', () => {
-				setData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'[<tableCell>' +
@@ -548,80 +567,84 @@ describe( 'StyleCommand', () => {
 					writer.setAttribute( 'htmlTableAttributes', { classes: [ 'example' ] }, root.getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.have.members( [
+				expect( command.value ).toHaveLength( 2 );
+				expect( command.value ).toEqual( expect.arrayContaining( [
 					...blockWidgetStyles.map( ( { name } ) => name )
-				] );
+				] ) );
 			} );
 		} );
 
 		describe( 'inline styles', () => {
 			it( 'should detect style', () => {
-				setData( model, '<paragraph>foo[bar]baz</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]baz</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlSpan', { classes: [ 'marker', 'typewriter' ] }, doc.selection.getFirstRange() );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Marker', 'Typewriter' ] );
+				expect( command.value ).toHaveLength( 2 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Marker', 'Typewriter' ] ) );
 			} );
 
 			it( 'should detect styles that use multiple classes', () => {
-				setData( model, '<paragraph>foo[bar]baz</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]baz</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlSpan', { classes: [ 'class-one', 'class-two' ] }, doc.selection.getFirstRange() );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Multiple classes' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Multiple classes' ] ) );
 			} );
 
 			it( 'should not detect styles that does not have all classes for a style', () => {
-				setData( model, '<paragraph>foo[bar]baz</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]baz</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlSpan', { classes: [ 'class-one', 'marker' ] }, doc.selection.getFirstRange() );
 				} );
 
-				expect( command.value ).to.have.members( [ 'Marker' ] );
+				expect( command.value ).toHaveLength( 1 );
+				expect( command.value ).toEqual( expect.arrayContaining( [ 'Marker' ] ) );
 			} );
 
 			it( 'should detect applied inline style', () => {
-				setData( model, '<paragraph>[foobar]</paragraph>' );
+				_setModelData( model, '<paragraph>[foobar]</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlSpan', { classes: [ 'marker' ] }, root.getChild( 0 ).getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.deep.equal( [ 'Marker' ] );
-				expect( getData( model ) ).to.equal(
+				expect( command.value ).toEqual( [ 'Marker' ] );
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>[<$text htmlSpan="{"classes":["marker"]}">foobar</$text>]</paragraph>'
 				);
 			} );
 
 			it( 'should detect applied multiple inline styles', () => {
-				setData( model, '<paragraph>[foobar]</paragraph>' );
+				_setModelData( model, '<paragraph>[foobar]</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlSpan', { classes: [ 'marker', 'typewriter' ] }, root.getChild( 0 ).getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.deep.equal( [ 'Marker', 'Typewriter' ] );
-				expect( getData( model ) ).to.equal(
+				expect( command.value ).toEqual( [ 'Marker', 'Typewriter' ] );
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>[<$text htmlSpan="{"classes":["marker","typewriter"]}">foobar</$text>]</paragraph>'
 				);
 			} );
 
 			// https://github.com/ckeditor/ckeditor5/issues/11588
 			it( 'should detect applied multiple inline styles (ignore basic styles)', () => {
-				setData( model, '<paragraph>[foobar]</paragraph>' );
+				_setModelData( model, '<paragraph>[foobar]</paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'htmlSpan', { classes: [ 'marker' ] }, root.getChild( 0 ).getChild( 0 ) );
 					writer.setAttribute( 'bold', true, root.getChild( 0 ).getChild( 0 ) );
 				} );
 
-				expect( command.value ).to.deep.equal( [ 'Marker' ] );
-				expect( getData( model ) ).to.equal(
+				expect( command.value ).toEqual( [ 'Marker' ] );
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>[<$text bold="true" htmlSpan="{"classes":["marker"]}">foobar</$text>]</paragraph>'
 				);
 			} );
@@ -630,28 +653,29 @@ describe( 'StyleCommand', () => {
 
 	describe( '#execute()', () => {
 		it( 'should do nothing if the command is disabled', () => {
-			setData( model, '<paragraph>fo[ob]ar</paragraph>' );
+			_setModelData( model, '<paragraph>fo[ob]ar</paragraph>' );
 
 			command.isEnabled = false;
 			command.execute( { styleName: 'Marker' } );
 
-			expect( getData( model ) ).to.equal( '<paragraph>fo[ob]ar</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>fo[ob]ar</paragraph>' );
 		} );
 
 		it( 'should warn if the command is executed with incorrect style name', () => {
-			const stub = sinon.stub( console, 'warn' );
+			const stub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
-			setData( model, '<paragraph>fo[ob]ar</paragraph>' );
+			_setModelData( model, '<paragraph>fo[ob]ar</paragraph>' );
 
 			command.execute( { styleName: 'Invalid style' } );
 
-			expect( getData( model ) ).to.equal( '<paragraph>fo[ob]ar</paragraph>' );
-			sinon.assert.calledWithMatch( stub, 'style-command-executed-with-incorrect-style-name' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>fo[ob]ar</paragraph>' );
+			expect( stub ).toHaveBeenCalled();
+			expect( stub.mock.calls[ 0 ][ 0 ] ).toContain( 'style-command-executed-with-incorrect-style-name' );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/11748
 		it( 'should keep classes of removed style if other active styles also use them', () => {
-			setData( model, '<codeBlock language="typescript">[]</codeBlock>' );
+			_setModelData( model, '<codeBlock language="typescript">[]</codeBlock>' );
 
 			// Add light and dark themes
 			command.execute( { styleName: 'Code (bright)' } );
@@ -660,7 +684,7 @@ describe( 'StyleCommand', () => {
 			// Remove light theme
 			command.execute( { styleName: 'Code (bright)' } );
 
-			expect( getData( model, { withoutSelection: true } ) ).to.equal(
+			expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 				'<codeBlock ' +
 					'htmlPreAttributes="{"classes":["fancy-code","fancy-code-dark"]}" ' +
 					'language="typescript"' +
@@ -671,11 +695,11 @@ describe( 'StyleCommand', () => {
 
 		describe( 'inline styles', () => {
 			it( 'should add htmlSpan attribute with proper class to the collapsed selection', () => {
-				setData( model, '<paragraph>foobar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foobar[]</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>foobar<$text htmlSpan="{"classes":["marker"]}">[]</$text></paragraph>'
 				);
 
@@ -683,18 +707,18 @@ describe( 'StyleCommand', () => {
 					model.insertContent( writer.createText( 'baz', doc.selection.getAttributes() ), doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>foobar<$text htmlSpan="{"classes":["marker"]}">baz[]</$text></paragraph>'
 				);
 			} );
 
 			it( 'should add htmlSpan attribute with proper classes to the collapsed selection', () => {
-				setData( model, '<paragraph>foobar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foobar[]</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 				command.execute( { styleName: 'Typewriter' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>foobar<$text htmlSpan="{"classes":["marker","typewriter"]}">[]</$text></paragraph>'
 				);
 
@@ -702,39 +726,39 @@ describe( 'StyleCommand', () => {
 					model.insertContent( writer.createText( 'baz', doc.selection.getAttributes() ), doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>foobar<$text htmlSpan="{"classes":["marker","typewriter"]}">baz[]</$text></paragraph>'
 				);
 			} );
 
 			it( 'should add htmlSpan attribute with proper class to the selected text', () => {
-				setData( model, '<paragraph>fo[ob]ar</paragraph>' );
+				_setModelData( model, '<paragraph>fo[ob]ar</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>fo[<$text htmlSpan="{"classes":["marker"]}">ob</$text>]ar</paragraph>'
 				);
 			} );
 
 			it( 'should add htmlSpan attribute with proper classes to the selected text', () => {
-				setData( model, '<paragraph>fo[ob]ar</paragraph>' );
+				_setModelData( model, '<paragraph>fo[ob]ar</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 				command.execute( { styleName: 'Typewriter' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>fo[<$text htmlSpan="{"classes":["marker","typewriter"]}">ob</$text>]ar</paragraph>'
 				);
 			} );
 
 			it( 'should add htmlSpan attribute classes to elements with other htmlSpan attribute existing', () => {
 				// initial selection [foo b]ar baz.
-				setData( model, '<paragraph>[foo b]ar baz</paragraph>' );
+				_setModelData( model, '<paragraph>[foo b]ar baz</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>[<$text htmlSpan="{"classes":["marker"]}">foo b</$text>]ar baz</paragraph>'
 				);
 
@@ -748,7 +772,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Typewriter' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>[' +
 						'<$text htmlSpan="{"classes":["marker","typewriter"]}">foo b</$text>' +
 						'<$text htmlSpan="{"classes":["typewriter"]}">ar ba</$text>]' +
@@ -758,17 +782,17 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should add htmlSpan attribute to the selected text if definition specify multiple classes', () => {
-				setData( model, '<paragraph>fo[ob]ar</paragraph>' );
+				_setModelData( model, '<paragraph>fo[ob]ar</paragraph>' );
 
 				command.execute( { styleName: 'Multiple classes' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>fo[<$text htmlSpan="{"classes":["class-one","class-two"]}">ob</$text>]ar</paragraph>'
 				);
 			} );
 
 			it( 'should add htmlSpan attribute obly to nodes that allow it', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>f[oo</paragraph>' +
 					'<codeBlock language="plaintext">bar</codeBlock>' +
 					'<paragraph>ba]z</paragraph>'
@@ -776,7 +800,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Marker' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>f[<$text htmlSpan="{"classes":["marker"]}">oo</$text></paragraph>' +
 					'<codeBlock language="plaintext">bar</codeBlock>' +
 					'<paragraph><$text htmlSpan="{"classes":["marker"]}">ba</$text>]z</paragraph>'
@@ -784,30 +808,30 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should remove class from htmlSpan attribute element', () => {
-				setData( model, '<paragraph>foo[bar]</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 				command.execute( { styleName: 'Typewriter' } );
 				command.execute( { styleName: 'Marker' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>foo[<$text htmlSpan="{"classes":["typewriter"]}">bar</$text>]</paragraph>'
 				);
 			} );
 
 			it( 'should remove htmlSpan element when removing class attribute to the selection', () => {
-				setData( model, '<paragraph>foo[bar]</paragraph>' );
+				_setModelData( model, '<paragraph>foo[bar]</paragraph>' );
 
 				command.execute( { styleName: 'Marker' } );
 				command.execute( { styleName: 'Marker' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>foo[bar]</paragraph>'
 				);
 			} );
 
 			it( 'should force adding style if the command was called with `forceValue=true`', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>' +
 						'fo' +
 						'[<$text htmlSpan=\'{"classes":["marker"]}\'>ob</$text>' +
@@ -817,13 +841,13 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Marker', forceValue: true } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>fo[<$text htmlSpan="{"classes":["marker"]}">obar</$text>]</paragraph>'
 				);
 			} );
 
 			it( 'should force removing style if the command was called with `forceValue=false`', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>' +
 					'[fo' +
 					'<$text htmlSpan=\'{"classes":["marker"]}\'>ob</$text>]' +
@@ -833,7 +857,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Marker', forceValue: false } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>[foob]ar</paragraph>'
 				);
 			} );
@@ -841,28 +865,28 @@ describe( 'StyleCommand', () => {
 
 		describe( 'block styles', () => {
 			it( 'should add htmlAttribute with proper class to the selected element', () => {
-				setData( model, '<heading1>foo[]bar</heading1>' );
+				_setModelData( model, '<heading1>foo[]bar</heading1>' );
 
 				command.execute( { styleName: 'Big heading' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<heading1 htmlH2Attributes="{"classes":["big-heading"]}">foo[]bar</heading1>'
 				);
 			} );
 
 			it( 'should add htmlAttribute with multiple classes to the selected element', () => {
-				setData( model, '<heading1>foo[]bar</heading1>' );
+				_setModelData( model, '<heading1>foo[]bar</heading1>' );
 
 				command.execute( { styleName: 'Big heading' } );
 				command.execute( { styleName: 'Red heading' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<heading1 htmlH2Attributes="{"classes":["big-heading","red"]}">foo[]bar</heading1>'
 				);
 			} );
 
 			it( 'should add htmlAttribute only for matching element names', () => {
-				setData( model,
+				_setModelData( model,
 					'<heading1>fo[o</heading1>' +
 					'<paragraph>bar</paragraph>' +
 					'<heading1>ba]z</heading1>'
@@ -870,7 +894,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Red heading' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<heading1 htmlH2Attributes="{"classes":["red"]}">fo[o</heading1>' +
 					'<paragraph>bar</paragraph>' +
 					'<heading1 htmlH2Attributes="{"classes":["red"]}">ba]z</heading1>'
@@ -878,7 +902,7 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should add (and remove) htmlDivAttribute for div as a container', () => {
-				setData( model,
+				_setModelData( model,
 					'<htmlDiv>' +
 						'<paragraph>foo[]</paragraph>' +
 					'</htmlDiv>'
@@ -886,7 +910,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Div style' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<htmlDiv htmlDivAttributes="{"classes":["callout"]}">' +
 						'<paragraph>foo[]</paragraph>' +
 					'</htmlDiv>'
@@ -894,7 +918,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Div style' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<htmlDiv>' +
 						'<paragraph>foo[]</paragraph>' +
 					'</htmlDiv>'
@@ -902,25 +926,25 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should add (and remove) htmlDivAttribute for div as a block', () => {
-				setData( model,
+				_setModelData( model,
 					'<htmlDivParagraph>foo[]</htmlDivParagraph>'
 				);
 
 				command.execute( { styleName: 'Div style' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<htmlDivParagraph htmlDivAttributes="{"classes":["callout"]}">foo[]</htmlDivParagraph>'
 				);
 
 				command.execute( { styleName: 'Div style' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<htmlDivParagraph>foo[]</htmlDivParagraph>'
 				);
 			} );
 
 			it( 'should add htmlAttribute only to elements in the same widget element boundaries', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockQuote>' +
 						'<table>' +
 							'<tableRow>' +
@@ -936,7 +960,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Side quote' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<blockQuote>' +
 						'<table>' +
 							'<tableRow>' +
@@ -952,7 +976,7 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should add htmlAttribute only to elements in the same widget element boundaries (table)', () => {
-				setData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -970,7 +994,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Table style' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -988,7 +1012,7 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should add style to view element that does not exist in model', () => {
-				setData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -1000,7 +1024,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Figure' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<table htmlFigureAttributes="{"classes":["fancy-figure"]}">' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -1012,7 +1036,7 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should remove style from view element that does not exist in model', () => {
-				setData( model,
+				_setModelData( model,
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -1024,7 +1048,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Figure' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<table htmlFigureAttributes="{"classes":["fancy-figure"]}">' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -1036,7 +1060,7 @@ describe( 'StyleCommand', () => {
 
 				command.execute( { styleName: 'Figure' } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<table>' +
 						'<tableRow>' +
 							'<tableCell>' +
@@ -1048,23 +1072,23 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should remove htmlAttribute from the selected element', () => {
-				setData( model, '<heading1>foo[]bar</heading1>' );
+				_setModelData( model, '<heading1>foo[]bar</heading1>' );
 
 				command.execute( { styleName: 'Big heading' } );
 				command.execute( { styleName: 'Big heading' } );
 
-				expect( getData( model ) ).to.equal( '<heading1>foo[]bar</heading1>' );
+				expect( _getModelData( model ) ).toBe( '<heading1>foo[]bar</heading1>' );
 			} );
 
 			it( 'should force adding style if the command was called with `forceValue=true`', () => {
-				setData( model,
+				_setModelData( model,
 					'<heading1>foo</heading1>' +
 					'<heading1 htmlH2Attributes=\'{"classes":["red"]}\'>b[ar</heading1>' +
 					'<heading1>ba]z</heading1>' );
 
 				command.execute( { styleName: 'Red heading', forceValue: true } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<heading1>foo</heading1>' +
 					'<heading1 htmlH2Attributes="{"classes":["red"]}">b[ar</heading1>' +
 					'<heading1 htmlH2Attributes="{"classes":["red"]}">ba]z</heading1>'
@@ -1072,29 +1096,29 @@ describe( 'StyleCommand', () => {
 			} );
 
 			it( 'should not force adding a style on an element that cannot receive it', () => {
-				sinon.stub( console, 'warn' );
+				vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
-				setData( model,
+				_setModelData( model,
 					'<paragraph>f[oo</paragraph>' +
 					'<paragraph>ba]r</paragraph>' );
 
 				command.execute( { styleName: 'Red heading', forceValue: true } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>f[oo</paragraph>' +
 					'<paragraph>ba]r</paragraph>'
 				);
 			} );
 
 			it( 'should force removing style if the command was called with `forceValue=false`', () => {
-				setData( model,
+				_setModelData( model,
 					'<heading1>f[oo</heading1>' +
 					'<heading1 htmlH2Attributes=\'{"classes":["red"]}\'>ba]r</heading1>' +
 					'<heading1>baz</heading1>' );
 
 				command.execute( { styleName: 'Red heading', forceValue: false } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<heading1>f[oo</heading1>' +
 					'<heading1>ba]r</heading1>' +
 					'<heading1>baz</heading1>'

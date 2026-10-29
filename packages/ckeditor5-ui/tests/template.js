@@ -1,20 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals HTMLElement, Event, document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Template, TemplateToBinding, TemplateIfBinding } from '../src/template.js';
+import { View } from '../src/view.js';
+import { ViewCollection } from '../src/viewcollection.js';
+import { UIModel } from '../src/model.js';
 
-import { default as Template, TemplateToBinding, TemplateIfBinding } from '../src/template';
-import View from '../src/view';
-import ViewCollection from '../src/viewcollection';
-import Model from '../src/model';
+import { EmitterMixin, DomEmitterMixin } from '@ckeditor/ckeditor5-utils';
+import { normalizeHtml } from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml.js';
 
-import EmitterMixin from '@ckeditor/ckeditor5-utils/src/emittermixin';
-import DomEmitterMixin from '@ckeditor/ckeditor5-utils/src/dom/emittermixin';
-import normalizeHtml from '@ckeditor/ckeditor5-utils/tests/_utils/normalizehtml';
-
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 let el, text;
 const injectedElements = [];
@@ -22,8 +20,6 @@ const injectedElements = [];
 describe( 'Template', () => {
 	// Clean-up document.body from the rendered elements.
 	afterEach( () => {
-		sinon.restore();
-
 		for ( const el of injectedElements ) {
 			el.remove();
 		}
@@ -31,11 +27,11 @@ describe( 'Template', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets #_isRendered property', () => {
-			expect( new Template( { tag: 'p' } )._isRendered ).to.be.false;
+			expect( new Template( { tag: 'p' } )._isRendered ).toBe( false );
 		} );
 
 		it( 'accepts and normalizes the definition', () => {
-			const bind = Template.bind( new Model( {} ), Object.create( DomEmitterMixin ) );
+			const bind = Template.bind( new UIModel( {} ), new ( DomEmitterMixin() )() );
 			const childNode = document.createElement( 'div' );
 			const childTemplate = new Template( {
 				tag: 'b'
@@ -75,28 +71,28 @@ describe( 'Template', () => {
 				}
 			} );
 
-			expect( tpl.attributes.a[ 0 ] ).to.equal( 'foo' );
-			expect( tpl.attributes.b[ 0 ] ).to.equal( 'bar' );
-			expect( tpl.attributes.b[ 1 ] ).to.equal( 'baz' );
-			expect( tpl.attributes.c[ 0 ].value[ 0 ] ).to.be.instanceof( TemplateToBinding );
+			expect( tpl.attributes.a[ 0 ] ).toBe( 'foo' );
+			expect( tpl.attributes.b[ 0 ] ).toBe( 'bar' );
+			expect( tpl.attributes.b[ 1 ] ).toBe( 'baz' );
+			expect( tpl.attributes.c[ 0 ].value[ 0 ] ).toBeInstanceOf( TemplateToBinding );
 
-			expect( tpl.children ).to.have.length( 6 );
-			expect( tpl.children[ 0 ].text[ 0 ] ).to.equal( 'content' );
-			expect( tpl.children[ 1 ].text[ 0 ] ).to.be.instanceof( TemplateToBinding );
-			expect( tpl.children[ 2 ].text[ 0 ] ).to.equal( 'abc' );
-			expect( tpl.children[ 3 ].text[ 0 ] ).to.equal( 'a' );
-			expect( tpl.children[ 3 ].text[ 1 ] ).to.equal( 'b' );
-			expect( tpl.children[ 4 ] ).to.equal( childNode );
-			expect( tpl.children[ 5 ] ).to.equal( childTemplate );
+			expect( tpl.children ).toHaveLength( 6 );
+			expect( tpl.children[ 0 ].text[ 0 ] ).toBe( 'content' );
+			expect( tpl.children[ 1 ].text[ 0 ] ).toBeInstanceOf( TemplateToBinding );
+			expect( tpl.children[ 2 ].text[ 0 ] ).toBe( 'abc' );
+			expect( tpl.children[ 3 ].text[ 0 ] ).toBe( 'a' );
+			expect( tpl.children[ 3 ].text[ 1 ] ).toBe( 'b' );
+			expect( tpl.children[ 4 ] ).toBe( childNode );
+			expect( tpl.children[ 5 ] ).toBe( childTemplate );
 
-			expect( tpl.eventListeners[ 'a@span' ][ 0 ] ).to.be.instanceof( TemplateToBinding );
-			expect( tpl.eventListeners[ 'b@span' ][ 0 ] ).to.be.instanceof( TemplateToBinding );
-			expect( tpl.eventListeners[ 'c@span' ][ 0 ] ).to.be.instanceof( TemplateToBinding );
-			expect( tpl.eventListeners[ 'c@span' ][ 1 ] ).to.be.instanceof( TemplateToBinding );
+			expect( tpl.eventListeners[ 'a@span' ][ 0 ] ).toBeInstanceOf( TemplateToBinding );
+			expect( tpl.eventListeners[ 'b@span' ][ 0 ] ).toBeInstanceOf( TemplateToBinding );
+			expect( tpl.eventListeners[ 'c@span' ][ 0 ] ).toBeInstanceOf( TemplateToBinding );
+			expect( tpl.eventListeners[ 'c@span' ][ 1 ] ).toBeInstanceOf( TemplateToBinding );
 
 			// Note that Template mixes EmitterMixin.
-			expect( tpl.on ).to.be.a( 'function' );
-			expect( tpl.on[ 'a@span' ] ).to.be.undefined;
+			expect( tpl.on ).toBeTypeOf( 'function' );
+			expect( tpl.on[ 'a@span' ] ).toBeUndefined();
 		} );
 
 		it( 'defines #children collection', () => {
@@ -108,11 +104,11 @@ describe( 'Template', () => {
 				text: 'foo'
 			} );
 
-			expect( elementTpl.children ).to.be.an( 'array' );
-			expect( elementTpl.children ).to.have.length( 0 );
+			expect( elementTpl.children ).toBeInstanceOf( Array );
+			expect( elementTpl.children ).toHaveLength( 0 );
 
 			// Text will never have children.
-			expect( textTpl.children ).to.be.undefined;
+			expect( textTpl.children ).toBeUndefined();
 		} );
 
 		it( 'does not modify passed definition', () => {
@@ -129,14 +125,14 @@ describe( 'Template', () => {
 			};
 			const tpl = new Template( def );
 
-			expect( def.attributes ).to.not.equal( tpl.attributes );
-			expect( def.children ).to.not.equal( tpl.children );
-			expect( def.children[ 0 ] ).to.not.equal( tpl.children[ 0 ] );
-			expect( def.attributes.a ).to.equal( 'foo' );
-			expect( def.children[ 0 ].tag ).to.equal( 'span' );
+			expect( def.attributes ).not.toBe( tpl.attributes );
+			expect( def.children ).not.toBe( tpl.children );
+			expect( def.children[ 0 ] ).not.toBe( tpl.children[ 0 ] );
+			expect( def.attributes.a ).toBe( 'foo' );
+			expect( def.children[ 0 ].tag ).toBe( 'span' );
 
-			expect( tpl.attributes.a[ 0 ] ).to.equal( 'foo' );
-			expect( tpl.children[ 0 ].tag ).to.equal( 'span' );
+			expect( tpl.attributes.a[ 0 ] ).toBe( 'foo' );
+			expect( tpl.children[ 0 ].tag ).toBe( 'span' );
 		} );
 	} );
 
@@ -157,11 +153,11 @@ describe( 'Template', () => {
 		it( 'sets #_isRendered true', () => {
 			const tpl = new Template( { tag: 'p' } );
 
-			expect( tpl._isRendered ).to.be.false;
+			expect( tpl._isRendered ).toBe( false );
 
 			tpl.render();
 
-			expect( tpl._isRendered ).to.be.true;
+			expect( tpl._isRendered ).toBe( true );
 		} );
 
 		describe( 'DOM Node', () => {
@@ -170,10 +166,10 @@ describe( 'Template', () => {
 					tag: 'p'
 				} ).render();
 
-				expect( el ).to.be.instanceof( HTMLElement );
-				expect( el.parentNode ).to.be.null;
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
-				expect( el.namespaceURI ).to.equal( 'http://www.w3.org/1999/xhtml' );
+				expect( el ).toBeInstanceOf( HTMLElement );
+				expect( el.parentNode ).toBeNull();
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
+				expect( el.namespaceURI ).toBe( 'http://www.w3.org/1999/xhtml' );
 			} );
 
 			it( 'creates an element in a custom namespace', () => {
@@ -182,14 +178,14 @@ describe( 'Template', () => {
 					ns: 'foo'
 				} ).render();
 
-				expect( el.namespaceURI ).to.equal( 'foo' );
+				expect( el.namespaceURI ).toBe( 'foo' );
 			} );
 
 			it( 'creates a Text node', () => {
 				const node = new Template( { text: 'foo' } ).render();
 
-				expect( node.nodeType ).to.equal( 3 );
-				expect( node.textContent ).to.equal( 'foo' );
+				expect( node.nodeType ).toBe( 3 );
+				expect( node.textContent ).toBe( 'foo' );
 			} );
 		} );
 
@@ -204,10 +200,10 @@ describe( 'Template', () => {
 					children: [ 'foo' ]
 				} ).render();
 
-				expect( el ).to.be.instanceof( HTMLElement );
-				expect( el.parentNode ).to.be.null;
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="a b" x="bar">foo</p>' );
-				expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).to.be.null;
+				expect( el ).toBeInstanceOf( HTMLElement );
+				expect( el.parentNode ).toBeNull();
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="a b" x="bar">foo</p>' );
+				expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).toBeNull();
 			} );
 
 			it( 'renders HTMLElement attributes – empty', () => {
@@ -220,7 +216,7 @@ describe( 'Template', () => {
 					children: [ 'foo' ]
 				} ).render();
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>foo</p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>foo</p>' );
 			} );
 
 			it( 'renders HTMLElement attributes – falsy values', () => {
@@ -234,7 +230,7 @@ describe( 'Template', () => {
 					children: [ 'foo' ]
 				} ).render();
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p y="foo">foo</p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p y="foo">foo</p>' );
 			} );
 
 			it( 'renders HTMLElement attributes in a custom namespace', () => {
@@ -253,21 +249,21 @@ describe( 'Template', () => {
 					children: [ 'foo' ]
 				} ).render();
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="a b" x="bar">foo</p>' );
-				expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).to.equal( 'foo' );
-				expect( el.attributes.getNamedItem( 'x' ).namespaceURI ).to.equal( 'abc' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="a b" x="bar">foo</p>' );
+				expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).toBe( 'foo' );
+				expect( el.attributes.getNamedItem( 'x' ).namespaceURI ).toBe( 'abc' );
 			} );
 
 			describe( 'style', () => {
 				let observable, emitter, bind;
 
 				beforeEach( () => {
-					observable = new Model( {
+					observable = new UIModel( {
 						width: '10px',
 						backgroundColor: 'yellow'
 					} );
 
-					emitter = Object.create( EmitterMixin );
+					emitter = new ( EmitterMixin() )();
 					bind = Template.bind( observable, emitter );
 				} );
 
@@ -279,7 +275,7 @@ describe( 'Template', () => {
 						}
 					} );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="color:red"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="color:red"></p>' );
 				} );
 
 				it( 'renders as a static value (Array of values)', () => {
@@ -293,7 +289,7 @@ describe( 'Template', () => {
 						}
 					} );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="color:red;display:block"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="color:red;display:block"></p>' );
 				} );
 
 				it( 'renders as a value bound to the model', () => {
@@ -304,11 +300,11 @@ describe( 'Template', () => {
 						}
 					} );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="width:10px"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="width:10px"></p>' );
 
 					observable.width = '1em';
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="width:1em"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="width:1em"></p>' );
 				} );
 
 				it( 'renders as a value bound to the model (Array of bindings)', () => {
@@ -322,11 +318,69 @@ describe( 'Template', () => {
 						}
 					} );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="background-color:yellow;width:10px"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="background-color:yellow;width:10px"></p>' );
 
 					observable.width = '1em';
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="background-color:yellow;width:1em"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="background-color:yellow;width:1em"></p>' );
+				} );
+
+				it( 'renders CSS variable as a static value', () => {
+					setElement( {
+						tag: 'p',
+						attributes: {
+							style: '--color: red'
+						}
+					} );
+
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="--color:red"></p>' );
+				} );
+
+				it( 'renders CSS variable as a static value (Array of values)', () => {
+					setElement( {
+						tag: 'p',
+						attributes: {
+							style: {
+								'--color': 'red',
+								'--display': 'block'
+							}
+						}
+					} );
+
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="--color:red;--display:block"></p>' );
+				} );
+
+				it( 'renders CSS variable as a value bound to the model', () => {
+					setElement( {
+						tag: 'p',
+						attributes: {
+							style: bind.to( 'width', w => `--width: ${ w }` )
+						}
+					} );
+
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="--width:10px"></p>' );
+
+					observable.width = '1em';
+
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="--width:1em"></p>' );
+				} );
+
+				it( 'renders CSS variable as a value bound to the model (Array of bindings)', () => {
+					setElement( {
+						tag: 'p',
+						attributes: {
+							style: [
+								bind.to( 'width', w => `--width: ${ w };` ),
+								bind.to( 'backgroundColor', c => `--background-color: ${ c };` )
+							]
+						}
+					} );
+
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="--background-color:yellow;--width:10px"></p>' );
+
+					observable.width = '1em';
+
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="--background-color:yellow;--width:1em"></p>' );
 				} );
 
 				describe( 'object', () => {
@@ -343,13 +397,41 @@ describe( 'Template', () => {
 						} );
 
 						expect( normalizeHtml( el.outerHTML ) )
-							.to.equal( '<p style="background-color:yellow;height:10px;width:10px"></p>' );
+							.toBe( '<p style="background-color:yellow;height:10px;width:10px"></p>' );
 
 						observable.width = '20px';
 						observable.backgroundColor = 'green';
 
 						expect( normalizeHtml( el.outerHTML ) )
-							.to.equal( '<p style="background-color:green;height:10px;width:20px"></p>' );
+							.toBe( '<p style="background-color:green;height:10px;width:20px"></p>' );
+					} );
+
+					it( 'renders CSS variables with static and bound attributes', () => {
+						setElement( {
+							tag: 'p',
+							attributes: {
+								style: {
+									'--width': bind.to( 'width' ),
+									'--height': '10px',
+									'--background-color': bind.to( 'backgroundColor' )
+								}
+							}
+						} );
+
+						expect( normalizeHtml( el.outerHTML ) )
+							.toBe( '<p style="--background-color:yellow;--height:10px;--width:10px"></p>' );
+
+						observable.width = '20px';
+						observable.backgroundColor = 'green';
+
+						expect( normalizeHtml( el.outerHTML ) )
+							.toBe( '<p style="--background-color:green;--height:10px;--width:20px"></p>' );
+
+						observable.width = '';
+						observable.backgroundColor = '';
+
+						expect( normalizeHtml( el.outerHTML ) )
+							.toBe( '<p style="--height:10px"></p>' );
 					} );
 
 					it( 'renders with empty string attributes', () => {
@@ -363,11 +445,11 @@ describe( 'Template', () => {
 							}
 						} );
 
-						expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="background-color:yellow"></p>' );
+						expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="background-color:yellow"></p>' );
 
 						observable.backgroundColor = '';
 
-						expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+						expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style=""></p>' );
 					} );
 
 					it( 'renders with falsy values', () => {
@@ -382,7 +464,7 @@ describe( 'Template', () => {
 							}
 						} );
 
-						expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+						expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 					} );
 				} );
 			} );
@@ -413,7 +495,7 @@ describe( 'Template', () => {
 					]
 				} ).render();
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p a="A"><b>B</b><i>C<b>D</b></i></p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p a="A"><b>B</b><i>C<b>D</b></i></p>' );
 			} );
 
 			it( 'creates a child Text Node (different syntaxes)', () => {
@@ -425,7 +507,7 @@ describe( 'Template', () => {
 					]
 				} ).render();
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>foobar</p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>foobar</p>' );
 			} );
 
 			it( 'creates multiple child Text Nodes', () => {
@@ -440,8 +522,8 @@ describe( 'Template', () => {
 					]
 				} ).render();
 
-				expect( el.childNodes ).to.have.length( 5 );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abcdef</p>' );
+				expect( el.childNodes ).toHaveLength( 5 );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abcdef</p>' );
 			} );
 
 			it( 'renders view children', () => {
@@ -479,20 +561,20 @@ describe( 'Template', () => {
 					children: [ v1, v2, v3 ]
 				} );
 
-				expect( tpl.children[ 0 ] ).to.equal( v1 );
-				expect( tpl.children[ 1 ] ).to.equal( v2 );
-				expect( tpl.children[ 2 ] ).to.equal( v3 );
+				expect( tpl.children[ 0 ] ).toBe( v1 );
+				expect( tpl.children[ 1 ] ).toBe( v2 );
+				expect( tpl.children[ 2 ] ).toBe( v3 );
 
 				const rendered = tpl.render();
 
 				expect( normalizeHtml( rendered.outerHTML ) )
-					.to.equal( '<p><b class="v1"></b><b class="v2"></b><b class="v3"></b></p>' );
+					.toBe( '<p><b class="v1"></b><b class="v2"></b><b class="v3"></b></p>' );
 
 				// Make sure the child views will not re–render their elements but
 				// use ones rendered by the template instance above.
-				expect( v1.element ).to.equal( rendered.firstChild );
-				expect( v2.element ).to.equal( rendered.children[ 1 ] );
-				expect( v3.element ).to.equal( rendered.lastChild );
+				expect( v1.element ).toBe( rendered.firstChild );
+				expect( v2.element ).toBe( rendered.children[ 1 ] );
+				expect( v3.element ).toBe( rendered.lastChild );
 			} );
 
 			it( 'renders view collection', () => {
@@ -524,14 +606,14 @@ describe( 'Template', () => {
 					children: collection
 				} ).render();
 
-				expect( normalizeHtml( rendered.outerHTML ) ).to.equal( '<p><span class="v1"></span><span class="v2"></span></p>' );
+				expect( normalizeHtml( rendered.outerHTML ) ).toBe( '<p><span class="v1"></span><span class="v2"></span></p>' );
 
 				// Make sure the child views will not re–render their elements but
 				// use ones rendered by the template instance above.
-				expect( v1.element ).to.equal( rendered.firstChild );
-				expect( v2.element ).to.equal( rendered.lastChild );
+				expect( v1.element ).toBe( rendered.firstChild );
+				expect( v2.element ).toBe( rendered.lastChild );
 
-				expect( collection._parentElement ).to.equal( rendered );
+				expect( collection._parentElement ).toBe( rendered );
 			} );
 
 			it( 'renders DOM nodes', () => {
@@ -563,7 +645,7 @@ describe( 'Template', () => {
 					]
 				} ).render();
 
-				expect( normalizeHtml( rendered.outerHTML ) ).to.equal( '<p><b class="bar"></b>baz</p>' );
+				expect( normalizeHtml( rendered.outerHTML ) ).toBe( '<p><b class="bar"></b>baz</p>' );
 			} );
 
 			// #117
@@ -628,11 +710,11 @@ describe( 'Template', () => {
 				} );
 
 				// Make sure child instances weren't cloned.
-				expect( tpl.children[ 0 ] ).to.equal( childTplA );
-				expect( tpl.children[ 1 ] ).to.equal( childTplB );
-				expect( tpl.children[ 2 ] ).to.equal( childTplC );
+				expect( tpl.children[ 0 ] ).toBe( childTplA );
+				expect( tpl.children[ 1 ] ).toBe( childTplB );
+				expect( tpl.children[ 2 ] ).toBe( childTplC );
 
-				expect( normalizeHtml( tpl.render().outerHTML ) ).to.equal(
+				expect( normalizeHtml( tpl.render().outerHTML ) ).toBe(
 					'<p><a></a><b></b><i>foo</i></p>'
 				);
 			} );
@@ -652,17 +734,17 @@ describe( 'Template', () => {
 							strongView
 						]
 					} );
-				} ).to.not.throw();
+				} ).not.toThrow();
 			} );
 		} );
 
 		describe( 'bindings', () => {
 			it( 'activates model bindings – root', () => {
-				const observable = new Model( {
+				const observable = new UIModel( {
 					foo: 'bar'
 				} );
 
-				const emitter = Object.create( EmitterMixin );
+				const emitter = new ( EmitterMixin() )();
 				const bind = Template.bind( observable, emitter );
 				const el = new Template( {
 					tag: 'div',
@@ -671,18 +753,18 @@ describe( 'Template', () => {
 					}
 				} ).render();
 
-				expect( el.getAttribute( 'class' ) ).to.equal( 'bar' );
+				expect( el.getAttribute( 'class' ) ).toBe( 'bar' );
 
 				observable.foo = 'baz';
-				expect( el.getAttribute( 'class' ) ).to.equal( 'baz' );
+				expect( el.getAttribute( 'class' ) ).toBe( 'baz' );
 			} );
 
 			it( 'activates model bindings – children', () => {
-				const observable = new Model( {
+				const observable = new UIModel( {
 					foo: 'bar'
 				} );
 
-				const emitter = Object.create( EmitterMixin );
+				const emitter = new ( EmitterMixin() )();
 				const bind = Template.bind( observable, emitter );
 				const el = new Template( {
 					tag: 'div',
@@ -701,10 +783,10 @@ describe( 'Template', () => {
 					]
 				} ).render();
 
-				expect( el.firstChild.textContent ).to.equal( 'bar static' );
+				expect( el.firstChild.textContent ).toBe( 'bar static' );
 
 				observable.foo = 'baz';
-				expect( el.firstChild.textContent ).to.equal( 'baz static' );
+				expect( el.firstChild.textContent ).toBe( 'baz static' );
 			} );
 		} );
 	} );
@@ -717,12 +799,12 @@ describe( 'Template', () => {
 
 			text = document.createTextNode( '' );
 
-			observable = new Model( {
+			observable = new UIModel( {
 				foo: 'bar',
 				baz: 'qux'
 			} );
 
-			domEmitter = Object.create( DomEmitterMixin );
+			domEmitter = new ( DomEmitterMixin() )();
 			bind = Template.bind( observable, domEmitter );
 		} );
 
@@ -739,8 +821,8 @@ describe( 'Template', () => {
 			new Template( {} ).apply( el );
 			new Template( {} ).apply( text );
 
-			expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div></div>' );
-			expect( text.textContent ).to.equal( '' );
+			expect( normalizeHtml( el.outerHTML ) ).toBe( '<div></div>' );
+			expect( text.textContent ).toBe( '' );
 		} );
 
 		describe( 'text', () => {
@@ -749,7 +831,7 @@ describe( 'Template', () => {
 					text: 'abc'
 				} ).apply( text );
 
-				expect( text.textContent ).to.equal( 'abc' );
+				expect( text.textContent ).toBe( 'abc' );
 			} );
 
 			it( 'overrides existing textContent of a Text Node', () => {
@@ -759,11 +841,11 @@ describe( 'Template', () => {
 					text: bind.to( 'foo' )
 				} ).apply( text );
 
-				expect( text.textContent ).to.equal( 'bar' );
+				expect( text.textContent ).toBe( 'bar' );
 
 				observable.foo = 'qux';
 
-				expect( text.textContent ).to.equal( 'qux' );
+				expect( text.textContent ).toBe( 'qux' );
 			} );
 
 			it( 'overrides textContent of an existing Text Node in a HTMLElement', () => {
@@ -774,7 +856,7 @@ describe( 'Template', () => {
 					children: [ 'foo' ]
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div>foo</div>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div>foo</div>' );
 			} );
 		} );
 
@@ -788,7 +870,7 @@ describe( 'Template', () => {
 					}
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div class="a b" x="bar"></div>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div class="a b" x="bar"></div>' );
 			} );
 
 			it( 'manages existing attribute values ("class" vs. "non–class")', () => {
@@ -803,7 +885,7 @@ describe( 'Template', () => {
 					}
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div class="a b default" x="bar"></div>'
 				);
 			} );
@@ -828,12 +910,12 @@ describe( 'Template', () => {
 					]
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div class="parent">Children:<span class="child"></span></div>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div class="parent">Children:<span class="child"></span></div>' );
 			} );
 
 			describe( 'style', () => {
 				beforeEach( () => {
-					observable = new Model( {
+					observable = new UIModel( {
 						width: '10px',
 						backgroundColor: 'yellow'
 					} );
@@ -855,7 +937,7 @@ describe( 'Template', () => {
 						}
 					} ).apply( el );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p style="color:red;display:block"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p style="color:red;display:block"></p>' );
 				} );
 
 				it( 'applies as a static value (Array of values)', () => {
@@ -872,7 +954,7 @@ describe( 'Template', () => {
 						}
 					} ).apply( el );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal(
+					expect( normalizeHtml( el.outerHTML ) ).toBe(
 						'<p style="color:red;display:block;float:left;overflow:hidden"></p>'
 					);
 				} );
@@ -898,7 +980,7 @@ describe( 'Template', () => {
 					} ).apply( el );
 
 					expect( normalizeHtml( el.outerHTML ) )
-						.to.equal( '<p style="background-color:green;float:left;height:10px;width:20px"></p>' );
+						.toBe( '<p style="background-color:green;float:left;height:10px;width:20px"></p>' );
 				} );
 
 				it( 'applies when bound to observable', () => {
@@ -921,13 +1003,13 @@ describe( 'Template', () => {
 						}
 					} ).apply( el );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal(
+					expect( normalizeHtml( el.outerHTML ) ).toBe(
 						'<p style="background-color:green;float:left;left:20px;width:10px"></p>'
 					);
 
 					observable.width = '100px';
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal(
+					expect( normalizeHtml( el.outerHTML ) ).toBe(
 						'<p style="background-color:green;float:left;left:20px;width:100px"></p>'
 					);
 				} );
@@ -941,7 +1023,7 @@ describe( 'Template', () => {
 					children: [ 'foo' ]
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div></div>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div></div>' );
 			} );
 
 			it( 'doesn\'t apply new child to an HTMLElement – HTMLElement', () => {
@@ -954,7 +1036,7 @@ describe( 'Template', () => {
 					]
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div></div>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div></div>' );
 			} );
 
 			it( 'doesn\'t apply new child to an HTMLElement – view', () => {
@@ -972,7 +1054,7 @@ describe( 'Template', () => {
 					children: [ view ]
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div></div>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div></div>' );
 			} );
 
 			it( 'doesn\'t apply new child to an HTMLElement – view collection', () => {
@@ -992,8 +1074,8 @@ describe( 'Template', () => {
 					children: collection
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div></div>' );
-				expect( collection._parentElement ).to.be.null;
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div></div>' );
+				expect( collection._parentElement ).toBeNull();
 			} );
 
 			it( 'should work for deep DOM structure with bindings and event listeners', () => {
@@ -1020,13 +1102,13 @@ describe( 'Template', () => {
 				el.appendChild( childA );
 				el.appendChild( childB );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div><a class="a1 a2">a</a><b class="b1 b2">b</b></div>'
 				);
 
-				const spy1 = sinon.spy();
-				const spy2 = sinon.spy();
-				const spy3 = sinon.spy();
+				const spy1 = vi.fn();
+				const spy2 = vi.fn();
+				const spy3 = vi.fn();
 
 				observable.on( 'ku', spy1 );
 				observable.on( 'kd', spy2 );
@@ -1068,14 +1150,14 @@ describe( 'Template', () => {
 					}
 				} ).apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div class="applied-parent-qux" id="BAR">' +
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div class="applied-parent-qux" id="BAR">' +
 					'<a class="a1 a2 applied-A-bar" id="applied-A">applied-a</a>' +
 					'<b class="applied-B-qux b1 b2" id="applied-B">applied-b</b>' +
 				'</div>' );
 
 				observable.foo = 'updated';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<div class="applied-parent-qux" id="UPDATED">' +
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<div class="applied-parent-qux" id="UPDATED">' +
 					'<a class="a1 a2 applied-A-updated" id="applied-A">applied-a</a>' +
 					'<b class="applied-B-qux b1 b2" id="applied-B">applied-b</b>' +
 				'</div>' );
@@ -1092,9 +1174,9 @@ describe( 'Template', () => {
 				// Test "keydown".
 				dispatchEvent( childB, 'keydown' );
 
-				sinon.assert.calledOnce( spy1 );
-				sinon.assert.calledOnce( spy2 );
-				sinon.assert.calledOnce( spy3 );
+				expect( spy1 ).toHaveBeenCalledOnce();
+				expect( spy2 ).toHaveBeenCalledOnce();
+				expect( spy3 ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );
@@ -1105,12 +1187,12 @@ describe( 'Template', () => {
 		beforeEach( () => {
 			el = getElement( { tag: 'div' } );
 
-			observable = new Model( {
+			observable = new UIModel( {
 				foo: 'bar',
 				baz: 'qux'
 			} );
 
-			domEmitter = Object.create( DomEmitterMixin );
+			domEmitter = new ( DomEmitterMixin() )();
 			bind = Template.bind( observable, domEmitter );
 		} );
 
@@ -1158,13 +1240,13 @@ describe( 'Template', () => {
 
 				tpl.apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a>bar<b>qux</b></a>'
 				);
 
 				tpl.revert( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a>a<b>b</b></a>'
 				);
 			} );
@@ -1197,22 +1279,22 @@ describe( 'Template', () => {
 				} );
 
 				tpl.apply( el );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a>foo<b>bar</b></a>'
 				);
 
 				observable.foo = 'abc';
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a>foo<b>abc</b></a>'
 				);
 
 				tpl.revert( el );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a>a<b>b</b></a>'
 				);
 
 				observable.foo = 'xyz';
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a>a<b>b</b></a>'
 				);
 			} );
@@ -1254,7 +1336,7 @@ describe( 'Template', () => {
 
 				tpl.apply( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a bar="ab1 ab2" baz="x" foo="af1">' +
 						'<b bar="bb" foo="bf1"></b>' +
 					'</a>'
@@ -1262,7 +1344,7 @@ describe( 'Template', () => {
 
 				tpl.revert( el );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a bar="ab" foo="af">' +
 						'<b bar="bb" foo="bf"></b>' +
 					'</a>'
@@ -1305,7 +1387,7 @@ describe( 'Template', () => {
 				} );
 
 				tpl.apply( el );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a bar="ab1 qux" foo="af1">' +
 						'<b bar="bb" foo="bar"></b>' +
 					'</a>'
@@ -1313,14 +1395,14 @@ describe( 'Template', () => {
 
 				observable.foo = 'x';
 				observable.baz = 'y';
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a bar="ab1 y" foo="af1">' +
 						'<b bar="bb" foo="x"></b>' +
 					'</a>'
 				);
 
 				tpl.revert( el );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a bar="ab" foo="af">' +
 						'<b bar="bb" foo="bf"></b>' +
 					'</a>'
@@ -1328,7 +1410,7 @@ describe( 'Template', () => {
 
 				observable.foo = 'abc';
 				observable.baz = 'cba';
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<a bar="ab" foo="af">' +
 						'<b bar="bb" foo="bf"></b>' +
 					'</a>'
@@ -1337,7 +1419,7 @@ describe( 'Template', () => {
 
 			describe( 'style', () => {
 				beforeEach( () => {
-					observable = new Model( {
+					observable = new UIModel( {
 						overflow: 'visible'
 					} );
 
@@ -1383,21 +1465,21 @@ describe( 'Template', () => {
 					} );
 
 					tpl.apply( el );
-					expect( normalizeHtml( el.outerHTML ) ).to.equal(
+					expect( normalizeHtml( el.outerHTML ) ).toBe(
 						'<a style="font-weight:bold;overflow:visible">' +
 							'<b style="color:red;display:block"></b>' +
 						'</a>'
 					);
 
 					tpl.revert( el );
-					expect( normalizeHtml( el.outerHTML ) ).to.equal(
+					expect( normalizeHtml( el.outerHTML ) ).toBe(
 						'<a style="font-weight:bold">' +
 							'<b style="color:red"></b>' +
 						'</a>'
 					);
 
 					observable.overflow = 'hidden';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal(
+					expect( normalizeHtml( el.outerHTML ) ).toBe(
 						'<a style="font-weight:bold">' +
 							'<b style="color:red"></b>' +
 						'</a>'
@@ -1432,10 +1514,10 @@ describe( 'Template', () => {
 					]
 				} );
 
-				const spy = sinon.spy();
+				const spy = vi.fn();
 				observable.on( 'ku', spy );
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div><a class="a1 a2">a</a><b class="b1 b2">b</b></div>'
 				);
 
@@ -1474,7 +1556,7 @@ describe( 'Template', () => {
 				} );
 
 				tpl.apply( el );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div class="div1 div2" style="font-weight:bold">' +
 						'<a class="a1 a2 x y" data-new-attr="foo">applied-a</a>' +
 						'<b class="a b b1 b2 bar">applied-b</b>' +
@@ -1482,7 +1564,7 @@ describe( 'Template', () => {
 				);
 
 				observable.foo = 'baz';
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div class="div1 div2" style="font-weight:bold">' +
 						'<a class="a1 a2 x y" data-new-attr="foo">applied-a</a>' +
 						'<b class="a b b1 b2 baz">applied-b</b>' +
@@ -1490,20 +1572,20 @@ describe( 'Template', () => {
 				);
 
 				dispatchEvent( el.firstChild, 'keyup' );
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 
 				tpl.revert( el );
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div><a class="a1 a2">a</a><b class="b1 b2">b</b></div>'
 				);
 
 				observable.foo = 'qux';
-				expect( normalizeHtml( el.outerHTML ) ).to.equal(
+				expect( normalizeHtml( el.outerHTML ) ).toBe(
 					'<div><a class="a1 a2">a</a><b class="b1 b2">b</b></div>'
 				);
 
 				dispatchEvent( el.firstChild, 'keyup' );
-				sinon.assert.calledOnce( spy );
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );
@@ -1512,8 +1594,8 @@ describe( 'Template', () => {
 		it( 'returns iterator', () => {
 			const template = new Template( {} );
 
-			expect( template.getViews().next ).to.be.a( 'function' );
-			expect( Array.from( template.getViews() ) ).to.have.length( 0 );
+			expect( template.getViews().next ).toBeTypeOf( 'function' );
+			expect( Array.from( template.getViews() ) ).toHaveLength( 0 );
 		} );
 
 		it( 'returns all child views', () => {
@@ -1534,7 +1616,7 @@ describe( 'Template', () => {
 				]
 			} );
 
-			expect( Array.from( template.getViews() ) ).to.have.members( [ viewA, viewB, viewC ] );
+			expect( Array.from( template.getViews() ) ).toEqual( [ viewA, viewB, viewC ] );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-ui/issues/337
@@ -1560,38 +1642,38 @@ describe( 'Template', () => {
 
 			template.children.push( viewC );
 
-			expect( Array.from( template.getViews() ) ).to.have.members( [ viewA, viewC ] );
+			expect( Array.from( template.getViews() ) ).toEqual( [ viewA, viewC ] );
 		} );
 	} );
 
 	describe( 'bind()', () => {
 		it( 'returns object', () => {
-			expect( Template.bind() ).to.be.an( 'object' );
+			expect( Template.bind() ).toBeTypeOf( 'object' );
 		} );
 
 		it( 'provides "to" and "if" interface', () => {
 			const bind = Template.bind();
 
-			expect( bind ).to.have.keys( 'to', 'if' );
-			expect( bind.to ).to.be.a( 'function' );
-			expect( bind.if ).to.be.a( 'function' );
+			expect( Object.keys( bind ).sort() ).toEqual( [ 'if', 'to' ] );
+			expect( bind.to ).toBeTypeOf( 'function' );
+			expect( bind.if ).toBeTypeOf( 'function' );
 		} );
 
 		describe( 'event', () => {
 			let observable, domEmitter, bind;
 
 			beforeEach( () => {
-				observable = new Model( {
+				observable = new UIModel( {
 					foo: 'bar',
 					baz: 'qux'
 				} );
 
-				domEmitter = Object.create( DomEmitterMixin );
+				domEmitter = new ( DomEmitterMixin() )();
 				bind = Template.bind( observable, domEmitter );
 			} );
 
 			it( 'accepts plain binding', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				setElement( {
 					tag: 'p',
@@ -1603,15 +1685,15 @@ describe( 'Template', () => {
 				observable.on( 'a', spy );
 				dispatchEvent( el, 'x' );
 
-				sinon.assert.calledWithExactly( spy,
-					sinon.match.has( 'name', 'a' ),
-					sinon.match.has( 'target', el )
+				expect( spy ).toHaveBeenCalledWith(
+					expect.objectContaining( { name: 'a' } ),
+					expect.objectContaining( { target: el } )
 				);
 			} );
 
 			it( 'accepts an array of event bindings', () => {
-				const spy1 = sinon.spy();
-				const spy2 = sinon.spy();
+				const spy1 = vi.fn();
+				const spy2 = vi.fn();
 
 				setElement( {
 					tag: 'p',
@@ -1627,20 +1709,20 @@ describe( 'Template', () => {
 				observable.on( 'b', spy2 );
 				dispatchEvent( el, 'x' );
 
-				sinon.assert.calledWithExactly( spy1,
-					sinon.match.has( 'name', 'a' ),
-					sinon.match.has( 'target', el )
+				expect( spy1 ).toHaveBeenCalledWith(
+					expect.objectContaining( { name: 'a' } ),
+					expect.objectContaining( { target: el } )
 				);
-				sinon.assert.calledWithExactly( spy2,
-					sinon.match.has( 'name', 'b' ),
-					sinon.match.has( 'target', el )
+				expect( spy2 ).toHaveBeenCalledWith(
+					expect.objectContaining( { name: 'b' } ),
+					expect.objectContaining( { target: el } )
 				);
 			} );
 
 			it( 'accepts DOM selectors', () => {
-				const spy1 = sinon.spy();
-				const spy2 = sinon.spy();
-				const spy3 = sinon.spy();
+				const spy1 = vi.fn();
+				const spy2 = vi.fn();
+				const spy3 = vi.fn();
 
 				setElement( {
 					tag: 'p',
@@ -1679,48 +1761,42 @@ describe( 'Template', () => {
 				// Test "test@p".
 				dispatchEvent( el, 'test' );
 
-				sinon.assert.callCount( spy1, 0 );
-				sinon.assert.callCount( spy2, 0 );
-				sinon.assert.callCount( spy3, 0 );
+				expect( spy1 ).toHaveBeenCalledTimes( 0 );
+				expect( spy2 ).toHaveBeenCalledTimes( 0 );
+				expect( spy3 ).toHaveBeenCalledTimes( 0 );
 
 				// Test "test@.y".
 				dispatchEvent( el.firstChild, 'test' );
 
-				expect( spy1.firstCall.calledWithExactly(
-					sinon.match.has( 'name', 'a' ),
-					sinon.match.has( 'target', el.firstChild )
-				) ).to.be.true;
+				expect( spy1.mock.calls[ 0 ][ 0 ] ).toMatchObject( { name: 'a' } );
+				expect( spy1.mock.calls[ 0 ][ 1 ] ).toMatchObject( { target: el.firstChild } );
 
-				sinon.assert.callCount( spy2, 0 );
-				sinon.assert.callCount( spy3, 0 );
+				expect( spy2 ).toHaveBeenCalledTimes( 0 );
+				expect( spy3 ).toHaveBeenCalledTimes( 0 );
 
 				// Test "test@div".
 				dispatchEvent( el.lastChild, 'test' );
 
-				sinon.assert.callCount( spy1, 1 );
+				expect( spy1 ).toHaveBeenCalledTimes( 1 );
 
-				expect( spy2.firstCall.calledWithExactly(
-					sinon.match.has( 'name', 'b' ),
-					sinon.match.has( 'target', el.lastChild )
-				) ).to.be.true;
+				expect( spy2.mock.calls[ 0 ][ 0 ] ).toMatchObject( { name: 'b' } );
+				expect( spy2.mock.calls[ 0 ][ 1 ] ).toMatchObject( { target: el.lastChild } );
 
-				sinon.assert.callCount( spy3, 0 );
+				expect( spy3 ).toHaveBeenCalledTimes( 0 );
 
 				// Test "test@.y".
 				dispatchEvent( el.lastChild.firstChild, 'test' );
 
-				expect( spy1.secondCall.calledWithExactly(
-					sinon.match.has( 'name', 'a' ),
-					sinon.match.has( 'target', el.lastChild.firstChild )
-				) ).to.be.true;
+				expect( spy1.mock.calls[ 1 ][ 0 ] ).toMatchObject( { name: 'a' } );
+				expect( spy1.mock.calls[ 1 ][ 1 ] ).toMatchObject( { target: el.lastChild.firstChild } );
 
-				sinon.assert.callCount( spy2, 1 );
-				sinon.assert.callCount( spy3, 0 );
+				expect( spy2 ).toHaveBeenCalledTimes( 1 );
+				expect( spy3 ).toHaveBeenCalledTimes( 0 );
 			} );
 
 			it( 'accepts function callbacks', () => {
-				const spy1 = sinon.spy();
-				const spy2 = sinon.spy();
+				const spy1 = vi.fn();
+				const spy2 = vi.fn();
 
 				setElement( {
 					tag: 'p',
@@ -1741,17 +1817,17 @@ describe( 'Template', () => {
 				dispatchEvent( el, 'x' );
 				dispatchEvent( el.firstChild, 'y' );
 
-				sinon.assert.calledWithExactly( spy1,
-					sinon.match.has( 'target', el )
+				expect( spy1 ).toHaveBeenCalledWith(
+					expect.objectContaining( { target: el } )
 				);
 
-				sinon.assert.calledWithExactly( spy2,
-					sinon.match.has( 'target', el.firstChild )
+				expect( spy2 ).toHaveBeenCalledWith(
+					expect.objectContaining( { target: el.firstChild } )
 				);
 			} );
 
 			it( 'supports event delegation', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				setElement( {
 					tag: 'p',
@@ -1768,14 +1844,14 @@ describe( 'Template', () => {
 				observable.on( 'a', spy );
 
 				dispatchEvent( el.firstChild, 'x' );
-				sinon.assert.calledWithExactly( spy,
-					sinon.match.has( 'name', 'a' ),
-					sinon.match.has( 'target', el.firstChild )
+				expect( spy ).toHaveBeenCalledWith(
+					expect.objectContaining( { name: 'a' } ),
+					expect.objectContaining( { target: el.firstChild } )
 				);
 			} );
 
 			it( 'works for future elements', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				setElement( {
 					tag: 'p',
@@ -1790,7 +1866,10 @@ describe( 'Template', () => {
 				el.appendChild( div );
 
 				dispatchEvent( div, 'test' );
-				sinon.assert.calledWithExactly( spy, sinon.match.has( 'name', 'a' ), sinon.match.has( 'target', div ) );
+				expect( spy ).toHaveBeenCalledWith(
+					expect.objectContaining( { name: 'a' } ),
+					expect.objectContaining( { target: div } )
+				);
 			} );
 		} );
 
@@ -1798,26 +1877,28 @@ describe( 'Template', () => {
 			let observable, emitter, bind;
 
 			beforeEach( () => {
-				observable = new Model( {
+				observable = new UIModel( {
 					foo: 'bar',
 					baz: 'qux'
 				} );
 
-				emitter = Object.create( EmitterMixin );
+				emitter = new ( EmitterMixin() )();
 				bind = Template.bind( observable, emitter );
 			} );
 
 			describe( 'to', () => {
 				it( 'returns an instance of TemplateToBinding', () => {
-					const spy = sinon.spy();
+					const spy = vi.fn();
 					const binding = bind.to( 'foo', spy );
 
-					expect( binding ).to.be.instanceof( TemplateToBinding );
-					expect( spy.called ).to.be.false;
-					expect( binding ).to.have.keys( [ 'observable', 'eventNameOrFunction', 'emitter', 'attribute', 'callback' ] );
-					expect( binding.observable ).to.equal( observable );
-					expect( binding.callback ).to.equal( spy );
-					expect( binding.attribute ).to.equal( 'foo' );
+					expect( binding ).toBeInstanceOf( TemplateToBinding );
+					expect( spy ).not.toHaveBeenCalled();
+					expect( Object.keys( binding ).sort() ).toEqual(
+						[ 'attribute', 'callback', 'emitter', 'eventNameOrFunction', 'observable' ]
+					);
+					expect( binding.observable ).toBe( observable );
+					expect( binding.callback ).toBe( spy );
+					expect( binding.attribute ).toBe( 'foo' );
 				} );
 
 				it( 'allows binding attribute to the observable – simple (HTMLElement attribute)', () => {
@@ -1829,11 +1910,11 @@ describe( 'Template', () => {
 						children: [ 'abc' ]
 					} );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar">abc</p>' );
 
 					observable.foo = 'baz';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="baz">abc</p>' );
-					expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).to.be.null;
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="baz">abc</p>' );
+					expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).toBeNull();
 				} );
 
 				it( 'allows binding attribute to the observable – simple (Text Node)', () => {
@@ -1846,10 +1927,10 @@ describe( 'Template', () => {
 						]
 					} );
 
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>bar</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>bar</p>' );
 
 					observable.foo = 'baz';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>baz</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>baz</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – value processing', () => {
@@ -1867,10 +1948,10 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 3;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="positive">positive</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="positive">positive</p>' );
 
 					observable.foo = -7;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="negative">negative</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="negative">negative</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – value processing (use Node)', () => {
@@ -1891,10 +1972,10 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 3;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="HTMLElement positive"></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="HTMLElement positive"></p>' );
 
 					observable.foo = -7;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – custom callback', () => {
@@ -1912,10 +1993,10 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'moo';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>moo</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>moo</p>' );
 
 					observable.foo = 'changed';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="changed">changed</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="changed">changed</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – array of bindings (HTMLElement attribute)', () => {
@@ -1935,11 +2016,11 @@ describe( 'Template', () => {
 
 					observable.foo = 'a';
 					observable.baz = 'b';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="a b ck-class ck-end foo-is-a">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="a b ck-class ck-end foo-is-a">abc</p>' );
 
 					observable.foo = 'c';
 					observable.baz = 'd';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="c ck-class ck-end d foo-is-c">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="c ck-class ck-end d foo-is-c">abc</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – array of bindings (Text Node)', () => {
@@ -1962,11 +2043,11 @@ describe( 'Template', () => {
 
 					observable.foo = 'a';
 					observable.baz = 'b';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>ck-class a b foo-is-a ck-end</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>ck-class a b foo-is-a ck-end</p>' );
 
 					observable.foo = 'c';
 					observable.baz = 'd';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>ck-class c d foo-is-c ck-end</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>ck-class c d foo-is-c ck-end</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – falsy values', () => {
@@ -1983,22 +2064,22 @@ describe( 'Template', () => {
 
 					observable.foo = 'bar';
 					expect( normalizeHtml( el.outerHTML ) )
-						.to.equal( '<p complex="bar" emptystring="bar" simple="bar" zero="0 bar">abc</p>' );
+						.toBe( '<p complex="bar" emptystring="bar" simple="bar" zero="0 bar">abc</p>' );
 
 					observable.foo = 0;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p complex="0" emptystring="0" simple="0" zero="0 0">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p complex="0" emptystring="0" simple="0" zero="0 0">abc</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p zero="0">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p zero="0">abc</p>' );
 
 					observable.foo = null;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p zero="0">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p zero="0">abc</p>' );
 
 					observable.foo = undefined;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p zero="0">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p zero="0">abc</p>' );
 
 					observable.foo = '';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p zero="0">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p zero="0">abc</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – a custom namespace', () => {
@@ -2021,27 +2102,29 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar" custom="bar qux">abc</p>' );
-					expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).to.equal( 'foo' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar" custom="bar qux">abc</p>' );
+					expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).toBe( 'foo' );
 
 					observable.foo = 'baz';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="baz" custom="baz qux">abc</p>' );
-					expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).to.equal( 'foo' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="baz" custom="baz qux">abc</p>' );
+					expect( el.attributes.getNamedItem( 'class' ).namespaceURI ).toBe( 'foo' );
 				} );
 			} );
 
 			describe( 'if', () => {
 				it( 'returns an object which describes the binding', () => {
-					const spy = sinon.spy();
+					const spy = vi.fn();
 					const binding = bind.if( 'foo', 'whenTrue', spy );
 
-					expect( binding ).to.be.instanceof( TemplateIfBinding );
-					expect( spy.called ).to.be.false;
-					expect( binding ).to.have.keys( [ 'observable', 'emitter', 'attribute', 'callback', 'valueIfTrue' ] );
-					expect( binding.observable ).to.equal( observable );
-					expect( binding.callback ).to.equal( spy );
-					expect( binding.attribute ).to.equal( 'foo' );
-					expect( binding.valueIfTrue ).to.equal( 'whenTrue' );
+					expect( binding ).toBeInstanceOf( TemplateIfBinding );
+					expect( spy ).not.toHaveBeenCalled();
+					expect( Object.keys( binding ).sort() ).toEqual(
+						[ 'attribute', 'callback', 'emitter', 'observable', 'valueIfTrue' ]
+					);
+					expect( binding.observable ).toBe( observable );
+					expect( binding.callback ).toBe( spy );
+					expect( binding.attribute ).toBe( 'foo' );
+					expect( binding.valueIfTrue ).toBe( 'whenTrue' );
 				} );
 
 				it( 'allows binding attribute to the observable – presence of an attribute (HTMLElement attribute)', () => {
@@ -2054,25 +2137,25 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="true">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="true">abc</p>' );
 
 					observable.foo = true;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="true">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="true">abc</p>' );
 
 					observable.foo = 0;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="true">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="true">abc</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = null;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = undefined;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = '';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 				} );
 
 				// TODO: Is this alright? It makes sense but it's pretty useless. Text Node cannot be
@@ -2088,25 +2171,25 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'abc';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>true</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>true</p>' );
 
 					observable.foo = true;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>true</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>true</p>' );
 
 					observable.foo = 0;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>true</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>true</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 
 					observable.foo = null;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 
 					observable.foo = undefined;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 
 					observable.foo = '';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – value of an attribute (HTMLElement attribute)', () => {
@@ -2119,25 +2202,25 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar">abc</p>' );
 
 					observable.foo = true;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar">abc</p>' );
 
 					observable.foo = 0;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar">abc</p>' );
 
 					observable.foo = 64;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar">abc</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = null;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = undefined;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – value of an attribute (Text Node)', () => {
@@ -2151,13 +2234,13 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>bar</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>bar</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p></p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p></p>' );
 
 					observable.foo = 64;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>bar</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>bar</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – array of bindings (HTMLElement attribute)', () => {
@@ -2175,10 +2258,10 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = observable.bar = true;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="ck-class ck-end foo-set">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="ck-class ck-end foo-set">abc</p>' );
 
 					observable.foo = observable.bar = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="bar-not-set ck-class ck-end">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="bar-not-set ck-class ck-end">abc</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – value of an attribute processed by a callback', () => {
@@ -2191,13 +2274,13 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="there–is–no–foo">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="there–is–no–foo">abc</p>' );
 
 					observable.foo = 64;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – value of an attribute processed by a callback (use Node)', () => {
@@ -2210,13 +2293,13 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = 'P';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="eqls-tag-name">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="eqls-tag-name">abc</p>' );
 
 					observable.foo = 64;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 				} );
 
 				it( 'allows binding attribute to the observable – falsy values', () => {
@@ -2229,25 +2312,25 @@ describe( 'Template', () => {
 					} );
 
 					observable.foo = 'bar';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="foo-is-set">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="foo-is-set">abc</p>' );
 
 					observable.foo = true;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="foo-is-set">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="foo-is-set">abc</p>' );
 
 					observable.foo = 0;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p class="foo-is-set">abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p class="foo-is-set">abc</p>' );
 
 					observable.foo = false;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = null;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = undefined;
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 
 					observable.foo = '';
-					expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc</p>' );
+					expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc</p>' );
 				} );
 			} );
 
@@ -2259,10 +2342,10 @@ describe( 'Template', () => {
 					}
 				} ).apply( el );
 
-				expect( el.getAttribute( 'class' ) ).to.equal( 'bar' );
+				expect( el.getAttribute( 'class' ) ).toBe( 'bar' );
 
 				observable.foo = 'baz';
-				expect( el.getAttribute( 'class' ) ).to.equal( 'baz' );
+				expect( el.getAttribute( 'class' ) ).toBe( 'baz' );
 			} );
 
 			it( 'works with Template#apply() – children', () => {
@@ -2288,10 +2371,10 @@ describe( 'Template', () => {
 					]
 				} ).apply( el );
 
-				expect( child.textContent ).to.equal( 'bar' );
+				expect( child.textContent ).toBe( 'bar' );
 
 				observable.foo = 'baz';
-				expect( child.textContent ).to.equal( 'baz' );
+				expect( child.textContent ).toBe( 'baz' );
 			} );
 		} );
 	} );
@@ -2300,12 +2383,12 @@ describe( 'Template', () => {
 		let observable, emitter, bind;
 
 		beforeEach( () => {
-			observable = new Model( {
+			observable = new UIModel( {
 				foo: 'bar',
 				baz: 'qux'
 			} );
 
-			emitter = Object.create( DomEmitterMixin );
+			emitter = new ( DomEmitterMixin() )();
 			bind = Template.bind( observable, emitter );
 		} );
 
@@ -2325,10 +2408,10 @@ describe( 'Template', () => {
 
 			Template.extend( tpl, ext );
 
-			expect( ext.attributes.b ).to.equal( 'bar' );
+			expect( ext.attributes.b ).toBe( 'bar' );
 
-			expect( tpl.attributes.a[ 0 ] ).to.equal( 'foo' );
-			expect( tpl.attributes.b[ 0 ] ).to.equal( 'bar' );
+			expect( tpl.attributes.a[ 0 ] ).toBe( 'foo' );
+			expect( tpl.attributes.b[ 0 ] ).toBe( 'bar' );
 		} );
 
 		it( 'throws an error if an element has already been rendered', () => {
@@ -2355,7 +2438,7 @@ describe( 'Template', () => {
 
 		describe( 'attributes', () => {
 			it( 'extends existing - simple', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2372,7 +2455,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'extends existing - complex #1', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2389,7 +2472,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'extends existing - complex #2', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2408,7 +2491,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'extends existing - complex #3', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2425,7 +2508,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'extends existing - bindings #1', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2442,11 +2525,11 @@ describe( 'Template', () => {
 
 				observable.foo = 'baz';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p a="baz c d"></p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p a="baz c d"></p>' );
 			} );
 
 			it( 'extends existing - bindings #2', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2464,11 +2547,11 @@ describe( 'Template', () => {
 				observable.foo = 'abc';
 				observable.baz = 'def';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p a="b abc c def"></p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p a="b abc c def"></p>' );
 			} );
 
 			it( 'creates new - no attributes', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p'
 					},
@@ -2482,7 +2565,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'creates new - simple', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2499,7 +2582,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'creates new - array', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2516,7 +2599,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'creates new - bindings #1', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2533,11 +2616,11 @@ describe( 'Template', () => {
 
 				observable.foo = 'abc';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p a="b" c="abc"></p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p a="b" c="abc"></p>' );
 			} );
 
 			it( 'creates new - bindings #2', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						attributes: {
@@ -2554,13 +2637,13 @@ describe( 'Template', () => {
 
 				observable.foo = 'abc';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p a="b" c="d abc"></p>' );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p a="b" c="d abc"></p>' );
 			} );
 		} );
 
 		describe( 'text', () => {
 			it( 'extends existing - simple', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2575,11 +2658,11 @@ describe( 'Template', () => {
 					'<p>foobar</p>'
 				);
 
-				expect( el.childNodes ).to.have.length( 1 );
+				expect( el.childNodes ).toHaveLength( 1 );
 			} );
 
 			it( 'extends existing - complex #1', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2594,11 +2677,11 @@ describe( 'Template', () => {
 					'<p>foobar</p>'
 				);
 
-				expect( el.childNodes ).to.have.length( 1 );
+				expect( el.childNodes ).toHaveLength( 1 );
 			} );
 
 			it( 'extends existing - complex #2', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2613,11 +2696,11 @@ describe( 'Template', () => {
 					'<p>foobar</p>'
 				);
 
-				expect( el.childNodes ).to.have.length( 1 );
+				expect( el.childNodes ).toHaveLength( 1 );
 			} );
 
 			it( 'extends existing - bindings #1', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2634,12 +2717,12 @@ describe( 'Template', () => {
 
 				observable.foo = 'asd';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>asd abc</p>' );
-				expect( el.childNodes ).to.have.length( 1 );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>asd abc</p>' );
+				expect( el.childNodes ).toHaveLength( 1 );
 			} );
 
 			it( 'extends existing - bindings #2', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2656,12 +2739,12 @@ describe( 'Template', () => {
 
 				observable.foo = 'asd';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>abc asd</p>' );
-				expect( el.childNodes ).to.have.length( 1 );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>abc asd</p>' );
+				expect( el.childNodes ).toHaveLength( 1 );
 			} );
 
 			it( 'extends existing - bindings #3', () => {
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2681,15 +2764,15 @@ describe( 'Template', () => {
 				observable.foo = 'A';
 				observable.baz = 'B';
 
-				expect( normalizeHtml( el.outerHTML ) ).to.equal( '<p>A BXY</p>' );
-				expect( el.childNodes ).to.have.length( 2 );
+				expect( normalizeHtml( el.outerHTML ) ).toBe( '<p>A BXY</p>' );
+				expect( el.childNodes ).toHaveLength( 2 );
 			} );
 		} );
 
 		describe( 'children', () => {
 			it( 'should throw when the number of children does not correspond', () => {
 				expectToThrowCKEditorError( () => {
-					extensionTest(
+					expectExtension(
 						{
 							tag: 'p',
 							children: [
@@ -2709,7 +2792,7 @@ describe( 'Template', () => {
 
 			it( 'should throw when no children in target but extending one', () => {
 				expectToThrowCKEditorError( () => {
-					extensionTest(
+					expectExtension(
 						{
 							tag: 'p'
 						},
@@ -2727,7 +2810,7 @@ describe( 'Template', () => {
 
 			it( 'should throw when the number of children does not correspond on some deeper level', () => {
 				expectToThrowCKEditorError( () => {
-					extensionTest(
+					expectExtension(
 						{
 							tag: 'p',
 							children: [
@@ -2769,7 +2852,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'extends existing - simple', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2796,7 +2879,7 @@ describe( 'Template', () => {
 			} );
 
 			it( 'extends existing - complex', () => {
-				extensionTest(
+				expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2865,7 +2948,7 @@ describe( 'Template', () => {
 					}
 				} );
 
-				expect( template.render().outerHTML ).to.equal( '<p><span class="foo bar"></span></p>' );
+				expect( template.render().outerHTML ).toBe( '<p><span class="foo bar"></span></p>' );
 			} );
 
 			it( 'allows extending a particular child – recursively', () => {
@@ -2907,17 +2990,17 @@ describe( 'Template', () => {
 					]
 				} );
 
-				expect( template.render().outerHTML ).to.equal( '<p><span class="A B">AB<span class="AA BB">AA</span></span></p>' );
+				expect( template.render().outerHTML ).toBe( '<p><span class="A B">AB<span class="AA BB">AA</span></span></p>' );
 			} );
 		} );
 
 		describe( 'listeners', () => {
 			it( 'extends existing', () => {
-				const spy1 = sinon.spy();
-				const spy2 = sinon.spy();
-				const spy3 = sinon.spy();
-				const spy4 = sinon.spy();
-				const spy5 = sinon.spy();
+				const spy1 = vi.fn();
+				const spy2 = vi.fn();
+				const spy3 = vi.fn();
+				const spy4 = vi.fn();
+				const spy5 = vi.fn();
 
 				observable.on( 'A', spy1 );
 				observable.on( 'C', spy2 );
@@ -2925,7 +3008,7 @@ describe( 'Template', () => {
 				observable.on( 'B', spy3 );
 				observable.on( 'D', spy4 );
 
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2952,30 +3035,30 @@ describe( 'Template', () => {
 
 				dispatchEvent( el, 'click' );
 
-				expect( spy1.calledOnce ).to.be.true;
-				expect( spy2.calledOnce ).to.be.true;
-				expect( spy3.called ).to.be.false;
-				expect( spy4.called ).to.be.false;
-				expect( spy5.called ).to.be.false;
+				expect( spy1 ).toHaveBeenCalledOnce();
+				expect( spy2 ).toHaveBeenCalledOnce();
+				expect( spy3 ).not.toHaveBeenCalled();
+				expect( spy4 ).not.toHaveBeenCalled();
+				expect( spy5 ).not.toHaveBeenCalled();
 
 				dispatchEvent( el.firstChild, 'click' );
 
-				expect( spy1.calledTwice ).to.be.true;
-				expect( spy2.calledTwice ).to.be.true;
-				expect( spy3.calledOnce ).to.be.true;
-				expect( spy4.calledOnce ).to.be.true;
-				expect( spy5.calledOnce ).to.be.true;
+				expect( spy1 ).toHaveBeenCalledTimes( 2 );
+				expect( spy2 ).toHaveBeenCalledTimes( 2 );
+				expect( spy3 ).toHaveBeenCalledOnce();
+				expect( spy4 ).toHaveBeenCalledOnce();
+				expect( spy5 ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'creates new', () => {
-				const spy1 = sinon.spy();
-				const spy2 = sinon.spy();
-				const spy3 = sinon.spy();
+				const spy1 = vi.fn();
+				const spy2 = vi.fn();
+				const spy3 = vi.fn();
 
 				observable.on( 'A', spy1 );
 				observable.on( 'B', spy2 );
 
-				const el = extensionTest(
+				const el = expectExtension(
 					{
 						tag: 'p',
 						children: [
@@ -2998,15 +3081,15 @@ describe( 'Template', () => {
 
 				dispatchEvent( el, 'click' );
 
-				expect( spy1.calledOnce ).to.be.true;
-				expect( spy2.called ).to.be.false;
-				expect( spy3.called ).to.be.false;
+				expect( spy1 ).toHaveBeenCalledOnce();
+				expect( spy2 ).not.toHaveBeenCalled();
+				expect( spy3 ).not.toHaveBeenCalled();
 
 				dispatchEvent( el.firstChild, 'click' );
 
-				expect( spy1.calledTwice ).to.be.true;
-				expect( spy2.calledOnce ).to.be.true;
-				expect( spy3.calledOnce ).to.be.true;
+				expect( spy1 ).toHaveBeenCalledTimes( 2 );
+				expect( spy2 ).toHaveBeenCalledOnce();
+				expect( spy3 ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );
@@ -3024,7 +3107,7 @@ function setElement( template ) {
 	injectedElements.push( el );
 }
 
-function extensionTest( baseDefinition, extendedDefinition, expectedHtml ) {
+function expectExtension( baseDefinition, extendedDefinition, expectedHtml ) {
 	const template = new Template( baseDefinition );
 
 	Template.extend( template, extendedDefinition );
@@ -3033,7 +3116,7 @@ function extensionTest( baseDefinition, extendedDefinition, expectedHtml ) {
 
 	document.body.appendChild( el );
 
-	expect( normalizeHtml( el.outerHTML ) ).to.equal( expectedHtml );
+	expect( normalizeHtml( el.outerHTML ) ).toBe( expectedHtml );
 
 	injectedElements.push( el );
 

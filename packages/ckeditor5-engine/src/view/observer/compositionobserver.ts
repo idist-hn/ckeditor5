@@ -1,24 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/observer/compositionobserver
  */
 
-import DomEventObserver from './domeventobserver';
-import type View from '../view';
-import type DomEventData from './domeventdata';
+import { DomEventObserver } from './domeventobserver.js';
+import { type EditingView } from '../view.js';
+import { type ViewDocumentDomEventData } from './domeventdata.js';
+
+// @if CK_DEBUG_TYPING // import { _debouncedLine, _buildLogMessage } from '../../dev-utils/utils.js';
 
 /**
- * {@link module:engine/view/document~Document#event:compositionstart Compositionstart},
- * {@link module:engine/view/document~Document#event:compositionupdate compositionupdate} and
- * {@link module:engine/view/document~Document#event:compositionend compositionend} events observer.
+ * {@link module:engine/view/document~ViewDocument#event:compositionstart Compositionstart},
+ * {@link module:engine/view/document~ViewDocument#event:compositionupdate compositionupdate} and
+ * {@link module:engine/view/document~ViewDocument#event:compositionend compositionend} events observer.
  *
- * Note that this observer is attached by the {@link module:engine/view/view~View} and is available by default.
+ * Note that this observer is attached by the {@link module:engine/view/view~EditingView} and is available by default.
  */
-export default class CompositionObserver extends DomEventObserver<'compositionstart' | 'compositionupdate' | 'compositionend'> {
+export class CompositionObserver extends DomEventObserver<'compositionstart' | 'compositionupdate' | 'compositionend'> {
 	/**
 	 * @inheritDoc
 	 */
@@ -27,30 +29,30 @@ export default class CompositionObserver extends DomEventObserver<'compositionst
 	/**
 	 * @inheritDoc
 	 */
-	constructor( view: View ) {
+	constructor( view: EditingView ) {
 		super( view );
 
 		const document = this.document;
 
 		document.on<ViewDocumentCompositionStartEvent>( 'compositionstart', () => {
 			// @if CK_DEBUG_TYPING // if ( ( window as any ).logCKETyping ) {
-			// @if CK_DEBUG_TYPING // 	console.log( '%c[CompositionObserver] ' +
-			// @if CK_DEBUG_TYPING // 		'┌───────────────────────────── isComposing = true ─────────────────────────────┐',
+			// @if CK_DEBUG_TYPING // 	console.log( ..._buildLogMessage( this, 'CompositionObserver',
+			// @if CK_DEBUG_TYPING // 		'%c┌───────────────────────────── isComposing = true ─────────────────────────────┐',
 			// @if CK_DEBUG_TYPING // 		'font-weight: bold; color: green'
-			// @if CK_DEBUG_TYPING // 	);
+			// @if CK_DEBUG_TYPING // 	) );
 			// @if CK_DEBUG_TYPING // }
 			document.isComposing = true;
-		}, { priority: 'low' } );
+		} );
 
 		document.on<ViewDocumentCompositionEndEvent>( 'compositionend', () => {
 			// @if CK_DEBUG_TYPING // if ( ( window as any ).logCKETyping ) {
-			// @if CK_DEBUG_TYPING // 	console.log( '%c[CompositionObserver] ' +
-			// @if CK_DEBUG_TYPING // 		'└───────────────────────────── isComposing = false ─────────────────────────────┘',
+			// @if CK_DEBUG_TYPING // 	console.log( ..._buildLogMessage( this, 'CompositionObserver',
+			// @if CK_DEBUG_TYPING // 		'%c└───────────────────────────── isComposing = false ─────────────────────────────┘',
 			// @if CK_DEBUG_TYPING // 		'font-weight: bold; color: green'
-			// @if CK_DEBUG_TYPING // 	);
+			// @if CK_DEBUG_TYPING // 	) );
 			// @if CK_DEBUG_TYPING // }
 			document.isComposing = false;
-		}, { priority: 'low' } );
+		} );
 	}
 
 	/**
@@ -58,7 +60,10 @@ export default class CompositionObserver extends DomEventObserver<'compositionst
 	 */
 	public onDomEvent( domEvent: CompositionEvent ): void {
 		// @if CK_DEBUG_TYPING // if ( ( window as any ).logCKETyping ) {
-		// @if CK_DEBUG_TYPING // 	console.group( `%c[CompositionObserver]%c ${ domEvent.type }`, 'color: green', '' );
+		// @if CK_DEBUG_TYPING // 	_debouncedLine();
+		// @if CK_DEBUG_TYPING // 	console.group( ..._buildLogMessage( this, 'CompositionObserver',
+		// @if CK_DEBUG_TYPING // 		`${ domEvent.type }`
+		// @if CK_DEBUG_TYPING // 	) );
 		// @if CK_DEBUG_TYPING // }
 
 		this.fire( domEvent.type, domEvent, {
@@ -71,7 +76,7 @@ export default class CompositionObserver extends DomEventObserver<'compositionst
 	}
 }
 
-export interface CompositionEventData extends DomEventData<CompositionEvent> {
+export interface ViewDocumentCompositionEventData extends ViewDocumentDomEventData<CompositionEvent> {
 	data: string | null;
 }
 
@@ -81,15 +86,15 @@ export interface CompositionEventData extends DomEventData<CompositionEvent> {
  * Introduced by {@link module:engine/view/observer/compositionobserver~CompositionObserver}.
  *
  * Note that because {@link module:engine/view/observer/compositionobserver~CompositionObserver} is attached by the
- * {@link module:engine/view/view~View} this event is available by default.
+ * {@link module:engine/view/view~EditingView} this event is available by default.
  *
  * @see module:engine/view/observer/compositionobserver~CompositionObserver
- * @eventName module:engine/view/document~Document#compositionstart
+ * @eventName module:engine/view/document~ViewDocument#compositionstart
  * @param data Event data.
  */
 export type ViewDocumentCompositionStartEvent = {
 	name: 'compositionstart';
-	args: [ data: CompositionEventData ];
+	args: [ data: ViewDocumentCompositionEventData ];
 };
 
 /**
@@ -98,15 +103,15 @@ export type ViewDocumentCompositionStartEvent = {
  * Introduced by {@link module:engine/view/observer/compositionobserver~CompositionObserver}.
  *
  * Note that because {@link module:engine/view/observer/compositionobserver~CompositionObserver} is attached by the
- * {@link module:engine/view/view~View} this event is available by default.
+ * {@link module:engine/view/view~EditingView} this event is available by default.
  *
  * @see module:engine/view/observer/compositionobserver~CompositionObserver
- * @eventName module:engine/view/document~Document#compositionupdate
+ * @eventName module:engine/view/document~ViewDocument#compositionupdate
  * @param data Event data.
  */
 export type ViewDocumentCompositionUpdateEvent = {
 	name: 'compositionupdate';
-	args: [ data: CompositionEventData ];
+	args: [ data: ViewDocumentCompositionEventData ];
 };
 
 /**
@@ -115,13 +120,13 @@ export type ViewDocumentCompositionUpdateEvent = {
  * Introduced by {@link module:engine/view/observer/compositionobserver~CompositionObserver}.
  *
  * Note that because {@link module:engine/view/observer/compositionobserver~CompositionObserver} is attached by the
- * {@link module:engine/view/view~View} this event is available by default.
+ * {@link module:engine/view/view~EditingView} this event is available by default.
  *
  * @see module:engine/view/observer/compositionobserver~CompositionObserver
- * @eventName module:engine/view/document~Document#compositionend
+ * @eventName module:engine/view/document~ViewDocument#compositionend
  * @param data Event data.
  */
 export type ViewDocumentCompositionEndEvent = {
 	name: 'compositionend';
-	args: [ data: CompositionEventData ];
+	args: [ data: ViewDocumentCompositionEventData ];
 };

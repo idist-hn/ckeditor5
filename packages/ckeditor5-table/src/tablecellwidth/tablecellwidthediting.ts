@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecellwidth/tablecellwidthediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import TableEditing from './../tableediting';
-import TableCellWidthCommand from './commands/tablecellwidthcommand';
-import { getNormalizedDefaultProperties } from '../utils/table-properties';
-import { enableProperty } from '../utils/common';
+import { TableEditing } from './../tableediting.js';
+import { TableCellWidthCommand } from './commands/tablecellwidthcommand.js';
+import { getNormalizedDefaultCellProperties } from '../utils/table-properties.js';
+import { enableProperty } from '../utils/common.js';
 
 /**
  * The table cell width editing feature.
@@ -20,7 +20,7 @@ import { enableProperty } from '../utils/common';
  * Introduces `tableCellWidth` table cell model attribute alongside with its converters
  * and a command.
  */
-export default class TableCellWidthEditing extends Plugin {
+export class TableCellWidthEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -31,8 +31,15 @@ export default class TableCellWidthEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ TableEditing ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ TableEditing ]> {
+		return [ TableEditing ];
 	}
 
 	/**
@@ -41,13 +48,15 @@ export default class TableCellWidthEditing extends Plugin {
 	public init(): void {
 		const editor = this.editor;
 
-		const defaultTableCellProperties = getNormalizedDefaultProperties(
+		const defaultTableCellProperties = getNormalizedDefaultCellProperties(
 			editor.config.get( 'table.tableCellProperties.defaultProperties' )!
 		);
 
 		enableProperty( editor.model.schema, editor.conversion, {
 			modelAttribute: 'tableCellWidth',
 			styleName: 'width',
+			attributeName: 'width',
+			attributeType: 'length',
 			defaultValue: defaultTableCellProperties.width
 		} );
 

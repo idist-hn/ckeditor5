@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import CKEditorError from '@ckeditor/ckeditor5-utils/src/ckeditorerror';
-import { setData, parse } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { _setModelData, _parseModel } from '@ckeditor/ckeditor5-engine';
 
-import TableWalker from '../src/tablewalker';
-import TableEditing from '../src/tableediting';
-import { modelTable } from './_utils/utils';
+import { TableWalker } from '../src/tablewalker.js';
+import { TableEditing } from '../src/tableediting.js';
+import { modelTable } from './_utils/utils.js';
 
 describe( 'TableWalker', () => {
 	let editor, model, doc, root;
@@ -29,7 +29,7 @@ describe( 'TableWalker', () => {
 		// Accept either a table of cells or a HTML-like string describing model.
 		const modelData = Array.isArray( tableData ) ? modelTable( tableData ) : tableData;
 
-		setData( model, modelData );
+		_setModelData( model, modelData );
 
 		const walker = new TableWalker( root.getChild( 0 ), options );
 
@@ -56,7 +56,7 @@ describe( 'TableWalker', () => {
 			};
 		} );
 
-		expect( formattedResult ).to.deep.equal( expected );
+		expect( formattedResult ).toEqual( expected );
 	}
 
 	it( 'should iterate over a table', () => {
@@ -169,34 +169,34 @@ describe( 'TableWalker', () => {
 				'</tableRow>' +
 			'</table>';
 
-		const parsed = parse( modelTable, model.schema );
+		const parsed = _parseModel( modelTable, model.schema );
 
 		// We don't want post-fixers to be applied here, as the TableWalker can be used inside them,
 		// when the structure of the table is not yet corrected.
 		const tableWalker = Array.from( new TableWalker( parsed.model ) );
 
-		expect( tableWalker.length ).to.equal( 4 );
+		expect( tableWalker.length ).toEqual( 4 );
 
-		expect( tableWalker[ 0 ].row ).to.equal( 0 );
-		expect( tableWalker[ 0 ].column ).to.equal( 0 );
-		expect( tableWalker[ 0 ].rowIndex ).to.equal( 0 );
+		expect( tableWalker[ 0 ].row ).toEqual( 0 );
+		expect( tableWalker[ 0 ].column ).toEqual( 0 );
+		expect( tableWalker[ 0 ].rowIndex ).toEqual( 0 );
 
-		expect( tableWalker[ 1 ].row ).to.equal( 0 );
-		expect( tableWalker[ 1 ].column ).to.equal( 1 );
-		expect( tableWalker[ 1 ].rowIndex ).to.equal( 0 );
+		expect( tableWalker[ 1 ].row ).toEqual( 0 );
+		expect( tableWalker[ 1 ].column ).toEqual( 1 );
+		expect( tableWalker[ 1 ].rowIndex ).toEqual( 0 );
 
-		expect( tableWalker[ 2 ].row ).to.equal( 1 );
-		expect( tableWalker[ 2 ].column ).to.equal( 0 );
-		expect( tableWalker[ 2 ].rowIndex ).to.equal( 2 );
+		expect( tableWalker[ 2 ].row ).toEqual( 1 );
+		expect( tableWalker[ 2 ].column ).toEqual( 0 );
+		expect( tableWalker[ 2 ].rowIndex ).toEqual( 2 );
 
-		expect( tableWalker[ 3 ].row ).to.equal( 1 );
-		expect( tableWalker[ 3 ].column ).to.equal( 1 );
-		expect( tableWalker[ 3 ].rowIndex ).to.equal( 2 );
+		expect( tableWalker[ 3 ].row ).toEqual( 1 );
+		expect( tableWalker[ 3 ].column ).toEqual( 1 );
+		expect( tableWalker[ 3 ].rowIndex ).toEqual( 2 );
 	} );
 
-	it( 'does not cause the "RangeError: Maximum call stack size exceeded" error when handling big tables. ', () => {
+	it( 'does not cause the "RangeError: Maximum call stack size exceeded" error when handling big tables.', () => {
 		const data = Array( 3000 ).fill( [ '1', 'Example content', '3' ] );
-		const table = parse(
+		const table = _parseModel(
 			modelTable( data ),
 			model.schema
 		);
@@ -207,17 +207,17 @@ describe( 'TableWalker', () => {
 			);
 		}
 
-		expect( getAllItems ).to.not.throw( RangeError, 'Maximum call stack size exceeded' );
-	} ).timeout( 5000 );
+		expect( getAllItems ).not.toThrow( 'Maximum call stack size exceeded' );
+	}, 5000 );
 
-	it( 'does not cause the "RangeError: Maximum call stack size exceeded" error when handling big tables with rowspan. ', () => {
+	it( 'does not cause the "RangeError: Maximum call stack size exceeded" error when handling big tables with rowspan.', () => {
 		const data = [
 			...Array( 2000 ).fill( [ '1', 'Example content', '3' ] ),
 			[ '1', { contents: 'Cell with rowspan', rowspan: 1000 }, '3' ],
 			...Array( 999 ).fill( [ '1', '3' ] )
 		];
 
-		const table = parse(
+		const table = _parseModel(
 			modelTable( data ),
 			model.schema
 		);
@@ -228,8 +228,8 @@ describe( 'TableWalker', () => {
 			);
 		}
 
-		expect( getAllItems ).to.not.throw( RangeError, 'Maximum call stack size exceeded' );
-	} ).timeout( 5000 );
+		expect( getAllItems ).not.toThrow( 'Maximum call stack size exceeded' );
+	}, 5000 );
 
 	describe( 'option.startRow', () => {
 		it( 'should start iterating from given row but with cell spans properly calculated', () => {
@@ -713,7 +713,7 @@ describe( 'TableWalker', () => {
 	} );
 
 	it.skip( 'should throw error if walker value old api used', () => {
-		setData( model, modelTable( [
+		_setModelData( model, modelTable( [
 			[ 'a' ]
 		] ) );
 
@@ -721,9 +721,9 @@ describe( 'TableWalker', () => {
 
 		const { value } = walker.next();
 
-		expect( () => value.isSpanned ).to.throw( CKEditorError, 'tableslot-getter-removed' );
-		expect( () => value.colspan ).to.throw( CKEditorError, 'tableslot-getter-removed' );
-		expect( () => value.rowspan ).to.throw( CKEditorError, 'tableslot-getter-removed' );
-		expect( () => value.cellIndex ).to.throw( CKEditorError, 'tableslot-getter-removed' );
+		expect( () => value.isSpanned ).toThrow( 'tableslot-getter-removed' );
+		expect( () => value.colspan ).toThrow( 'tableslot-getter-removed' );
+		expect( () => value.rowspan ).toThrow( 'tableslot-getter-removed' );
+		expect( () => value.cellIndex ).toThrow( 'tableslot-getter-removed' );
 	} );
 } );

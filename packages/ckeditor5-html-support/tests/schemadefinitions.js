@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import schemaDefinitions from '../src/schemadefinitions';
+import { describe, it, expect } from 'vitest';
+import { defaultConfig } from '../src/schemadefinitions.js';
 
 describe( 'schemadefinitions', () => {
 	it( 'should be an object', () => {
 		// Sanity check if object exists. We will add test coverage later.
-		expect( schemaDefinitions ).to.be.an( 'object' );
-		expect( schemaDefinitions.block ).to.be.an( 'array' );
-		expect( schemaDefinitions.inline ).to.be.an( 'array' );
+		expect( defaultConfig ).toBeTypeOf( 'object' );
+		expect( Array.isArray( defaultConfig.block ) ).toBe( true );
+		expect( Array.isArray( defaultConfig.inline ) ).toBe( true );
 	} );
 } );

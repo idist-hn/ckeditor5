@@ -1,17 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import CKFinderUploadAdapter from '@ckeditor/ckeditor5-adapter-ckfinder/src/uploadadapter';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import Link from '@ckeditor/ckeditor5-link/src/link';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { CKFinderUploadAdapter } from '@ckeditor/ckeditor5-adapter-ckfinder';
+import { Image } from '@ckeditor/ckeditor5-image';
+import { Link } from '@ckeditor/ckeditor5-link';
 
-import CKFinder from '../src/ckfinder';
-import CKFinderUI from '../src/ckfinderui';
-import CKFinderEditing from '../src/ckfinderediting';
+import { CKFinder } from '../src/ckfinder.js';
+import { CKFinderUI } from '../src/ckfinderui.js';
+import { CKFinderEditing } from '../src/ckfinderediting.js';
 
 describe( 'CKFinder', () => {
 	let editorElement, editor;
@@ -36,22 +37,30 @@ describe( 'CKFinder', () => {
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( CKFinder ) ).to.instanceOf( CKFinder );
+		expect( editor.plugins.get( CKFinder ) ).toBeInstanceOf( CKFinder );
 	} );
 
 	it( 'should load CKFinderUI plugin', () => {
-		expect( editor.plugins.get( CKFinderUI ) ).to.instanceOf( CKFinderUI );
+		expect( editor.plugins.get( CKFinderUI ) ).toBeInstanceOf( CKFinderUI );
 	} );
 
 	it( 'should load CKFinderEditing plugin', () => {
-		expect( editor.plugins.get( CKFinderEditing ) ).to.instanceOf( CKFinderEditing );
+		expect( editor.plugins.get( CKFinderEditing ) ).toBeInstanceOf( CKFinderEditing );
 	} );
 
-	it( 'should require CKFinderUploadAdapter by name', () => {
-		expect( CKFinder.requires ).to.contain( 'CKFinderUploadAdapter' );
+	it( 'should require CKFinderUploadAdapter', () => {
+		expect( CKFinder.requires ).toContain( CKFinderUploadAdapter );
 	} );
 
 	it( 'has proper name', () => {
-		expect( CKFinder.pluginName ).to.equal( 'CKFinder' );
+		expect( CKFinder.pluginName ).toBe( 'CKFinder' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( CKFinder.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( CKFinder.isPremiumPlugin ).toBe( false );
 	} );
 } );

@@ -1,30 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { SpecialCharactersView } from '../../src/ui/specialcharactersview.js';
+import { CharacterGridView } from '../../src/ui/charactergridview.js';
+import { CharacterInfoView } from '../../src/ui/characterinfoview.js';
+import { keyCodes } from '@ckeditor/ckeditor5-utils';
+import { SpecialCharactersCategoriesView } from '../../src/ui/specialcharacterscategoriesview.js';
 
-import SpecialCahractersView from '../../src/ui/specialcharactersview';
-import SpecialCharactersNavigationView from '../../src/ui/specialcharactersnavigationview';
-import CharacterGridView from '../../src/ui/charactergridview';
-import CharacterInfoView from '../../src/ui/characterinfoview';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-
-describe( 'SpecialCahractersView', () => {
-	let view, navigationView, gridView, infoView, locale;
+describe( 'SpecialCharactersView', () => {
+	let view, categoriesView, gridView, infoView, locale;
 
 	beforeEach( () => {
 		locale = {
 			t: val => val
 		};
 
-		navigationView = new SpecialCharactersNavigationView( locale, new Map( [
+		categoriesView = new SpecialCharactersCategoriesView( locale, new Map( [
 			[ 'groupA', 'labelA' ]
 		] ) );
 		gridView = new CharacterGridView( locale );
 		infoView = new CharacterInfoView( locale );
-		view = new SpecialCahractersView( locale, navigationView, gridView, infoView );
+		view = new SpecialCharactersView( locale, categoriesView, gridView, infoView );
 		view.render();
 		document.body.appendChild( view.element );
 	} );
@@ -35,15 +34,15 @@ describe( 'SpecialCahractersView', () => {
 	} );
 
 	describe( 'constructor()', () => {
-		it( '#items contains character category button and grid view', () => {
-			expect( view.items.get( 0 ) ).to.equal( navigationView.groupDropdownView.buttonView );
-			expect( view.items.get( 1 ) ).to.equal( gridView );
-			expect( view.items.length ).to.equal( 2 );
+		it( '#items contains categories view and grid view', () => {
+			expect( view.items.length ).toEqual( 2 );
+			expect( view.items.get( 0 ) ).toEqual( categoriesView );
+			expect( view.items.get( 1 ) ).toEqual( gridView );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/pull/12319#issuecomment-1231779819
 		it( 'sets tabindex to -1 to avoid focus loss', () => {
-			expect( view.element.getAttribute( 'tabindex' ) ).to.equal( '-1' );
+			expect( view.element.getAttribute( 'tabindex' ) ).toEqual( '-1' );
 		} );
 	} );
 
@@ -52,29 +51,29 @@ describe( 'SpecialCahractersView', () => {
 			it( 'so "tab" focuses the next focusable item', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.tab,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				// Mock the character category button is focused.
 				view.focusTracker.isFocused = true;
-				view.focusTracker.focusedElement = view.navigationView.groupDropdownView.buttonView.element;
+				view.focusTracker.focusedElement = view.categoriesView.element;
 
 				// Spy the next view which in this case is the grid view
-				const stub = sinon.stub( view.gridView, 'focus' );
+				const stub = vi.spyOn( view.gridView, 'focus' ).mockImplementation( () => {} );
 
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				sinon.assert.calledOnce( stub );
+				expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+				expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				expect( stub ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'so "shift + tab" focuses the previous focusable item', () => {
 				const keyEvtData = {
 					keyCode: keyCodes.tab,
 					shiftKey: true,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				// Mock the grid view is focused.
@@ -82,23 +81,23 @@ describe( 'SpecialCahractersView', () => {
 				view.focusTracker.focusedElement = view.gridView.element;
 
 				// Spy the previous view which in this case is the character category button
-				const spy = sinon.spy( view.navigationView.groupDropdownView.buttonView, 'focus' );
+				const spy = vi.spyOn( view.categoriesView._dropdownView.fieldView.buttonView, 'focus' );
 
 				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				sinon.assert.calledOnce( spy );
+				expect( keyEvtData.preventDefault ).toHaveBeenCalledOnce();
+				expect( keyEvtData.stopPropagation ).toHaveBeenCalledOnce();
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );
 
 	describe( 'focus()', () => {
-		it( 'focuses the navigation view', () => {
-			const spy = sinon.spy( navigationView, 'focus' );
+		it( 'focuses the categoriesView view', () => {
+			const spy = vi.spyOn( categoriesView, 'focus' );
 
 			view.focus();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 } );

@@ -1,19 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/colorpicker/utils
  */
 
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
-// There are no available types for 'color-parse' module.
-// @ts-ignore
 import { default as parse } from 'color-parse';
-import * as convert from 'color-convert';
-import type { RGB, HSL, HSV, HWB, CMYK, XYZ, LAB, LCH, HEX, KEYWORD, ANSI16, ANSI256, HCG, APPLE, GRAY } from 'color-convert/conversions';
+import convert from 'color-convert';
+import type {
+	RGB, HSL, HSV, HWB, CMYK, XYZ, LAB, LCH, HEX, KEYWORD, ANSI16, ANSI256, HCG, APPLE, GRAY
+} from 'color-convert/conversions.js';
 
 /**
  * Color formats handled by color converter.
@@ -48,6 +46,7 @@ export type ColorPickerViewConfig = ColorPickerConfig & {
  *
  * @param color
  * @returns A color string.
+ * @internal
  */
 export function convertColor( color: string, outputFormat: ColorPickerOutputFormat ): string {
 	if ( !color ) {
@@ -85,6 +84,7 @@ export function convertColor( color: string, outputFormat: ColorPickerOutputForm
  *
  * @param color
  * @returns A color string.
+ * @internal
  */
 export function convertToHex( color: string ): string {
 	if ( !color ) {
@@ -105,6 +105,17 @@ export function convertToHex( color: string ): string {
 }
 
 /**
+ * Registers the custom element in the
+ * [CustomElementsRegistry](https://developer.mozilla.org/en-US/docs/Web/API/CustomElementRegistry).
+ * @internal
+ */
+export function registerCustomElement( elementName: string, constructor: CustomElementConstructor ): void {
+	if ( customElements.get( elementName ) === undefined ) {
+		customElements.define( elementName, constructor );
+	}
+}
+
+/**
  * Formats the passed color channels according to the requested format.
  *
  * @param values
@@ -114,11 +125,11 @@ export function convertToHex( color: string ): string {
 function formatColorOutput( values: FormatTableColor, format: ColorPickerOutputFormat ): string {
 	switch ( format ) {
 		case 'hex': return `#${ values }`;
-		case 'rgb': return `rgb( ${ values[ 0 ] }, ${ values[ 1 ] }, ${ values[ 2 ] } )`;
-		case 'hsl': return `hsl( ${ values[ 0 ] }, ${ values[ 1 ] }%, ${ values[ 2 ] }% )`;
-		case 'hwb': return `hwb( ${ values[ 0 ] }, ${ values[ 1 ] }, ${ values[ 2 ] } )`;
-		case 'lab': return `lab( ${ values[ 0 ] }% ${ values[ 1 ] } ${ values[ 2 ] } )`;
-		case 'lch': return `lch( ${ values[ 0 ] }% ${ values[ 1 ] } ${ values[ 2 ] } )`;
+		case 'rgb': return `rgb(${ values[ 0 ] }, ${ values[ 1 ] }, ${ values[ 2 ] })`;
+		case 'hsl': return `hsl(${ values[ 0 ] }, ${ values[ 1 ] }%, ${ values[ 2 ] }%)`;
+		case 'hwb': return `hwb(${ values[ 0 ] }, ${ values[ 1 ] }, ${ values[ 2 ] })`;
+		case 'lab': return `lab(${ values[ 0 ] }% ${ values[ 1 ] } ${ values[ 2 ] })`;
+		case 'lch': return `lch(${ values[ 0 ] }% ${ values[ 1 ] } ${ values[ 2 ] })`;
 
 		default: return '';
 	}
@@ -153,7 +164,7 @@ function parseColorString( colorString: string ): ParsedColor<ParserColorSpaces>
 
 		return {
 			space: 'hex',
-			values: parsedHex.values,
+			values: parsedHex.values as [ number, number, number ],
 			hexValue: colorString,
 			alpha: parsedHex.alpha
 		};
@@ -165,7 +176,7 @@ function parseColorString( colorString: string ): ParsedColor<ParserColorSpaces>
 		return null;
 	}
 
-	return parsed;
+	return parsed as ParsedColor<Exclude<ParserColorSpaces, 'hex'>>;
 }
 
 function canConvertParsedColor( parsedColor: ParsedColor<ParserColorSpaces> ): parsedColor is ConvertableParsedColor {

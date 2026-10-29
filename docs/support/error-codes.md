@@ -1,7 +1,8 @@
 ---
 category: support
 meta-title: Error codes | CKEditor 5 Documentation
-order: 70
+meta-description: Explore CKEditor 5 error codes to identify, understand, and troubleshoot issues during development and integration.
+order: 40
 ---
 
 # Error codes

@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module code-block/codeblock
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import CodeBlockEditing from './codeblockediting';
-import CodeBlockUI from './codeblockui';
+import { CodeBlockEditing } from './codeblockediting.js';
+import { CodeBlockUI } from './codeblockui.js';
 
 /**
  * The code block plugin.
@@ -21,12 +21,12 @@ import CodeBlockUI from './codeblockui';
  * This is a "glue" plugin that loads the {@link module:code-block/codeblockediting~CodeBlockEditing code block editing feature}
  * and the {@link module:code-block/codeblockui~CodeBlockUI code block UI feature}.
  */
-export default class CodeBlock extends Plugin {
+export class CodeBlock extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ CodeBlockEditing, CodeBlockUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ CodeBlockEditing, CodeBlockUI ]> {
+		return [ CodeBlockEditing, CodeBlockUI ];
 	}
 
 	/**
@@ -34,5 +34,12 @@ export default class CodeBlock extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'CodeBlock' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

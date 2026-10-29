@@ -1,7 +1,7 @@
 # All "dot directories".
 .*/**
+!.changelog/**
 !.github/**
-!.husky/**
 !.circleci/**
 
 # Generated automatically via CircleCI.
@@ -10,15 +10,12 @@
 # Files associated with CKEditor 5 repository.
 **/node_modules
 build/
-!packages/ckeditor5-build-*/build
+dist/
 docs/api/output.json
 yarn.lock
 package-lock.json
 coverage/
-
-# Files associated with external repositories.
-external/
-mrgit.json
+coverage-vitest/
 
 # Files associated with specific development environments.
 .DS_Store
@@ -36,6 +33,10 @@ yalc.lock
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.js
 packages/*/src/**/*.js.map
-src/**/*.js
-src/**/*.js.map
-src/**/*.d.ts
+
+# Memory leak test assets.
+scripts/memory/assets/*.js
+scripts/memory/assets/*.css
+
+# Ignore local environment variables.
+.env

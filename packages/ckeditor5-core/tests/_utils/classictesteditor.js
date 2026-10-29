@@ -1,20 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* eslint-disable new-cap */
-
-import Editor from '../../src/editor/editor';
-import ElementApiMixin from '../../src/editor/utils/elementapimixin';
-import DataApiMixin from '../../src/editor/utils/dataapimixin';
-import EditorUI from '@ckeditor/ckeditor5-ui/src/editorui/editorui';
-import BoxedEditorUIView from '@ckeditor/ckeditor5-ui/src/editorui/boxed/boxededitoruiview';
-import ElementReplacer from '@ckeditor/ckeditor5-utils/src/elementreplacer';
-import InlineEditableUIView from '@ckeditor/ckeditor5-ui/src/editableui/inline/inlineeditableuiview';
-import getDataFromElement from '@ckeditor/ckeditor5-utils/src/dom/getdatafromelement';
-import { isElement } from 'lodash-es';
-import CKEditorError from '@ckeditor/ckeditor5-utils/src/ckeditorerror';
+import { Editor } from '../../src/editor/editor.js';
+import { ElementApiMixin } from '../../src/editor/utils/elementapimixin.js';
+import { normalizeRootsConfig, normalizeSingleRootEditorConstructorParams } from '../../src/editor/utils/normalizerootsconfig.js';
+import { EditorUI, BoxedEditorUIView, InlineEditableUIView } from '@ckeditor/ckeditor5-ui';
+import { ElementReplacer } from '@ckeditor/ckeditor5-utils';
+import { registerAndInitializeRootConfigAttributes } from '@ckeditor/ckeditor5-core';
+import { isElement } from 'es-toolkit/compat';
 
 /**
  * A simplified classic editor. Useful for testing features.
@@ -22,38 +17,36 @@ import CKEditorError from '@ckeditor/ckeditor5-utils/src/ckeditorerror';
  * @memberOf tests.core._utils
  * @extends core.editor.Editor
  */
-export default class ClassicTestEditor extends DataApiMixin( ElementApiMixin( Editor ) ) {
+export class ClassicTestEditor extends ElementApiMixin( Editor ) {
 	/**
 	 * @inheritDoc
 	 */
-	constructor( sourceElementOrData, config ) {
-		super( config );
+	constructor( sourceElementOrDataOrConfig, config ) {
+		const {
+			sourceElementOrData,
+			editorConfig
+		} = normalizeSingleRootEditorConstructorParams( sourceElementOrDataOrConfig, config );
 
-		if ( isElement( sourceElementOrData ) ) {
-			this.sourceElement = sourceElementOrData;
-		}
+		super( editorConfig );
 
-		// Editor in paragraph-only mode
-		const isInline = config && config.useInlineRoot;
+		normalizeRootsConfig( sourceElementOrData, this.config, 'main', true );
 
-		if ( isInline ) {
-			this.model.schema.register( '$inlineRoot', {
-				isLimit: true,
-				isInline: true
-			} );
+		const sourceElement = this.config.get( 'attachTo' );
 
-			this.model.schema.extend( '$text', {
-				allowIn: '$inlineRoot'
-			} );
+		if ( isElement( sourceElement ) ) {
+			this.sourceElement = sourceElement;
 		}
 
 		// Create the ("main") root element of the model tree.
-		this.model.document.createRoot( isInline ? '$inlineRoot' : '$root' );
+		this.model.document.createRoot( this.config.get( 'roots' ).main.modelElement );
+		registerAndInitializeRootConfigAttributes( this );
 
 		this.ui = new ClassicTestEditorUI( this, new BoxedEditorUIView( this.locale ) );
 
 		// Expose properties normally exposed by the ClassicEditorUI.
-		this.ui.view.editable = new InlineEditableUIView( this.ui.view.locale, this.editing.view );
+		this.ui.view.editable = new InlineEditableUIView( this.ui.view.locale, this.editing.view, undefined, {
+			label: this.config.get( 'label' )
+		} );
 	}
 
 	/**
@@ -83,16 +76,8 @@ export default class ClassicTestEditor extends DataApiMixin( ElementApiMixin( Ed
 				editor.initPlugins()
 					// Simulate EditorUI.init() (e.g. like in ClassicEditorUI). The ui#view
 					// should be rendered after plugins are initialized.
-					.then( () => editor.ui.init( isElement( sourceElementOrData ) ? sourceElementOrData : null ) )
-					.then( () => {
-						if ( !isElement( sourceElementOrData ) && config.initialData ) {
-							// Documented in core/editor/editorconfig.jsdoc.
-							// eslint-disable-next-line ckeditor5-rules/ckeditor-error-message
-							throw new CKEditorError( 'editor-create-initial-data', null );
-						}
-
-						return editor.data.init( config.initialData || getInitialData( sourceElementOrData ) );
-					} )
+					.then( () => editor.ui.init( editor.config.get( 'attachTo' ) || null ) )
+					.then( () => editor.data.init( editor.config.get( 'roots' ).main.initialData ) )
 					.then( () => editor.fire( 'ready' ) )
 					.then( () => editor )
 			);
@@ -106,7 +91,7 @@ export default class ClassicTestEditor extends DataApiMixin( ElementApiMixin( Ed
  * @memberOf tests.core._utils
  * @extends core.editor.EditorUI
  */
-class ClassicTestEditorUI extends EditorUI {
+export class ClassicTestEditorUI extends EditorUI {
 	/**
 	 * @inheritDoc
 	 */
@@ -167,8 +152,4 @@ class ClassicTestEditorUI extends EditorUI {
 
 		this._view.destroy();
 	}
-}
-
-function getInitialData( sourceElementOrData ) {
-	return isElement( sourceElementOrData ) ? getDataFromElement( sourceElementOrData ) : sourceElementOrData;
 }

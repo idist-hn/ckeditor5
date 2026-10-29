@@ -1,26 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { ButtonView } from '@ckeditor/ckeditor5-ui';
+import { EventInfo } from '@ckeditor/ckeditor5-utils';
+import { ViewDocumentDomEventData } from '@ckeditor/ckeditor5-engine';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import EventInfo from '@ckeditor/ckeditor5-utils/src/eventinfo';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-
-import LinkImage from '../src/linkimage';
-import LinkImageUI from '../src/linkimageui';
-import Image from '@ckeditor/ckeditor5-image/src/image';
+import { LinkImage } from '../src/linkimage.js';
+import { LinkImageUI } from '../src/linkimageui.js';
+import { Image, ImageBlockEditing } from '@ckeditor/ckeditor5-image';
 
 describe( 'LinkImageUI', () => {
 	let editor, viewDocument, editorElement;
 	let plugin, linkButton;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = document.createElement( 'div' );
@@ -46,33 +42,41 @@ describe( 'LinkImageUI', () => {
 	} );
 
 	it( 'should be named"', () => {
-		expect( LinkImageUI.pluginName ).to.equal( 'LinkImageUI' );
+		expect( LinkImageUI.pluginName ).toBe( 'LinkImageUI' );
 	} );
 
-	it( 'should require ImageBlockEditing by name', () => {
-		expect( LinkImageUI.requires ).to.include( 'ImageBlockEditing' );
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( LinkImageUI.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( LinkImageUI.isPremiumPlugin ).toBe( false );
+	} );
+
+	it( 'should require ImageBlockEditing', () => {
+		expect( LinkImageUI.requires ).toContain( ImageBlockEditing );
 	} );
 
 	describe( 'init()', () => {
 		it( 'should listen to the click event on the images', () => {
-			const listenToSpy = sinon.stub( plugin, 'listenTo' );
+			const listenToSpy = vi.spyOn( plugin, 'listenTo' ).mockImplementation( () => {} );
 
 			listenToSpy( viewDocument, 'click' );
 
 			viewDocument.fire( 'click', { domEvent: {} } );
 
-			sinon.assert.calledOnce( listenToSpy );
+			expect( listenToSpy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
 	describe( 'link toolbar UI component', () => {
 		it( 'should be registered', () => {
-			expect( linkButton ).to.be.instanceOf( ButtonView );
+			expect( linkButton ).toBeInstanceOf( ButtonView );
 		} );
 
 		describe( 'link button', () => {
 			it( 'should have a toggleable button', () => {
-				expect( linkButton.isToggleable ).to.be.true;
+				expect( linkButton.isToggleable ).toBe( true );
 			} );
 
 			it( 'should be bound to the link command', () => {
@@ -81,21 +85,21 @@ describe( 'LinkImageUI', () => {
 				command.isEnabled = true;
 				command.value = 'http://ckeditor.com';
 
-				expect( linkButton.isOn ).to.be.true;
-				expect( linkButton.isEnabled ).to.be.true;
+				expect( linkButton.isOn ).toBe( true );
+				expect( linkButton.isEnabled ).toBe( true );
 
 				command.isEnabled = false;
 				command.value = undefined;
 
-				expect( linkButton.isOn ).to.be.false;
-				expect( linkButton.isEnabled ).to.be.false;
+				expect( linkButton.isOn ).toBe( false );
+				expect( linkButton.isEnabled ).toBe( false );
 			} );
 
 			it( 'should call #_showUI upon #execute', () => {
-				const spy = testUtils.sinon.stub( editor.plugins.get( 'LinkUI' ), '_showUI' );
+				const spy = vi.spyOn( editor.plugins.get( 'LinkUI' ), '_showUI' ).mockImplementation( () => {} );
 
 				linkButton.fire( 'execute' );
-				sinon.assert.calledWithExactly( spy, true );
+				expect( spy ).toHaveBeenCalledExactlyOnceWith( true );
 			} );
 		} );
 	} );
@@ -111,12 +115,12 @@ describe( 'LinkImageUI', () => {
 			const imageWidget = viewDocument.selection.getSelectedElement();
 			const data = fakeEventData();
 			const eventInfo = new EventInfo( imageWidget, 'click' );
-			const domEventDataMock = new DomEventData( viewDocument, eventInfo, data );
+			const domEventDataMock = new ViewDocumentDomEventData( viewDocument, eventInfo, data );
 
 			viewDocument.fire( 'click', domEventDataMock );
 
-			expect( imageWidget.getChild( 0 ).name ).to.equal( 'a' );
-			expect( data.preventDefault.called ).to.be.true;
+			expect( imageWidget.getChild( 0 ).name ).toBe( 'a' );
+			expect( data.preventDefault ).toHaveBeenCalled();
 		} );
 
 		it( 'should prevent default behavior to prevent navigation if an inline image is wrapped in a link', () => {
@@ -129,15 +133,15 @@ describe( 'LinkImageUI', () => {
 			const imageWidget = viewDocument.selection.getSelectedElement();
 			const data = fakeEventData();
 			const eventInfo = new EventInfo( imageWidget, 'click' );
-			const domEventDataMock = new DomEventData( viewDocument, eventInfo, data );
+			const domEventDataMock = new ViewDocumentDomEventData( viewDocument, eventInfo, data );
 
 			viewDocument.fire( 'click', domEventDataMock );
 
-			expect( imageWidget.getChild( 0 ).name ).to.equal( 'img' );
-			expect( data.preventDefault.called ).to.be.true;
+			expect( imageWidget.getChild( 0 ).name ).toBe( 'img' );
+			expect( data.preventDefault ).toHaveBeenCalled();
 		} );
 
-		// See: #9607.
+		// See: https://github.com/ckeditor/ckeditor5/issues/9607.
 		describe( 'blocking the LinkUI plugin', () => {
 			let linkUI;
 
@@ -146,7 +150,7 @@ describe( 'LinkImageUI', () => {
 			} );
 
 			it( 'should not show the LinkUI when clicked the linked image', () => {
-				const spy = sinon.stub( linkUI, '_showUI' ).returns( {} );
+				const spy = vi.spyOn( linkUI, '_showUI' ).mockReturnValue( {} );
 
 				editor.setData( '<figure class="image"><a href="https://example.com"><img src="" /></a></figure>' );
 
@@ -157,16 +161,16 @@ describe( 'LinkImageUI', () => {
 				const imageWidget = viewDocument.selection.getSelectedElement();
 				const data = fakeEventData();
 				const eventInfo = new EventInfo( imageWidget, 'click' );
-				const domEventDataMock = new DomEventData( viewDocument, eventInfo, data );
+				const domEventDataMock = new ViewDocumentDomEventData( viewDocument, eventInfo, data );
 
 				viewDocument.fire( 'click', domEventDataMock );
 
-				expect( editor.model.document.getRoot().getChild( 0 ).is( 'element', 'imageBlock' ) ).to.be.true;
-				expect( spy.notCalled ).to.be.true;
+				expect( editor.model.document.getRoot().getChild( 0 ).is( 'element', 'imageBlock' ) ).toBe( true );
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not show the LinkUI when clicked the linked inline image', () => {
-				const spy = sinon.stub( linkUI, '_showUI' ).returns( {} );
+				const spy = vi.spyOn( linkUI, '_showUI' ).mockReturnValue( {} );
 
 				editor.setData( '<p><a href="https://example.com"><img src="" /></a></p>' );
 
@@ -177,12 +181,12 @@ describe( 'LinkImageUI', () => {
 				const imageWidget = viewDocument.selection.getSelectedElement();
 				const data = fakeEventData();
 				const eventInfo = new EventInfo( imageWidget, 'click' );
-				const domEventDataMock = new DomEventData( viewDocument, eventInfo, data );
+				const domEventDataMock = new ViewDocumentDomEventData( viewDocument, eventInfo, data );
 
 				viewDocument.fire( 'click', domEventDataMock );
 
-				expect( editor.model.document.getRoot().getChild( 0 ).getChild( 0 ).is( 'element', 'imageInline' ) ).to.be.true;
-				expect( spy.notCalled ).to.be.true;
+				expect( editor.model.document.getRoot().getChild( 0 ).getChild( 0 ).is( 'element', 'imageInline' ) ).toBe( true );
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 		} );
 	} );
@@ -195,7 +199,7 @@ describe( 'LinkImageUI', () => {
 		} );
 
 		describe( 'when a block image is selected', () => {
-			it( 'should show plugin#actionsView after "execute" if an image is already linked', () => {
+			it( 'should show plugin#toolbarView after "execute" if an image is already linked', () => {
 				const linkUIPlugin = editor.plugins.get( 'LinkUI' );
 
 				editor.setData( '<figure class="image"><a href="https://example.com"><img src="" /></a></figure>' );
@@ -208,8 +212,8 @@ describe( 'LinkImageUI', () => {
 
 				linkButton.fire( 'execute' );
 
-				expect( linkUIPlugin._balloon.visibleView ).to.be.not.null;
-				expect( linkUIPlugin._balloon.visibleView ).to.equals( linkUIPlugin.actionsView );
+				expect( linkUIPlugin._balloon.visibleView ).not.toBeNull();
+				expect( linkUIPlugin._balloon.visibleView ).toBe( linkUIPlugin.toolbarView );
 			} );
 
 			it( 'should show plugin#formView after "execute" if image is not linked', () => {
@@ -223,15 +227,15 @@ describe( 'LinkImageUI', () => {
 
 				linkButton.fire( 'execute' );
 
-				expect( linkUIPlugin._balloon.visibleView ).to.equals( linkUIPlugin.formView );
+				expect( linkUIPlugin._balloon.visibleView ).toBe( linkUIPlugin.formView );
 			} );
 		} );
 
 		describe( 'when an inline image is selected', () => {
-			it( 'should show plugin#actionsView after "execute" if an image is already linked', () => {
+			it( 'should show plugin#toolbarView after "execute" if an image is already linked', () => {
 				const linkUIPlugin = editor.plugins.get( 'LinkUI' );
 
-				editor.setData( '<p><a href="https://example.com"><img src="/assets/sample.png" /></a></p>' );
+				editor.setData( '<p><a href="https://example.com"><img src="/sample.png" /></a></p>' );
 
 				editor.model.change( writer => {
 					writer.setSelection( root.getChild( 0 ), 'in' );
@@ -239,7 +243,7 @@ describe( 'LinkImageUI', () => {
 
 				linkButton.fire( 'execute' );
 
-				expect( linkUIPlugin._balloon.visibleView ).to.equals( linkUIPlugin.actionsView );
+				expect( linkUIPlugin._balloon.visibleView ).toBe( linkUIPlugin.toolbarView );
 			} );
 
 			it( 'should show plugin#formView after "execute" if image is not linked', () => {
@@ -253,7 +257,7 @@ describe( 'LinkImageUI', () => {
 
 				linkButton.fire( 'execute' );
 
-				expect( linkUIPlugin._balloon.visibleView ).to.equals( linkUIPlugin.formView );
+				expect( linkUIPlugin._balloon.visibleView ).toBe( linkUIPlugin.formView );
 			} );
 		} );
 	} );
@@ -261,6 +265,6 @@ describe( 'LinkImageUI', () => {
 
 function fakeEventData() {
 	return {
-		preventDefault: sinon.spy()
+		preventDefault: vi.fn()
 	};
 }

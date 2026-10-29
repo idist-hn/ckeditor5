@@ -1,24 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import EventInfo from '@ckeditor/ckeditor5-utils/src/eventinfo';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
-import SpecialCharacters from '../src/specialcharacters';
-import SpecialCharactersMathematical from '../src/specialcharactersmathematical';
-import SpecialCharactersArrows from '../src/specialcharactersarrows';
-import SpecialCharactersNavigationView from '../src/ui/specialcharactersnavigationview';
-import CharacterGridView from '../src/ui/charactergridview';
-import CharacterInfoView from '../src/ui/characterinfoview';
-import specialCharactersIcon from '../theme/icons/specialcharacters.svg';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { IconSpecialCharacters } from '@ckeditor/ckeditor5-icons';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { EventInfo } from '@ckeditor/ckeditor5-utils';
+import { Typing } from '@ckeditor/ckeditor5-typing';
+import { SpecialCharacters } from '../src/specialcharacters.js';
+import { SpecialCharactersMathematical } from '../src/specialcharactersmathematical.js';
+import { SpecialCharactersArrows } from '../src/specialcharactersarrows.js';
+import { CharacterGridView } from '../src/ui/charactergridview.js';
+import { CharacterInfoView } from '../src/ui/characterinfoview.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
+import { SpecialCharactersCategoriesView } from '../src/ui/specialcharacterscategoriesview.js';
+import { Dialog } from '@ckeditor/ckeditor5-ui';
+import { SpecialCharactersView } from '../src/ui/specialcharactersview.js';
 
 describe( 'SpecialCharacters', () => {
-	let editor, element, command, plugin;
+	let editor, element, command, plugin, button, dialog;
 
 	beforeEach( () => {
 		element = document.createElement( 'div' );
@@ -36,6 +37,7 @@ describe( 'SpecialCharacters', () => {
 				editor = newEditor;
 				command = editor.commands.get( 'insertText' );
 				plugin = editor.plugins.get( SpecialCharacters );
+				dialog = editor.plugins.get( 'Dialog' );
 			} );
 	} );
 
@@ -46,157 +48,186 @@ describe( 'SpecialCharacters', () => {
 	} );
 
 	it( 'should require proper plugins', () => {
-		expect( SpecialCharacters.requires ).to.deep.equal( [ Typing ] );
+		expect( SpecialCharacters.requires ).toEqual( [ Typing, Dialog ] );
 	} );
 
 	it( 'should be named', () => {
-		expect( SpecialCharacters.pluginName ).to.equal( 'SpecialCharacters' );
+		expect( SpecialCharacters.pluginName ).toEqual( 'SpecialCharacters' );
 	} );
 
-	describe( 'init()', () => {
-		describe( '"specialCharacters" dropdown', () => {
-			let dropdown;
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( SpecialCharacters.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `true`', () => {
+		expect( SpecialCharacters.isPremiumPlugin ).toBe( true );
+	} );
+
+	it( 'should have `licenseFeatureCode` static flag set to `SCH`', () => {
+		expect( SpecialCharacters.licenseFeatureCode ).toEqual( 'SCH' );
+	} );
+
+	describe( 'toolbar button', () => {
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'specialCharacters' );
+		} );
+
+		it( 'should have a tooltip', () => {
+			expect( button.tooltip ).toBe( true );
+		} );
+
+		testButton();
+	} );
+
+	describe( 'menu bar button', () => {
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'menuBar:specialCharacters' );
+		} );
+
+		testButton();
+	} );
+
+	function testButton() {
+		it( 'should get basic properties', () => {
+			expect( button.label ).toEqual( 'Special characters' );
+			expect( button.icon ).toEqual( IconSpecialCharacters );
+			expect( button.isToggleable ).toBe( true );
+		} );
+
+		it( 'should bind #isEnabled to the command', () => {
+			expect( button.isEnabled ).toBe( true );
+
+			command.isEnabled = false;
+			expect( button.isEnabled ).toBe( false );
+			command.isEnabled = true;
+		} );
+
+		it( 'should open special characters dialog when pressed', () => {
+			button.fire( 'execute' );
+
+			expect( dialog.id ).toBe( 'specialCharacters' );
+		} );
+
+		it( 'should close dialog when pressed when dialog opened', () => {
+			button.fire( 'execute' );
+			button.fire( 'execute' );
+
+			expect( dialog.id ).toBeNull();
+		} );
+	}
+
+	describe( 'dialog', () => {
+		let button, dialogContent;
+
+		beforeEach( () => {
+			button = editor.ui.componentFactory.create( 'specialCharacters' );
+			button.fire( 'execute' );
+			dialogContent = dialog.view.contentView.children.first;
+		} );
+
+		afterEach( () => {
+			button.destroy();
+		} );
+
+		it( 'has content of type SpecialCharactersView', () => {
+			expect( dialogContent ).to.be.instanceOf( SpecialCharactersView );
+		} );
+
+		it( 'has a categories view', () => {
+			expect( dialogContent.categoriesView ).to.be.instanceOf( SpecialCharactersCategoriesView );
+		} );
+
+		it( 'the categories dropdown contains the "All" special category', () => {
+			const groupDropdownView = dialogContent.categoriesView._dropdownView.fieldView;
+
+			groupDropdownView.isOpen = true;
+
+			const listView = groupDropdownView.panelView.children.first;
+
+			// "Mathematical" and "Arrows" are provided by other plugins. "All" is being added by SpecialCharacters itself.
+			expect( listView.items.length ).toEqual( 3 );
+			expect( listView.items.first.children.first.label ).toEqual( 'All' );
+		} );
+
+		it( 'has a grid view', () => {
+			expect( dialogContent.gridView ).to.be.instanceOf( CharacterGridView );
+		} );
+
+		it( 'has a character info view', () => {
+			expect( dialogContent.infoView ).to.be.instanceOf( CharacterInfoView );
+		} );
+
+		it( 'executes a command and doesn\'t focus the editor', () => {
+			const grid = dialogContent.gridView;
+			const executeSpy = vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
+			const focusSpy = vi.spyOn( editor.editing.view, 'focus' ).mockImplementation( () => {} );
+
+			grid.tiles.get( 2 ).fire( 'execute' );
+
+			expect( executeSpy ).toHaveBeenCalledOnce();
+			expect( focusSpy ).not.toHaveBeenCalled();
+			expect( executeSpy ).toHaveBeenNthCalledWith( 1, 'insertText', {
+				text: '≤'
+			} );
+		} );
+
+		describe( 'grid view', () => {
+			let grid;
 
 			beforeEach( () => {
-				dropdown = editor.ui.componentFactory.create( 'specialCharacters' );
-				dropdown.render();
-				document.body.appendChild( dropdown.element );
-
-				dropdown.isOpen = true; // Dropdown is lazy loaded, so needs to be open to be verified (#6175).
+				grid = dialogContent.gridView;
 			} );
 
-			afterEach( () => {
-				dropdown.element.remove();
-				dropdown.destroy();
+			it( 'has default contents', () => {
+				expect( grid.tiles ).to.have.length.greaterThan( 10 );
 			} );
 
-			it( 'has a navigation view', () => {
-				expect( dropdown.panelView.children.first.navigationView ).to.be.instanceOf( SpecialCharactersNavigationView );
+			it( 'is updated when categories view fires #execute', () => {
+				const categoriesView = dialogContent.categoriesView;
+
+				expect( grid.tiles.get( 0 ).label ).toEqual( '<' );
+				categoriesView._dropdownView.fieldView.fire( new EventInfo( { name: 'Arrows' }, 'execute' ) );
+
+				expect( grid.tiles.get( 0 ).label ).toEqual( '←' );
+			} );
+		} );
+
+		describe( 'character info view', () => {
+			let grid, characterInfo;
+
+			beforeEach( () => {
+				grid = dialogContent.gridView;
+				characterInfo = dialogContent.infoView;
 			} );
 
-			it( 'a navigation contains the "All" special category', () => {
-				const groupDropdownView = dropdown.panelView.children.first.navigationView.groupDropdownView;
+			it( 'is empty when the dropdown was shown', () => {
+				// dropdown.fire( 'change:isOpen' );
 
-				groupDropdownView.isOpen = true;
-
-				const listView = groupDropdownView.panelView.children.first;
-
-				// "Mathematical" and "Arrows" are provided by other plugins. "All" is being added by SpecialCharacters itself.
-				expect( listView.items.length ).to.equal( 3 );
-				expect( listView.items.first.children.first.label ).to.equal( 'All' );
+				expect( characterInfo.character ).toEqual( null );
+				expect( characterInfo.name ).toEqual( null );
+				expect( characterInfo.code ).toEqual( '' );
 			} );
 
-			it( 'has a grid view', () => {
-				expect( dropdown.panelView.children.first.gridView ).to.be.instanceOf( CharacterGridView );
+			it( 'is updated when the tile fires #mouseover', () => {
+				const tile = grid.tiles.get( 0 );
+
+				tile.fire( 'mouseover' );
+
+				expect( tile.label ).toEqual( '<' );
+				expect( characterInfo.character ).toEqual( '<' );
+				expect( characterInfo.name ).toEqual( 'Less-than sign' );
+				expect( characterInfo.code ).toEqual( 'U+003c' );
 			} );
 
-			it( 'has a character info view', () => {
-				expect( dropdown.panelView.children.first.infoView ).to.be.instanceOf( CharacterInfoView );
-			} );
+			it( 'is updated when the tile fires #focus', () => {
+				const tile = grid.tiles.get( 0 );
 
-			describe( '#buttonView', () => {
-				it( 'should get basic properties', () => {
-					expect( dropdown.buttonView.label ).to.equal( 'Special characters' );
-					expect( dropdown.buttonView.icon ).to.equal( specialCharactersIcon );
-					expect( dropdown.buttonView.tooltip ).to.be.true;
-				} );
+				tile.fire( 'focus' );
 
-				it( 'should bind #isEnabled to the command', () => {
-					expect( dropdown.isEnabled ).to.be.true;
-
-					command.isEnabled = false;
-					expect( dropdown.isEnabled ).to.be.false;
-					command.isEnabled = true;
-				} );
-			} );
-
-			it( 'executes a command and focuses the editing view', () => {
-				const grid = dropdown.panelView.children.get( 0 ).gridView;
-				const executeSpy = sinon.stub( editor, 'execute' );
-				const focusSpy = sinon.stub( editor.editing.view, 'focus' );
-
-				grid.tiles.get( 2 ).fire( 'execute' );
-
-				sinon.assert.calledOnce( executeSpy );
-				sinon.assert.calledOnce( focusSpy );
-				sinon.assert.calledWithExactly( executeSpy.firstCall, 'insertText', {
-					text: '≤'
-				} );
-			} );
-
-			describe( 'grid view', () => {
-				let grid;
-
-				beforeEach( () => {
-					grid = dropdown.panelView.children.get( 0 ).gridView;
-				} );
-
-				it( 'delegates #execute to the dropdown', () => {
-					const spy = sinon.spy();
-
-					dropdown.on( 'execute', spy );
-					grid.fire( 'execute', { name: 'foo' } );
-
-					sinon.assert.calledOnce( spy );
-				} );
-
-				it( 'has default contents', () => {
-					expect( grid.tiles ).to.have.length.greaterThan( 10 );
-				} );
-
-				it( 'is updated when navigation view fires #execute', () => {
-					const navigation = dropdown.panelView.children.first.navigationView;
-
-					expect( grid.tiles.get( 0 ).label ).to.equal( '<' );
-					navigation.groupDropdownView.fire( new EventInfo( { name: 'Arrows' }, 'execute' ) );
-
-					expect( grid.tiles.get( 0 ).label ).to.equal( '←' );
-				} );
-			} );
-
-			describe( 'character info view', () => {
-				let grid, characterInfo;
-
-				beforeEach( () => {
-					grid = dropdown.panelView.children.first.gridView;
-					characterInfo = dropdown.panelView.children.first.infoView;
-				} );
-
-				it( 'is empty when the dropdown was shown', () => {
-					dropdown.fire( 'change:isOpen' );
-
-					expect( characterInfo.character ).to.equal( null );
-					expect( characterInfo.name ).to.equal( null );
-					expect( characterInfo.code ).to.equal( '' );
-				} );
-
-				it( 'is updated when the tile fires #mouseover', () => {
-					const tile = grid.tiles.get( 0 );
-
-					tile.fire( 'mouseover' );
-
-					expect( tile.label ).to.equal( '<' );
-					expect( characterInfo.character ).to.equal( '<' );
-					expect( characterInfo.name ).to.equal( 'Less-than sign' );
-					expect( characterInfo.code ).to.equal( 'U+003c' );
-				} );
-
-				it( 'is updated when the tile fires #focus', () => {
-					const tile = grid.tiles.get( 0 );
-
-					tile.fire( 'focus' );
-
-					expect( tile.label ).to.equal( '<' );
-					expect( characterInfo.character ).to.equal( '<' );
-					expect( characterInfo.name ).to.equal( 'Less-than sign' );
-					expect( characterInfo.code ).to.equal( 'U+003c' );
-				} );
-			} );
-
-			it( 'is not fully initialized when not open', () => {
-				// (#6175)
-				const uninitializedDropdown = editor.ui.componentFactory.create( 'specialCharacters' );
-				expect( uninitializedDropdown.panelView.children.length ).to.equal( 0 );
+				expect( tile.label ).toEqual( '<' );
+				expect( characterInfo.character ).toEqual( '<' );
+				expect( characterInfo.name ).toEqual( 'Less-than sign' );
+				expect( characterInfo.code ).toEqual( 'U+003c' );
 			} );
 		} );
 	} );
@@ -211,12 +242,12 @@ describe( 'SpecialCharacters', () => {
 				{ title: 'custom arrow right', character: '→' }
 			] );
 
-			expect( plugin._groups.size ).to.equal( startingGroupSize + 1 );
-			expect( plugin._groups.has( 'Custom arrows' ) ).to.equal( true );
+			expect( plugin._groups.size ).toEqual( startingGroupSize + 1 );
+			expect( plugin._groups.has( 'Custom arrows' ) ).toEqual( true );
 
-			expect( plugin._characters.size ).to.equal( startingCharacterSize + 2 );
-			expect( plugin._characters.has( 'custom arrow left' ) ).to.equal( true );
-			expect( plugin._characters.has( 'custom arrow right' ) ).to.equal( true );
+			expect( plugin._characters.size ).toEqual( startingCharacterSize + 2 );
+			expect( plugin._characters.has( 'custom arrow left' ) ).toEqual( true );
+			expect( plugin._characters.has( 'custom arrow right' ) ).toEqual( true );
 		} );
 
 		it( 'works with subsequent calls to the same group', () => {
@@ -240,8 +271,8 @@ describe( 'SpecialCharacters', () => {
 			const groups = Array.from( plugin.getGroups() );
 
 			expect( groups ).to.contains( 'Custom mathematical' );
-			expect( plugin._groups.size ).to.equal( startingGroupSize + 1 );
-			expect( plugin._characters.size ).to.equal( startingCharacterSize + 2 );
+			expect( plugin._groups.size ).toEqual( startingGroupSize + 1 );
+			expect( plugin._characters.size ).toEqual( startingCharacterSize + 2 );
 		} );
 
 		it( 'allows defining a displayed label different from a category name', () => {
@@ -250,15 +281,15 @@ describe( 'SpecialCharacters', () => {
 				{ title: 'arrow right', character: '→' }
 			], { label: 'Custom arrows plugin' } );
 
-			expect( plugin._groups.has( 'Symbols' ) ).to.equal( true );
+			expect( plugin._groups.has( 'Symbols' ) ).toEqual( true );
 
 			const arrowGroup = plugin._groups.get( 'Symbols' );
 
 			expect( arrowGroup ).to.have.property( 'label', 'Custom arrows plugin' );
 			expect( arrowGroup ).to.have.property( 'items' );
-			expect( arrowGroup.items.size ).to.equal( 2 );
-			expect( arrowGroup.items.has( 'arrow left' ) ).to.equal( true );
-			expect( arrowGroup.items.has( 'arrow right' ) ).to.equal( true );
+			expect( arrowGroup.items.size ).toEqual( 2 );
+			expect( arrowGroup.items.has( 'arrow left' ) ).toEqual( true );
+			expect( arrowGroup.items.has( 'arrow right' ) ).toEqual( true );
 		} );
 
 		it( 'does not accept "All" as a group name', () => {
@@ -272,7 +303,7 @@ describe( 'SpecialCharacters', () => {
 		it( 'returns iterator of defined groups in the registration order by default', () => {
 			const groups = Array.from( plugin.getGroups() );
 
-			expect( groups ).to.deep.equal( [ 'Mathematical', 'Arrows' ] );
+			expect( groups ).toEqual( [ 'Mathematical', 'Arrows' ] );
 		} );
 
 		it( 'returns iterator of defined groups in the order defined in the config', () => {
@@ -283,7 +314,7 @@ describe( 'SpecialCharacters', () => {
 
 			const groups = Array.from( plugin.getGroups() );
 
-			expect( groups ).to.deep.equal( [ 'Arrows', 'Mathematical' ] );
+			expect( groups ).toEqual( [ 'Arrows', 'Mathematical' ] );
 		} );
 
 		it( 'returns iterator of all defined groups even if order doesn\'t contain some of them', () => {
@@ -293,7 +324,7 @@ describe( 'SpecialCharacters', () => {
 
 			const groups = Array.from( plugin.getGroups() );
 
-			expect( groups ).to.deep.equal( [ 'Arrows', 'Mathematical' ] );
+			expect( groups ).toEqual( [ 'Arrows', 'Mathematical' ] );
 		} );
 
 		it( 'throws an error if order contains invalid category', () => {
@@ -318,9 +349,9 @@ describe( 'SpecialCharacters', () => {
 
 			const characters = plugin.getCharactersForGroup( 'Mathematical' );
 
-			expect( characters.size ).to.equal( startingCharacterSize + 2 );
-			expect( characters.has( 'custom precedes' ) ).to.equal( true );
-			expect( characters.has( 'custom succeeds' ) ).to.equal( true );
+			expect( characters.size ).toEqual( startingCharacterSize + 2 );
+			expect( characters.has( 'custom precedes' ) ).toEqual( true );
+			expect( characters.has( 'custom succeeds' ) ).toEqual( true );
 		} );
 
 		it( 'returns a collection of all special characters for "All" group', () => {
@@ -338,11 +369,11 @@ describe( 'SpecialCharacters', () => {
 
 			const characters = plugin.getCharactersForGroup( 'All' );
 
-			expect( characters.size ).to.equal( startingCharacterSize + 4 );
-			expect( characters.has( 'custom arrow left' ) ).to.equal( true );
-			expect( characters.has( 'custom arrow right' ) ).to.equal( true );
-			expect( characters.has( 'custom precedes' ) ).to.equal( true );
-			expect( characters.has( 'custom succeeds' ) ).to.equal( true );
+			expect( characters.size ).toEqual( startingCharacterSize + 4 );
+			expect( characters.has( 'custom arrow left' ) ).toEqual( true );
+			expect( characters.has( 'custom arrow right' ) ).toEqual( true );
+			expect( characters.has( 'custom precedes' ) ).toEqual( true );
+			expect( characters.has( 'custom succeeds' ) ).toEqual( true );
 		} );
 
 		it( 'returns undefined for non-existing group', () => {
@@ -353,7 +384,7 @@ describe( 'SpecialCharacters', () => {
 
 			const characters = plugin.getCharactersForGroup( 'Foo' );
 
-			expect( characters ).to.be.undefined;
+			expect( characters ).toBeUndefined();
 		} );
 	} );
 
@@ -364,11 +395,11 @@ describe( 'SpecialCharacters', () => {
 				{ title: 'custom succeeds', character: '≻' }
 			] );
 
-			expect( plugin.getCharacter( 'custom succeeds' ) ).to.equal( '≻' );
+			expect( plugin.getCharacter( 'custom succeeds' ) ).toEqual( '≻' );
 		} );
 
 		it( 'returns undefined for non-existing character', () => {
-			expect( plugin.getCharacter( 'custom succeeds' ) ).to.be.undefined;
+			expect( plugin.getCharacter( 'custom succeeds' ) ).toBeUndefined();
 		} );
 	} );
 } );

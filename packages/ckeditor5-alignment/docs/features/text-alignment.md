@@ -1,38 +1,60 @@
 ---
 title: Text alignment
 meta-title: Text alignment | CKEditor 5 Documentation
+meta-description: Align text in CKEditor 5 with left, right, center, or justified options to control layout and enhance content presentation.
 category: features
 ---
-
-{@snippet features/build-text-alignment-source}
 
 The alignment feature lets you align your content to the left or right as well as center or justify it.
 
 ## Demo
 
-Click inside a paragraph or a header and use the toolbar dropdown {@icon @ckeditor/ckeditor5-core/theme/icons/align-right.svg Text alignment} to change the alignment of the element.
+Click inside a paragraph or a header and use the toolbar dropdown {@icon @ckeditor/ckeditor5-icons/theme/icons/align-right.svg Text alignment} to change the alignment of the element.
 
 {@snippet features/text-alignment}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
+
+## Installation
+
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
+
+<code-switcher>
+```js
+import { ClassicEditor, Alignment } from 'ckeditor5';
+
+ClassicEditor.
+	create( {
+		licenseKey: '<YOUR_LICENSE_KEY>' // Or 'GPL'.
+		plugins: [ Alignment, /* ... */ ],
+		toolbar: [ 'alignment', /* ... */ ]
+		alignment: {
+			// Configuration.
+		}
+	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
+```
+</code-switcher>
 
 ## Configuring alignment options
 
 ### Defining available options
 
-It is possible to configure which alignment options are available in the editor by setting the {@link module:alignment/alignmentconfig~AlignmentConfig#options `alignment.options`} configuration option. You can choose from `'left'`, `'right'`, `'center'` and `'justify'`.
+It is possible to configure which alignment options are available in the editor by setting the {@link module:alignment/alignmentconfig~AlignmentConfig#options `alignment.options`} configuration option. You can choose from `'left'`, `'right'`, `'center'`, and `'justify'`.
 
 <info-box>
-	Note that the `'left'` option should always be included for the <abbr title="left–to–right">LTR</abbr> content. Similarly, the `'right'` option should always be included for the <abbr title="right-to-left">RTL</abbr> content. Learn more about {@link features/ui-language#setting-the-language-of-the-content configuring language of the editor content}.
+	You should always include the `'left'` option for the <abbr title="left–to–right">LTR</abbr> content. Similarly, you should always include the `'right'` option for the <abbr title="right-to-left">RTL</abbr> content. Learn more about {@link getting-started/setup/ui-language#setting-the-language-of-the-content configuring language of the editor content}.
 </info-box>
 
-For example, the following editor will support only two alignment options: to the left and to the right:
+For example, the following editor will support two alignment options: to the left and to the right:
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		// ... Other configuration options ...
 		alignment: {
 			options: [ 'left', 'right' ]
 		},
@@ -48,7 +70,7 @@ ClassicEditor
 
 ### Using classes instead of inline style
 
-By default, alignment is set inline using the `text-align` CSS property. If you wish the feature to output more semantic content that uses classes instead of inline styles, you can specify class names by using the `className` property in `config.alignment.options` and style them by using a stylesheet.
+By default, alignment is set inline using the `text-align` CSS property. If you wish the feature to output more semantic content that uses classes instead of inline styles, you can specify class names by using the `className` property in `config.alignment.options` and style them by using a style sheet.
 
 <info-box>
 	Once you decide to use classes for the alignment, you must define `className` for **all** alignment entries in {@link module:alignment/alignmentconfig~AlignmentConfig#options `config.alignment.options`}.
@@ -58,7 +80,8 @@ The following configuration will set `.my-align-left` and `.my-align-right` to l
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		// ... Other configuration options ...
 		alignment: {
 			options: [
 				{ name: 'left', className: 'my-align-left' },
@@ -79,7 +102,8 @@ You can choose to use the alignment dropdown (`'alignment'`) or configure the to
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		// ... Other configuration options ...
 		toolbar: [
 			'heading', '|', 'alignment:left', 'alignment:right', 'alignment:center', 'alignment:justify'
 		]
@@ -89,36 +113,6 @@ ClassicEditor
 ```
 
 {@snippet features/custom-text-alignment-toolbar}
-
-## Installation
-
-<info-box info>
-	The alignment feature is enabled by default in the {@link installation/getting-started/predefined-builds#document-editor document editor build} and {@link installation/getting-started/predefined-builds#superbuild superbuild} only.
-</info-box>
-
-To add this feature to your editor, install the [`@ckeditor/ckeditor5-alignment`](https://www.npmjs.com/package/@ckeditor/ckeditor5-alignment) package:
-
-```bash
-npm install --save @ckeditor/ckeditor5-alignment
-```
-
-And add it to your plugin list and toolbar configuration:
-
-```js
-import { Alignment } from '@ckeditor/ckeditor5-alignment';
-
-ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ Alignment, /* ... */ ],
-		toolbar: [ 'alignment', /* ... */ ]
-	} )
-	.then( /* ... */ )
-	.catch( /* ... */ );
-```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
 
 ## Related features
 
@@ -136,7 +130,7 @@ The {@link module:alignment/alignment~Alignment} plugin registers:
 * Dropdown: `'alignment'`.
 * Buttons: `'alignment:left'`, `'alignment:right'`, `'alignment:center'`, `'alignment:justify'`.
 
-	The number of options and their names are based on the {@link module:alignment/alignmentconfig~AlignmentConfig#options `alignment.options`} configuration option).
+	The number of options and their names are based on the {@link module:alignment/alignmentconfig~AlignmentConfig#options `alignment.options`} configuration option.
 
 * Command: `'alignment'`:
 

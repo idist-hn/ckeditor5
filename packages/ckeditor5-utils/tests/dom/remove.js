@@ -1,11 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import remove from '../../src/dom/remove';
+import { describe, expect, it } from 'vitest';
+import { remove } from '../../src/dom/remove.js';
 
 describe( 'remove', () => {
 	it( 'should remove element form parent', () => {
@@ -20,8 +19,8 @@ describe( 'remove', () => {
 
 		remove( p1 );
 
-		expect( p1.parentNode ).to.be.null;
-		expect( div.childNodes.length ).to.equal( 2 );
+		expect( p1.parentNode ).toBeNull();
+		expect( div.childNodes.length ).toEqual( 2 );
 	} );
 
 	it( 'should do nothing if element has no parent', () => {
@@ -29,6 +28,6 @@ describe( 'remove', () => {
 
 		remove( div );
 
-		expect( div.parentNode ).to.be.null;
+		expect( div.parentNode ).toBeNull();
 	} );
 } );

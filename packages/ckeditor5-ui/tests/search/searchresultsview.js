@@ -1,20 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Locale } from '@ckeditor/ckeditor5-utils';
-import SearchResultsView from '../../src/search/searchresultsview';
+import { SearchResultsView } from '../../src/search/searchresultsview.js';
 
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { ButtonView, View, ViewCollection } from '../../src';
+import { ButtonView, View, ViewCollection } from '../../src/index.js';
 
 describe( 'SearchResultsView', () => {
 	let locale, view;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		locale = new Locale();
@@ -33,29 +29,29 @@ describe( 'SearchResultsView', () => {
 
 	describe( 'constructor()', () => {
 		it( 'creates and element from template with CSS classes', () => {
-			expect( view.element.classList.contains( 'ck' ) ).to.be.true;
-			expect( view.element.classList.contains( 'ck-search__results' ) ).to.be.true;
-			expect( view.element.getAttribute( 'tabIndex' ) ).to.equal( '-1' );
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-search__results' ) ).toBe( true );
+			expect( view.element.getAttribute( 'tabIndex' ) ).toBe( '-1' );
 		} );
 
 		it( 'has a collection of #children', () => {
-			expect( view.children ).to.be.instanceOf( ViewCollection );
+			expect( view.children ).toBeInstanceOf( ViewCollection );
 
 			view.children.add( new ButtonView() );
 
-			expect( view.element.firstChild ).to.equal( view.children.first.element );
+			expect( view.element.firstChild ).toBe( view.children.first.element );
 		} );
 	} );
 
 	describe( 'focus()', () => {
 		it( 'does nothing for empty panel', () => {
-			expect( () => view.focus() ).to.not.throw();
+			expect( () => view.focus() ).not.toThrow();
 		} );
 
 		it( 'focuses first focusable view in #children', () => {
 			view.focus();
 
-			sinon.assert.calledOnce( view.children.get( 1 ).focus );
+			expect( view.children.get( 1 ).focus ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -63,7 +59,7 @@ describe( 'SearchResultsView', () => {
 		it( 'focuses first focusable view in #children', () => {
 			view.focusFirst();
 
-			sinon.assert.calledOnce( view.children.get( 1 ).focus );
+			expect( view.children.get( 1 ).focus ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -71,7 +67,7 @@ describe( 'SearchResultsView', () => {
 		it( 'focuses first focusable view in #children', () => {
 			view.focusLast();
 
-			sinon.assert.calledOnce( view.children.get( 2 ).focus );
+			expect( view.children.get( 2 ).focus ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -79,8 +75,7 @@ describe( 'SearchResultsView', () => {
 		const view = createNonFocusableView();
 
 		view.name = name;
-		view.focus = () => view.element.focus();
-		sinon.spy( view, 'focus' );
+		view.focus = vi.fn( () => view.element.focus() );
 
 		return view;
 	}

@@ -1,14 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { normalizeOptions } from '../../src/fontfamily/utils';
+import { describe, it, expect } from 'vitest';
+import { normalizeOptions } from '../../src/fontfamily/utils.js';
 
 describe( 'FontFamily utils', () => {
 	describe( 'normalizeOptions()', () => {
 		it( 'should discard unsupported values', () => {
-			expect( normalizeOptions( [ () => {}, 0, true ] ) ).to.deep.equal( [] );
+			expect( normalizeOptions( [ () => {}, 0, true ] ) ).toEqual( [] );
 		} );
 
 		it( 'should pass through object definition', () => {
@@ -24,7 +25,7 @@ describe( 'FontFamily utils', () => {
 						}
 					}
 				}
-			] ) ).to.deep.equal( [
+			] ) ).toEqual( [
 				{
 					model: undefined,
 					title: 'Default'
@@ -48,7 +49,7 @@ describe( 'FontFamily utils', () => {
 					'Arial',
 					'"Comic Sans MS", sans-serif',
 					'Lucida Console, \'Courier New\', Courier, monospace'
-				] ) ) ).to.deep.equal( [
+				] ) ) ).toEqual( [
 					{
 						title: 'Arial',
 						model: 'Arial',

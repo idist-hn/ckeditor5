@@ -6,6 +6,18 @@
 	"The URL must not be empty.": "An error message that informs about an empty value in the URL input.",
 	"This media URL is not supported.": "An error message that informs about unsupported media URL.",
 	"Insert media": "Toolbar button tooltip for the Media Embed feature.",
+	"Media embed": "The label for the Media Embed balloon.",
+	"Media": "Label describing type of the inserted content (e.g. 'insert media').",
 	"Media toolbar": "The label used by assistive technologies describing an image toolbar attached to an image widget.",
-	"Open media in new tab": "A tooltip displayed when the user hovers a non-previewable media URL in the editor content."
+	"Open media in new tab": "A tooltip displayed when the user hovers a non-previewable media URL in the editor content.",
+	"Left aligned media": "The label for the left aligned media option.",
+	"Centered media": "The label for the centered media option.",
+	"Right aligned media": "The label for the right aligned media option.",
+	"Resize media": "The label used for the dropdown in the media toolbar containing defined resize options.",
+	"Resize media to %0": "The label used for the standalone resize options buttons in the media toolbar.",
+	"Resize media to the original size": "The accessibility label of the standalone media resize reset option button in the media toolbar for screen readers.",
+	"Resize media (in %0)": "The label for media resize balloon input.",
+	"Custom media size": "The accessibility label of the standalone media resize custom option button in the media toolbar for screen readers.",
+	"Media resize list": "The accessibility label of the media resize dropdown for screen readers.",
+	"Media Resize": "The label for the header of the media resize balloon."
 }

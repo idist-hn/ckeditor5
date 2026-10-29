@@ -1,22 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/label/labelview
  */
 
-import View from '../view';
+import { View } from '../view.js';
 
 import { uid, type Locale } from '@ckeditor/ckeditor5-utils';
-
-import '../../theme/components/label/label.css';
 
 /**
  * The label view class.
  */
-export default class LabelView extends View {
+export class LabelView extends View {
 	/**
 	 * An unique id of the label. It can be used by other UI components to reference
 	 * the label, for instance, using the `aria-describedby` DOM attribute.

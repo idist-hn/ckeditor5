@@ -1,26 +1,38 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, document */
-
-import { Alignment } from '@ckeditor/ckeditor5-alignment';
-import { Subscript, Superscript } from '@ckeditor/ckeditor5-basic-styles';
-import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
-import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import { EasyImage } from '@ckeditor/ckeditor5-easy-image';
-import { DecoupledEditor } from '@ckeditor/ckeditor5-editor-decoupled';
-import { FontBackgroundColor, FontColor, FontFamily, FontSize } from '@ckeditor/ckeditor5-font';
-import { ImageResize, ImageUpload } from '@ckeditor/ckeditor5-image';
-import { IndentBlock } from '@ckeditor/ckeditor5-indent';
-import { PageBreak } from '@ckeditor/ckeditor5-page-break';
-import { TableCellProperties, TableProperties } from '@ckeditor/ckeditor5-table';
-
-import { Minimap } from '@ckeditor/ckeditor5-minimap';
-
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config.js';
+import {
+	Alignment,
+	Subscript,
+	Superscript,
+	CloudServices,
+	CodeBlock,
+	CKBox,
+	CKBoxImageEdit,
+	DecoupledEditor,
+	FontBackgroundColor,
+	FontColor,
+	FontFamily,
+	FontSize,
+	PictureEditing,
+	ImageInsert,
+	ImageResize,
+	ImageUpload,
+	IndentBlock,
+	PageBreak,
+	TableCellProperties,
+	TableProperties,
+	Minimap,
+	_MinimapIframeView
+} from 'ckeditor5';
+import {
+	TOKEN_URL,
+	ArticlePluginSet,
+	attachTourBalloon,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
 
 const config = {
 	plugins: [
@@ -32,6 +44,7 @@ const config = {
 		FontColor,
 		FontBackgroundColor,
 		IndentBlock,
+		ImageInsert,
 		ImageUpload,
 		ImageResize,
 		TableProperties,
@@ -41,22 +54,25 @@ const config = {
 		PageBreak,
 		CodeBlock,
 		Minimap,
-		EasyImage
+		PictureEditing,
+		CKBox,
+		CKBoxImageEdit
 	],
 	toolbar: [
 		'undo', 'redo', '|', 'heading',
 		'|', 'bold', 'italic',
-		'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
+		'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
 		'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 	],
 	image: {
 		toolbar: [
 			'imageStyle:inline',
 			'imageStyle:block',
-			'imageStyle:side',
+			'imageStyle:wrapText',
 			'|',
 			'imageTextAlternative',
-			'toggleImageCaption'
+			'toggleImageCaption',
+			'ckboxImageEdit'
 		],
 		styles: [
 			'inline',
@@ -72,6 +88,9 @@ const config = {
 		contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells', 'tableProperties', 'tableCellProperties' ],
 		tableToolbar: [ 'bold', 'italic' ]
 	},
+	list: {
+		enableSkipLevelLists: true
+	},
 	heading: {
 		options: [
 			{ model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
@@ -85,16 +104,26 @@ const config = {
 		container: document.querySelector( '.minimap-container' ),
 		extraClasses: 'live-snippet formatted'
 	},
-	cloudServices: CS_CONFIG,
 	ui: {
 		viewportOffset: {
-			top: window.getViewportTopOffsetConfig()
+			top: getViewportTopOffsetConfig()
 		}
+	},
+	ckbox: {
+		tokenUrl: TOKEN_URL,
+		allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+		forceDemoLabel: true
 	}
 };
 
+patchMinimapView();
 DecoupledEditor
-	.create( document.querySelector( '#editor' ), config )
+	.create( {
+		...config,
+		root: {
+			element: document.querySelector( '#editor' )
+		}
+	} )
 	.then( editor => {
 		window.editor = editor;
 
@@ -102,7 +131,7 @@ DecoupledEditor
 
 		toolbarContainer.appendChild( editor.ui.view.toolbar.element );
 
-		window.attachTourBalloon( {
+		attachTourBalloon( {
 			target: editor.plugins.get( 'Minimap' )._minimapView.element,
 			text: 'Use the minimap for quick navigation',
 			editor,
@@ -111,3 +140,33 @@ DecoupledEditor
 			}
 		} );
 	} );
+
+/**
+ * The CKEditor minimap renders a preview in an iframe, copying styles from external CSS files.
+ * If fonts are defined in CSS using relative paths (e.g., `url('../fonts/MyFont.woff2')`),
+ * the iframe incorrectly interprets these paths because they are relative to the CSS file, not the HTML document.
+ * This results in missing fonts in the minimap preview.
+ *
+ * This patch rewrites font URLs in CSS styles so that they are resolved correctly relative to the CSS file location,
+ * ensuring fonts load properly in the minimap.
+ *
+ * See more: https://github.com/ckeditor/ckeditor5/issues/18896
+ */
+function patchMinimapView() {
+	const originalRender = _MinimapIframeView.prototype.render;
+
+	_MinimapIframeView.prototype.render = function( ...args ) {
+		this._options.pageStyles = this._options.pageStyles.map( style => {
+			if ( typeof style !== 'string' ) {
+				return style;
+			}
+
+			const assetsCSSElement = document.querySelector( `link[href$="assets/${ window.umberto.version }/gloria/css/styles.css"]` );
+			const realAssetsPrefix = assetsCSSElement.href.replace( /\/css\/styles\.css$/, '' );
+
+			return style.replaceAll( 'url("../fonts/', `url("${ realAssetsPrefix }/fonts/` );
+		} );
+
+		return originalRender.call( this, ...args );
+	};
+}

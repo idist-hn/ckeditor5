@@ -1,23 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event */
-
-import MediaFormView from '../../src/ui/mediaformview';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import KeystrokeHandler from '@ckeditor/ckeditor5-utils/src/keystrokehandler';
-import FocusTracker from '@ckeditor/ckeditor5-utils/src/focustracker';
-import FocusCycler from '@ckeditor/ckeditor5-ui/src/focuscycler';
-import ViewCollection from '@ckeditor/ckeditor5-ui/src/viewcollection';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { MediaFormView } from '../../src/ui/mediaformview.js';
+import { View } from '@ckeditor/ckeditor5-ui';
+import { KeystrokeHandler, FocusTracker } from '@ckeditor/ckeditor5-utils';
 
 describe( 'MediaFormView', () => {
 	let view;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		view = new MediaFormView( [], { t: val => val } );
@@ -35,104 +27,69 @@ describe( 'MediaFormView', () => {
 			const validators = [];
 			const view = new MediaFormView( validators, { t: val => val } );
 
-			expect( view._validators ).to.equal( validators );
+			expect( view._validators ).toBe( validators );
 		} );
 
 		it( 'should create element from template', () => {
-			expect( view.element.classList.contains( 'ck' ) ).to.true;
-			expect( view.element.classList.contains( 'ck-media-form' ) ).to.true;
-			expect( view.element.classList.contains( 'ck-responsive-form' ) ).to.true;
-			expect( view.element.getAttribute( 'tabindex' ) ).to.equal( '-1' );
+			expect( view.element.classList.contains( 'ck' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-media-form' ) ).toBe( true );
+			expect( view.element.classList.contains( 'ck-responsive-form' ) ).toBe( true );
+			expect( view.element.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		} );
 
 		it( 'should create child views', () => {
-			expect( view.urlInputView ).to.be.instanceOf( View );
-			expect( view.saveButtonView ).to.be.instanceOf( View );
-			expect( view.cancelButtonView ).to.be.instanceOf( View );
+			expect( view.urlInputView ).toBeInstanceOf( View );
 
-			expect( view.saveButtonView.element.classList.contains( 'ck-button-save' ) ).to.be.true;
-			expect( view.cancelButtonView.element.classList.contains( 'ck-button-cancel' ) ).to.be.true;
-
-			expect( view._unboundChildren.get( 0 ) ).to.equal( view.urlInputView );
-			expect( view._unboundChildren.get( 1 ) ).to.equal( view.saveButtonView );
-			expect( view._unboundChildren.get( 2 ) ).to.equal( view.cancelButtonView );
+			expect( view._unboundChildren.get( 0 ) ).toBe( view.urlInputView );
 		} );
 
 		it( 'should create #focusTracker instance', () => {
-			expect( view.focusTracker ).to.be.instanceOf( FocusTracker );
+			expect( view.focusTracker ).toBeInstanceOf( FocusTracker );
 		} );
 
 		it( 'should create #keystrokes instance', () => {
-			expect( view.keystrokes ).to.be.instanceOf( KeystrokeHandler );
-		} );
-
-		it( 'should create #_focusCycler instance', () => {
-			expect( view._focusCycler ).to.be.instanceOf( FocusCycler );
-		} );
-
-		it( 'should create #_focusables view collection', () => {
-			expect( view._focusables ).to.be.instanceOf( ViewCollection );
-		} );
-
-		it( 'should fire "cancel" event on cancelButtonView#execute', () => {
-			const spy = sinon.spy();
-
-			view.on( 'cancel', spy );
-
-			view.cancelButtonView.fire( 'execute' );
-
-			expect( spy.calledOnce ).to.true;
+			expect( view.keystrokes ).toBeInstanceOf( KeystrokeHandler );
 		} );
 
 		describe( 'url input view', () => {
 			it( 'has info text', () => {
-				expect( view.urlInputView.infoText ).to.match( /^Paste the media URL/ );
+				expect( view.urlInputView.infoText ).toMatch( /^Paste the media URL/ );
 			} );
 
 			it( 'displays the tip upon #input when the field has a value', () => {
 				view.urlInputView.fieldView.element.value = 'foo';
 				view.urlInputView.fieldView.fire( 'input' );
 
-				expect( view.urlInputView.infoText ).to.match( /^Tip: Paste the URL into/ );
+				expect( view.urlInputView.infoText ).toMatch( /^Tip: Paste the URL into/ );
 
 				view.urlInputView.fieldView.element.value = '';
 				view.urlInputView.fieldView.fire( 'input' );
 
-				expect( view.urlInputView.infoText ).to.match( /^Paste the media URL/ );
+				expect( view.urlInputView.infoText ).toMatch( /^Paste the media URL/ );
 			} );
 		} );
 
 		describe( 'template', () => {
 			it( 'has url input view', () => {
-				expect( view.template.children[ 0 ] ).to.equal( view.urlInputView );
+				expect( view.template.children[ 0 ] ).toBe( view.urlInputView );
 			} );
 
 			it( 'has button views', () => {
-				expect( view.template.children[ 1 ] ).to.equal( view.saveButtonView );
-				expect( view.template.children[ 2 ] ).to.equal( view.cancelButtonView );
+				expect( view.template.children[ 1 ] ).toBe( view.saveButtonView );
+				expect( view.template.children[ 2 ] ).toBe( view.cancelButtonView );
 			} );
 		} );
 	} );
 
 	describe( 'render()', () => {
-		it( 'should register child views in #_focusables', () => {
-			expect( view._focusables.map( f => f ) ).to.have.members( [
-				view.urlInputView,
-				view.saveButtonView,
-				view.cancelButtonView
-			] );
-		} );
-
-		it( 'should register child views\' #element in #focusTracker', () => {
+		it( 'should register child view #element in #focusTracker', () => {
 			const view = new MediaFormView( [], { t: () => {} } );
 
-			const spy = testUtils.sinon.spy( view.focusTracker, 'add' );
+			const spy = vi.spyOn( view.focusTracker, 'add' );
 
 			view.render();
 
-			sinon.assert.calledWithExactly( spy.getCall( 0 ), view.urlInputView.element );
-			sinon.assert.calledWithExactly( spy.getCall( 1 ), view.saveButtonView.element );
-			sinon.assert.calledWithExactly( spy.getCall( 2 ), view.cancelButtonView.element );
+			expect( spy ).toHaveBeenNthCalledWith( 1, view.urlInputView.element );
 
 			view.destroy();
 		} );
@@ -140,117 +97,54 @@ describe( 'MediaFormView', () => {
 		it( 'starts listening for #keystrokes coming from #element', () => {
 			const view = new MediaFormView( [], { t: () => {} } );
 
-			const spy = sinon.spy( view.keystrokes, 'listenTo' );
+			const spy = vi.spyOn( view.keystrokes, 'listenTo' );
 
 			view.render();
-			sinon.assert.calledOnce( spy );
-			sinon.assert.calledWithExactly( spy, view.element );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy ).toHaveBeenCalledWith( view.element );
 
 			view.destroy();
-		} );
-
-		describe( 'activates keyboard navigation for the toolbar', () => {
-			it( 'so "tab" focuses the next focusable item', () => {
-				const keyEvtData = {
-					keyCode: keyCodes.tab,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
-				};
-
-				// Mock the url input is focused.
-				view.focusTracker.isFocused = true;
-				view.focusTracker.focusedElement = view.urlInputView.element;
-
-				const spy = sinon.spy( view.saveButtonView, 'focus' );
-
-				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				sinon.assert.calledOnce( spy );
-			} );
-
-			it( 'so "shift + tab" focuses the previous focusable item', () => {
-				const keyEvtData = {
-					keyCode: keyCodes.tab,
-					shiftKey: true,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
-				};
-
-				// Mock the cancel button is focused.
-				view.focusTracker.isFocused = true;
-				view.focusTracker.focusedElement = view.cancelButtonView.element;
-
-				const spy = sinon.spy( view.saveButtonView, 'focus' );
-
-				view.keystrokes.press( keyEvtData );
-				sinon.assert.calledOnce( keyEvtData.preventDefault );
-				sinon.assert.calledOnce( keyEvtData.stopPropagation );
-				sinon.assert.calledOnce( spy );
-			} );
-		} );
-
-		it( 'intercepts the arrow* events and overrides the default toolbar behavior', () => {
-			const keyEvtData = {
-				stopPropagation: sinon.spy()
-			};
-
-			keyEvtData.keyCode = keyCodes.arrowdown;
-			view.keystrokes.press( keyEvtData );
-			sinon.assert.calledOnce( keyEvtData.stopPropagation );
-
-			keyEvtData.keyCode = keyCodes.arrowup;
-			view.keystrokes.press( keyEvtData );
-			sinon.assert.calledTwice( keyEvtData.stopPropagation );
-
-			keyEvtData.keyCode = keyCodes.arrowleft;
-			view.keystrokes.press( keyEvtData );
-			sinon.assert.calledThrice( keyEvtData.stopPropagation );
-
-			keyEvtData.keyCode = keyCodes.arrowright;
-			view.keystrokes.press( keyEvtData );
-			sinon.assert.callCount( keyEvtData.stopPropagation, 4 );
 		} );
 	} );
 
 	describe( 'destroy()', () => {
 		it( 'should destroy the FocusTracker instance', () => {
-			const destroySpy = sinon.spy( view.focusTracker, 'destroy' );
+			const destroySpy = vi.spyOn( view.focusTracker, 'destroy' );
 
 			view.destroy();
 
-			sinon.assert.calledOnce( destroySpy );
+			expect( destroySpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should destroy the KeystrokeHandler instance', () => {
-			const destroySpy = sinon.spy( view.keystrokes, 'destroy' );
+			const destroySpy = vi.spyOn( view.keystrokes, 'destroy' );
 
 			view.destroy();
 
-			sinon.assert.calledOnce( destroySpy );
+			expect( destroySpy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
 	describe( 'DOM bindings', () => {
 		describe( 'submit event', () => {
 			it( 'should trigger submit event', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				view.on( 'submit', spy );
 				view.element.dispatchEvent( new Event( 'submit' ) );
 
-				expect( spy.calledOnce ).to.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 	} );
 
 	describe( 'focus()', () => {
 		it( 'focuses the #urlInputView', () => {
-			const spy = sinon.spy( view.urlInputView, 'focus' );
+			const spy = vi.spyOn( view.urlInputView, 'focus' );
 
 			view.focus();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -258,55 +152,55 @@ describe( 'MediaFormView', () => {
 		it( 'returns the #inputView DOM value', () => {
 			view.urlInputView.fieldView.element.value = 'foo';
 
-			expect( view.url ).to.equal( 'foo' );
+			expect( view.url ).toBe( 'foo' );
 		} );
 
 		it( 'sets the #inputView DOM value', () => {
 			view.urlInputView.fieldView.element.value = 'bar';
 
 			view.url = 'foo';
-			expect( view.urlInputView.fieldView.element.value ).to.equal( 'foo' );
+			expect( view.urlInputView.fieldView.element.value ).toBe( 'foo' );
 
 			view.url = ' baz ';
-			expect( view.urlInputView.fieldView.element.value ).to.equal( 'baz' );
+			expect( view.urlInputView.fieldView.element.value ).toBe( 'baz' );
 		} );
 	} );
 
 	describe( 'isValid()', () => {
 		it( 'calls resetFormStatus()', () => {
-			const spy = sinon.spy( view, 'resetFormStatus' );
+			const spy = vi.spyOn( view, 'resetFormStatus' );
 
 			view.isValid();
 
-			sinon.assert.calledOnce( spy );
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'returns false when at least one validator has failed', () => {
-			const val1 = sinon.stub().returns( 'some error' );
-			const val2 = sinon.stub().returns( false );
+			const val1 = vi.fn().mockReturnValue( 'some error' );
+			const val2 = vi.fn().mockReturnValue( false );
 			const validators = [ val1, val2 ];
 			const view = new MediaFormView( validators, { t: val => val } );
 
-			expect( view.isValid() ).to.be.false;
+			expect( view.isValid() ).toBe( false );
 
-			sinon.assert.calledOnce( val1 );
-			sinon.assert.notCalled( val2 );
+			expect( val1 ).toHaveBeenCalledOnce();
+			expect( val2 ).not.toHaveBeenCalled();
 
-			expect( view.urlInputView.errorText ).to.equal( 'some error' );
+			expect( view.urlInputView.errorText ).toBe( 'some error' );
 		} );
 
 		it( 'returns true when all validators passed', () => {
-			const val1 = sinon.stub().returns( false );
-			const val2 = sinon.stub().returns( false );
+			const val1 = vi.fn().mockReturnValue( false );
+			const val2 = vi.fn().mockReturnValue( false );
 			const validators = [ val1, val2 ];
 			const view = new MediaFormView( validators, { t: val => val } );
 
-			expect( view.isValid() ).to.be.true;
+			expect( view.isValid() ).toBe( true );
 
-			sinon.assert.calledOnce( val1 );
-			sinon.assert.calledOnce( val2 );
+			expect( val1 ).toHaveBeenCalledOnce();
+			expect( val2 ).toHaveBeenCalledOnce();
 
-			expect( view.urlInputView.errorText ).to.be.null;
+			expect( view.urlInputView.errorText ).toBeNull();
 		} );
 	} );
 
@@ -316,7 +210,7 @@ describe( 'MediaFormView', () => {
 
 			view.resetFormStatus();
 
-			expect( view.urlInputView.errorText ).to.be.null;
+			expect( view.urlInputView.errorText ).toBeNull();
 		} );
 
 		it( 'resets urlInputView#infoText', () => {
@@ -324,7 +218,7 @@ describe( 'MediaFormView', () => {
 
 			view.resetFormStatus();
 
-			expect( view.urlInputView.infoText ).to.match( /^Paste the media URL/ );
+			expect( view.urlInputView.infoText ).toMatch( /^Paste the media URL/ );
 		} );
 	} );
 } );

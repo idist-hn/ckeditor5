@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import FontBackgroundColorEditing from './../../src/fontbackgroundcolor/fontbackgroundcolorediting';
-import FontBackgroundColorUI from './../../src/fontbackgroundcolor/fontbackgroundcolorui';
-import ColorUI from './../../src/ui/colorui';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import fontBackgroundColorIcon from '../../theme/icons/font-background.svg';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { IconFontBackground } from '@ckeditor/ckeditor5-icons';
+import { FontBackgroundColorEditing } from './../../src/fontbackgroundcolor/fontbackgroundcolorediting.js';
+import { FontBackgroundColorUI } from './../../src/fontbackgroundcolor/fontbackgroundcolorui.js';
+import { FontColorUIBase } from './../../src/ui/colorui.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _DEFAULT_COLOR_GRID_COLUMNS as defaultColorGridColumns } from '@ckeditor/ckeditor5-ui';
 
 describe( 'FontBckgroundColorUI', () => {
 	let element, editor;
@@ -33,17 +33,17 @@ describe( 'FontBckgroundColorUI', () => {
 		return editor.destroy();
 	} );
 
-	it( 'is ColorUI', () => {
-		expect( FontBackgroundColorUI.prototype ).to.be.instanceOf( ColorUI );
+	it( 'is FontColorUIBase', () => {
+		expect( FontBackgroundColorUI.prototype ).toBeInstanceOf( FontColorUIBase );
 	} );
 
 	it( 'has properly set initial values', () => {
 		const fontBackgroundColorUIPlugin = editor.plugins.get( 'FontBackgroundColorUI' );
 
-		expect( fontBackgroundColorUIPlugin.commandName ).to.equal( 'fontBackgroundColor' );
-		expect( fontBackgroundColorUIPlugin.componentName ).to.equal( 'fontBackgroundColor' );
-		expect( fontBackgroundColorUIPlugin.icon ).to.equal( fontBackgroundColorIcon );
-		expect( fontBackgroundColorUIPlugin.dropdownLabel ).to.equal( 'Font Background Color' );
-		expect( fontBackgroundColorUIPlugin.columns ).to.equal( 5 );
+		expect( fontBackgroundColorUIPlugin.commandName ).toEqual( 'fontBackgroundColor' );
+		expect( fontBackgroundColorUIPlugin.componentName ).toEqual( 'fontBackgroundColor' );
+		expect( fontBackgroundColorUIPlugin.icon ).toEqual( IconFontBackground );
+		expect( fontBackgroundColorUIPlugin.dropdownLabel ).toEqual( 'Font Background Color' );
+		expect( fontBackgroundColorUIPlugin.columns ).toEqual( defaultColorGridColumns );
 	} );
 } );

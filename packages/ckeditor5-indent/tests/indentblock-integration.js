@@ -1,21 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import HeadingEditing from '@ckeditor/ckeditor5-heading/src/headingediting';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _getViewData } from '@ckeditor/ckeditor5-engine';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
 
-import IndentEditing from '../src/indentediting';
-import IndentBlock from '../src/indentblock';
+import { IndentEditing } from '../src/indentediting.js';
+import { IndentBlock } from '../src/indentblock.js';
 
 describe( 'IndentBlock - integration', () => {
 	let editor, doc;
-
-	testUtils.createSinonSandbox();
 
 	afterEach( () => {
 		if ( editor ) {
@@ -37,12 +35,12 @@ describe( 'IndentBlock - integration', () => {
 
 			const paragraph = doc.getRoot().getChild( 0 );
 
-			expect( paragraph.hasAttribute( 'blockIndent' ) ).to.be.true;
-			expect( paragraph.getAttribute( 'blockIndent' ) ).to.equal( '50px' );
+			expect( paragraph.hasAttribute( 'blockIndent' ) ).toBe( true );
+			expect( paragraph.getAttribute( 'blockIndent' ) ).toEqual( '50px' );
 
-			expect( editor.getData() ).to.equal( '<p style="margin-left:50px;">foo</p>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( '<p style="margin-left:50px">foo</p>' );
+			expect( editor.getData() ).toEqual( '<p style="margin-left:50px;">foo</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toEqual( '<p style="margin-left:50px">foo</p>' );
 		} );
 	} );
 
@@ -62,12 +60,12 @@ describe( 'IndentBlock - integration', () => {
 
 			const paragraph = doc.getRoot().getChild( 0 );
 
-			expect( paragraph.hasAttribute( 'blockIndent' ) ).to.be.true;
-			expect( paragraph.getAttribute( 'blockIndent' ) ).to.equal( '50px' );
+			expect( paragraph.hasAttribute( 'blockIndent' ) ).toBe( true );
+			expect( paragraph.getAttribute( 'blockIndent' ) ).toEqual( '50px' );
 
-			expect( editor.getData() ).to.equal( '<p style="margin-left:50px;">foo</p>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( '<p style="margin-left:50px">foo</p>' );
+			expect( editor.getData() ).toEqual( '<p style="margin-left:50px;">foo</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toEqual( '<p style="margin-left:50px">foo</p>' );
 		} );
 	} );
 
@@ -105,12 +103,12 @@ describe( 'IndentBlock - integration', () => {
 
 			const customHeading = doc.getRoot().getChild( 0 );
 
-			expect( customHeading.hasAttribute( 'blockIndent' ) ).to.be.true;
-			expect( customHeading.getAttribute( 'blockIndent' ) ).to.equal( '150px' );
+			expect( customHeading.hasAttribute( 'blockIndent' ) ).toBe( true );
+			expect( customHeading.getAttribute( 'blockIndent' ) ).toEqual( '150px' );
 
-			expect( editor.getData() ).to.equal( '<h2 class="fancy" style="margin-left:150px;">foo</h2>' );
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) )
-				.to.equal( '<h2 class="fancy" style="margin-left:150px">foo</h2>' );
+			expect( editor.getData() ).toEqual( '<h2 class="fancy" style="margin-left:150px;">foo</h2>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) )
+				.toEqual( '<h2 class="fancy" style="margin-left:150px">foo</h2>' );
 		} );
 	} );
 
@@ -127,7 +125,7 @@ describe( 'IndentBlock - integration', () => {
 
 			const paragraph = doc.getRoot().getChild( 0 );
 
-			expect( paragraph.hasAttribute( 'blockIndent' ) ).to.be.true;
+			expect( paragraph.hasAttribute( 'blockIndent' ) ).toBe( true );
 		} );
 	} );
 

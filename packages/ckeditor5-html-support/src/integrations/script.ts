@@ -1,31 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/integrations/script
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 import {
 	createObjectView,
 	modelToViewBlockAttributeConverter,
 	viewToModelBlockAttributeConverter,
 	viewToModelObjectConverter
-} from '../converters';
-import DataFilter, { type DataFilterRegisterEvent } from '../datafilter';
-import type { DataSchemaBlockElementDefinition } from '../dataschema';
+} from '../converters.js';
+import { DataFilter, type HtmlSupportDataFilterRegisterEvent } from '../datafilter.js';
+import type { HtmlSupportDataSchemaBlockElementDefinition } from '../dataschema.js';
 
 /**
  * Provides the General HTML Support for `script` elements.
  */
-export default class ScriptElementSupport extends Plugin {
+export class ScriptElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ DataFilter ] as const;
+	public static get requires(): PluginDependenciesOf<[ DataFilter ]> {
+		return [ DataFilter ];
 	}
 
 	/**
@@ -38,10 +38,17 @@ export default class ScriptElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const dataFilter = this.editor.plugins.get( DataFilter );
 
-		dataFilter.on<DataFilterRegisterEvent>( 'register:script', ( evt, definition ) => {
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( 'register:script', ( evt, definition ) => {
 			const editor = this.editor;
 			const schema = editor.model.schema;
 			const conversion = editor.conversion;
@@ -63,7 +70,7 @@ export default class ScriptElementSupport extends Plugin {
 			} );
 
 			conversion.for( 'upcast' ).add( viewToModelBlockAttributeConverter(
-				definition as DataSchemaBlockElementDefinition,
+				definition as HtmlSupportDataSchemaBlockElementDefinition,
 				dataFilter
 			) );
 
@@ -74,7 +81,8 @@ export default class ScriptElementSupport extends Plugin {
 				}
 			} );
 
-			conversion.for( 'downcast' ).add( modelToViewBlockAttributeConverter( definition as DataSchemaBlockElementDefinition ) );
+			conversion.for( 'downcast' )
+				.add( modelToViewBlockAttributeConverter( definition as HtmlSupportDataSchemaBlockElementDefinition ) );
 
 			evt.stop();
 		} );

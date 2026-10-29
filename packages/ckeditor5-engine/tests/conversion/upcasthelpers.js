@@ -1,37 +1,38 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import UpcastDispatcher from '../../src/conversion/upcastdispatcher';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { UpcastDispatcher } from '../../src/conversion/upcastdispatcher.js';
 
-import ViewContainerElement from '../../src/view/containerelement';
-import ViewDocumentFragment from '../../src/view/documentfragment';
-import ViewText from '../../src/view/text';
-import ViewUIElement from '../../src/view/uielement';
-import ViewAttributeElement from '../../src/view/attributeelement';
-import ViewDocument from '../../src/view/document';
+import { ViewContainerElement } from '../../src/view/containerelement.js';
+import { ViewDocumentFragment } from '../../src/view/documentfragment.js';
+import { ViewText } from '../../src/view/text.js';
+import { ViewUIElement } from '../../src/view/uielement.js';
+import { ViewAttributeElement } from '../../src/view/attributeelement.js';
+import { ViewDocument } from '../../src/view/document.js';
 
-import Model from '../../src/model/model';
-import ModelDocumentFragment from '../../src/model/documentfragment';
-import ModelElement from '../../src/model/element';
-import ModelText from '../../src/model/text';
-import ModelRange from '../../src/model/range';
-import ModelPosition from '../../src/model/position';
+import { Model } from '../../src/model/model.js';
+import { ModelDocumentFragment } from '../../src/model/documentfragment.js';
+import { ModelElement } from '../../src/model/element.js';
+import { ModelText } from '../../src/model/text.js';
+import { ModelRange } from '../../src/model/range.js';
+import { ModelPosition } from '../../src/model/position.js';
 
-import UpcastHelpers, { convertToModelFragment, convertText, convertSelectionChange } from '../../src/conversion/upcasthelpers';
+import { UpcastHelpers, convertToModelFragment, convertText, convertSelectionChange } from '../../src/conversion/upcasthelpers.js';
 
-import { getData as modelGetData, setData as modelSetData, stringify } from '../../src/dev-utils/model';
-import View from '../../src/view/view';
-import createViewRoot from '../view/_utils/createroot';
-import { setData as viewSetData, parse as viewParse } from '../../src/dev-utils/view';
-import Mapper from '../../src/conversion/mapper';
-import ViewSelection from '../../src/view/selection';
-import ViewRange from '../../src/view/range';
-import { StylesProcessor } from '../../src/view/stylesmap';
-import Writer from '../../src/model/writer';
+import { _getModelData, _setModelData, _stringifyModel } from '../../src/dev-utils/model.js';
+import { EditingView } from '../../src/view/view.js';
+import { createViewRoot } from '../view/_utils/createroot.js';
+import { _setViewData, _parseView } from '../../src/dev-utils/view.js';
+import { Mapper } from '../../src/conversion/mapper.js';
+import { ViewSelection } from '../../src/view/selection.js';
+import { ViewRange } from '../../src/view/range.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
+import { ModelWriter } from '../../src/model/writer.js';
 
-import toArray from '@ckeditor/ckeditor5-utils/src/toarray';
+import { toArray } from '@ckeditor/ckeditor5-utils';
 
 describe( 'UpcastHelpers', () => {
 	let upcastDispatcher, model, schema, upcastHelpers, viewDocument;
@@ -61,7 +62,7 @@ describe( 'UpcastHelpers', () => {
 
 	describe( 'elementToElement()', () => {
 		it( 'should be chainable', () => {
-			expect( upcastHelpers.elementToElement( { view: 'p', model: 'paragraph' } ) ).to.equal( upcastHelpers );
+			expect( upcastHelpers.elementToElement( { view: 'p', model: 'paragraph' } ) ).toBe( upcastHelpers );
 		} );
 
 		it( 'config.view is a string', () => {
@@ -174,7 +175,7 @@ describe( 'UpcastHelpers', () => {
 
 	describe( 'elementToAttribute()', () => {
 		it( 'should be chainable', () => {
-			expect( upcastHelpers.elementToAttribute( { view: 'strong', model: 'bold' } ) ).to.equal( upcastHelpers );
+			expect( upcastHelpers.elementToAttribute( { view: 'strong', model: 'bold' } ) ).toBe( upcastHelpers );
 		} );
 
 		it( 'config.view is string', () => {
@@ -251,12 +252,17 @@ describe( 'UpcastHelpers', () => {
 				},
 				model: {
 					key: 'fontSize',
-					value: ( viewElement, conversionApi ) => {
+					value: ( viewElement, conversionApi, data ) => {
 						const fontSize = viewElement.getStyle( 'font-size' );
 						const value = fontSize.substr( 0, fontSize.length - 2 );
 
 						// To ensure conversion API is provided.
-						expect( conversionApi.writer ).to.instanceof( Writer );
+						expect( conversionApi.writer ).to.instanceof( ModelWriter );
+
+						// To ensure upcast conversion data is provided.
+						expect( data.modelCursor ).toBeInstanceOf( ModelPosition );
+						expect( data.viewItem ).toBe( viewElement );
+						expect( data.modelRange ).toBeNull();
 
 						if ( value <= 10 ) {
 							return 'small';
@@ -296,11 +302,32 @@ describe( 'UpcastHelpers', () => {
 
 		it( 'should not do anything if returned model attribute is null', () => {
 			upcastHelpers.elementToAttribute( { view: 'strong', model: 'bold' } );
+
+			// On a high priority, so we could check if it does not consume anything before the above converter.
 			upcastHelpers.elementToAttribute( {
 				view: 'strong',
 				model: {
 					key: 'bold',
 					value: () => null
+				},
+				converterPriority: 'high'
+			} );
+
+			expectResult(
+				new ViewAttributeElement( viewDocument, 'strong', null, new ViewText( viewDocument, 'foo' ) ),
+				'<$text bold="true">foo</$text>'
+			);
+		} );
+
+		it( 'should not do anything if returned model attribute is undefined', () => {
+			upcastHelpers.elementToAttribute( { view: 'strong', model: 'bold' } );
+
+			// On a high priority, so we could check if it does not consume anything before the above converter.
+			upcastHelpers.elementToAttribute( {
+				view: 'strong',
+				model: {
+					key: 'bold',
+					value: () => undefined
 				},
 				converterPriority: 'high'
 			} );
@@ -438,7 +465,7 @@ describe( 'UpcastHelpers', () => {
 			} );
 
 			it( 'should not overwrite attributes if nested elements have the same attribute but different values', () => {
-				const viewElement = viewParse( '<span style="font-size:9px"><span style="font-size:11px">Bar</span></span>' );
+				const viewElement = _parseView( '<span style="font-size:9px"><span style="font-size:11px">Bar</span></span>' );
 
 				expectResult(
 					viewElement,
@@ -447,7 +474,7 @@ describe( 'UpcastHelpers', () => {
 			} );
 
 			it( 'should convert text before the nested duplicated attribute with the most outer value', () => {
-				const viewElement = viewParse( '<span style="font-size:9px">Foo<span style="font-size:11px">Bar</span></span>' );
+				const viewElement = _parseView( '<span style="font-size:9px">Foo<span style="font-size:11px">Bar</span></span>' );
 
 				expectResult(
 					viewElement,
@@ -456,7 +483,7 @@ describe( 'UpcastHelpers', () => {
 			} );
 
 			it( 'should convert text after the nested duplicated attribute with the most outer values', () => {
-				const viewElement = viewParse( '<span style="font-size:9px"><span style="font-size:11px">Bar</span>Bom</span>' );
+				const viewElement = _parseView( '<span style="font-size:9px"><span style="font-size:11px">Bar</span>Bom</span>' );
 
 				expectResult(
 					viewElement,
@@ -465,7 +492,7 @@ describe( 'UpcastHelpers', () => {
 			} );
 
 			it( 'should convert texts before and after the nested duplicated attribute with the most outer value', () => {
-				const viewElement = viewParse( '<span style="font-size:9px">Foo<span style="font-size:11px">Bar</span>Bom</span>' );
+				const viewElement = _parseView( '<span style="font-size:9px">Foo<span style="font-size:11px">Bar</span>Bom</span>' );
 
 				expectResult(
 					viewElement,
@@ -474,7 +501,7 @@ describe( 'UpcastHelpers', () => {
 			} );
 
 			it( 'should work with multiple duplicated attributes', () => {
-				const viewElement = viewParse(
+				const viewElement = _parseView(
 					'<span style="font-size:9px;color: #0000ff"><span style="font-size:11px;color: #ff0000">Bar</span></span>'
 				);
 
@@ -485,7 +512,7 @@ describe( 'UpcastHelpers', () => {
 			} );
 
 			it( 'should convert non-duplicated attributes from the most outer element', () => {
-				const viewElement = viewParse(
+				const viewElement = _parseView(
 					'<span style="font-size:9px;color: #0000ff"><span style="font-size:11px;">Bar</span></span>'
 				);
 
@@ -503,10 +530,10 @@ describe( 'UpcastHelpers', () => {
 						styles: [ 'font-size' ]
 					} );
 
-					expect( wasConsumed, `span[fontSize=${ viewItem.getStyle( 'font-size' ) }]` ).to.equal( false );
+					expect( wasConsumed, `span[fontSize=${ viewItem.getStyle( 'font-size' ) }]` ).toBe( false );
 				}, { priority: 'lowest' } );
 
-				const viewElement = viewParse(
+				const viewElement = _parseView(
 					'<span style="font-size:9px;"><span style="font-size:11px;">Bar</span></span>'
 				);
 
@@ -528,7 +555,7 @@ describe( 'UpcastHelpers', () => {
 		} );
 
 		it( 'should be chainable', () => {
-			expect( upcastHelpers.attributeToAttribute( { view: 'src', model: 'source' } ) ).to.equal( upcastHelpers );
+			expect( upcastHelpers.attributeToAttribute( { view: 'src', model: 'source' } ) ).toBe( upcastHelpers );
 		} );
 
 		it( 'config.view is a string', () => {
@@ -603,6 +630,64 @@ describe( 'UpcastHelpers', () => {
 			);
 		} );
 
+		it( 'config.view does not have value set for style key', () => {
+			schema.extend( 'imageBlock', {
+				allowAttributes: [ 'styled' ]
+			} );
+
+			upcastHelpers.attributeToAttribute( {
+				view: 'style',
+				model: 'styled'
+			} );
+
+			// Ensure that proper consumables are consumed.
+			upcastDispatcher.on( 'element', ( evt, data, { consumable } ) => {
+				expect( consumable.test( data.viewItem, { styles: [ 'border', 'padding' ] } ) ).toBe( true );
+				expect( consumable.test( data.viewItem, { styles: [ 'border' ] } ) ).toBe( true );
+				expect( consumable.test( data.viewItem, { styles: [ 'padding' ] } ) ).toBe( true );
+			}, { priority: 'highest' } );
+
+			upcastDispatcher.on( 'element', ( evt, data, { consumable } ) => {
+				expect( consumable.test( data.viewItem, { styles: [ 'border', 'padding' ] } ) ).toBe( false );
+				expect( consumable.test( data.viewItem, { styles: [ 'border' ] } ) ).toBe( false );
+				expect( consumable.test( data.viewItem, { styles: [ 'padding' ] } ) ).toBe( false );
+			}, { priority: 'lowest' } );
+
+			expectResult(
+				new ViewAttributeElement( viewDocument, 'img', { 'style': 'border: 2px solid red; padding: 6px 3px;' } ),
+				'<imageBlock styled="border:2px solid red;padding:6px 3px;"></imageBlock>'
+			);
+		} );
+
+		it( 'config.view does not have value set for class key', () => {
+			schema.extend( 'imageBlock', {
+				allowAttributes: [ 'classNames' ]
+			} );
+
+			upcastHelpers.attributeToAttribute( {
+				view: 'class',
+				model: 'classNames'
+			} );
+
+			// Ensure that proper consumables are consumed.
+			upcastDispatcher.on( 'element', ( evt, data, { consumable } ) => {
+				expect( consumable.test( data.viewItem, { classes: [ 'foo', 'bar' ] } ) ).toBe( true );
+				expect( consumable.test( data.viewItem, { classes: [ 'foo' ] } ) ).toBe( true );
+				expect( consumable.test( data.viewItem, { classes: [ 'bar' ] } ) ).toBe( true );
+			}, { priority: 'highest' } );
+
+			upcastDispatcher.on( 'element', ( evt, data, { consumable } ) => {
+				expect( consumable.test( data.viewItem, { classes: [ 'foo', 'bar' ] } ) ).toBe( false );
+				expect( consumable.test( data.viewItem, { classes: [ 'foo' ] } ) ).toBe( false );
+				expect( consumable.test( data.viewItem, { classes: [ 'bar' ] } ) ).toBe( false );
+			}, { priority: 'lowest' } );
+
+			expectResult(
+				new ViewAttributeElement( viewDocument, 'img', { 'class': 'foo bar' } ),
+				'<imageBlock classNames="foo bar"></imageBlock>'
+			);
+		} );
+
 		it( 'model attribute value is a string', () => {
 			schema.extend( 'imageBlock', {
 				allowAttributes: [ 'styled' ]
@@ -650,12 +735,19 @@ describe( 'UpcastHelpers', () => {
 				},
 				model: {
 					key: 'styled',
-					value: ( viewElement, conversionApi ) => {
+					value: ( viewElement, conversionApi, data ) => {
 						const regexp = /styled-([\S]+)/;
 						const match = viewElement.getAttribute( 'class' ).match( regexp );
 
 						// To ensure conversion API is provided.
-						expect( conversionApi.writer ).to.instanceof( Writer );
+						expect( conversionApi.writer ).to.instanceof( ModelWriter );
+
+						// To ensure upcast conversion data is provided.
+						expect( data.modelCursor ).toBeInstanceOf( ModelPosition );
+						expect( data.viewItem ).toBe( viewElement );
+						expect( data.modelRange ).to.be.instanceOf( ModelRange );
+						expect( data.modelRange.start.path ).toEqual( [ 0 ] );
+						expect( data.modelRange.end.path ).toEqual( [ 1 ] );
 
 						return match[ 1 ];
 					}
@@ -682,6 +774,19 @@ describe( 'UpcastHelpers', () => {
 				allowAttributes: [ 'styled' ]
 			} );
 
+			// Run this first to verify if it does not consume.
+			upcastHelpers.attributeToAttribute( {
+				view: {
+					key: 'class',
+					value: 'styled'
+				},
+				model: {
+					key: 'styled',
+					value: () => null
+				}
+			} );
+
+			// This runs later as the above should not consume anything.
 			upcastHelpers.attributeToAttribute( {
 				view: {
 					key: 'class',
@@ -693,6 +798,18 @@ describe( 'UpcastHelpers', () => {
 				}
 			} );
 
+			expectResult(
+				new ViewAttributeElement( viewDocument, 'img', { class: 'styled' } ),
+				'<imageBlock styled="true"></imageBlock>'
+			);
+		} );
+
+		it( 'should not do anything if returned model attribute is undefined', () => {
+			schema.extend( 'imageBlock', {
+				allowAttributes: [ 'styled' ]
+			} );
+
+			// Run this first to verify if it does not consume.
 			upcastHelpers.attributeToAttribute( {
 				view: {
 					key: 'class',
@@ -700,7 +817,19 @@ describe( 'UpcastHelpers', () => {
 				},
 				model: {
 					key: 'styled',
-					value: () => null
+					value: () => undefined
+				}
+			} );
+
+			// This runs later as the above should not consume anything.
+			upcastHelpers.attributeToAttribute( {
+				view: {
+					key: 'class',
+					value: 'styled'
+				},
+				model: {
+					key: 'styled',
+					value: true
 				}
 			} );
 
@@ -748,7 +877,7 @@ describe( 'UpcastHelpers', () => {
 				allowAttributes: [ 'foo' ]
 			} );
 
-			const viewElement = viewParse(
+			const viewElement = _parseView(
 				'<div foo="foo-value">abc</div>' +
 				'<p foo="foo-value">def</p>'
 			);
@@ -762,7 +891,7 @@ describe( 'UpcastHelpers', () => {
 		// #9536.
 		describe( 'calling the `model.value()` callback', () => {
 			it( 'should not call the `model.view()` callback if the attribute was already consumed', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				upcastHelpers.attributeToAttribute( {
 					view: {
@@ -783,21 +912,21 @@ describe( 'UpcastHelpers', () => {
 					} );
 				} );
 
-				const viewElement = viewParse( '<span style="text-align:center;">Foo.</span>' );
+				const viewElement = _parseView( '<span style="text-align:center;">Foo.</span>' );
 
 				expectResult(
 					viewElement,
 					'Foo.'
 				);
 
-				expect( spy.called ).to.equal( false );
+				expect( spy.mock.calls.length ).toBe( 0 );
 			} );
 		} );
 	} );
 
 	describe( 'elementToMarker()', () => {
 		it( 'should be chainable', () => {
-			expect( upcastHelpers.elementToMarker( { view: 'marker-search', model: 'search' } ) ).to.equal( upcastHelpers );
+			expect( upcastHelpers.elementToMarker( { view: 'marker-search', model: 'search' } ) ).toBe( upcastHelpers );
 		} );
 
 		it( 'config.view is a string', () => {
@@ -860,7 +989,7 @@ describe( 'UpcastHelpers', () => {
 				view: 'comment',
 				model: ( viewElement, conversionApi ) => {
 					// To ensure conversion API is provided.
-					expect( conversionApi.writer ).to.instanceof( Writer );
+					expect( conversionApi.writer ).to.instanceof( ModelWriter );
 
 					return 'comment:' + viewElement.getAttribute( 'data-comment-id' );
 				}
@@ -904,14 +1033,14 @@ describe( 'UpcastHelpers', () => {
 		} );
 
 		it( 'should be chainable', () => {
-			expect( upcastHelpers.dataToMarker( { view: 'search' } ) ).to.equal( upcastHelpers );
+			expect( upcastHelpers.dataToMarker( { view: 'search' } ) ).toBe( upcastHelpers );
 		} );
 
 		it( 'default conversion, inside text, non-collapsed, no name', () => {
 			upcastHelpers.dataToMarker( { view: 'search' } );
 
 			expectResult(
-				viewParse( '<p>Fo<search-start></search-start>ob<search-end></search-end>ar</p>' ),
+				_parseView( '<p>Fo<search-start></search-start>ob<search-end></search-end>ar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'search', start: [ 0, 2 ], end: [ 0, 4 ] }
 			);
@@ -921,7 +1050,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse( '<p>Fo<group-start name="foo:bar:baz"></group-start>ob<group-end name="foo:bar:baz"></group-end>ar</p>' ),
+				_parseView( '<p>Fo<group-start name="foo:bar:baz"></group-start>ob<group-end name="foo:bar:baz"></group-end>ar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'group:foo:bar:baz', start: [ 0, 2 ], end: [ 0, 4 ] }
 			);
@@ -931,7 +1060,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'search' } );
 
 			expectResult(
-				viewParse( '<p>Foo<search-start></search-start><search-end></search-end>bar</p>' ),
+				_parseView( '<p>Foo<search-start></search-start><search-end></search-end>bar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'search', start: [ 0, 3 ], end: [ 0, 3 ] }
 			);
@@ -941,7 +1070,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse(
+				_parseView(
 					'<p>' +
 						'Foo' +
 						'<group-start name="abc"></group-start><group-end name="abc"></group-end>' +
@@ -961,7 +1090,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'search' } );
 
 			expectResult(
-				viewParse( '<p data-search-start-before="">Foo</p><p data-search-end-after="">Bar</p>' ),
+				_parseView( '<p data-search-start-before="">Foo</p><p data-search-end-after="">Bar</p>' ),
 				'<paragraph>Foo</paragraph><paragraph>Bar</paragraph>',
 				{ name: 'search', start: [ 0 ], end: [ 2 ] }
 			);
@@ -971,7 +1100,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse( '<p data-group-start-before="foo:bar:baz">Foo</p><p data-group-end-after="foo:bar:baz">Bar</p>' ),
+				_parseView( '<p data-group-start-before="foo:bar:baz">Foo</p><p data-group-end-after="foo:bar:baz">Bar</p>' ),
 				'<paragraph>Foo</paragraph><paragraph>Bar</paragraph>',
 				{ name: 'group:foo:bar:baz', start: [ 0 ], end: [ 2 ] }
 			);
@@ -981,7 +1110,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse( '<p data-group-end-after="foo:bar:baz" data-group-start-before="foo:bar:baz">Foobar</p>' ),
+				_parseView( '<p data-group-end-after="foo:bar:baz" data-group-start-before="foo:bar:baz">Foobar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'group:foo:bar:baz', start: [ 0 ], end: [ 1 ] }
 			);
@@ -991,7 +1120,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse( '<p data-group-end-before="foo:bar:baz" data-group-start-before="foo:bar:baz">Foobar</p>' ),
+				_parseView( '<p data-group-end-before="foo:bar:baz" data-group-start-before="foo:bar:baz">Foobar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'group:foo:bar:baz', start: [ 0 ], end: [ 0 ] }
 			);
@@ -1001,7 +1130,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse( '<p data-group-end-after="foo:bar:baz" data-group-start-after="foo:bar:baz">Foobar</p>' ),
+				_parseView( '<p data-group-end-after="foo:bar:baz" data-group-start-after="foo:bar:baz">Foobar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'group:foo:bar:baz', start: [ 1 ], end: [ 1 ] }
 			);
@@ -1011,7 +1140,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse(
+				_parseView(
 					'<p data-group-start-before="abc:xyz,foo:bar">Foo</p>' +
 					'<p>Ba<group-end name="abc:xyz"></group-end><group-end name="foo:bar"></group-end>r</p>'
 				),
@@ -1027,7 +1156,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse(
+				_parseView(
 					'<p>F<group-start name="abc:xyz"></group-start><group-start name="foo:bar"></group-start>oo</p>' +
 					'<p data-group-end-after="abc:xyz,foo:bar">Bar</p>'
 				),
@@ -1044,14 +1173,14 @@ describe( 'UpcastHelpers', () => {
 				view: 'g',
 				model: ( name, conversionApi ) => {
 					// To ensure conversion API is provided.
-					expect( conversionApi.writer ).to.instanceof( Writer );
+					expect( conversionApi.writer ).to.instanceof( ModelWriter );
 
 					return 'group:' + name.split( '_' )[ 0 ];
 				}
 			} );
 
 			expectResult(
-				viewParse(
+				_parseView(
 					'<p data-g-start-before="abc_xyz,foo_bar">Foo</p>' +
 					'<p>Ba<g-end name="abc_xyz"></g-end><g-end name="foo_bar"></g-end>r</p>'
 				),
@@ -1068,7 +1197,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group', model: name => 'g:' + name, converterPriority: 'high' } );
 
 			expectResult(
-				viewParse( '<p>Foo<group-start name="foo"></group-start><group-end name="foo"></group-end>bar</p>' ),
+				_parseView( '<p>Foo<group-start name="foo"></group-start><group-end name="foo"></group-end>bar</p>' ),
 				'<paragraph>Foobar</paragraph>',
 				{ name: 'g:foo', start: [ 0, 3 ], end: [ 0, 3 ] }
 			);
@@ -1078,7 +1207,7 @@ describe( 'UpcastHelpers', () => {
 			upcastHelpers.dataToMarker( { view: 'group' } );
 
 			expectResult(
-				viewParse( '<div data-group-end-after="foo" data-group-start-before="foo"><p>Foo</p></div>' ),
+				_parseView( '<div data-group-end-after="foo" data-group-start-before="foo"><p>Foo</p></div>' ),
 				'<paragraph>Foo</paragraph>',
 				{ name: 'group:foo', start: [ 0 ], end: [ 1 ] }
 			);
@@ -1087,22 +1216,24 @@ describe( 'UpcastHelpers', () => {
 		it( 'should not invoke conversion API when the attributes are not consumable', () => {
 			upcastHelpers.dataToMarker( { view: 'fake' } );
 
-			let conversionConsumeSpy = sinon.spy();
+			let conversionConsumeSpy = vi.fn();
 
 			upcastDispatcher.on( 'element:div', ( evt, data, conversionApi ) => {
-				conversionConsumeSpy = sinon.spy( conversionApi.consumable, 'consume' );
+				conversionConsumeSpy = vi.spyOn( conversionApi.consumable, 'consume' );
 			} );
 
 			expectResult(
-				viewParse( '<div data-group-end-after="foo" data-group-start-before="foo"><p>Foo</p></div>' ),
+				_parseView( '<div data-group-end-after="foo" data-group-start-before="foo"><p>Foo</p></div>' ),
 				'<paragraph>Foo</paragraph>',
 				[]
 			);
 
-			for ( const consumeCall of conversionConsumeSpy.getCalls() ) {
-				if ( consumeCall.args[ 1 ] ) {
-					expect( consumeCall.args[ 1 ] ).to.not.have.property( 'attributes' );
-				}
+			const consumeOptions = conversionConsumeSpy.mock.calls
+				.map( callArgs => callArgs[ 1 ] )
+				.filter( options => !!options );
+
+			for ( const options of consumeOptions ) {
+				expect( options ).not.toHaveProperty( 'attributes' );
 			}
 		} );
 	} );
@@ -1114,16 +1245,16 @@ describe( 'UpcastHelpers', () => {
 			markers = toArray( markers );
 
 			for ( const marker of markers ) {
-				expect( conversionResult.markers.has( marker.name ) ).to.be.true;
+				expect( conversionResult.markers.has( marker.name ) ).toBe( true );
 
 				const convertedMarker = conversionResult.markers.get( marker.name );
 
-				expect( convertedMarker.start.path ).to.deep.equal( marker.start );
-				expect( convertedMarker.end.path ).to.deep.equal( marker.end );
+				expect( convertedMarker.start.path ).toEqual( marker.start );
+				expect( convertedMarker.end.path ).toEqual( marker.end );
 			}
 		}
 
-		expect( stringify( conversionResult ) ).to.equal( modelString );
+		expect( _stringifyModel( conversionResult ) ).toBe( modelString );
 	}
 } );
 
@@ -1151,9 +1282,9 @@ describe( 'upcast-converters', () => {
 
 			const conversionResult = model.change( writer => dispatcher.convert( viewText, writer ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.getChild( 0 ) ).to.be.instanceof( ModelText );
-			expect( conversionResult.getChild( 0 ).data ).to.equal( 'foobar' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.getChild( 0 ) ).toBeInstanceOf( ModelText );
+			expect( conversionResult.getChild( 0 ).data ).toBe( 'foobar' );
 		} );
 
 		it( 'should not convert already consumed texts', () => {
@@ -1173,9 +1304,9 @@ describe( 'upcast-converters', () => {
 
 			const conversionResult = model.change( writer => dispatcher.convert( viewText, writer, context ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.getChild( 0 ) ).to.be.instanceof( ModelText );
-			expect( conversionResult.getChild( 0 ).data ).to.equal( 'foo****ba****r' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.getChild( 0 ) ).toBeInstanceOf( ModelText );
+			expect( conversionResult.getChild( 0 ).data ).toBe( 'foo****ba****r' );
 		} );
 
 		it( 'should not convert text if it is wrong with schema', () => {
@@ -1189,40 +1320,15 @@ describe( 'upcast-converters', () => {
 			dispatcher.on( 'text', convertText() );
 			let conversionResult = model.change( writer => dispatcher.convert( viewText, writer, context ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.childCount ).to.equal( 0 );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.childCount ).toBe( 0 );
 
 			conversionResult = model.change( writer => dispatcher.convert( viewText, writer, [ '$block' ] ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.childCount ).to.equal( 1 );
-			expect( conversionResult.getChild( 0 ) ).to.be.instanceof( ModelText );
-			expect( conversionResult.getChild( 0 ).data ).to.equal( 'foobar' );
-		} );
-
-		it( 'should also include $marker when auto-paragraphing $text.', () => {
-			// Make $text invalid to trigger auto-paragraphing.
-			schema.addChildCheck( ( ctx, childDef ) => {
-				if ( ( childDef.name == '$text' ) && ctx.endsWith( '$root' ) ) {
-					return false;
-				}
-			} );
-
-			const viewText = new ViewText( viewDocument, 'foobar' );
-			dispatcher.on( 'text', ( evt, data, conversionApi ) => {
-				// Add $marker element before processing $text.
-				const element = new ModelElement( '$marker', { 'data-name': 'marker1' } );
-				conversionApi.writer.insert( element, data.modelCursor );
-				data.modelCursor = conversionApi.writer.createPositionAfter( element );
-
-				// Convert $text.
-				convertText()( evt, data, conversionApi );
-			} );
-
-			const conversionResult = model.change( writer => dispatcher.convert( viewText, writer, context ) );
-
-			// Check that marker is in paragraph.
-			expect( conversionResult.markers.get( 'marker1' ).start.parent.name ).to.be.equal( 'paragraph' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.childCount ).toBe( 1 );
+			expect( conversionResult.getChild( 0 ) ).toBeInstanceOf( ModelText );
+			expect( conversionResult.getChild( 0 ).data ).toBe( 'foobar' );
 		} );
 
 		it( 'should auto-paragraph a text if it is not allowed at the insertion position but would be inserted if auto-paragraphed', () => {
@@ -1236,18 +1342,18 @@ describe( 'upcast-converters', () => {
 			dispatcher.on( 'text', convertText() );
 			let conversionResult = model.change( writer => dispatcher.convert( viewText, writer, context ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.childCount ).to.equal( 1 );
-			expect( conversionResult.getChild( 0 ).name ).to.equal( 'paragraph' );
-			expect( conversionResult.getNodeByPath( [ 0, 0 ] ) ).to.be.instanceof( ModelText );
-			expect( conversionResult.getNodeByPath( [ 0, 0 ] ).data ).to.equal( 'foobar' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.childCount ).toBe( 1 );
+			expect( conversionResult.getChild( 0 ).name ).toBe( 'paragraph' );
+			expect( conversionResult.getNodeByPath( [ 0, 0 ] ) ).toBeInstanceOf( ModelText );
+			expect( conversionResult.getNodeByPath( [ 0, 0 ] ).data ).toBe( 'foobar' );
 
 			conversionResult = model.change( writer => dispatcher.convert( viewText, writer, [ '$block' ] ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.childCount ).to.equal( 1 );
-			expect( conversionResult.getChild( 0 ) ).to.be.instanceof( ModelText );
-			expect( conversionResult.getChild( 0 ).data ).to.equal( 'foobar' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.childCount ).toBe( 1 );
+			expect( conversionResult.getChild( 0 ) ).toBeInstanceOf( ModelText );
+			expect( conversionResult.getChild( 0 ).data ).toBe( 'foobar' );
 		} );
 
 		it( 'should support unicode', () => {
@@ -1257,9 +1363,9 @@ describe( 'upcast-converters', () => {
 
 			const conversionResult = model.change( writer => dispatcher.convert( viewText, writer, context ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.getChild( 0 ) ).to.be.instanceof( ModelText );
-			expect( conversionResult.getChild( 0 ).data ).to.equal( 'நிலைக்கு' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.getChild( 0 ) ).toBeInstanceOf( ModelText );
+			expect( conversionResult.getChild( 0 ).data ).toBe( 'நிலைக்கு' );
 		} );
 	} );
 
@@ -1278,9 +1384,9 @@ describe( 'upcast-converters', () => {
 
 			const conversionResult = model.change( writer => dispatcher.convert( viewFragment, writer, context ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.maxOffset ).to.equal( 6 );
-			expect( conversionResult.getChild( 0 ).data ).to.equal( 'foobar' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.maxOffset ).toBe( 6 );
+			expect( conversionResult.getChild( 0 ).data ).toBe( 'foobar' );
 		} );
 
 		it( 'should not convert already consumed (converted) changes', () => {
@@ -1305,15 +1411,15 @@ describe( 'upcast-converters', () => {
 
 			const conversionResult = model.change( writer => dispatcher.convert( viewP, writer, context ) );
 
-			expect( conversionResult ).to.be.instanceof( ModelDocumentFragment );
-			expect( conversionResult.getChild( 0 ) ).to.be.instanceof( ModelElement );
-			expect( conversionResult.getChild( 0 ).name ).to.equal( 'paragraph' );
-			expect( conversionResult.getChild( 0 ).maxOffset ).to.equal( 3 );
-			expect( conversionResult.getChild( 0 ).getChild( 0 ).data ).to.equal( 'foo' );
+			expect( conversionResult ).toBeInstanceOf( ModelDocumentFragment );
+			expect( conversionResult.getChild( 0 ) ).toBeInstanceOf( ModelElement );
+			expect( conversionResult.getChild( 0 ).name ).toBe( 'paragraph' );
+			expect( conversionResult.getChild( 0 ).maxOffset ).toBe( 3 );
+			expect( conversionResult.getChild( 0 ).getChild( 0 ).data ).toBe( 'foo' );
 		} );
 
 		it( 'should forward correct modelCursor', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 			const view = new ViewDocumentFragment( viewDocument, [
 				new ViewContainerElement( viewDocument, 'div', null, [
 					new ViewText( viewDocument, 'abc' ),
@@ -1327,7 +1433,7 @@ describe( 'upcast-converters', () => {
 			dispatcher.on( 'element', convertToModelFragment(), { priority: 'lowest' } );
 			dispatcher.on( 'element:foo', ( evt, data ) => {
 				// Be sure that current cursor is not the same as custom.
-				expect( data.modelCursor ).to.not.equal( position );
+				expect( data.modelCursor ).not.toBe( position );
 				// Set custom cursor as a result of docFrag last child conversion.
 				// This cursor should be forwarded by a documentFragment converter.
 				data.modelCursor = position;
@@ -1336,13 +1442,13 @@ describe( 'upcast-converters', () => {
 			} );
 
 			dispatcher.on( 'element:bar', ( evt, data ) => {
-				expect( data.modelCursor ).to.equal( position );
+				expect( data.modelCursor ).toBe( position );
 				spy();
 			} );
 
 			model.change( writer => dispatcher.convert( view, writer ) );
 
-			sinon.assert.calledTwice( spy );
+			expect( spy ).toHaveBeenCalledTimes( 2 );
 		} );
 	} );
 
@@ -1354,13 +1460,13 @@ describe( 'upcast-converters', () => {
 			modelRoot = model.document.createRoot();
 			model.schema.register( 'paragraph', { inheritAllFrom: '$block' } );
 
-			modelSetData( model, '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
 
-			view = new View( new StylesProcessor() );
+			view = new EditingView( new StylesProcessor() );
 			viewDocument = view.document;
 			viewRoot = createViewRoot( viewDocument, 'div', 'main' );
 
-			viewSetData( view, '<p>foo</p><p>bar</p>' );
+			_setViewData( view, '<p>foo</p><p>bar</p>' );
 
 			mapper = new Mapper();
 			mapper.bindElements( modelRoot, viewRoot );
@@ -1381,13 +1487,13 @@ describe( 'upcast-converters', () => {
 
 			convertSelection( null, { newSelection: viewSelection } );
 
-			expect( modelGetData( model ) ).to.equals( '<paragraph>f[]oo</paragraph><paragraph>bar</paragraph>' );
-			expect( modelGetData( model ) ).to.equal( '<paragraph>f[]oo</paragraph><paragraph>bar</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>f[]oo</paragraph><paragraph>bar</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>f[]oo</paragraph><paragraph>bar</paragraph>' );
 		} );
 
 		it( 'should support unicode', () => {
-			modelSetData( model, '<paragraph>நிலைக்கு</paragraph>' );
-			viewSetData( view, '<p>நிலைக்கு</p>' );
+			_setModelData( model, '<paragraph>நிலைக்கு</paragraph>' );
+			_setViewData( view, '<p>நிலைக்கு</p>' );
 
 			// Re-bind elements that were just re-set.
 			mapper.bindElements( modelRoot.getChild( 0 ), viewRoot.getChild( 0 ) );
@@ -1398,7 +1504,7 @@ describe( 'upcast-converters', () => {
 
 			convertSelection( null, { newSelection: viewSelection } );
 
-			expect( modelGetData( model ) ).to.equal( '<paragraph>நி[லைக்]கு</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>நி[லைக்]கு</paragraph>' );
 		} );
 
 		it( 'should convert multi ranges selection', () => {
@@ -1411,21 +1517,20 @@ describe( 'upcast-converters', () => {
 
 			convertSelection( null, { newSelection: viewSelection } );
 
-			expect( modelGetData( model ) ).to.equal(
-				'<paragraph>f[o]o</paragraph><paragraph>b[a]r</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>f[o]o</paragraph><paragraph>b[a]r</paragraph>' );
 
 			const ranges = Array.from( model.document.selection.getRanges() );
-			expect( ranges.length ).to.equal( 2 );
+			expect( ranges.length ).toBe( 2 );
 
-			expect( ranges[ 0 ].start.parent ).to.equal( modelRoot.getChild( 0 ) );
-			expect( ranges[ 0 ].start.offset ).to.equal( 1 );
-			expect( ranges[ 0 ].end.parent ).to.equal( modelRoot.getChild( 0 ) );
-			expect( ranges[ 0 ].end.offset ).to.equal( 2 );
+			expect( ranges[ 0 ].start.parent ).toBe( modelRoot.getChild( 0 ) );
+			expect( ranges[ 0 ].start.offset ).toBe( 1 );
+			expect( ranges[ 0 ].end.parent ).toBe( modelRoot.getChild( 0 ) );
+			expect( ranges[ 0 ].end.offset ).toBe( 2 );
 
-			expect( ranges[ 1 ].start.parent ).to.equal( modelRoot.getChild( 1 ) );
-			expect( ranges[ 1 ].start.offset ).to.equal( 1 );
-			expect( ranges[ 1 ].end.parent ).to.equal( modelRoot.getChild( 1 ) );
-			expect( ranges[ 1 ].end.offset ).to.equal( 2 );
+			expect( ranges[ 1 ].start.parent ).toBe( modelRoot.getChild( 1 ) );
+			expect( ranges[ 1 ].start.offset ).toBe( 1 );
+			expect( ranges[ 1 ].end.parent ).toBe( modelRoot.getChild( 1 ) );
+			expect( ranges[ 1 ].end.offset ).toBe( 2 );
 		} );
 
 		it( 'should convert reverse selection', () => {
@@ -1438,8 +1543,8 @@ describe( 'upcast-converters', () => {
 
 			convertSelection( null, { newSelection: viewSelection } );
 
-			expect( modelGetData( model ) ).to.equal( '<paragraph>f[o]o</paragraph><paragraph>b[a]r</paragraph>' );
-			expect( model.document.selection.isBackward ).to.true;
+			expect( _getModelData( model ) ).toBe( '<paragraph>f[o]o</paragraph><paragraph>b[a]r</paragraph>' );
+			expect( model.document.selection.isBackward ).toBe( true );
 		} );
 
 		it( 'should not enqueue changes if selection has not changed', () => {
@@ -1450,13 +1555,13 @@ describe( 'upcast-converters', () => {
 
 			convertSelection( null, { newSelection: viewSelection } );
 
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			model.on( 'change', spy );
 
 			convertSelection( null, { newSelection: viewSelection } );
 
-			expect( spy.called ).to.be.false;
+			expect( spy.mock.calls.length ).toBe( 0 );
 		} );
 	} );
 } );

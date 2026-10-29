@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,19 +8,17 @@
 */
 
 import { FocusTracker, KeystrokeHandler, type Locale } from '@ckeditor/ckeditor5-utils';
-import View from '../../view';
-import { default as SearchTextQueryView, type SearchTextQueryViewConfig } from './searchtextqueryview';
-import SearchInfoView from '../searchinfoview';
-import SearchResultsView from '../searchresultsview';
-import FocusCycler from '../../focuscycler';
-import { escapeRegExp } from 'lodash-es';
+import { View } from '../../view.js';
+import { SearchTextQueryView, type SearchTextQueryViewConfig } from './searchtextqueryview.js';
+import { SearchInfoView } from '../searchinfoview.js';
+import { SearchResultsView } from '../searchresultsview.js';
+import { FocusCycler, type FocusableView } from '../../focuscycler.js';
+import { escapeRegExp } from 'es-toolkit/compat';
 
-import type FilteredView from '../filteredview';
-import type ViewCollection from '../../viewcollection';
-import type InputBase from '../../input/inputbase';
-import type InputTextView from '../../inputtext/inputtextview';
-
-import '../../../theme/components/search/search.css';
+import { type FilteredView } from '../filteredview.js';
+import { type ViewCollection } from '../../viewcollection.js';
+import { type InputBase } from '../../input/inputbase.js';
+import { type InputTextView } from '../../inputtext/inputtextview.js';
 
 /**
  * A search component that allows filtering of an arbitrary view based on a search query
@@ -40,7 +38,7 @@ import '../../../theme/components/search/search.css';
  * document.body.append( view.element );
  * ```
  */
-export default class SearchTextView<
+export class SearchTextView<
 	TQueryFieldView extends InputBase<HTMLInputElement | HTMLTextAreaElement> = InputTextView
 > extends View {
 	/**
@@ -70,7 +68,7 @@ export default class SearchTextView<
 	/**
 	 * The view that displays the information about the search results.
 	 */
-	public infoView: View | undefined;
+	public infoView: FocusableView | undefined;
 
 	/**
 	 * The view that allows the user to enter the search query.
@@ -113,7 +111,7 @@ export default class SearchTextView<
 	 *
 	 * @readonly
 	 */
-	declare public readonly focusableChildren: ViewCollection;
+	declare public readonly focusableChildren: ViewCollection<FocusableView>;
 
 	public declare locale: Locale;
 
@@ -216,7 +214,7 @@ export default class SearchTextView<
 		const stopPropagation = ( data: Event ) => data.stopPropagation();
 
 		for ( const focusableChild of this.focusableChildren ) {
-			this.focusTracker.add( focusableChild.element as Element );
+			this.focusTracker.add( focusableChild.element as HTMLElement );
 		}
 
 		// Start listening for the keystrokes coming from #element.
@@ -244,6 +242,7 @@ export default class SearchTextView<
 	public reset(): void {
 		this.queryView.reset();
 		this.search( '' );
+		this.filteredView.element!.scrollTo( 0, 0 );
 	}
 
 	/**
@@ -289,7 +288,7 @@ export default class SearchTextView<
 				let primaryText, secondaryText;
 
 				if ( data.totalItemsCount ) {
-					if ( defaultTextConfig && defaultTextConfig.notFound ) {
+					if ( defaultTextConfig?.notFound ) {
 						primaryText = defaultTextConfig.notFound.primary;
 						secondaryText = defaultTextConfig.notFound.secondary;
 					} else {
@@ -297,7 +296,7 @@ export default class SearchTextView<
 						secondaryText = '';
 					}
 				} else {
-					if ( defaultTextConfig && defaultTextConfig.noSearchableItems ) {
+					if ( defaultTextConfig?.noSearchableItems ) {
 						primaryText = defaultTextConfig.noSearchableItems.primary;
 						secondaryText = defaultTextConfig.noSearchableItems.secondary;
 					} else {
@@ -351,7 +350,7 @@ export interface SearchTextViewConfig<TConfigSearchField extends InputBase<HTMLI
 		 * The view that displays the information about the search results. If not specified,
 		 * {@link module:ui/search/searchinfoview~SearchInfoView} is used.
 		 */
-		instance?: View;
+		instance?: FocusableView;
 
 		/**
 		 * The configuration of text labels displayed in the {@link #infoView} in different states

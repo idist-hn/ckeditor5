@@ -1,23 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/integrations/dualcontent
  */
 
-import type { ViewElement } from 'ckeditor5/src/engine';
-import { Plugin } from 'ckeditor5/src/core';
-import { priorities } from 'ckeditor5/src/utils';
+import type { ViewElement } from '@ckeditor/ckeditor5-engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { priorities } from '@ckeditor/ckeditor5-utils';
 
 import {
 	modelToViewBlockAttributeConverter,
 	viewToModelBlockAttributeConverter
-} from '../converters';
-import DataFilter, { type DataFilterRegisterEvent } from '../datafilter';
-import type { DataSchemaBlockElementDefinition } from '../dataschema';
-import { getHtmlAttributeName } from '../utils';
+} from '../converters.js';
+import { DataFilter, type HtmlSupportDataFilterRegisterEvent } from '../datafilter.js';
+import type { HtmlSupportDataSchemaBlockElementDefinition } from '../dataschema.js';
+import { getHtmlAttributeName } from '../utils.js';
 
 /**
  * Provides the General HTML Support integration for elements which can behave like sectioning element (e.g. article) or
@@ -31,17 +31,18 @@ import { getHtmlAttributeName } from '../utils';
  * * model element HTML is semantically correct and easier to work with.
  *
  * If element contains any block element, it will be treated as a sectioning element and registered using
- * {@link module:html-support/dataschema~DataSchemaDefinition#model} and
- * {@link module:html-support/dataschema~DataSchemaDefinition#modelSchema} in editor schema.
- * Otherwise, it will be registered under {@link module:html-support/dataschema~DataSchemaBlockElementDefinition#paragraphLikeModel} model
+ * {@link module:html-support/dataschema~HtmlSupportDataSchemaDefinition#model} and
+ * {@link module:html-support/dataschema~HtmlSupportDataSchemaDefinition#modelSchema} in editor schema.
+ * Otherwise, it will be registered under
+ * {@link module:html-support/dataschema~HtmlSupportDataSchemaBlockElementDefinition#paragraphLikeModel} model
  * name with model schema accepting only inline content (inheriting from `$block`).
  */
-export default class DualContentModelElementSupport extends Plugin {
+export class DualContentModelElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ DataFilter ] as const;
+	public static get requires(): PluginDependenciesOf<[ DataFilter ]> {
+		return [ DataFilter ];
 	}
 
 	/**
@@ -54,11 +55,18 @@ export default class DualContentModelElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const dataFilter = this.editor.plugins.get( DataFilter );
 
-		dataFilter.on<DataFilterRegisterEvent>( 'register', ( evt, definition ) => {
-			const blockDefinition = definition as DataSchemaBlockElementDefinition;
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( 'register', ( evt, definition ) => {
+			const blockDefinition = definition as HtmlSupportDataSchemaBlockElementDefinition;
 			const editor = this.editor;
 			const schema = editor.model.schema;
 			const conversion = editor.conversion;
@@ -72,7 +80,7 @@ export default class DualContentModelElementSupport extends Plugin {
 				return;
 			}
 
-			const paragraphLikeModelDefinition: DataSchemaBlockElementDefinition = {
+			const paragraphLikeModelDefinition: HtmlSupportDataSchemaBlockElementDefinition = {
 				model: blockDefinition.paragraphLikeModel,
 				view: blockDefinition.view
 			};
@@ -134,7 +142,7 @@ export default class DualContentModelElementSupport extends Plugin {
 	/**
 	 * Adds attribute filtering conversion for the given data schema.
 	 */
-	private _addAttributeConversion( definition: DataSchemaBlockElementDefinition ) {
+	private _addAttributeConversion( definition: HtmlSupportDataSchemaBlockElementDefinition ) {
 		const editor = this.editor;
 		const conversion = editor.conversion;
 		const dataFilter = editor.plugins.get( DataFilter );

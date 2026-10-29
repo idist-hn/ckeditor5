@@ -1,15 +1,16 @@
 ---
 category: framework-contributing
 meta-title: Code style | CKEditor 5 Framework Documentation
-order: 30
-modified_at: 2022-11-03
+meta-description: Learn about CKEditor 5's code style guidelines to ensure consistency and quality when contributing to the project.
+order: 40
+modified_at: 2026-07-30
 ---
 
 # Code style
 
-{@link framework/contributing/development-environment CKEditor&nbsp;5 development environment} has ESLint enabled both as a pre-commit hook and on CI. This means that code style issues are detected automatically. Additionally, `.editorconfig` files are present in every repository to automatically adjust your IDEs settings (if it is configured to read them).
+{@link framework/contributing/development-environment CKEditor&nbsp;5 development environment} has ESLint enabled on CI. This means that code style issues are detected automatically. Additionally, `.editorconfig` files are present in every repository to automatically adjust your IDE settings (if it is configured to read them).
 
-Here comes a quick summary of these rules.
+Here is a quick summary of these rules.
 
 ## General
 
@@ -61,7 +62,7 @@ for ( const i = 0; i < 100; i++ ) {
 
 Indentation with **tab**, for both code and comments. Never use spaces.
 
-If you want to have the code readable, set **tab** to **4 spaces** in your IDE.
+If you want to have the code readable, set the **tab** to **4 spaces** in your IDE.
 
 ```js
 class Bar {
@@ -153,13 +154,13 @@ class Foo extends Plugin {
 		super( editor );
 
 		/**
-		 * Some documentation...
-		 */
+		* Some documentation...
+		*/
 		this.foo = new Foo();
 
 		/**
-		 * Some documentation...
-		 */
+		* Some documentation...
+		*/
 		this.isBar = false;
 	}
 
@@ -261,7 +262,7 @@ fooBar(
 ```
 
 <info-box>
-	Note that the examples above are just showcasing how such function calls can be structured. However, it is best to avoid them.
+	These examples are just showcasing how to structure such function calls. However, it is best to avoid them.
 
 	It is generally recommended to avoid having functions that accept more than 3 arguments. Instead, it is better to wrap them in an object so all parameters can be named.
 
@@ -285,7 +286,7 @@ const html =
 	'Line 3';
 ```
 
-or template strings can be used (note that the 2nd and 3rd line will be indented in this case):
+or you can use template strings. The second and third line will be indented in this case:
 
 ```js
 const html =
@@ -343,13 +344,12 @@ foo();
 
 ## Linting
 
-CKEditor&nbsp;5 development environment uses [ESLint](https://eslint.org) and [stylelint](https://stylelint.io/).
+CKEditor&nbsp;5 development environment uses [ESLint](https://eslint.org), including its [native CSS linting support](https://eslint.org/blog/2025/02/eslint-css-support/).
 
 A couple of useful links:
 
 * [Disabling ESLint with inline comments](https://eslint.org/docs/latest/use/configure/).
-* [CKEditor&nbsp;5 ESLint preset](https://github.com/ckeditor/ckeditor5-linters-config/blob/master/packages/eslint-config-ckeditor5/.eslintrc.js) (npm: [`eslint-config-ckeditor5`](http://npmjs.com/package/eslint-config-ckeditor5)).
-* [CKEditor&nbsp;5 stylelint preset](https://github.com/ckeditor/ckeditor5-linters-config/blob/master/packages/stylelint-config-ckeditor5/.stylelintrc) (npm: [`stylelint-config-ckeditor5`](https://www.npmjs.com/package/stylelint-config-ckeditor5)).
+* [CKEditor&nbsp;5 ESLint preset](https://github.com/ckeditor/ckeditor5-linters-config/blob/master/packages/eslint-config-ckeditor5/eslint.config.mjs) (npm: [`eslint-config-ckeditor5`](https://www.npmjs.com/package/eslint-config-ckeditor5)).
 
 <info-box>
 	Avoid using automatic code formatters on existing code. It is fine to automatically format code that you are editing, but you should not be changing the formatting of the code that is already written to not pollute your PRs. You should also not rely solely on automatic corrections.
@@ -357,44 +357,44 @@ A couple of useful links:
 
 ## Visibility levels
 
-Each class property (including methods, symbols, getters or setters) can be public, protected or private. The default visibility is public, so you should not document that a property is public &mdash; there is no need to do this.
+Each class property (including methods, symbols, getters, or setters) can be public, protected, or private. The default visibility is public, so you should not document that a property is public &ndash; there is no need to do this.
 
 Additional rules apply to private properties:
 
 * The names of private and protected properties that are exposed in a class prototype (or in any other way) should be prefixed with an underscore.
 * When documenting a private variable that is not added to a class prototype (or exposed in any other way), `//` comments should be used and using `@private` is not necessary.
-* A symbol property (e.g. `this[ Symbol( 'symbolName' ) ]`) should be documented as `@property {Type} _symbolName`.
+* A symbol property (like `this[ Symbol( 'symbolName' ) ]`) should be documented as `@property {Type} _symbolName`.
 
 Example:
 
 ```js
 class Foo {
 	/**
-	 * The constructor (public, as its visibility isn't defined).
-	 */
+	* The constructor (public, as its visibility isn't defined).
+	*/
 	constructor() {
 		/**
-		 * Public property.
-		 */
+		* Public property.
+		*/
 		this.foo = 1;
 
 		/**
-		 * Protected property.
-		 *
-		 * @protected
-		 */
+		* Protected property.
+		*
+		* @protected
+		*/
 		this._bar = 1;
 
 		/**
-		 * @private
-		 * @property {Number} _bom
-		 */
+		* @private
+		* @property {Number} _bom
+		*/
 		this[ Symbol( 'bom' ) ] = 1;
 	}
 
 	/**
-	 * @private
-	 */
+	* @private
+	*/
 	_somePrivateMethod() {}
 }
 
@@ -445,7 +445,7 @@ The table below shows the accessibility of properties:
 	</tbody>
 </table>
 
-(yes – accessible, no – not accessible)
+(yes &ndash; accessible, no &ndash; not accessible)
 
 For instance, a protected property is accessible from its own class in which it was defined, from its whole package, and from its subclasses (even if they are not in the same package).
 
@@ -477,19 +477,19 @@ A getter should feel like a natural property. There are several recommendations 
 
 ## Order within class definition
 
-Within class definition the methods and properties should be ordered as follows:
+Within the class definition, order the methods and properties as follows:
 
 1. Constructor.
-1. Getters and setters.
-1. Iterators.
-1. Public instance methods.
-1. Public static methods.
-1. Protected instance methods.
-1. Protected static methods.
-1. Private instance methods.
-1. Private static methods.
+2. Getters and setters.
+3. Iterators.
+4. Public instance methods.
+5. Public static methods.
+6. Protected instance methods.
+7. Protected static methods.
+8. Private instance methods.
+9. Private static methods.
 
-The order within each group is left for the implementor.
+The order within each group is left for the implementer.
 
 ## Tests
 
@@ -497,7 +497,7 @@ There are some special rules and tips for tests.
 
 ### Test organization
 
-* Always use an outer `describe()` in a test file. Do not allow any globals, especially hooks (`beforeEach()`, `after()`, etc.) outside the outermost `describe()`.
+* Always use an outer `describe()` in a test file. Do not allow any globals, especially hooks (`beforeEach()`, `afterEach()`, etc.) outside the outermost `describe()`.
 * The outermost `describe()` calls should create meaningful groups, so when all tests are run together a failing TC can be identified within the code base. For example:
 
 	```js
@@ -511,41 +511,80 @@ There are some special rules and tips for tests.
 	} );
 	```
 
-	Using titles like *"utils"* is not fine as there are multiple utils in the entire project. *"Table utils"* would be better.
-* Test descriptions (`it()`) should be written like documentation (what you do and what should happen), e.g. *"the foo dialog closes when the X button is clicked"*. Also, *"...case 1"*, *"...case 2"* in test descriptions are not helpful.
-* Avoid test descriptions like *"does not crash when two ranges get merged"* &mdash; instead explain what is actually expected to happen. For instance: *"leaves 1 range when two ranges get merged"*.
-* Most often, using words like "correctly", "works fine" is a code smell. Thing about the requirements &mdash; when writing them you do not say that feature X should "work fine". You document how it should work.
+	Using titles like `utils` is not fine as there are multiple utilities in the entire project. `Table utils` would be better.
+* Test descriptions (`it()`) should be written like documentation (what you do and what should happen), for example, *"the foo dialog closes when the X button is clicked"*. Also, *"...case 1"*, *"...case 2"* in test descriptions are not helpful.
+* Avoid test descriptions like *"does not crash when two ranges get merged."* Instead, explain what is actually expected to happen. For instance: *"leaves 1 range when two ranges get merged."*
+* Most often, using words like "correctly," "works fine" is a code smell. Think about the requirements &ndash; when writing them you do not say that feature X should "work fine." You document how it should work.
 * Ideally, it should be possible to recreate an algorithm just by reading the test descriptions.
-* Avoid covering multiple cases under one `it()`. It is OK to have multiple assertions in one test, but not to test e.g. how method `foo()` works when it is called with 1, then with 2, then 3, etc. There should be a separate test for each case.
-* Every test should clean after itself, including destroying all editors and removing all elements that have been added.
+* Avoid covering multiple cases under one `it()`. It is OK to have multiple assertions in one test, but not to test, for example, how method `foo()` works when it is called with 1, then with 2, then 3, etc. There should be a separate test for each case.
+* Every test should clean up after itself, including destroying all editors and removing all elements that have been added.
 
 ### Test implementation
 
-* Avoid using real timeouts. Use [fake timers](https://sinonjs.org/releases/latest/fake-timers/) instead **when possible**. Timeouts make tests really slow.
-* However &mdash; do not overoptimize (especially that performance is not a priority in tests). In most cases it is completely fine (and hence recommended) to create a separate editor for every `it()`.
-* We aim at having 100% coverage of *all distinctive scenarios*. Covering 100% branches in the code is not the goal here &mdash; it is a byproduct of covering real scenarios.
+Tests run on [Vitest](https://vitest.dev/). See the {@link framework/contributing/testing-environment Testing environment} guide to learn how to execute them.
 
-	Think about this &mdash; when you fix a bug by adding a parameter to an existing function call you do not affect code coverage (that line was called anyway). However, you had a bug, meaning that your test suite did not cover it. Therefore, a test must be created for that code change.
-* It should be `expect( x ).to.equal( y )`. **NOT**: ~~`expect( x ).to.be.equal( y )`~~.
-* When using Sinon spies, pay attention to the readability of assertions and failure messages.
-   * Use named spies, for example:
+* Import every test API you use explicitly from `vitest`. Test globals are not enabled:
+
+	```js
+	import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+	```
+* Avoid using real timeouts. Use [fake timers](https://vitest.dev/api/vi.html#fake-timers) instead **when possible**. Timeouts make tests really slow.
+
+	Fake timers are not restored automatically, so switch back to the real ones in the cleanup hook:
+
+	```js
+	beforeEach( () => {
+		vi.useFakeTimers();
+	} );
+
+	afterEach( () => {
+		vi.useRealTimers();
+	} );
+
+	it( 'calls the callback after 100 ms', () => {
+		const callbackSpy = vi.fn().mockName( 'callback' );
+
+		scheduleCallback( callbackSpy );
+		vi.advanceTimersByTime( 100 );
+
+		expect( callbackSpy ).toHaveBeenCalledOnce();
+	} );
+	```
+* However, do not over-optimize (especially since performance is not a priority in tests). In most cases, it is completely fine (and hence recommended) to create a separate editor for every `it()`.
+* We aim at having 100% coverage of *all distinctive scenarios*. Covering 100% branches in the code is not the goal here &ndash; it is a by-product of covering real scenarios.
+
+	Think about this: when you fix a bug by adding a parameter to an existing function call, you do not affect code coverage (that line was called anyway). However, you had a bug, meaning that your test suite did not cover it. Therefore, a test must be created for that code change.
+* Assert with the [Vitest `expect()` matchers](https://vitest.dev/api/expect.html). Use `toBe()` to compare primitives and object references, and `toEqual()` to compare structures by value:
+
+	```js
+	expect( editor.getData() ).toBe( '<p>foo</p>' );
+	expect( command.value ).toEqual( { type: 'bulleted' } );
+	```
+
+	Vitest still exposes the Chai-style chained assertions used before the migration, but do not write new ones. It should be `expect( x ).toBe( y )`. **NOT**: ~~`expect( x ).to.equal( y )`~~.
+* The testing environment also registers a few {@link framework/contributing/testing-environment#custom-vitest-matchers custom matchers}, such as `toEqualMarkup()`. Prefer them over plain string comparisons when asserting markup, as they produce far more readable diffs.
+* When using spies, pay attention to the readability of assertions and failure messages.
+	* [`vi.spyOn()`](https://vitest.dev/api/vi.html#vi-spyon) names the spy after the method it replaces, but a bare [`vi.fn()`](https://vitest.dev/api/vi.html#vi-fn) does not. Name standalone spies with `mockName()`:
 
 		```js
-		const someCallbackSpy = sinon.spy().named( 'someCallback' );
-		const myMethodSpy = sinon.spy( obj, 'myMethod' );
+		const myMethodSpy = vi.spyOn( obj, 'myMethod' );
+		const someCallbackSpy = vi.fn().mockName( 'someCallback' );
 		```
-   * Use [sinon-chai assertions](https://www.chaijs.com/plugins/sinon-chai/)
+	* The name is then used in the failure message:
 
 		```js
-		expect( myMethodSpy ).to.be.calledOnce
-		// expected myMethod to be called once but was called twice
+		expect( myMethodSpy ).toHaveBeenCalledOnce();
+		// expected "myMethod" to be called once, but got 2 times
 		```
+* Do not clean up spies and stubs by hand. The shared Vitest configuration enables [`restoreMocks`](https://vitest.dev/config/restoremocks), [`unstubGlobals`](https://vitest.dev/config/unstubglobals), and [`unstubEnvs`](https://vitest.dev/config/unstubenvs), so every `vi.spyOn()`, `vi.fn()`, `vi.stubGlobal()`, and `vi.stubEnv()` is restored before each test. Therefore:
+	* Do not call `vi.restoreAllMocks()`, `vi.unstubAllGlobals()`, or `vi.unstubAllEnvs()` in cleanup hooks. The only reason to restore something manually is when a mock set up in `beforeEach()` must be dropped for a single test, or when the teardown itself (`editor.destroy()`, for example) has to run against the real implementation.
+	* Create stubs in `beforeEach()` or in the test itself, never in `beforeAll()`. A stub created in `beforeAll()` would be silently removed before the second test of the suite runs.
 
 ## Naming
 
 ### JavaScript code names
 
-Variables, functions, namespaces, parameters and all undocumented cases must be named in [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase):
+Variables, functions, namespaces, parameters and all undocumented cases must be named in [lowerCamelCase](https://en.wikipedia.org/wiki/CamelCase):
 
 ```js
 let a;
@@ -556,7 +595,7 @@ function foo() {}
 function longNamedFunction( example, longNamedParameter ) {}
 ```
 
-Classes must be named in [UpperCamelCase](http://en.wikipedia.org/wiki/CamelCase):
+Classes must be named in [UpperCamelCase](https://en.wikipedia.org/wiki/CamelCase):
 
 ```js
 class MyClass() {}
@@ -564,7 +603,7 @@ class MyClass() {}
 const a = new MyClass();
 ```
 
-Mixins must be named in [UpperCamelCase](http://en.wikipedia.org/wiki/CamelCase), postfixed with "Mixin":
+Mixins must be named in [UpperCamelCase](https://en.wikipedia.org/wiki/CamelCase), post-fixed with "Mixin":
 
 ```js
 const SomeMixin = {
@@ -573,7 +612,7 @@ const SomeMixin = {
 };
 ```
 
-Global namespacing variables must be named in [ALLCAPS](http://en.wikipedia.org/wiki/All_caps):
+Global namespacing variables must be named in [ALLCAPS](https://en.wikipedia.org/wiki/All_caps):
 
 ```js
 const CKEDITOR_TRANSLATIONS = {};
@@ -638,7 +677,7 @@ All buttons should follow the **verb + noun** or the **noun** convention. Exampl
 
 #### Commands
 
-As for commands it is trickier, because there are many more possible combinations of their names than there are for buttons. Examples:
+As for commands, it is trickier. There are more combinations of their names possible than there are for buttons. Examples:
 
 * The **feature-related** convention:
 	* **noun-based** case:
@@ -672,7 +711,7 @@ Plugins should follow the **feature** or the **feature + sub-feature** conventio
 	* `ListProperties`
 	* `TableClipboard`
 
-Plugins must be named in [UpperCamelCase](http://en.wikipedia.org/wiki/CamelCase).
+Plugins must be named in [UpperCamelCase](https://en.wikipedia.org/wiki/CamelCase).
 
 ### Shortcuts
 
@@ -693,7 +732,7 @@ this.env;
 
 ### Acronyms and proper names
 
-Acronyms and, partially, proper names are naturally written in uppercase. This may stand against code style rules described above &mdash; especially when there is a need to include an acronym or a proper name in a variable or class name. In such case, one should follow the following rules:
+Acronyms and, partially, proper names are naturally written in uppercase. This may stand against code style rules described above &ndash; especially when there is a need to include an acronym or a proper name in a variable or class name. In such case, one should follow these rules:
 
 * Acronyms:
 	* All lowercase if at the beginning of the variable name: `let domError`.
@@ -704,7 +743,7 @@ Acronyms and, partially, proper names are naturally written in uppercase. This m
 	* Original case if at the beginning of the class name: `class CKEditorError`.
 	* Original case inside the variable or class name: `function getCKEditorError()`.
 
-However, two-letter acronyms and proper names (if originally written uppercase) should be uppercase. So e.g. `getUI` (not `getUi`).
+However, two-letter acronyms and proper names (if originally written uppercase) should be uppercase. For example: `getUI`, not `getUi`.
 
 <info-box>
 	Two most frequently used acronyms which cause problems:
@@ -827,7 +866,7 @@ Even if the import statement works locally, it will throw an error when develope
 ```js
 // Assume we edit a file located in the path: `packages/ckeditor5-engine/src/model/model.js`
 
-import { CKEditorError } from '@ckeditor/ckeditor5-utils';
+import { CKEditorError } from 'ckeditor5';
 ```
 
 [History of the change.](https://github.com/ckeditor/ckeditor5/issues/7128)
@@ -871,148 +910,38 @@ throw new CKEditorError( 'editor-wrong-element', this );
 
 [History of the change.](https://github.com/ckeditor/ckeditor5/issues/7822)
 
-### DLL Builds: `ckeditor5-rules/ckeditor-imports`
-
-To make CKEditor&nbsp;5 plugins compatible with each other, we needed to introduce limitations when importing files from packages.
-
-Packages marked as "Base DLL build" can import between themselves without any restrictions. Names of these packages are specified in the {@link installation/advanced/dll-builds#anatomy-of-a-dll-build DLL builds} guide.
-
-The other CKEditor&nbsp;5 features (non-DLL) can import "Base DLL" packages using the `ckeditor5` package.
-
-When importing modules from the `ckeditor5` package, all imports must come from the `src/` directory. Other directories are not published on npm, so such imports will not work.
-
-👎&nbsp; Examples of incorrect code for this rule:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-basic-styles/src/bold.js`
-
-import { Plugin } from '@ckeditor/ckeditor5-core';
-
-// The import uses the `ckeditor5` package, but the specified path does not exist when installing the package from npm.
-
-import { Plugin } from 'ckeditor5/packages/ckeditor5-core';
-```
-
-👍&nbsp; Examples of correct code for this rule:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-basic-styles/src/bold.js`
-
-import { Plugin } from 'ckeditor5/src/core';
-```
-
-Also, non-DLL packages should not import between non-DLL packages to avoid code duplications when building DLL builds.
-
-👎&nbsp; Examples of incorrect code for this rule:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-link/src/linkimage.js`
-
-import { createImageViewElement } from '@ckeditor/ckeditor5-image'
-```
-
-To use the `createImageViewElement()` function, consider implementing a utils plugin that will expose the required function in the `ckeditor5-image` package.
-
-When importing a DLL package from another DLL package, an import statement must use the full name of the imported package instead of using the `ckeditor5` notation.
-
-👎&nbsp; Examples of incorrect code for this rule:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-widget/src/widget.js`
-
-import { Plugin } from 'ckeditor5/src/core';
-```
-
-👍&nbsp; Examples of correct code for this rule:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-widget/src/widget.js`
-
-import { Plugin } from '@ckeditor/ckeditor5-core';
-```
-
-History of changes:
-
-* [Force importing using the `ckeditor5` package.](https://github.com/ckeditor/ckeditor5/issues/8581)
-* [Imports from the `ckeditor5` package must use the `src/` directory.](https://github.com/ckeditor/ckeditor5/issues/10030)
-* [Imports between DLL packages must use full names of packages.](https://github.com/ckeditor/ckeditor5/issues/10375)
-
 ### Cross package imports: `ckeditor5-rules/no-cross-package-imports`
 
 It is allowed to import modules from other packages:
 
 ```js
-import { toArray } from 'ckeditor5/src/utils';
+import { toArray } from '@ckeditor/ckeditor5-utils';
 ```
 
 However, some packages cannot import modules from CKEditor&nbsp;5 as it could lead to code duplication and errors in runtime. Hence, the rule disables this kind of import.
 
-Currently, it applies to the `@ckeditor/ckeditor5-watchdog` package.
-
-👎&nbsp; Examples of an incorrect code for this rule:
-
-```js
-// Assume we edit a file located in the `packages/ckeditor5-watchdog/` directory.
-
-import { toArray } from 'ckeditor5/src/utils';
-import { toArray } from '@ckeditor/ckeditor5-utils';
-```
-
-[History of the change.](https://github.com/ckeditor/ckeditor5/issues/9318)
-
-### Importing modules in debug comments: `ckeditor5-rules/use-require-for-debug-mode-imports`
-
-The debug mode allows importing additional modules for testing purposes. Unfortunately, the debug comment is not removed, so webpack reports the following error.
-
-```
-Module parse failed: 'import' and 'export' may only appear at the top level (15204:20)
-File was processed with these loaders:
- * ./node_modules/@ckeditor/ckeditor5-dev-tests/lib/utils/ck-debug-loader.js
-You may need an additional loader to handle the result of these loaders.
-|  */
-|
-> /* @if CK_DEBUG */  import { CKEditorError } from 'ckeditor5/src/utils';
-|
-| /**
-```
-
-Modules need to be imported with a `require()` function.
-
-To create a code executed only in the debug mode, follow the description of the `--debug` flag in the {@link framework/contributing/testing-environment#running-manual-tests testing environment} guide.
+Which packages those are is configured per project, through the `disallowedCrossImportsPackages` ESLint setting. No package is restricted by default.
 
 👎&nbsp; Examples of incorrect code for this rule:
 
 ```js
-// @if CK_DEBUG // import defaultExport from 'module-name';
-// @if CK_DEBUG // import * as name from 'module-name';
-// @if CK_DEBUG // import { testFunction } from 'module-name';
-// @if CK_DEBUG // import { default as alias } from 'module-name';
-// @if CK_DEBUG // import { exported as alias } from 'module-name';
-// @if CK_DEBUG // import 'module-name';
+// Assume we edit a file in a package the rule is configured for.
+
+import { toArray } from '@ckeditor/ckeditor5-utils';
+import { toArray } from 'ckeditor5';
 ```
 
-👍&nbsp; Examples of correct code for this rule:
+[History of the change.](https://github.com/ckeditor/ckeditor5/issues/9318)
 
-```js
-// @if CK_DEBUG // const defaultExport = require( 'module-name' ).default;
-// @if CK_DEBUG // const name = require( 'module-name' );
-// @if CK_DEBUG // const { testFunction } = require( 'module-name' );
-// @if CK_DEBUG // const alias = require( 'module-name' ).default;
-// @if CK_DEBUG // const { exported: alias } = require( 'module-name' );
-// @if CK_DEBUG // require( 'module-name' );
-```
-
-[History of the change.](https://github.com/ckeditor/ckeditor5/issues/12479)
-
-### Non public members marked as @internal : `ckeditor5-rules/non-public-members-as-internal`
+### Non-public members marked as @internal : `ckeditor5-rules/non-public-members-as-internal`
 
 <info-box warning>
   This rule should only be used on `.ts` files.
 </info-box>
 
-In order to remove non public members from typings, the `@internal` tag has to be used in member's JSDoc.
+To remove non-public members from type definitions, use the `@internal` tag in the member's JSDoc.
 
-Then option `"stripInternal": true` in `tsconfig.json` can be used to remove them from declaration types.
+Then you can use the `"stripInternal": true` option in `tsconfig.json` to remove them from declaration types.
 
 👎&nbsp; Examples of incorrect code for this rule:
 
@@ -1027,43 +956,11 @@ class ClassWithSecrets {
 ```ts
 class ClassWithSecrets {
 	/**
-	 * @internal
-	 */
+	* @internal
+	*/
 	private _shouldNotBeEmitted: string;
 }
 ```
-
-### Importing a predefined build: `ckeditor5-rules/no-build-extensions`
-
-<info-box info>
-	This rule only applies to code snippets from the documentation.
-</info-box>
-
-While importing a predefined build, only this build is allowed to be imported, like this:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-alignment/docs/_snippets/features/text-alignment.js`.
-
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
-```
-
-Importing anything from the `src` directory, in order to extend a CKEditor&nbsp;5 build, is not allowed. Other directories from a predefined build are not published on npm, so such imports will not work.
-
-👎&nbsp; Examples of an incorrect code for this rule:
-
-```js
-// Assume we edit a file located in the path: `packages/ckeditor5-alignment/docs/_snippets/features/text-alignment.js`.
-
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic/src/ckeditor';
-```
-
-```js
-// Assume we edit a file located in the path: `docs/_snippets/features/placeholder.js`.
-
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic/src/ckeditor';
-```
-
-[History of the change.](https://github.com/ckeditor/ckeditor5/issues/13689)
 
 ### Declaring module augmentation for the core package: `ckeditor5-rules/allow-declare-module-only-in-augmentation-file`
 
@@ -1077,26 +974,34 @@ This rule forces all `declare module '@ckeditor/ckeditor5-core'` to be defined i
 
 ### Importing from modules: `ckeditor5-rules/allow-imports-only-from-main-package-entry-point`
 
-<info-box warning>
-  This rule should only be used on `.ts` files.
-</info-box>
+This rule ensures that all imports from the `@ckeditor/*` packages are done through the main package entry points. This is required for the editor types to work properly and to ease migration to the installation methods introduced in CKEditor&nbsp;5 v42.0.0.
 
-As explained in the description of the `allow-declare-module-only-in-augmentation-file` rule, information about available plugins, configuration and commands is only available in the editor types when data from modules is imported from the main entry point.
-
-This rule forces all imports from `@ckeditor/*` packages to be done through the main entry point.
-
-👎&nbsp; Example of an incorrect code for this rule:
+👎&nbsp; Example of incorrect code for this rule:
 
 ```ts
 // Importing from the `/src/` folder is not allowed.
 import Table from '@ckeditor/ckeditor5-table/src/table';
+
+// Importing from the `/theme/` folder is not allowed.
+import BoldIcon from '@ckeditor/ckeditor5-icons/theme/icons/bold.svg';
 ```
 
 👍&nbsp; Examples of correct code for this rule:
 
 ```ts
 // ✔️ Importing from the main entry point is allowed.
-import { Table } from '@ckeditor/ckeditor5-table';
+import { Table } from 'ckeditor5';
+```
+
+Apart from the main entry point, imports from package subpaths listed in the `exports` field of the package are allowed. Additionally, the `allowedImportPatterns` option accepts an array of glob patterns matched against the import path. Imports matching any of these patterns are allowed, too. It defaults to `[ '**/tests/**/_utils*/**' ]`, which allows importing test utilities from other packages.
+
+```js
+'ckeditor5-rules/allow-imports-only-from-main-package-entry-point': [ 'error', {
+	allowedImportPatterns: [
+		'**/tests/**/_utils*/**',
+		'**/manual/**/_utils*/**'
+	]
+} ]
 ```
 
 ### Require `as const`: `ckeditor5-rules/require-as-const-returns-in-methods`
@@ -1107,9 +1012,9 @@ import { Table } from '@ckeditor/ckeditor5-table';
 
 In TypeScript, the types inferred from some values are simplified. For example, the type of `const test = [1, 2, 3];` is `number[]`, but in some cases a more specific type may be needed. Using `as const` can help with this. For example, the type of `const test1 = [1, 2, 3] as const;` is `readonly [1, 2, 3]`.
 
-The `require-as-const-returns-in-methods` rule requires some methods that depend on the exact type of returned data (e.g. `delete'` literal string instead of generic `string` in the `pluginName` method, or `readonly [typeof Table]` instead of `[]` in the `requires` method) to have all return statements with `as const`.
+The `require-as-const-returns-in-methods` rule requires some methods that depend on the exact type of returned data (for example, `'delete'` literal string instead of the generic `string` in the `pluginName` method) to have all return statements with `as const`.
 
-👎&nbsp; Examples of an incorrect code for this rule:
+👎&nbsp; Examples of incorrect code for this rule:
 
 ```ts
 export default class Delete extends Plugin {
@@ -1137,6 +1042,34 @@ export default class Delete extends Plugin {
 }
 ```
 
+### Disallow TypeScript enums: `ckeditor5-rules/no-enum`
+
+<info-box warning>
+  This rule should only be used on `.ts` files.
+</info-box>
+
+TypeScript `enum` declarations are disallowed because they emit runtime code that is hard to tree-shake, behave inconsistently between numeric and string enums, and do not mix well with structural typing. Prefer a `const` object combined with a union type derived from its values, which produces a lighter and more predictable output.
+
+👎&nbsp; Examples of incorrect code for this rule:
+
+```ts
+enum Direction {
+	Up = 'up',
+	Down = 'down'
+}
+```
+
+👍&nbsp; Examples of correct code for this rule:
+
+```ts
+const Direction = {
+	Up: 'up',
+	Down: 'down'
+} as const;
+
+type Direction = typeof Direction[ keyof typeof Direction ];
+```
+
 ### Imports within a package: `ckeditor5-rules/no-scoped-imports-within-package`
 
 All imports defined in every package, that point to a file from the same package, must be relative. You cannot use the scoped imports, if the target file is located in the same package as the import declaration. The resolved scoped import points to the package inside the `node_modules`, but not to the current working directory, and the source code in these two places may differ from each other.
@@ -1160,3 +1093,402 @@ import AlignmentEditing from './alignmentediting';
 ```
 
 [History of the change.](https://github.com/ckeditor/ckeditor5/issues/14329)
+
+### Mandatory file extensions in imports: `ckeditor5-rules/require-file-extensions-in-imports`
+
+As required by the [ECMAScript (ESM)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules) standard, all imports and re-exports must include a file extension. If they do not include it, this rule will try to automatically detect the correct file extension. It is impossible in these two cases:
+
+* The file extension is different that `.ts`, `.js`, or `.json`.
+* The file does not exist in the file system.
+
+The second case is common for the documentation files, because its pieces are located in different directories and repositories. These pieces are merged during the build step, but before that, the imports are technically invalid.
+
+In such cases, you must add the file extension manually. Imports with file extensions are not validated.
+
+### Valid `@module` tags: `ckeditor5-rules/validate-module-tag`
+
+<info-box warning>
+	This rule should only be used on `.ts` files in package `src/` directories.
+</info-box>
+
+This rule requires a file-level `@module` JSDoc tag at the top of each TypeScript source file in `packages/*/src`. The tag value must match the file path.
+
+For example, `packages/ckeditor5-feature/src/featureediting.ts` should start with `@module feature/featureediting`. For `index.ts` files, both `@module feature` and `@module feature/index` are allowed. The `augmentation.ts` file is excluded from this rule.
+
+### Require or disallow certain plugin flags: `ckeditor5-rules/ckeditor-plugin-flags`
+
+<info-box warning>
+	This rule should only be used on `.ts` files.
+</info-box>
+
+This rule ensures that plugin flags are either correctly set or not set at all. It checks whether the flags have the correct type and value, preventing common mistakes and ensuring compliance with the CKEditor&nbsp;5 plugin API.
+
+Options:
+
+* `requiredFlags` &ndash; (optional) An array of flags that must be set in the plugin.
+* `disallowedFlags` &ndash; (optional) An array of flags that must not be set in the plugin.
+
+The example configuration below requires the `isFooPlugin` flag to be set to `true` and disallows the `isBarPlugin` flag:
+
+```json
+{
+	"requiredFlags": [
+		{
+			"name": "isFooPlugin",
+			"returnValue": true
+		}
+	],
+	"disallowedFlags": [ "isBarPlugin" ]
+}
+```
+
+👎&nbsp; Examples of incorrect code for this rule:
+
+```ts
+export default class MyPlugin extends Plugin {
+	static get pluginName() {
+		return 'MyPlugin';
+	}
+
+	public static override get isBarPlugin(): false {
+		return false;
+	}
+}
+```
+
+The `isBarPlugin` flag is disallowed, and the plugin has it set to `false`. Additionally, the `isFooPlugin` flag is required but not defined.
+
+👍&nbsp; Examples of correct code for this rule:
+
+```ts
+export default class MyPlugin extends Plugin {
+	static get pluginName() {
+		return 'MyPlugin';
+	}
+
+	public static override get isFooPlugin(): true {
+		return true;
+	}
+}
+```
+
+The `isFooPlugin` flag is required and set to `true`, and the `isBarPlugin` flag is not defined.
+
+### SVG imports only in the `@ckeditor/ckeditor5-icons` package
+
+This rule ensures that SVG files are imported and exported only in the `@ckeditor/ckeditor5-icons` package. This package should include all icons used in CKEditor&nbsp;5.
+
+### CSS imports only in the main package entry point
+
+This rule ensures that CSS files are imported only in the main package entry point (`src/index.ts`). Each package imports `theme/index-editor.css` followed by `theme/index-content.css`. Individual source modules must not import CSS files.
+
+### Valid changelog entries
+
+This rule ensures that changelog entry files are populated with proper data and a clear description of the change. For a full guide on how to populate changelog entries, see the {@link framework/contributing/changelog-entries Changelog entries} guide.
+
+### Disallow hardcoded `$root` literals: `ckeditor5-rules/no-literal-dollar-root`
+
+This rule disallows the literal `'$root'` string anywhere it could be used as a schema context. Hardcoding `'$root'` is silently wrong when {@link module:core/editor/editorconfig~RootConfig#modelElement `config.root.modelElement`} is customized: the runtime root no longer matches the literal, and any schema check or upcast against it operates against the wrong element name. See the {@link getting-started/setup/root-types Root types} guide for an overview of the available root model element types.
+
+The rule also reports two specific patterns that have a name-agnostic replacement and provides an auto-fix for them:
+
+* `node.is( 'element', '$root' )` → `node.is( 'rootElement' )`
+* `node.name === '$root'` / `node.name !== '$root'` → `node.is( 'rootElement' )` / `!node.is( 'rootElement' )`
+
+Options:
+
+* `allowedPackages` &ndash; (optional) A list of package name fragments whose source files are exempt from the rule. Used for `ckeditor5-engine` and `ckeditor5-core` where `'$root'` is the canonical schema element name being defined.
+* `allowedCalls` &ndash; (optional) A list of method names where a `'$root'` literal argument is permitted (e.g. `is` so that `node.is( '$root' )` is allowed alongside the canonical `node.is( 'rootElement' )` form).
+
+The rule also has a narrow built-in exception: a `'$root'` literal under a `context` property of an options object passed to a view-event listener method (`listenTo()`, `on()`, `once()`, `off()`) is not flagged, because in that position `'$root'` is a view-tree bubbling target — not the schema element name.
+
+👎&nbsp; Examples of incorrect code for this rule:
+
+```ts
+const ROOT_NAME = '$root';
+
+if ( node.is( 'element', '$root' ) ) { /* ... */ }
+
+if ( modelElement.name === '$root' ) { /* ... */ }
+
+writer.addRoot( newRoot, '$root' );
+```
+
+👍&nbsp; Examples of correct code for this rule:
+
+```ts
+if ( node.is( 'rootElement' ) ) { /* ... */ }
+
+if ( modelElement.is( 'rootElement' ) ) { /* ... */ }
+
+// View-event listener `context` option — `'$root'` here is a view-tree bubbling target.
+this.listenTo( viewDocument, 'arrowKey', handler, { context: '$root' } );
+
+// Adding attributes to the default root element is the documented escape hatch.
+schema.extend( '$root', { allowAttributes: [ 'foo' ] } );
+```
+
+If the literal `'$root'` is the right value at a call site, opt out with an `// eslint-disable-next-line` comment that explains why. A common case is a feature that is intentionally scoped to roots whose `modelElement` is the default `$root` and is not meant to operate on roots configured with a custom `modelElement`. Such a feature may register its schema only against `$root` on purpose:
+
+```ts
+// eslint-disable-next-line ckeditor5-rules/no-literal-dollar-root -- feature is registered only on the default `$root` by design
+model.schema.register( 'myFeatureElement', { isBlock: true, allowIn: '$root' } );
+```
+
+### Require explicit schema context: `ckeditor5-rules/require-explicit-data-context`
+
+This rule flags calls to engine APIs whose schema-context argument silently defaults to `'$root'` when omitted. Like the rule above, the silent default is wrong as soon as a root is configured with a custom {@link module:core/editor/editorconfig~RootConfig#modelElement `modelElement`}, and the failure is hard to diagnose because no error is raised.
+
+The rule reports calls to these APIs when their context argument is missing:
+
+* {@link module:engine/controller/datacontroller~DataController#parse `data.parse( data, context )`}
+* {@link module:engine/controller/datacontroller~DataController#toModel `data.toModel( view, context )`}
+* {@link module:engine/model/document~ModelDocument#createRoot `document.createRoot( elementName, rootName )`}
+* {@link module:engine/model/writer~ModelWriter#addRoot `writer.addRoot( rootName, elementName )`}
+* {@link module:engine/conversion/upcastdispatcher~UpcastDispatcher#convert `upcastDispatcher.convert( viewElementOrFragment, writer, context )`}
+
+The receiver patterns are matched syntactically (the receiver's final accessed property must be `data` / `document` / `upcastDispatcher`, or a bare identifier `writer` for `addRoot`). This intentionally excludes `MultiRootEditor#addRoot( rootName, options? )`, which has a different signature and resolves the model element name from its options object.
+
+👎&nbsp; Examples of incorrect code for this rule:
+
+```ts
+const fragment = editor.data.parse( html );
+const fragment = editor.data.toModel( view );
+
+editor.model.document.createRoot();
+
+editor.model.change( writer => {
+	writer.addRoot( 'main' );
+} );
+
+editor.data.upcastDispatcher.convert( viewFragment, writer );
+```
+
+👍&nbsp; Examples of correct code for this rule:
+
+```ts
+const fragment = editor.data.parse( html, '$documentFragment' );
+const fragment = editor.data.toModel( view, editor.model.document.getRoot()! );
+
+editor.model.document.createRoot( '$inlineRoot' );
+
+editor.model.change( writer => {
+	writer.addRoot( 'main', '$inlineRoot' );
+} );
+
+editor.data.upcastDispatcher.convert( viewFragment, writer, [ '$root' ] );
+```
+
+If the default `'$root'` context is intentional (for example, an internal editor whose only root always uses the default model element), opt out with an `// eslint-disable-next-line` comment that explains why.
+
+### Disallow shadow-unsafe DOM APIs: `ckeditor5-rules/no-shadow-unsafe-dom-apis`
+
+This rule reports DOM APIs that stop working correctly once the editor is placed inside a shadow root. None of them throw an error. Each one resolves against the top-level document, so it either finds nothing or returns the shadow host instead of the node inside it. The problem surfaces later as a feature that silently stops reacting, which makes it difficult to trace back to the API that caused it.
+
+The reported APIs fall into the following groups:
+
+* **Active element and selection** &ndash; `document.activeElement` and `getSelection()`. Neither can see into a shadow root: both report the host of the tree rather than the focused or selected node inside it. Because the rule matches the access path rather than the value, it recognizes the top-level document however it is written &ndash; `document`, `window.document`, or any `*.ownerDocument`. `getSelection()` is caught on the window forms too, whether a bare call or through `window.`, `self.`, or `*.defaultView.`, because it is defined on both `Window` and `Document`, while `activeElement` belongs to `DocumentOrShadowRoot`. Use the {@link module:utils/dom/getactiveelement~getActiveElement `getActiveElement()`} and {@link module:utils/dom/getselection~getSelection `getSelection()`} helpers instead, which read from the node's own root.
+* **Containment and traversal** &ndash; `contains()` called on the top-level document or its body, and every read of `.parentNode` or `.parentElement`. All of them stop at the boundary. Use `isConnected` or {@link module:utils/dom/containsnode~containsNode `containsNode()`} in place of `contains()`, and {@link module:utils/dom/getparentnode~getParentNode `getParentNode()`} or {@link module:utils/dom/getparentelement~getParentElement `getParentElement()`} in place of the raw properties.
+* **Element lookup** &ndash; `querySelector()`, `querySelectorAll()`, `getElementById()`, `getElementsByTagName()`, `getElementsByClassName()`, and `getElementsByName()` called on the top-level document or its body. The contents of a shadow root are not reachable from the document, so these lookups find nothing. Query the editor's own root instead.
+* **Point resolution** &ndash; `document.elementFromPoint()` and `document.elementsFromPoint()` ignore shadow content, so the point must be resolved through the element's own root. `caretPositionFromPoint()` needs a `{ shadowRoots }` option to resolve carets inside a shadow root and is reported when that option is missing.
+* **Root discovery** &ndash; `.shadowRoot` and `composedPath()`. Both are reported on every use, not only when they serve to discover the root. Keep a held reference to the root, or call `getRootNode()` instead.
+* **Document listeners** &ndash; `mouseenter`, `mouseleave`, `pointerenter`, `pointerleave`, and `scroll` listeners added to or removed from the top-level document. They do not fire for events that happen inside another shadow root.
+* **Body mounting** &ndash; `document.body.appendChild()`. Mount it into the body collection root instead.
+* **Tree traversal** &ndash; `createTreeWalker()` and `createNodeIterator()` rooted at the top-level document or its body. Neither one descends into shadow roots. Only the root argument matters here, not the object the factory is called on.
+* **Retargeted event properties** &ndash; any read or write of `relatedTarget`. It is retargeted at a shadow boundary, so it does not point at the node the pointer actually came from or went to.
+
+Some cases are deliberately left out. Legacy `caretRangeFromPoint()` is never reported, because it accepts coordinates only and has no shadow-aware form. It is used exactly where `caretPositionFromPoint()` is unavailable, so there is nothing to switch to. Destructuring, for example `const { relatedTarget } = domEvent;`, is not covered either, because the rule matches property access rather than bindings. Private class fields are left alone as well &ndash; `this.#parentNode`, `this.#shadowRoot`, and `this.#relatedTarget` are ordinary class state, not DOM properties. Conversely, `relatedTarget` is reported on every access without checking which object it belongs to, since the name is rarely used for anything else.
+
+Wrapping an access does not sidestep the rule. It matches through optional chaining, non-null assertions, `as` casts, bracket notation, and template-literal property keys, so `document?.querySelector( '.x' )` and `document[ 'querySelector' ]( '.x' )` are both reported.
+
+A bare call to a function that resolves to a local binding, whether imported or declared in the file, is never reported, even when it shares a name with a global. That is how the shadow-aware helpers themselves pass the rule. A name introduced only by a `/* global */` directive comment does not count as a local binding and is still reported.
+
+👎&nbsp; Examples of incorrect code for this rule:
+
+```ts
+const active = document.activeElement;
+const selection = window.getSelection();
+const isInside = document.body.contains( element );
+const parent = element.parentNode;
+const toolbarElement = document.querySelector( '.ck-toolbar' );
+
+document.addEventListener( 'scroll', handler, { capture: true } );
+document.caretPositionFromPoint( x, y );
+```
+
+👍&nbsp; Examples of correct code for this rule:
+
+```ts
+import { getActiveElement, getSelection, containsNode, getParentNode } from '@ckeditor/ckeditor5-utils';
+
+const active = getActiveElement( element );
+const selection = getSelection( element );
+const isInside = containsNode( container, element );
+const parent = getParentNode( element );
+
+// Resolve the root once, then query it and listen on it.
+const editorRoot = element.getRootNode() as Document | ShadowRoot;
+const toolbarElement = editorRoot.querySelector( '.ck-toolbar' );
+
+editorRoot.addEventListener( 'scroll', handler, { capture: true } );
+document.caretPositionFromPoint( x, y, { shadowRoots } );
+```
+
+If a raw API is the correct call at a given site, opt out with an `// eslint-disable-next-line` comment that explains why. The shadow-aware helpers that wrap these APIs are the main case.
+
+### Require Trusted Types for DOM injection sinks: `ckeditor5-rules/require-trusted-types-for-sinks`
+
+An application can enforce Trusted Types with the `require-trusted-types-for 'script'` CSP directive. The browser then rejects a plain string in every DOM injection sink, which is any place that turns a string into HTML or code, such as `innerHTML`. If the editor writes a plain string there, it throws. To prevent that, this rule requires every value that reaches a sink to go through one of the Trusted Types helpers from `@ckeditor/ckeditor5-utils`. See the {@link getting-started/setup/csp#trusted-types Content Security Policy} guide to learn how the editor supports Trusted Types.
+
+The rule checks three kinds of sinks:
+
+* **HTML** &ndash; assignments to `innerHTML`, `outerHTML`, and `srcdoc`, the HTML argument of `parseFromString()`, `createContextualFragment()`, `insertAdjacentHTML()`, `setHTMLUnsafe()`, and `parseHTMLUnsafe()`, and every argument of `write()` and `writeln()`, which join all the arguments they receive. The value must come directly from a call to {@link module:utils/dom/trustedtypes~trustedHtml `trustedHtml()`}.
+* **Attributes** &ndash; `setAttribute()` and `setAttributeNS()` when the attribute name can be any attribute, or when it names an event handler, such as `onclick`, or `srcdoc`. The value must come directly from a call to `_trustedAttributeValue()` with the same element and attribute name. This helper asks the browser which Trusted Type the attribute needs. A literal `src`, `href`, or `data` is not reported, because these attributes are sinks only on some elements.
+* **Functions that write HTML themselves** &ndash; third-party functions, such as `morphdom()`, that write an HTML string they receive to a sink in their own code. Neither helper can reach that sink, so these functions must receive a DOM node instead of a string. The rule checks only the functions listed in the `htmlWritingFunctions` option, each with the position of the argument to check, for example `{ htmlWritingFunctions: { morphdom: 1 } }`.
+
+Three kinds of code are reported even though they look correct. The first is a variable that holds the result of an earlier `trustedHtml()` or `_trustedAttributeValue()` call. The rule cannot know what such a variable contains, so the call must be written directly in the sink. The second is a spread argument, such as `document.write( ...parts )`. The rule cannot see what it holds either, so it reports it without a suggestion. The third is `+=` on an HTML property. It reads the property, joins the strings, and assigns a plain string, so the browser rejects it even when the added part comes from `trustedHtml()`. Build the whole HTML first and assign it once.
+
+The rule uses type information to tell sinks from methods of the same name. For this reason, enable it only for files covered by a TypeScript project, with `parserOptions.projectService` set. The rule reports a sink only when the object that owns it is typed as a DOM object, such as an `Element`, a `Document`, or a `DOMParser`. This is why `writer.setAttribute( key, value, element )` and `navigator.clipboard.write( items )` are not reported. An object of an unknown type, such as `any`, counts as a DOM object, because the rule cannot tell what it holds. Attribute names are read from their types too. A name typed as a union of string literals, for example in `for ( const name of [ 'id', 'class' ] as const )`, is reported only if one of the literals is an event handler or `srcdoc`.
+
+To fix a reported sink, apply the suggestion of the rule. It wraps the value in the right helper and imports the helper. The rule does not fix the code automatically, because the helpers do not clean anything. They only make the browser accept the value, so wrapping a value is a decision about where it comes from. Wrap only markup and attribute values that the code produces itself, never content from a user or from a server response. The suggestion can also add an import of `@ckeditor/ckeditor5-utils` to a package that does not declare this dependency yet, so check the `package.json` file of the package after you apply it.
+
+👎&nbsp; Examples of incorrect code for this rule:
+
+```ts
+element.innerHTML = html;
+element.innerHTML += trustedHtml( html );
+element.insertAdjacentHTML( 'beforeend', html );
+new DOMParser().parseFromString( html, 'text/html' );
+
+element.setAttribute( attributeName, value );
+```
+
+👍&nbsp; Examples of correct code for this rule:
+
+```ts
+import { trustedHtml, _trustedAttributeValue } from '@ckeditor/ckeditor5-utils';
+
+element.innerHTML = trustedHtml( html );
+element.insertAdjacentHTML( 'beforeend', trustedHtml( html ) );
+new DOMParser().parseFromString( trustedHtml( html ), 'text/html' );
+
+element.setAttribute( attributeName, _trustedAttributeValue( element, attributeName, value ) );
+element.setAttribute( 'class', value );
+```
+
+If a sink is written on purpose, opt out with an `// eslint-disable-next-line` comment that explains why. Do the same for a reported `setAttribute()` or `setAttributeNS()` call that should never set an attribute requiring a Trusted Type. The value then stays a plain string, so if the call ever sets such an attribute, the Trusted Types enforcement of the application decides about it, instead of `_trustedAttributeValue()` making the browser accept it.
+
+## CKEditor&nbsp;5 custom CSS ESLint rules
+
+In addition to the rules provided by ESLint and its CSS plugin, CKEditor&nbsp;5 uses a few custom CSS rules described below.
+
+### Names of CSS variables within `.ck-content`: `ckeditor5-rules/ck-content-variable-name`
+
+This rule aims to enforce convention of all variables targeting styling of elements within the editor (`.ck-content`) using a common prefix (`--ck-content-*`)
+
+👎&nbsp; Example of incorrect code for this rule:
+
+```css
+.ck-content {
+	width: var(--variable-name);
+}
+```
+
+👍&nbsp; Example of correct code for this rule:
+
+```css
+.ck-content {
+	width: var(--ck-content-variable-name);
+}
+```
+
+[History of the change.](https://github.com/ckeditor/ckeditor5/issues/18805)
+
+### Content stylesheet placement: `ckeditor5-rules/content-styles-in-index-content`
+
+This rule requires content styles scoped with `.ck-content` to be placed in `theme/index-content.css`. Editor-only content hosts, such as `.ck-editor__editable.ck-content`, stay in editor stylesheets.
+
+### Editor stylesheet placement: `ckeditor5-rules/no-editor-styles-in-index-content`
+
+This rule prevents editor UI and editing-view selectors from being placed in `theme/index-content.css`. The content entry point may also contain supporting custom properties, font definitions, and keyframes.
+
+A bare `:host` selector that declares only custom properties is allowed. Together with `:root`, it marks the root scope the stylesheet resolves its custom properties in, so `:root, :host { --ck-content-*: ... }` is accepted here. A parameterized `:host(...)` still counts as an editor selector. See the [`ckeditor5-rules/require-host-with-root-selector`](#root-selectors-require-host-ckeditor5-rulesrequire-host-with-root-selector) rule for why the two selectors are paired.
+
+### Selector specificity order: `ckeditor5-rules/no-descending-specificity`
+
+This rule reports selectors with lower specificity placed after overriding selectors with higher specificity that target the same element. Such a selector cannot win the cascade where both selectors apply, so the resulting order is misleading to readers and fragile during refactoring. It reimplements Stylelint's [`no-descending-specificity`](https://stylelint.io/user-guide/rules/no-descending-specificity/) rule for ESLint.
+
+Selectors are compared only within the same context (the same nesting parent and at-rule conditions) and only when they share the same key selector, that is, the last compound selector ignoring pseudo-classes. For example, `a:hover` and `a` are compared with each other, while `a::before` is not compared with `a`.
+
+👎&nbsp; Example of incorrect code for this rule:
+
+```css
+.ck-toolbar a {
+	color: var(--ck-color-link);
+}
+
+a {
+	color: var(--ck-color-text);
+}
+```
+
+👍&nbsp; Example of correct code for this rule:
+
+```css
+a {
+	color: var(--ck-color-text);
+}
+
+.ck-toolbar a {
+	color: var(--ck-color-link);
+}
+```
+
+### Custom property references require `var()`: `ckeditor5-rules/no-missing-var-function`
+
+This rule reports custom property references used as declaration values without the `var()` function. A bare reference is not substituted by the browser, so the declaration silently does not work. It reimplements Stylelint's [`custom-property-no-missing-var-function`](https://stylelint.io/user-guide/rules/custom-property-no-missing-var-function/) rule for ESLint.
+
+Properties whose values legitimately contain dashed identifiers are not checked. This covers transition targets (`transition`, `transition-property`, and `will-change`) and the naming properties of anchor positioning, scroll-driven animations, and view transitions (for example, `anchor-name` or `view-transition-name`).
+
+👎&nbsp; Example of incorrect code for this rule:
+
+```css
+.ck-button {
+	color: --ck-color-text;
+	--ck-button-color: --ck-color-text;
+}
+```
+
+👍&nbsp; Example of correct code for this rule:
+
+```css
+.ck-button {
+	color: var(--ck-color-text);
+	--ck-button-color: var(--ck-color-text);
+}
+```
+
+### `:root` selectors require `:host`: `ckeditor5-rules/require-host-with-root-selector`
+
+A `:root` selector matches nothing inside a shadow root, so a stylesheet that anchors its custom properties on `:root` alone leaves every one of them undefined for an editor mounted inside one. This rule requires each `:root` selector to be paired with `:host`, which matches the shadow host from inside the shadow tree and matches nothing in the light DOM. Pairing the two lets a single stylesheet resolve its tokens in both contexts.
+
+Only a bare `:host` satisfies the rule. A parameterized `:host(...)` targets specific hosts rather than the root scope, so it does not count.
+
+The rule is autofixable. The fix adds `:host` as a new selector after `:root`, indented to match it.
+
+👎&nbsp; Example of incorrect code for this rule:
+
+```css
+:root {
+	--ck-bookmark-icon-hover-fill-color: var(--ck-widget-hover-border-color);
+}
+```
+
+👍&nbsp; Example of correct code for this rule:
+
+```css
+:root,
+:host {
+	--ck-bookmark-icon-hover-fill-color: var(--ck-widget-hover-border-color);
+}
+```

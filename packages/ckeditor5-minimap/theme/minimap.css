@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-:root {
+:root,
+:host {
 	--ck-color-minimap-tracker-background: 208, 0%, 51%;
 	--ck-color-minimap-iframe-outline: hsl(0deg 0% 75%);
 	--ck-color-minimap-iframe-shadow: hsl(0deg 0% 0% / 11%);
@@ -12,6 +13,7 @@
 
 .ck.ck-minimap {
 	position: absolute;
+	-webkit-user-select: none;
 	user-select: none;
 	background: var(--ck-color-base-background);
 
@@ -37,6 +39,11 @@
 		background: hsla( var(--ck-color-minimap-tracker-background), .2 );
 		z-index: 1;
 		transition: background 100ms ease-in-out;
+
+
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
+		}
 
 		&:hover {
 			background:hsla( var(--ck-color-minimap-tracker-background), .3 );
@@ -64,6 +71,11 @@
 			border-radius: 3px;
 			opacity: 0;
 			transition: opacity 100ms ease-in-out;
+
+
+			@media (prefers-reduced-motion: reduce) {
+				transition: none;
+			}
 		}
 	}
 }

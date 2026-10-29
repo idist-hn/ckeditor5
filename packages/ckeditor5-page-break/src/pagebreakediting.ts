@@ -1,29 +1,49 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module page-break/pagebreakediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { toWidget } from 'ckeditor5/src/widget';
-import type { DowncastWriter, ViewElement } from 'ckeditor5/src/engine';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { toWidget } from '@ckeditor/ckeditor5-widget';
+import type { ViewDowncastWriter, ViewElement } from '@ckeditor/ckeditor5-engine';
 
-import PageBreakCommand from './pagebreakcommand';
-
-import '../theme/pagebreak.css';
+import { PageBreakCommand } from './pagebreakcommand.js';
 
 /**
  * The page break editing feature.
  */
-export default class PageBreakEditing extends Plugin {
+export class PageBreakEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'PageBreakEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @internal
+	 */
+	public static get licenseFeatureCode(): string {
+		return 'PB';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isPremiumPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -104,7 +124,18 @@ export default class PageBreakEditing extends Plugin {
 						return null;
 					}
 
-					return { name: true };
+					return {
+						name: true,
+
+						styles: [
+							...( hasPageBreakBefore ? [ 'page-break-before' ] : [] ),
+							...( hasPageBreakAfter ? [ 'page-break-after' ] : [] )
+						],
+
+						...element.hasClass( 'page-break' ) && {
+							classes: [ 'page-break' ]
+						}
+					};
 				},
 				model: 'pageBreak',
 
@@ -118,12 +149,12 @@ export default class PageBreakEditing extends Plugin {
 }
 
 /**
- * Converts a given {@link module:engine/view/element~Element} to a page break widget:
- * * Adds a {@link module:engine/view/element~Element#_setCustomProperty custom property} allowing to
+ * Converts a given {@link module:engine/view/element~ViewElement} to a page break widget:
+ * * Adds a {@link module:engine/view/element~ViewElement#_setCustomProperty custom property} allowing to
  *   recognize the page break widget element.
  * * Calls the {@link module:widget/utils~toWidget} function with the proper element's label creator.
  */
-function toPageBreakWidget( viewElement: ViewElement, writer: DowncastWriter, label: string ): ViewElement {
+function toPageBreakWidget( viewElement: ViewElement, writer: ViewDowncastWriter, label: string ): ViewElement {
 	writer.setCustomProperty( 'pageBreak', true, viewElement );
 
 	return toWidget( viewElement, writer, { label } );

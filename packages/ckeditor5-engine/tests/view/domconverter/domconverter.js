@@ -1,50 +1,60 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, console */
-
-import DomConverter from '../../../src/view/domconverter';
-import ViewEditable from '../../../src/view/editableelement';
-import ViewDocument from '../../../src/view/document';
-import ViewUIElement from '../../../src/view/uielement';
-import ViewContainerElement from '../../../src/view/containerelement';
-import DowncastWriter from '../../../src/view/downcastwriter';
-import { BR_FILLER, INLINE_FILLER, INLINE_FILLER_LENGTH, NBSP_FILLER, MARKED_NBSP_FILLER } from '../../../src/view/filler';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import { StylesProcessor } from '../../../src/view/stylesmap';
-import ViewPosition from '../../../src/view/position';
-import ViewRange from '../../../src/view/range';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ViewDomConverter } from '../../../src/view/domconverter.js';
+import { ViewEditableElement } from '../../../src/view/editableelement.js';
+import { ViewDocument } from '../../../src/view/document.js';
+import { ViewUIElement } from '../../../src/view/uielement.js';
+import { ViewContainerElement } from '../../../src/view/containerelement.js';
+import { ViewDowncastWriter } from '../../../src/view/downcastwriter.js';
+import { BR_FILLER, INLINE_FILLER, INLINE_FILLER_LENGTH, NBSP_FILLER, MARKED_NBSP_FILLER } from '../../../src/view/filler.js';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { StylesProcessor } from '../../../src/view/stylesmap.js';
+import { ViewPosition } from '../../../src/view/position.js';
+import { ViewRange } from '../../../src/view/range.js';
 import { ViewText } from '@ckeditor/ckeditor5-engine';
 
-describe( 'DomConverter', () => {
+describe( 'ViewDomConverter', () => {
 	let converter, viewDocument;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		viewDocument = new ViewDocument( new StylesProcessor() );
-		converter = new DomConverter( viewDocument );
+		converter = new ViewDomConverter( viewDocument );
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'should create converter with BR block filler mode by default', () => {
-			expect( converter.blockFillerMode ).to.equal( 'br' );
+			expect( converter.blockFillerMode ).toBe( 'br' );
 		} );
 
 		it( 'should create converter with defined block mode filler', () => {
-			converter = new DomConverter( viewDocument, { blockFillerMode: 'nbsp' } );
-			expect( converter.blockFillerMode ).to.equal( 'nbsp' );
+			converter = new ViewDomConverter( viewDocument, { blockFillerMode: 'nbsp' } );
+			expect( converter.blockFillerMode ).toBe( 'nbsp' );
 		} );
 
 		it( 'should create converter with proper default block mode filler - depending on the rendering mode', () => {
-			converter = new DomConverter( viewDocument, { renderingMode: 'data' } );
-			expect( converter.blockFillerMode ).to.equal( 'nbsp' );
+			converter = new ViewDomConverter( viewDocument, { renderingMode: 'data' } );
+			expect( converter.blockFillerMode ).toBe( 'nbsp' );
 
-			converter = new DomConverter( viewDocument, { renderingMode: 'editing' } );
-			expect( converter.blockFillerMode ).to.equal( 'br' );
+			converter = new ViewDomConverter( viewDocument, { renderingMode: 'editing' } );
+			expect( converter.blockFillerMode ).toBe( 'br' );
+		} );
+	} );
+
+	describe( 'domDocument', () => {
+		it( 'should return DOM document instance used by the ViewDomConverter #1 - rendering mode data', () => {
+			expect( converter.domDocument ).toBeInstanceOf( globalThis.Document );
+		} );
+
+		it( 'should return DOM document instance used by the ViewDomConverter #2 - rendering mode editing', () => {
+			const converterEditing = new ViewDomConverter( viewDocument, {
+				renderingMode: 'editing'
+			} );
+
+			expect( converterEditing.domDocument ).toBe( globalThis.document );
 		} );
 	} );
 
@@ -53,7 +63,7 @@ describe( 'DomConverter', () => {
 
 		beforeEach( () => {
 			viewDocument = new ViewDocument( new StylesProcessor() );
-			viewEditable = new ViewEditable( viewDocument, 'div' );
+			viewEditable = new ViewEditableElement( viewDocument, 'div' );
 
 			domEditable = document.createElement( 'div' );
 			domEditableParent = document.createElement( 'div' );
@@ -71,32 +81,41 @@ describe( 'DomConverter', () => {
 		} );
 
 		it( 'should call focus on corresponding DOM editable', () => {
-			const focusSpy = testUtils.sinon.spy( domEditable, 'focus' );
+			const focusSpy = vi.spyOn( domEditable, 'focus' );
 
 			converter.focus( viewEditable );
 
-			expect( focusSpy.calledOnce ).to.be.true;
+			expect( focusSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should not focus already focused editable', () => {
-			const focusSpy = testUtils.sinon.spy( domEditable, 'focus' );
+			const focusSpy = vi.spyOn( domEditable, 'focus' );
 
 			converter.focus( viewEditable );
 			converter.focus( viewEditable );
 
-			expect( focusSpy.calledOnce ).to.be.true;
+			expect( focusSpy ).toHaveBeenCalledOnce();
+		} );
+
+		it( 'should use preventScroll option', () => {
+			const focusSpy = vi.spyOn( domEditable, 'focus' );
+
+			converter.focus( viewEditable );
+
+			expect( focusSpy ).toHaveBeenCalledOnce();
+			expect( focusSpy.mock.calls[ 0 ][ 0 ] ).toEqual( { preventScroll: true } );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-engine/issues/951
 		// https://github.com/ckeditor/ckeditor5-engine/issues/957
 		it( 'should actively prevent scrolling', () => {
-			const scrollToSpy = testUtils.sinon.stub( global.window, 'scrollTo' );
-			const editableScrollLeftSpy = sinon.spy();
-			const editableScrollTopSpy = sinon.spy();
-			const parentScrollLeftSpy = sinon.spy();
-			const parentScrollTopSpy = sinon.spy();
-			const documentElementScrollLeftSpy = sinon.spy();
-			const documentElementScrollTopSpy = sinon.spy();
+			const scrollToSpy = vi.spyOn( global.window, 'scrollTo' ).mockImplementation( () => {} );
+			const editableScrollLeftSpy = vi.fn();
+			const editableScrollTopSpy = vi.fn();
+			const parentScrollLeftSpy = vi.fn();
+			const parentScrollTopSpy = vi.fn();
+			const documentElementScrollLeftSpy = vi.fn();
+			const documentElementScrollTopSpy = vi.fn();
 
 			Object.defineProperties( domEditable, {
 				scrollLeft: {
@@ -120,35 +139,68 @@ describe( 'DomConverter', () => {
 				}
 			} );
 
-			Object.defineProperties( global.document.documentElement, {
-				scrollLeft: {
-					get: () => 60,
-					set: documentElementScrollLeftSpy
-				},
-				scrollTop: {
-					get: () => 600,
-					set: documentElementScrollTopSpy
-				}
-			} );
+			vi.spyOn( global.document.documentElement, 'scrollLeft', 'get' ).mockReturnValue( 60 );
+			vi.spyOn( global.document.documentElement, 'scrollTop', 'get' ).mockReturnValue( 600 );
+			vi.spyOn( global.document.documentElement, 'scrollLeft', 'set' ).mockImplementation( documentElementScrollLeftSpy );
+			vi.spyOn( global.document.documentElement, 'scrollTop', 'set' ).mockImplementation( documentElementScrollTopSpy );
 
-			testUtils.sinon.stub( global.window, 'scrollX' ).get( () => 10 );
-			testUtils.sinon.stub( global.window, 'scrollY' ).get( () => 100 );
+			vi.spyOn( global.window, 'scrollX', 'get' ).mockReturnValue( 10 );
+			vi.spyOn( global.window, 'scrollY', 'get' ).mockReturnValue( 100 );
 
 			converter.focus( viewEditable );
-			sinon.assert.calledWithExactly( scrollToSpy, 10, 100 );
-			sinon.assert.calledWithExactly( editableScrollLeftSpy, 20 );
-			sinon.assert.calledWithExactly( editableScrollTopSpy, 200 );
-			sinon.assert.calledWithExactly( parentScrollLeftSpy, 40 );
-			sinon.assert.calledWithExactly( parentScrollTopSpy, 400 );
-			sinon.assert.calledWithExactly( documentElementScrollLeftSpy, 60 );
-			sinon.assert.calledWithExactly( documentElementScrollTopSpy, 600 );
+			expect( scrollToSpy ).toHaveBeenCalledWith( 10, 100 );
+			expect( editableScrollLeftSpy ).toHaveBeenCalledWith( 20 );
+			expect( editableScrollTopSpy ).toHaveBeenCalledWith( 200 );
+			expect( parentScrollLeftSpy ).toHaveBeenCalledWith( 40 );
+			expect( parentScrollTopSpy ).toHaveBeenCalledWith( 400 );
+			expect( documentElementScrollLeftSpy ).toHaveBeenCalledWith( 60 );
+			expect( documentElementScrollTopSpy ).toHaveBeenCalledWith( 600 );
 		} );
+
+		for ( const mode of [ 'open', 'closed' ] ) {
+			it( `should actively prevent scrolling across a ${ mode } shadow boundary`, () => {
+				const scrollToSpy = vi.spyOn( global.window, 'scrollTo' ).mockImplementation( () => {} );
+				const editableScrollTopSpy = vi.fn();
+				const hostScrollTopSpy = vi.fn();
+				const documentElementScrollTopSpy = vi.fn();
+
+				// Move the editable into a shadow root attached to its former parent, so restoring the
+				// scroll positions of the outer elements requires crossing the shadow host.
+				domEditableParent.attachShadow( { mode } ).appendChild( domEditable );
+
+				Object.defineProperties( domEditable, {
+					scrollLeft: { get: () => 20, set: vi.fn() },
+					scrollTop: { get: () => 200, set: editableScrollTopSpy }
+				} );
+
+				Object.defineProperties( domEditableParent, {
+					scrollLeft: { get: () => 40, set: vi.fn() },
+					scrollTop: { get: () => 400, set: hostScrollTopSpy }
+				} );
+
+				vi.spyOn( global.document.documentElement, 'scrollTop', 'get' ).mockReturnValue( 600 );
+				vi.spyOn( global.document.documentElement, 'scrollTop', 'set' ).mockImplementation( documentElementScrollTopSpy );
+
+				vi.spyOn( global.window, 'scrollX', 'get' ).mockReturnValue( 10 );
+				vi.spyOn( global.window, 'scrollY', 'get' ).mockReturnValue( 100 );
+
+				converter.focus( viewEditable );
+
+				expect( scrollToSpy ).toHaveBeenCalledWith( 10, 100 );
+				expect( editableScrollTopSpy ).toHaveBeenCalledWith( 200 );
+
+				// Without crossing the host the walk ends at the editable, so nothing outside the shadow
+				// root ever gets its scroll position restored.
+				expect( hostScrollTopSpy ).toHaveBeenCalledWith( 400 );
+				expect( documentElementScrollTopSpy ).toHaveBeenCalledWith( 600 );
+			} );
+		}
 	} );
 
 	describe( 'DOM nodes type checking', () => {
 		let text, element, documentFragment, comment;
 
-		before( () => {
+		beforeEach( () => {
 			text = document.createTextNode( 'test' );
 			element = document.createElement( 'div' );
 			documentFragment = document.createDocumentFragment();
@@ -157,28 +209,105 @@ describe( 'DomConverter', () => {
 
 		describe( 'isElement()', () => {
 			it( 'should return true for HTMLElement nodes', () => {
-				expect( converter.isElement( element ) ).to.be.true;
+				expect( converter.isElement( element ) ).toBe( true );
 			} );
 
 			it( 'should return false for other arguments', () => {
-				expect( converter.isElement( text ) ).to.be.false;
-				expect( converter.isElement( documentFragment ) ).to.be.false;
-				expect( converter.isElement( comment ) ).to.be.false;
-				expect( converter.isElement( {} ) ).to.be.false;
+				expect( converter.isElement( text ) ).toBe( false );
+				expect( converter.isElement( documentFragment ) ).toBe( false );
+				expect( converter.isElement( comment ) ).toBe( false );
+				expect( converter.isElement( {} ) ).toBe( false );
 			} );
 		} );
 
 		describe( 'isDocumentFragment()', () => {
 			it( 'should return true for HTMLElement nodes', () => {
-				expect( converter.isDocumentFragment( documentFragment ) ).to.be.true;
+				expect( converter.isDocumentFragment( documentFragment ) ).toBe( true );
 			} );
 
 			it( 'should return false for other arguments', () => {
-				expect( converter.isDocumentFragment( text ) ).to.be.false;
-				expect( converter.isDocumentFragment( element ) ).to.be.false;
-				expect( converter.isDocumentFragment( comment ) ).to.be.false;
-				expect( converter.isDocumentFragment( {} ) ).to.be.false;
+				expect( converter.isDocumentFragment( text ) ).toBe( false );
+				expect( converter.isDocumentFragment( element ) ).toBe( false );
+				expect( converter.isDocumentFragment( comment ) ).toBe( false );
+				expect( converter.isDocumentFragment( {} ) ).toBe( false );
 			} );
+		} );
+	} );
+
+	describe( 'viewToDom() - processing instructions', () => {
+		// Built programmatically on purpose. Parsing `<?if !supportLists?>` from an HTML string
+		// yields a processing instruction node only in Chrome 150+; elsewhere it is still
+		// a comment, so a string fixture would test a different node type depending on the browser.
+		function createViewPI( target = 'if', data = '!supportLists' ) {
+			const viewInstruction = new ViewUIElement( viewDocument, '$processingInstruction' );
+
+			viewInstruction._setCustomProperty( '$processingTarget', target );
+			viewInstruction._setCustomProperty( '$processingData', data );
+
+			return viewInstruction;
+		}
+
+		it( 'should create a processing instruction node', () => {
+			const domInstruction = converter.viewToDom( createViewPI( 'if', '!supportLists' ) );
+
+			expect( domInstruction.nodeType ).toBe( Node.PROCESSING_INSTRUCTION_NODE );
+			expect( domInstruction.target ).toBe( 'if' );
+			expect( domInstruction.data ).toBe( '!supportLists' );
+		} );
+
+		it( 'should not fall back to the generic UIElement render()', () => {
+			const viewInstruction = createViewPI();
+			const spy = vi.spyOn( viewInstruction, 'render' );
+
+			converter.viewToDom( viewInstruction );
+
+			expect( spy.mock.calls.length ).toBe( 0 );
+		} );
+
+		it( 'should create a processing instruction with empty data', () => {
+			const domInstruction = converter.viewToDom( createViewPI( 'if', '' ) );
+
+			expect( domInstruction.target ).toBe( 'if' );
+			expect( domInstruction.data ).toBe( '' );
+		} );
+
+		it( 'should preserve the target letter case', () => {
+			// Unlike tag names, processing instruction targets are case-sensitive.
+			expect( converter.viewToDom( createViewPI( 'Foo', 'bar' ) ).target ).toBe( 'Foo' );
+		} );
+
+		it( 'should keep data starting with a question mark intact', () => {
+			// `<?t?d?>` tokenizes as target "t", data "?d" - catches naive string concatenation.
+			expect( converter.viewToDom( createViewPI( 't', '?d' ) ).data ).toBe( '?d' );
+		} );
+
+		it( 'should bind the processing instruction when the `bind` option is set to `true`', () => {
+			const viewInstruction = createViewPI();
+			const domInstruction = converter.viewToDom( viewInstruction, { bind: true } );
+
+			expect( converter.mapViewToDom( viewInstruction ) ).toBe( domInstruction );
+			expect( converter.mapDomToView( domInstruction ) ).toBe( viewInstruction );
+		} );
+
+		it( 'should not bind the processing instruction by default', () => {
+			const viewInstruction = createViewPI();
+
+			converter.viewToDom( viewInstruction );
+
+			expect( converter.mapViewToDom( viewInstruction ) ).toBeUndefined();
+		} );
+
+		it( 'should create a processing instruction nested in an element', () => {
+			const viewP = new ViewContainerElement( viewDocument, 'p', null, [ createViewPI( 'if', '!supportLists' ) ] );
+
+			// A container holding only a UI element is considered empty, so it would get a block filler.
+			viewP.getFillerOffset = () => null;
+
+			const domP = converter.viewToDom( viewP );
+
+			expect( domP.childNodes.length ).toBe( 1 );
+			expect( domP.firstChild.nodeType ).toBe( Node.PROCESSING_INSTRUCTION_NODE );
+			expect( domP.firstChild.target ).toBe( 'if' );
 		} );
 	} );
 
@@ -224,15 +353,15 @@ describe( 'DomConverter', () => {
 		it( 'should return true for correct dom selection', () => {
 			// <p>INLINE_FILLER{foo}<span></span></p>.
 			const sel1 = domSelection( domFillerTextNode, INLINE_FILLER_LENGTH, domFillerTextNode, INLINE_FILLER_LENGTH + 3 );
-			expect( converter.isDomSelectionCorrect( sel1 ) ).to.be.true;
+			expect( converter.isDomSelectionCorrect( sel1 ) ).toBe( true );
 
 			// <p>INLINE_FILLERfoo[]<span></span></p>.
 			const sel2 = domSelection( domP, 1, domP, 1 );
-			expect( converter.isDomSelectionCorrect( sel2 ) ).to.be.true;
+			expect( converter.isDomSelectionCorrect( sel2 ) ).toBe( true );
 
 			// <p>INLINE_FILLERfoo<span></span>[]</p>.
 			const sel3 = domSelection( domP, 2, domP, 2 );
-			expect( converter.isDomSelectionCorrect( sel3 ) ).to.be.true;
+			expect( converter.isDomSelectionCorrect( sel3 ) ).toBe( true );
 		} );
 
 		describe( 'should return false', () => {
@@ -240,30 +369,30 @@ describe( 'DomConverter', () => {
 				// Tests forward and backward selection.
 				// <p>[INLINE_FILLERfoo]<span-ui><span-container></span></span></p>.
 				const sel1 = domSelection( domP, 0, domP, 1 );
-				expect( converter.isDomSelectionCorrect( sel1 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel1 ) ).toBe( false );
 
 				const sel2 = domSelection( domP, 1, domP, 0 );
-				expect( converter.isDomSelectionCorrect( sel2 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel2 ) ).toBe( false );
 			} );
 
 			it( 'if anchor or focus is before filler sequence', () => {
 				// Tests forward and backward selection.
 				// <p>{INLINE_FILLERfoo}<span-ui><span-container></span></span></p>.
 				const sel1 = domSelection( domFillerTextNode, 0, domFillerTextNode, INLINE_FILLER_LENGTH + 3 );
-				expect( converter.isDomSelectionCorrect( sel1 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel1 ) ).toBe( false );
 
 				const sel2 = domSelection( domFillerTextNode, INLINE_FILLER_LENGTH + 3, domFillerTextNode, 0 );
-				expect( converter.isDomSelectionCorrect( sel2 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel2 ) ).toBe( false );
 			} );
 
 			it( 'if anchor or focus is in the middle of filler sequence', () => {
 				// Tests forward and backward selection.
 				// <p>I{NLINE_FILLERfoo}<span-ui><span-container></span></span></p>.
 				const sel1 = domSelection( domFillerTextNode, 1, domFillerTextNode, INLINE_FILLER_LENGTH + 3 );
-				expect( converter.isDomSelectionCorrect( sel1 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel1 ) ).toBe( false );
 
 				const sel2 = domSelection( domFillerTextNode, INLINE_FILLER_LENGTH + 3, domFillerTextNode, 1 );
-				expect( converter.isDomSelectionCorrect( sel2 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel2 ) ).toBe( false );
 			} );
 
 			it( 'if anchor or focus is directly inside dom element that represents view ui element', () => {
@@ -273,10 +402,10 @@ describe( 'DomConverter', () => {
 				// <p>INLINE_FILLER{foo<span-ui>xxx]<span-container></span></span></p>.
 				const sel1 = domSelection( domFillerTextNode, INLINE_FILLER_LENGTH, domUiSpan, 1 );
 
-				expect( converter.isDomSelectionCorrect( sel1 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel1 ) ).toBe( false );
 
 				const sel2 = domSelection( domUiSpan, 1, domFillerTextNode, INLINE_FILLER_LENGTH );
-				expect( converter.isDomSelectionCorrect( sel2 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel2 ) ).toBe( false );
 			} );
 
 			it( 'if anchor or focus is inside deep ui element structure (not directly in ui element)', () => {
@@ -285,10 +414,10 @@ describe( 'DomConverter', () => {
 				// Tests forward and backward selection.
 				// <p>INLINE_FILLER{foo<span-ui><span-container>xxx]</span></span></p>.
 				const sel1 = domSelection( domFillerTextNode, INLINE_FILLER_LENGTH, domUiDeepSpan, 1 );
-				expect( converter.isDomSelectionCorrect( sel1 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel1 ) ).toBe( false );
 
 				const sel2 = domSelection( domUiDeepSpan, 1, domFillerTextNode, INLINE_FILLER_LENGTH );
-				expect( converter.isDomSelectionCorrect( sel2 ) ).to.be.false;
+				expect( converter.isDomSelectionCorrect( sel2 ) ).toBe( false );
 			} );
 		} );
 	} );
@@ -304,7 +433,7 @@ describe( 'DomConverter', () => {
 		for ( const mode of [ 'nbsp', 'markedNbsp' ] ) {
 			describe( 'mode "' + mode + '"', () => {
 				beforeEach( () => {
-					converter = new DomConverter( viewDocument, { blockFillerMode: mode } );
+					converter = new ViewDomConverter( viewDocument, { blockFillerMode: mode } );
 				} );
 
 				for ( const elementName of blockElements ) {
@@ -315,7 +444,7 @@ describe( 'DomConverter', () => {
 							const context = document.createElement( elementName );
 							context.appendChild( nbspFillerInstance );
 
-							expect( converter.isBlockFiller( nbspFillerInstance ) ).to.be.true;
+							expect( converter.isBlockFiller( nbspFillerInstance ) ).toBe( true );
 						} );
 
 						it( 'should return false if the node is an nbsp filler and is not a single child of a block level element', () => {
@@ -325,7 +454,7 @@ describe( 'DomConverter', () => {
 							context.appendChild( nbspFillerInstance );
 							context.appendChild( document.createTextNode( 'a' ) );
 
-							expect( converter.isBlockFiller( nbspFillerInstance ) ).to.be.false;
+							expect( converter.isBlockFiller( nbspFillerInstance ) ).toBe( false );
 						} );
 
 						it( 'should return false if there are two nbsp fillers in a block element', () => {
@@ -335,22 +464,22 @@ describe( 'DomConverter', () => {
 							context.appendChild( nbspFillerInstance );
 							context.appendChild( NBSP_FILLER( document ) ); // eslint-disable-line new-cap
 
-							expect( converter.isBlockFiller( nbspFillerInstance ) ).to.be.false;
+							expect( converter.isBlockFiller( nbspFillerInstance ) ).toBe( false );
 						} );
 
 						it( 'should return false for a normal <br> element', () => {
 							const context = document.createElement( elementName );
 							context.innerHTML = 'x<br>x';
 
-							expect( converter.isBlockFiller( context.childNodes[ 1 ] ) ).to.be.false;
+							expect( converter.isBlockFiller( context.childNodes[ 1 ] ) ).toBe( false );
 						} );
 
-						// SPECIAL CASE (see ckeditor5#5564).
+						// SPECIAL CASE (see https://github.com/ckeditor/ckeditor5/issues/5564).
 						it( 'should return true for a <br> element which is the only child of its block parent', () => {
 							const context = document.createElement( elementName );
 							context.innerHTML = '<br>';
 
-							expect( converter.isBlockFiller( context.firstChild ) ).to.be.true;
+							expect( converter.isBlockFiller( context.firstChild ) ).toBe( true );
 						} );
 					} );
 				}
@@ -361,141 +490,265 @@ describe( 'DomConverter', () => {
 					const context = document.createElement( 'span' );
 					context.appendChild( nbspFillerInstance );
 
-					expect( converter.isBlockFiller( nbspFillerInstance ) ).to.be.false;
+					expect( converter.isBlockFiller( nbspFillerInstance ) ).toBe( false );
 				} );
 
 				it( 'should return false if the node is an instance of the BR block filler', () => {
 					const brFillerInstance = BR_FILLER( document ); // eslint-disable-line new-cap
 
-					expect( converter.isBlockFiller( brFillerInstance ) ).to.be.false;
+					expect( converter.isBlockFiller( brFillerInstance ) ).toBe( false );
 				} );
 
 				it( 'should return false for inline filler', () => {
-					expect( converter.isBlockFiller( document.createTextNode( INLINE_FILLER ) ) ).to.be.false;
+					expect( converter.isBlockFiller( document.createTextNode( INLINE_FILLER ) ) ).toBe( false );
 				} );
 
 				it( 'should return false for a <br> element which is the only child of its non-block parent', () => {
 					const context = document.createElement( 'span' );
 					context.innerHTML = '<br>';
 
-					expect( converter.isBlockFiller( context.firstChild ) ).to.be.false;
+					expect( converter.isBlockFiller( context.firstChild ) ).toBe( false );
 				} );
 
 				it( 'should return false for a <br> element which is followed by an nbsp', () => {
 					const context = document.createElement( 'span' );
 					context.innerHTML = '<br>&nbsp;';
 
-					expect( converter.isBlockFiller( context.firstChild ) ).to.be.false;
+					expect( converter.isBlockFiller( context.firstChild ) ).toBe( false );
 				} );
 
 				it( 'should return true if the node is an instance of the marked nbsp block filler', () => {
 					const markedNbspFillerInstance = MARKED_NBSP_FILLER( document ); // eslint-disable-line new-cap
 
-					expect( converter.isBlockFiller( markedNbspFillerInstance ) ).to.be.true;
+					expect( converter.isBlockFiller( markedNbspFillerInstance ) ).toBe( true );
 				} );
 			} );
 		}
 
 		describe( 'mode "br"', () => {
 			beforeEach( () => {
-				converter = new DomConverter( viewDocument, { blockFillerMode: 'br' } );
+				converter = new ViewDomConverter( viewDocument, { blockFillerMode: 'br' } );
 			} );
 
 			it( 'should return true if the node is an instance of the BR block filler', () => {
 				const brFillerInstance = BR_FILLER( document ); // eslint-disable-line new-cap
 
-				expect( converter.isBlockFiller( brFillerInstance ) ).to.be.true;
+				expect( converter.isBlockFiller( brFillerInstance ) ).toBe( true );
 				// Check it twice to ensure that caching breaks nothing.
-				expect( converter.isBlockFiller( brFillerInstance ) ).to.be.true;
+				expect( converter.isBlockFiller( brFillerInstance ) ).toBe( true );
 			} );
 
 			it( 'should return false if the node is an instance of the NBSP block filler', () => {
-				converter = new DomConverter( viewDocument, { blockFillerMode: 'br' } );
+				converter = new ViewDomConverter( viewDocument, { blockFillerMode: 'br' } );
 				const nbspFillerInstance = NBSP_FILLER( document ); // eslint-disable-line new-cap
 				// NBSP must be check inside a context.
 				const context = document.createElement( 'div' );
 				context.appendChild( nbspFillerInstance );
 
-				expect( converter.isBlockFiller( nbspFillerInstance ) ).to.be.false;
+				expect( converter.isBlockFiller( nbspFillerInstance ) ).toBe( false );
 			} );
 
 			it( 'should return false for inline filler', () => {
-				expect( converter.isBlockFiller( document.createTextNode( INLINE_FILLER ) ) ).to.be.false;
+				expect( converter.isBlockFiller( document.createTextNode( INLINE_FILLER ) ) ).toBe( false );
 			} );
 		} );
 	} );
 
 	describe( 'shouldRenderAttribute()', () => {
 		it( 'should allow all in data pipeline', () => {
-			expect( converter.shouldRenderAttribute( 'onclick', 'anything' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'javascript:something' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', '   javascript:something' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'data:image/svg,foo' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', ' data:image/svg,foo' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'data:text/html,foo' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', '   data:text/html,foo' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<script>something</script>' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<div onclick="alert(1)">' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<a href="javascript:alert(1)">' ) ).to.be.false;
+			expect( converter.shouldRenderAttribute( 'onclick', 'anything' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'javascript:something' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', '   javascript:something' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'data:image/svg,foo' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', ' data:image/svg,foo' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'data:text/html,foo' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', '   data:text/html,foo' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<script>something</script>' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<div onclick="alert(1)">' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<a href="javascript:alert(1)">' ) ).toBe( false );
 
 			// Make sure it's rendered in the editing mode.
-			expect( converter.shouldRenderAttribute( 'contenteditable', 'anything' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'contenteditable', 'anything' ) ).toBe( true );
 
 			// It should not filter out the attribute that do not match URI.
-			expect( converter.shouldRenderAttribute( 'anything', 'foobar data:text/html,foo' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', 'foobar javascript:something' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'anything', 'foobar data:text/html,foo' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', 'foobar javascript:something' ) ).toBe( true );
 
 			converter.renderingMode = 'data';
 
-			expect( converter.shouldRenderAttribute( 'onclick', 'anything' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', 'javascript:something' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', '   javascript:something' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', 'data:image/svg,foo' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', ' data:image/svg,foo' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', 'data:text/html,foo' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'anything', '   data:text/html,foo' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<script>something</script>' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<div onclick="alert(1)">' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<a href="javascript:alert(1)">' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'onclick', 'anything' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', 'javascript:something' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', '   javascript:something' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', 'data:image/svg,foo' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', ' data:image/svg,foo' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', 'data:text/html,foo' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', '   data:text/html,foo' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<script>something</script>' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<div onclick="alert(1)">' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<a href="javascript:alert(1)">' ) ).toBe( true );
 
-			expect( converter.shouldRenderAttribute( 'contenteditable', 'anything' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'contenteditable', 'anything' ) ).toBe( true );
 		} );
 
 		it( 'should allow SVG in src attribute of img element', () => {
-			expect( converter.shouldRenderAttribute( 'src', 'data:image/svg,foo', 'img' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg,foo', 'img' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/svg,foo', 'img' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg,foo', 'img' ) ).toBe( true );
 		} );
 
 		it( 'should allow SVG in srcset attribute of img element', () => {
-			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg,foo', 'img' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg,foo', 'img' ) ).toBe( true );
 		} );
 
 		it( 'should allow SVG in srcset attribute of source element', () => {
-			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg,foo', 'source' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg,foo', 'source' ) ).toBe( true );
 		} );
 
 		it( 'should accept all Base64-encoded content', () => {
 			// Notice, that the Base64 string has a word starting with `on` and ending with `=` which could lead to false positives.
-			expect( converter.shouldRenderAttribute( 'src', 'data:image/jpeg;base64,bAr+onZm9vonFy=' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/jpeg;base64,bAr+onZm9vonFy=' ) ).toBe( true );
 		} );
 
 		it( 'should reject certain attributes in the editing pipeline', () => {
-			expect( converter.shouldRenderAttribute( 'some-attribute', 'anything' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'data-custom-attribute', 'anything' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'class', 'anything' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'style', 'anything' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'value', 'data:image/jpeg' ) ).to.be.true;
-			expect( converter.shouldRenderAttribute( 'value', 'DATA:IMAGE/GIF' ) ).to.be.true;
+			expect( converter.shouldRenderAttribute( 'some-attribute', 'anything' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'data-custom-attribute', 'anything' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'class', 'anything' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'style', 'anything' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'value', 'data:image/jpeg' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'value', 'DATA:IMAGE/GIF' ) ).toBe( true );
 
-			expect( converter.shouldRenderAttribute( 'onclick', 'anything' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'ONCLICK', 'anything' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'javascript:something' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'JAVASCRIPT:something' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'data:image/svg,foo' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'anything', 'data:text/html,foo' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<script>something</script>' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'srcdoc', '<SCRIPT>something</SCRIPT>' ) ).to.be.false;
-			expect( converter.shouldRenderAttribute( 'srcdoc', 'something</SCRIPT>' ) ).to.be.false;
+			expect( converter.shouldRenderAttribute( 'onclick', 'anything' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'ONCLICK', 'anything' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'javascript:something' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'JAVASCRIPT:something' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'data:image/svg,foo' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'anything', 'data:text/html,foo' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<script>something</script>' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'srcdoc', '<SCRIPT>something</SCRIPT>' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'srcdoc', 'something</SCRIPT>' ) ).toBe( false );
+		} );
+
+		it( 'should reject data: URIs that the browser can load as a document', () => {
+			// XML-based MIME types passed the old blocklist and could execute JavaScript once loaded
+			// in an <iframe>, <embed> or <object>.
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:application/xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:application/xhtml+xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xsl,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:application/rss+xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:application/atom+xml,foo', 'iframe' ) ).toBe( false );
+
+			// MIME types blocked before the fix as well.
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/html,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xhtml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/svg+xml,foo', 'iframe' ) ).toBe( false );
+
+			// The same payload in the remaining document-loading contexts.
+			expect( converter.shouldRenderAttribute( 'data', 'data:image/svg+xml,foo', 'object' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/svg+xml,foo', 'embed' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml,foo', 'frame' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'href', 'data:text/html,foo', 'a' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/javascript,alert(1)', 'script' ) ).toBe( false );
+
+			// Elements unknown to the converter (for instance enabled via General HTML Support).
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml,foo', 'ck-custom-widget' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml,foo' ) ).toBe( false );
+		} );
+
+		it( 'should reject data: URIs regardless of the letter case and whitespace', () => {
+			expect( converter.shouldRenderAttribute( 'src', 'DATA:TEXT/XML,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', '   data:text/xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'da ta:te\txt/xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml;base64,PHN2Zy8+', 'iframe' ) ).toBe( false );
+		} );
+
+		it.each( [
+			'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
+			'image/webp', 'image/avif', 'image/bmp', 'image/apng',
+			'image/tiff', 'image/heic', 'image/heif', 'image/jxl',
+			'image/vnd.microsoft.icon', 'image/x-icon',
+			'video/mp4', 'video/webm', 'video/quicktime',
+			'audio/mpeg', 'audio/wav', 'audio/ogg'
+		] )( 'should allow a data: URI of the %s type', mimeType => {
+			const url = `data:${ mimeType };base64,AAA`;
+
+			expect( converter.shouldRenderAttribute( 'src', url, 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', url, 'img' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcset', url, 'img' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcset', url, 'source' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', url, 'video' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', url, 'audio' ) ).toBe( true );
+		} );
+
+		it( 'should allow an allow listed data: URI regardless of its letter case and parameters', () => {
+			expect( converter.shouldRenderAttribute( 'src', 'DATA:IMAGE/PNG;base64,AAA', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:audio/ogg;codecs=opus;base64,AAA', 'audio' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/png,foo', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/png', 'iframe' ) ).toBe( true );
+		} );
+
+		it( 'should not affect values that are not data: URIs', () => {
+			expect( converter.shouldRenderAttribute( 'src', 'https://example.com/foo.png', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', '/foo.png', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'anything', 'foobar data:text/xml,foo' ) ).toBe( true );
+		} );
+
+		it( 'should allow any data: URI in the img and source exceptions', () => {
+			// An SVG loaded as an image is processed in the secure static mode, so it cannot run scripts.
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/svg+xml,foo', 'img' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg+xml,foo', 'img' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'srcset', 'data:image/svg+xml,foo', 'source' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml,foo', 'img' ) ).toBe( true );
+		} );
+
+		// Documents the deliberate trade-off of the allow list: it is element agnostic, so an SVG is dropped
+		// everywhere except the `img` / `source` exceptions, even where it could never be executed. The same
+		// goes for formats that are simply not on the list, like WebVTT subtitles. Update these expectations
+		// (not just the code) if any of them gets allow listed.
+		it( 'should reject SVG and other non-listed data: URIs outside of the img and source exceptions', () => {
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/svg+xml,foo', 'source' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'poster', 'data:image/svg+xml,foo', 'video' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/vtt,WEBVTT', 'track' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'data', 'data:application/pdf;base64,AAA', 'object' ) ).toBe( false );
+		} );
+
+		it( 'should match the allowed subtypes exactly, not as a prefix', () => {
+			// Every `+xml` subtype is an XML MIME type, so it is parsed as a document and can run scripts.
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/png+xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:video/mp4+xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:audio/mpeg+xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/pngfoo,foo', 'iframe' ) ).toBe( false );
+
+			// The allowed subtypes followed by a parameter, by the data or by nothing at all.
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/png;base64,AAA', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:image/png,foo', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:video/mp4', 'iframe' ) ).toBe( true );
+		} );
+
+		it( 'should reject URIs with a scheme hidden behind control characters', () => {
+			// The URL parser strips leading C0 control characters, so `\u0001data:` loads as `data:`.
+			// `String.prototype.replace( /\\s+/g, '' )` does not remove them - `\\s` covers whitespace only.
+			expect( converter.shouldRenderAttribute( 'src', '\u0001data:text/html,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', '\u001fdata:text/xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', '\u0001\u0002data:image/svg+xml,foo', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'href', '\u0001javascript:alert(1)', 'a' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'href', '\u001b JAVASCRIPT:alert(1)', 'a' ) ).toBe( false );
+
+			// Allow listed types are not affected by the extra stripping.
+			expect( converter.shouldRenderAttribute( 'src', '\u0001data:image/png;base64,AAA', 'iframe' ) ).toBe( true );
+		} );
+
+		it( 'should reject javascript: URIs split with whitespace', () => {
+			expect( converter.shouldRenderAttribute( 'src', 'jav\tascript:alert(1)', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'src', 'jav\nascript:alert(1)', 'iframe' ) ).toBe( false );
+			expect( converter.shouldRenderAttribute( 'href', 'JAVASCRIPT:alert(1)', 'a' ) ).toBe( false );
+		} );
+
+		it( 'should allow all the newly blocked data: URIs in the data pipeline', () => {
+			converter.renderingMode = 'data';
+
+			expect( converter.shouldRenderAttribute( 'src', 'data:text/xml,foo', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'src', 'data:application/xhtml+xml,foo', 'iframe' ) ).toBe( true );
+			expect( converter.shouldRenderAttribute( 'data', 'data:image/svg+xml,foo', 'object' ) ).toBe( true );
 		} );
 	} );
 
@@ -509,7 +762,7 @@ describe( 'DomConverter', () => {
 
 				converter.setContentOf( element, html );
 
-				expect( element.innerHTML ).to.equal( html );
+				expect( element.innerHTML ).toBe( html );
 			} );
 
 			it( 'should keep attributes', () => {
@@ -567,9 +820,12 @@ describe( 'DomConverter', () => {
 							'bar' +
 							'</iframe>' +
 							'</div>',
+						// The Chrome browser in version 139 changed escaping `<` and `>` in attributes.
+						// See: https://github.com/ckeditor/ckeditor5-commercial/issues/8122
 						expected: '<div data-foo="bar">' +
 							'foo' +
-							'<iframe class="foo-class" style="border:1px solid blue" data-foo="bar" srcdoc="<script>baz</script>">' +
+							'<iframe class="foo-class" style="border:1px solid blue" data-foo="bar" ' +
+								'srcdoc="&lt;script&gt;baz&lt;/script&gt;">' +
 							'bar' +
 							'</iframe>' +
 							'</div>'
@@ -593,7 +849,7 @@ describe( 'DomConverter', () => {
 				testCases.forEach( ( testCase, index ) => {
 					converter.setContentOf( element, testCase.html );
 
-					expect( element.innerHTML, `Case #${ index }` ).to.equal( testCase.expected );
+					expect( element.innerHTML, `Case #${ index }` ).toBe( testCase.expected );
 				} );
 			} );
 
@@ -604,7 +860,7 @@ describe( 'DomConverter', () => {
 				converter.renderingMode = 'data';
 				converter.setContentOf( element, html );
 
-				expect( element.innerHTML ).to.equal( '<div>foo<script onclick="foo">bar</script></div>' );
+				expect( element.innerHTML ).toBe( '<div>foo<script onclick="foo">bar</script></div>' );
 			} );
 
 			it( 'should keep style element', () => {
@@ -614,7 +870,7 @@ describe( 'DomConverter', () => {
 				converter.renderingMode = 'data';
 				converter.setContentOf( element, html );
 
-				expect( element.innerHTML ).to.equal( '<div>foo<style nonce="foo">bar</style></div>' );
+				expect( element.innerHTML ).toBe( '<div>foo<style nonce="foo">bar</style></div>' );
 			} );
 		} );
 
@@ -622,7 +878,7 @@ describe( 'DomConverter', () => {
 			let warnStub;
 
 			beforeEach( () => {
-				warnStub = testUtils.sinon.stub( console, 'warn' );
+				warnStub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 			} );
 
 			it( 'should replace certain unsafe attributes', () => {
@@ -687,13 +943,15 @@ describe( 'DomConverter', () => {
 							'bar' +
 							'</iframe>' +
 							'</div>',
+						// The Chrome browser in version 139 changed escaping `<` and `>` in attributes.
+						// See: https://github.com/ckeditor/ckeditor5-commercial/issues/8122
 						expected: '<div data-foo="bar">' +
 							'foo' +
 							'<iframe ' +
 								'class="foo-class" ' +
 								'style="border:1px solid blue" ' +
 								'data-foo="bar" ' +
-								'data-ck-unsafe-attribute-srcdoc="<script>baz</script>">bar' +
+								'data-ck-unsafe-attribute-srcdoc="&lt;script&gt;baz&lt;/script&gt;">bar' +
 							'</iframe>' +
 							'</div>'
 					},
@@ -710,13 +968,27 @@ describe( 'DomConverter', () => {
 							'bar' +
 							'</span>' +
 							'</div>'
+					},
+					// Newline characters in the src attribute are unsafe on Chromium as it executes
+					// javascript: URLs with line breaks.
+					{
+						html: '<iframe src="jav&#10;ascript:console.log(\'unsafe\')"></iframe>',
+						expected: '<iframe data-ck-unsafe-attribute-src="jav\nascript:console.log(\'unsafe\')"></iframe>'
+					},
+					{
+						html: '<iframe src="jav&#13;ascript:console.log(\'unsafe\')"></iframe>',
+						expected: '<iframe data-ck-unsafe-attribute-src="jav\rascript:console.log(\'unsafe\')"></iframe>'
+					},
+					{
+						html: '<iframe srcdoc="<div>Hello&#10;World</div>"></iframe>',
+						expected: '<iframe data-ck-unsafe-attribute-srcdoc="&lt;div&gt;Hello\nWorld&lt;/div&gt;"></iframe>'
 					}
 				];
 
 				testCases.forEach( ( testCase, index ) => {
 					converter.setContentOf( element, testCase.html );
 
-					expect( element.innerHTML, `Case #${ index }` ).to.equal( testCase.expected );
+					expect( element.innerHTML, `Case #${ index }` ).toBe( testCase.expected );
 				} );
 			} );
 
@@ -726,15 +998,15 @@ describe( 'DomConverter', () => {
 
 				converter.setContentOf( element, html );
 
-				sinon.assert.calledOnce( warnStub );
-				sinon.assert.calledWithExactly( warnStub,
-					sinon.match( /^domconverter-unsafe-attribute-detected/ ),
+				expect( warnStub ).toHaveBeenCalledOnce();
+				expect( warnStub ).toHaveBeenCalledWith(
+					expect.stringMatching( /^domconverter-unsafe-attribute-detected/ ),
 					{
 						domElement: element.firstChild,
 						key: 'onclick',
 						value: 'alert(1)'
 					},
-					sinon.match.string // Link to the documentation
+					expect.any( String ) // Link to the documentation
 				);
 			} );
 
@@ -744,7 +1016,7 @@ describe( 'DomConverter', () => {
 
 				converter.setContentOf( element, html );
 
-				expect( element.innerHTML ).to.equal(
+				expect( element.innerHTML ).toBe(
 					'<div>foo<span data-ck-unsafe-element="script" class="foo-class" style="foo-style" data-foo="bar">bar</span></div>'
 				);
 			} );
@@ -755,10 +1027,10 @@ describe( 'DomConverter', () => {
 
 				converter.setContentOf( element, html );
 
-				sinon.assert.calledOnce( warnStub );
-				sinon.assert.calledWithExactly( warnStub,
-					sinon.match( /^domconverter-unsafe-script-element-detected/ ),
-					sinon.match.string // Link to the documentation
+				expect( warnStub ).toHaveBeenCalledOnce();
+				expect( warnStub ).toHaveBeenCalledWith(
+					expect.stringMatching( /^domconverter-unsafe-script-element-detected/ ),
+					expect.any( String ) // Link to the documentation
 				);
 			} );
 
@@ -768,11 +1040,50 @@ describe( 'DomConverter', () => {
 
 				converter.setContentOf( element, html );
 
-				sinon.assert.calledOnce( warnStub );
-				sinon.assert.calledWithExactly( warnStub,
-					sinon.match( /^domconverter-unsafe-style-element-detected/ ),
-					sinon.match.string // Link to the documentation
+				expect( warnStub ).toHaveBeenCalledOnce();
+				expect( warnStub ).toHaveBeenCalledWith(
+					expect.stringMatching( /^domconverter-unsafe-style-element-detected/ ),
+					expect.any( String ) // Link to the documentation
 				);
+			} );
+
+			it( 'should rename the src attribute of an iframe loading an unsafe data: URI', () => {
+				const element = document.createElement( 'p' );
+
+				// The base64 part decodes to an SVG with an `onload` handler.
+				const payload = 'data:text/xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIG9ubG9hZD0nYWxlcnQoMSknLz4=';
+
+				converter.setContentOf( element, `<iframe src="${ payload }"></iframe>` );
+
+				expect( element.innerHTML ).toBe( `<iframe data-ck-unsafe-attribute-src="${ payload }"></iframe>` );
+				expect( warnStub ).toHaveBeenCalledWith(
+					expect.stringMatching( /^domconverter-unsafe-attribute-detected/ ),
+					expect.objectContaining( { key: 'src', value: payload } ),
+					expect.any( String ) // Link to the documentation
+				);
+			} );
+
+			it( 'should keep data: URIs of binary images in the raw content', () => {
+				const element = document.createElement( 'p' );
+				const payload = 'data:image/png;base64,AAA';
+
+				converter.setContentOf( element, `<img src="${ payload }"><iframe src="${ payload }"></iframe>` );
+
+				expect( element.innerHTML ).toBe( `<img src="${ payload }"><iframe src="${ payload }"></iframe>` );
+				expect( warnStub ).not.toHaveBeenCalled();
+			} );
+
+			it( 'should rename an attribute whose scheme is hidden behind a control character', () => {
+				const element = document.createElement( 'p' );
+
+				converter.setContentOf( element, '<iframe src="&#1;data:text/html,foo"></iframe>' );
+
+				const iframe = element.firstChild;
+
+				// The HTML parser keeps the control character, and the URL parser ignores it later on.
+				expect( iframe.hasAttribute( 'src' ) ).toBe( false );
+				expect( iframe.getAttribute( 'data-ck-unsafe-attribute-src' ) ).toBe( '\u0001data:text/html,foo' );
+				expect( warnStub ).toHaveBeenCalled();
 			} );
 		} );
 	} );
@@ -781,16 +1092,12 @@ describe( 'DomConverter', () => {
 		let writer, warnStub;
 
 		beforeEach( () => {
-			writer = new DowncastWriter( viewDocument );
-			converter = new DomConverter( viewDocument, {
+			writer = new ViewDowncastWriter( viewDocument );
+			converter = new ViewDomConverter( viewDocument, {
 				renderingMode: 'editing'
 			} );
 
-			warnStub = testUtils.sinon.stub( console, 'warn' )
-				.withArgs( sinon.match( /^domconverter-unsafe-attribute-detected|domconverter-invalid-attribute-detected/ ) )
-				.callsFake( () => {} );
-
-			console.warn.callThrough();
+			warnStub = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		} );
 
 		it( 'should set the plain value of an attribute', () => {
@@ -798,7 +1105,7 @@ describe( 'DomConverter', () => {
 
 			converter.setDomElementAttribute( domElement, 'foo', 'bar' );
 
-			expect( domElement.outerHTML ).to.equal( '<p foo="bar"></p>' );
+			expect( domElement.outerHTML ).toBe( '<p foo="bar"></p>' );
 		} );
 
 		it( 'should not remove while overriding it\'s value (the plain value of an attribute)', () => {
@@ -806,12 +1113,12 @@ describe( 'DomConverter', () => {
 
 			domElement.setAttribute( 'foo', '123' );
 
-			const spy = sinon.spy( domElement, 'removeAttribute' );
+			const spy = vi.spyOn( domElement, 'removeAttribute' );
 
 			converter.setDomElementAttribute( domElement, 'foo', 'bar' );
 
-			expect( domElement.outerHTML ).to.equal( '<p foo="bar"></p>' );
-			expect( spy.callCount ).to.equal( 0 );
+			expect( domElement.outerHTML ).toBe( '<p foo="bar"></p>' );
+			expect( spy.mock.calls.length ).toBe( 0 );
 		} );
 
 		it( 'should render the prefixed value of an attribute if considered unsafe', () => {
@@ -819,7 +1126,7 @@ describe( 'DomConverter', () => {
 
 			converter.setDomElementAttribute( domElement, 'onclick', 'bar' );
 
-			expect( domElement.outerHTML ).to.equal( '<p data-ck-unsafe-attribute-onclick="bar"></p>' );
+			expect( domElement.outerHTML ).toBe( '<p data-ck-unsafe-attribute-onclick="bar"></p>' );
 		} );
 
 		it( 'should not remove while overriding it\'s value (the value considered unsafe)', () => {
@@ -827,12 +1134,12 @@ describe( 'DomConverter', () => {
 
 			domElement.setAttribute( 'data-ck-unsafe-attribute-onclick', '123' );
 
-			const spy = sinon.spy( domElement, 'removeAttribute' );
+			const spy = vi.spyOn( domElement, 'removeAttribute' );
 
 			converter.setDomElementAttribute( domElement, 'onclick', 'bar' );
 
-			expect( domElement.outerHTML ).to.equal( '<p data-ck-unsafe-attribute-onclick="bar"></p>' );
-			expect( spy.callCount ).to.equal( 0 );
+			expect( domElement.outerHTML ).toBe( '<p data-ck-unsafe-attribute-onclick="bar"></p>' );
+			expect( spy.mock.calls.length ).toBe( 0 );
 		} );
 
 		it( 'should render the plain attribute if unsafe but declaratively permitted on the related view element', () => {
@@ -843,27 +1150,27 @@ describe( 'DomConverter', () => {
 
 			converter.setDomElementAttribute( domElement, 'onclick', 'bar', viewElement );
 
-			expect( domElement.outerHTML ).to.equal( '<p onclick="bar"></p>' );
+			expect( domElement.outerHTML ).toBe( '<p onclick="bar"></p>' );
 		} );
 
 		it( 'should render the prefixed value if the previous value was unsafe but the new one is safe (avoiding duplication)', () => {
 			const domElement = document.createElement( 'iframe' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/png,foo' );
-			expect( domElement.outerHTML ).to.equal( '<iframe src="data:image/png,foo"></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe src="data:image/png,foo"></iframe>' );
 		} );
 
 		it( 'should not render the prefixed value if the previous value was safe but the new one is unsafe (avoiding duplication)', () => {
 			const domElement = document.createElement( 'iframe' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/png,foo' );
-			expect( domElement.outerHTML ).to.equal( '<iframe src="data:image/png,foo"></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe src="data:image/png,foo"></iframe>' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
 		} );
 
 		it( 'should warn when an unsafe attribute was prefixed (renamed)', () => {
@@ -871,39 +1178,39 @@ describe( 'DomConverter', () => {
 
 			converter.setDomElementAttribute( domElement, 'onclick', 'bar' );
 
-			sinon.assert.calledOnce( warnStub );
-			sinon.assert.calledWithExactly( warnStub,
-				sinon.match( /^domconverter-unsafe-attribute-detected/ ),
+			expect( warnStub ).toHaveBeenCalledOnce();
+			expect( warnStub ).toHaveBeenCalledWith(
+				expect.stringMatching( /^domconverter-unsafe-attribute-detected/ ),
 				{
 					domElement,
 					key: 'onclick',
 					value: 'bar'
 				},
-				sinon.match.string // Link to the documentation
+				expect.any( String ) // Link to the documentation
 			);
 		} );
 
 		it( 'should not render the attribute with invalid name', () => {
 			const domElement = document.createElement( 'p' );
 
-			converter.setDomElementAttribute( domElement, '200', 'foo' );
-			expect( domElement.outerHTML ).to.equal( '<p></p>' );
+			converter.setDomElementAttribute( domElement, 'space inside', 'foo' );
+			expect( domElement.outerHTML ).toBe( '<p></p>' );
 		} );
 
 		it( 'should warn when the attribute has invalid name', () => {
 			const domElement = document.createElement( 'p' );
 
-			converter.setDomElementAttribute( domElement, '200', 'foo' );
+			converter.setDomElementAttribute( domElement, 'space inside', 'foo' );
 
-			sinon.assert.calledOnce( warnStub );
-			sinon.assert.calledWithExactly( warnStub,
-				sinon.match( /^domconverter-invalid-attribute-detected/ ),
+			expect( warnStub ).toHaveBeenCalledOnce();
+			expect( warnStub ).toHaveBeenCalledWith(
+				expect.stringMatching( /^domconverter-invalid-attribute-detected/ ),
 				{
 					domElement,
-					key: '200',
+					key: 'space inside',
 					value: 'foo'
 				},
-				sinon.match.string // Link to the documentation
+				expect.any( String ) // Link to the documentation
 			);
 		} );
 
@@ -911,90 +1218,95 @@ describe( 'DomConverter', () => {
 			const domElement = document.createElement( 'img' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<img src="data:image/svg,foo">' );
+			expect( domElement.outerHTML ).toBe( '<img src="data:image/svg,foo">' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg+xml;base64,foo' );
-			expect( domElement.outerHTML ).to.equal( '<img src="data:image/svg+xml;base64,foo">' );
+			expect( domElement.outerHTML ).toBe( '<img src="data:image/svg+xml;base64,foo">' );
 		} );
 
 		it( 'should set srcset attribute for SVG on img element', () => {
 			const domElement = document.createElement( 'img' );
 
 			converter.setDomElementAttribute( domElement, 'srcset', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<img srcset="data:image/svg,foo">' );
+			expect( domElement.outerHTML ).toBe( '<img srcset="data:image/svg,foo">' );
 
 			converter.setDomElementAttribute( domElement, 'srcset', 'data:image/svg+xml;base64,foo' );
-			expect( domElement.outerHTML ).to.equal( '<img srcset="data:image/svg+xml;base64,foo">' );
+			expect( domElement.outerHTML ).toBe( '<img srcset="data:image/svg+xml;base64,foo">' );
 		} );
 
 		it( 'should set srcset attribute for SVG on source element', () => {
 			const domElement = document.createElement( 'source' );
 
 			converter.setDomElementAttribute( domElement, 'srcset', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<source srcset="data:image/svg,foo">' );
+			expect( domElement.outerHTML ).toBe( '<source srcset="data:image/svg,foo">' );
 
 			converter.setDomElementAttribute( domElement, 'srcset', 'data:image/svg+xml;base64,foo' );
-			expect( domElement.outerHTML ).to.equal( '<source srcset="data:image/svg+xml;base64,foo">' );
+			expect( domElement.outerHTML ).toBe( '<source srcset="data:image/svg+xml;base64,foo">' );
 		} );
 
 		it( 'should transform src attribute to unsafe for SVG on iframe element', () => {
 			const domElement = document.createElement( 'iframe' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
 		} );
 
 		it( 'should transform src attribute to unsafe for SVG on embed element', () => {
 			const domElement = document.createElement( 'embed' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<embed data-ck-unsafe-attribute-src="data:image/svg,foo">' );
+			expect( domElement.outerHTML ).toBe( '<embed data-ck-unsafe-attribute-src="data:image/svg,foo">' );
 		} );
 
 		it( 'should transform data attribute to unsafe for SVG on object element', () => {
 			const domElement = document.createElement( 'object' );
 
 			converter.setDomElementAttribute( domElement, 'data', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<object data-ck-unsafe-attribute-data="data:image/svg,foo"></object>' );
+			expect( domElement.outerHTML ).toBe( '<object data-ck-unsafe-attribute-data="data:image/svg,foo"></object>' );
+		} );
+
+		it( 'should transform src attribute to unsafe for XML-based data: URIs on iframe element', () => {
+			const domElement = document.createElement( 'iframe' );
+
+			converter.setDomElementAttribute( domElement, 'src', 'data:text/xml,foo' );
+			expect( domElement.outerHTML ).toBe( '<iframe data-ck-unsafe-attribute-src="data:text/xml,foo"></iframe>' );
+
+			converter.setDomElementAttribute( domElement, 'src', 'data:application/xhtml+xml,foo' );
+			expect( domElement.outerHTML ).toBe( '<iframe data-ck-unsafe-attribute-src="data:application/xhtml+xml,foo"></iframe>' );
+		} );
+
+		it( 'should set src attribute for binary image data: URIs on iframe element', () => {
+			const domElement = document.createElement( 'iframe' );
+
+			converter.setDomElementAttribute( domElement, 'src', 'data:image/png;base64,AAA' );
+			expect( domElement.outerHTML ).toBe( '<iframe src="data:image/png;base64,AAA"></iframe>' );
 		} );
 	} );
 
 	describe( 'removeDomElementAttribute()', () => {
 		beforeEach( () => {
-			// Silence warnings about unsafe attributes and elements created by the DomConverter.
-			testUtils.sinon.stub( console, 'warn' )
-				.withArgs( sinon.match( /^domconverter-unsafe-attribute-detected/ ) )
-				.callsFake( () => {} );
-
-			console.warn
-				.withArgs( sinon.match( /^domconverter-unsafe-script-element-detected/ ) )
-				.callsFake( () => {} );
-
-			console.warn
-				.withArgs( sinon.match( /^domconverter-unsafe-style-element-detected/ ) )
-				.callsFake( () => {} );
-
-			console.warn.callThrough();
+			// Silence warnings about unsafe attributes and elements created by the ViewDomConverter.
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		} );
 
 		it( 'should remove the plain attribute value', () => {
 			const domElement = document.createElement( 'img' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/png,foo' );
-			expect( domElement.outerHTML ).to.equal( '<img src="data:image/png,foo">' );
+			expect( domElement.outerHTML ).toBe( '<img src="data:image/png,foo">' );
 
 			converter.removeDomElementAttribute( domElement, 'src' );
-			expect( domElement.outerHTML ).to.equal( '<img>' );
+			expect( domElement.outerHTML ).toBe( '<img>' );
 		} );
 
 		it( 'should also remove the unsafe (prefixed) attribute value together with the safe value', () => {
 			const domElement = document.createElement( 'iframe' );
 
 			converter.setDomElementAttribute( domElement, 'src', 'data:image/svg,foo' );
-			expect( domElement.outerHTML ).to.equal( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe data-ck-unsafe-attribute-src="data:image/svg,foo"></iframe>' );
 
 			converter.removeDomElementAttribute( domElement, 'src' );
-			expect( domElement.outerHTML ).to.equal( '<iframe></iframe>' );
+			expect( domElement.outerHTML ).toBe( '<iframe></iframe>' );
 		} );
 
 		it( 'should skip removing the (replacement) attribute representing the unsafe <script> tag', () => {
@@ -1003,19 +1315,19 @@ describe( 'DomConverter', () => {
 
 			converter.setContentOf( domElement, html );
 
-			expect( domElement.outerHTML ).to.equal(
+			expect( domElement.outerHTML ).toBe(
 				'<p>foo<span data-ck-unsafe-element="script" class="foo-class" style="foo-style" data-foo="bar">bar</span></p>'
 			);
 
 			converter.removeDomElementAttribute( domElement.lastChild, 'data-ck-unsafe-element' );
 
-			expect( domElement.outerHTML ).to.equal(
+			expect( domElement.outerHTML ).toBe(
 				'<p>foo<span data-ck-unsafe-element="script" class="foo-class" style="foo-style" data-foo="bar">bar</span></p>'
 			);
 
 			converter.removeDomElementAttribute( domElement.lastChild, 'class' );
 
-			expect( domElement.outerHTML ).to.equal(
+			expect( domElement.outerHTML ).toBe(
 				'<p>foo<span data-ck-unsafe-element="script" style="foo-style" data-foo="bar">bar</span></p>'
 			);
 		} );
@@ -1026,19 +1338,19 @@ describe( 'DomConverter', () => {
 
 			converter.setContentOf( domElement, html );
 
-			expect( domElement.outerHTML ).to.equal(
+			expect( domElement.outerHTML ).toBe(
 				'<p>foo<span data-ck-unsafe-element="style" class="foo-class" style="foo-style" data-foo="bar">bar</span></p>'
 			);
 
 			converter.removeDomElementAttribute( domElement.lastChild, 'data-ck-unsafe-element' );
 
-			expect( domElement.outerHTML ).to.equal(
+			expect( domElement.outerHTML ).toBe(
 				'<p>foo<span data-ck-unsafe-element="style" class="foo-class" style="foo-style" data-foo="bar">bar</span></p>'
 			);
 
 			converter.removeDomElementAttribute( domElement.lastChild, 'class' );
 
-			expect( domElement.outerHTML ).to.equal(
+			expect( domElement.outerHTML ).toBe(
 				'<p>foo<span data-ck-unsafe-element="style" style="foo-style" data-foo="bar">bar</span></p>'
 			);
 		} );
@@ -1049,7 +1361,7 @@ describe( 'DomConverter', () => {
 
 		beforeEach( () => {
 			// View structure.
-			viewEditable = new ViewEditable( viewDocument, 'div' );
+			viewEditable = new ViewEditableElement( viewDocument, 'div' );
 			viewP = new ViewContainerElement( viewDocument, 'p' );
 			viewText = new ViewText( viewDocument, 'foobar' );
 
@@ -1091,7 +1403,21 @@ describe( 'DomConverter', () => {
 
 			converter._clearDomSelection();
 
-			expect( domSelection.rangeCount ).to.equal( 0 );
+			expect( domSelection.rangeCount ).toBe( 0 );
+		} );
+
+		it( 'should do nothing when the editable is detached (no resolvable selection)', () => {
+			const viewSelection = viewDocument.selection;
+
+			viewSelection._setTo( new ViewRange(
+				new ViewPosition( viewP.getChild( 0 ), 3 ),
+				new ViewPosition( viewP.getChild( 0 ), 5 )
+			) );
+
+			// A detached editable is no longer inside any document, so it has no resolvable DOM selection.
+			domEditable.remove();
+
+			expect( () => converter._clearDomSelection() ).not.toThrow();
 		} );
 
 		it( 'should do nothing if DOM selection is not in editor editable element', () => {
@@ -1106,11 +1432,11 @@ describe( 'DomConverter', () => {
 
 			converter._clearDomSelection();
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.anchorNode ).to.equal( domEditableParent );
-			expect( domSelection.anchorOffset ).to.equal( 0 );
-			expect( domSelection.focusNode ).to.equal( domEditableParent );
-			expect( domSelection.focusOffset ).to.equal( 0 );
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.anchorNode ).toBe( domEditableParent );
+			expect( domSelection.anchorOffset ).toBe( 0 );
+			expect( domSelection.focusNode ).toBe( domEditableParent );
+			expect( domSelection.focusOffset ).toBe( 0 );
 		} );
 
 		it( 'should do nothing if view selection is not in editor editable element', () => {
@@ -1122,11 +1448,11 @@ describe( 'DomConverter', () => {
 
 			converter._clearDomSelection();
 
-			expect( domSelection.rangeCount ).to.equal( 1 );
-			expect( domSelection.anchorNode ).to.equal( domTextNode );
-			expect( domSelection.anchorOffset ).to.equal( 3 );
-			expect( domSelection.focusNode ).to.equal( domTextNode );
-			expect( domSelection.focusOffset ).to.equal( 5 );
+			expect( domSelection.rangeCount ).toBe( 1 );
+			expect( domSelection.anchorNode ).toBe( domTextNode );
+			expect( domSelection.anchorOffset ).toBe( 3 );
+			expect( domSelection.focusNode ).toBe( domTextNode );
+			expect( domSelection.focusOffset ).toBe( 5 );
 		} );
 	} );
 } );

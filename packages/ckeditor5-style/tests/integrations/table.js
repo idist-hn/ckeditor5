@@ -1,29 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console */
-/* global document */
-
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import GeneralHtmlSupport from '@ckeditor/ckeditor5-html-support/src/generalhtmlsupport';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ImageBlock from '@ckeditor/ckeditor5-image/src/imageblock';
-import ImageCaption from '@ckeditor/ckeditor5-image/src/imagecaption';
-import CodeBlock from '@ckeditor/ckeditor5-code-block/src/codeblock';
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import TableCaption from '@ckeditor/ckeditor5-table/src/tablecaption';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import Style from '../../src/style';
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { ImageBlock, ImageCaption } from '@ckeditor/ckeditor5-image';
+import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { Table, TableCaption } from '@ckeditor/ckeditor5-table';
+import { Style } from '../../src/style.js';
+import { TableStyleSupport } from '../../src/integrations/table.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'TableStyleSupport', () => {
 	let editor, editorElement, command, model;
-
-	testUtils.createSinonSandbox();
 
 	const tableStyle = {
 		name: 'Test table style',
@@ -34,6 +28,11 @@ describe( 'TableStyleSupport', () => {
 		name: 'Test thead style',
 		element: 'thead',
 		classes: [ 'test-thead-style' ]
+	};
+	const tfootStyle = {
+		name: 'Test tfoot style',
+		element: 'tfoot',
+		classes: [ 'test-tfoot-style' ]
 	};
 	const tbodyStyle = {
 		name: 'Test tbody style',
@@ -70,6 +69,7 @@ describe( 'TableStyleSupport', () => {
 		await createEditor( [
 			tableStyle,
 			theadStyle,
+			tfootStyle,
 			tbodyStyle,
 			trStyle,
 			thStyle,
@@ -84,8 +84,16 @@ describe( 'TableStyleSupport', () => {
 		await editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TableStyleSupport.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TableStyleSupport.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should add class to table element', () => {
-		setData( model,
+		_setModelData( model,
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -94,10 +102,10 @@ describe( 'TableStyleSupport', () => {
 				'</tableRow>' +
 			'</table>'
 		);
-		expect( command.enabledStyles ).to.deep.include( tableStyle.name );
+		expect( command.enabledStyles ).toContain( tableStyle.name );
 		command.execute( { styleName: 'Test table style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table htmlTableAttributes="{"classes":["test-table-style"]}">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -109,7 +117,7 @@ describe( 'TableStyleSupport', () => {
 	} );
 
 	it( 'should add class to table element then remove', () => {
-		setData( model,
+		_setModelData( model,
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -119,12 +127,12 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.deep.include( tableStyle.name );
+		expect( command.enabledStyles ).toContain( tableStyle.name );
 		command.execute( { styleName: 'Test table style' } );
-		expect( command.enabledStyles ).to.deep.include( tableStyle.name );
+		expect( command.enabledStyles ).toContain( tableStyle.name );
 		command.execute( { styleName: 'Test table style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -136,7 +144,7 @@ describe( 'TableStyleSupport', () => {
 	} );
 
 	it( 'should add class to thead element', () => {
-		setData( model,
+		_setModelData( model,
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -151,17 +159,18 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.have.members( [
+		expect( command.enabledStyles ).toHaveLength( 5 );
+		expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 			tableStyle.name,
 			tbodyStyle.name,
 			theadStyle.name,
 			trStyle.name,
 			thStyle.name
-		] );
+		] ) );
 
 		command.execute( { styleName: 'Test thead style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="1" htmlTheadAttributes="{"classes":["test-thead-style"]}">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -178,7 +187,7 @@ describe( 'TableStyleSupport', () => {
 
 		command.execute( { styleName: 'Test thead style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -194,8 +203,68 @@ describe( 'TableStyleSupport', () => {
 		);
 	} );
 
+	it( 'should add class to tfoot element', () => {
+		_setModelData( model,
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>[bar]</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		expect( command.enabledStyles ).toHaveLength( 5 );
+		expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
+			tableStyle.name,
+			tbodyStyle.name,
+			tfootStyle.name,
+			trStyle.name,
+			tdStyle.name
+		] ) );
+
+		command.execute( { styleName: 'Test tfoot style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="1" htmlTfootAttributes="{"classes":["test-tfoot-style"]}">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		command.execute( { styleName: 'Test tfoot style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+	} );
+
 	it( 'should add class to tbody element (table without heading rows)', () => {
-		setData( model,
+		_setModelData( model,
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -210,16 +279,17 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.have.members( [
+		expect( command.enabledStyles ).toHaveLength( 4 );
+		expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 			tableStyle.name,
 			tbodyStyle.name,
 			trStyle.name,
 			tdStyle.name
-		] );
+		] ) );
 
 		command.execute( { styleName: 'Test tbody style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table htmlTbodyAttributes="{"classes":["test-tbody-style"]}">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -236,7 +306,7 @@ describe( 'TableStyleSupport', () => {
 
 		command.execute( { styleName: 'Test tbody style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -252,8 +322,67 @@ describe( 'TableStyleSupport', () => {
 		);
 	} );
 
+	it( 'should add class to tfoot element (table only with footer rows)', () => {
+		_setModelData( model,
+			'<table footerRows="2">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>[foo]</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		expect( command.enabledStyles ).toHaveLength( 4 );
+		expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
+			tableStyle.name,
+			tfootStyle.name,
+			trStyle.name,
+			tdStyle.name
+		] ) );
+
+		command.execute( { styleName: 'Test tfoot style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="2" htmlTfootAttributes="{"classes":["test-tfoot-style"]}">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		command.execute( { styleName: 'Test tfoot style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="2">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+	} );
+
 	it( 'should add class to thead element (table only with heading rows)', () => {
-		setData( model,
+		_setModelData( model,
 			'<table headingRows="2">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -268,16 +397,17 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.have.members( [
+		expect( command.enabledStyles ).toHaveLength( 4 );
+		expect( command.enabledStyles ).toEqual( expect.arrayContaining( [
 			tableStyle.name,
 			theadStyle.name,
 			trStyle.name,
 			thStyle.name
-		] );
+		] ) );
 
 		command.execute( { styleName: 'Test thead style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="2" htmlTheadAttributes="{"classes":["test-thead-style"]}">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -294,7 +424,7 @@ describe( 'TableStyleSupport', () => {
 
 		command.execute( { styleName: 'Test thead style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="2">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -311,7 +441,7 @@ describe( 'TableStyleSupport', () => {
 	} );
 
 	it( 'should add class to th element when heading is selected', () => {
-		setData( model,
+		_setModelData( model,
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -326,11 +456,11 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.deep.include( thStyle.name );
-		expect( command.enabledStyles ).to.not.deep.include( tdStyle.name );
+		expect( command.enabledStyles ).toContain( thStyle.name );
+		expect( command.enabledStyles ).not.toContain( tdStyle.name );
 		command.execute( { styleName: 'Test th style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell htmlThAttributes="{"classes":["test-th-style"]}">' +
@@ -346,8 +476,44 @@ describe( 'TableStyleSupport', () => {
 		);
 	} );
 
+	it( 'should add class to td element when footer is selected', () => {
+		_setModelData( model,
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>[bar]</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		expect( command.enabledStyles ).toContain( tdStyle.name );
+		expect( command.enabledStyles ).not.toContain( thStyle.name );
+		command.execute( { styleName: 'Test td style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell htmlTdAttributes="{"classes":["test-td-style"]}">' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+	} );
+
 	it( 'should not add class to th element when regular row is selected', () => {
-		setData( model,
+		_setModelData( model,
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -362,13 +528,13 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.deep.include( tdStyle.name );
-		expect( command.enabledStyles ).to.not.deep.include( thStyle.name );
+		expect( command.enabledStyles ).toContain( tdStyle.name );
+		expect( command.enabledStyles ).not.toContain( thStyle.name );
 
-		sinon.stub( console, 'warn' );
+		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		command.execute( { styleName: 'Test th style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -384,8 +550,46 @@ describe( 'TableStyleSupport', () => {
 		);
 	} );
 
+	it( 'should not add class to th element when regular row is selected (footer)', () => {
+		_setModelData( model,
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>[foo]</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		expect( command.enabledStyles ).toContain( tdStyle.name );
+		expect( command.enabledStyles ).not.toContain( thStyle.name );
+
+		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+		command.execute( { styleName: 'Test th style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>foo</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>bar</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+	} );
+
 	it( 'should add class to tr element', () => {
-		setData( model,
+		_setModelData( model,
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -395,10 +599,10 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.deep.include( trStyle.name );
+		expect( command.enabledStyles ).toContain( trStyle.name );
 		command.execute( { styleName: 'Test tr style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table>' +
 				'<tableRow htmlTrAttributes="{"classes":["test-tr-style"]}">' +
 					'<tableCell>' +
@@ -409,8 +613,98 @@ describe( 'TableStyleSupport', () => {
 		);
 	} );
 
+	it( 'should apply td style to footer cells even if other elements are selected', () => {
+		_setModelData( model,
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'[<tableCell>' +
+						'<paragraph>regular</paragraph>' +
+					'</tableCell>]' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'[<tableCell>' +
+						'<paragraph>regular</paragraph>' +
+					'</tableCell>]' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'[<tableCell>' +
+						'<paragraph>footer</paragraph>' +
+					'</tableCell>]' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		expect( command.enabledStyles ).toContain( tdStyle.name );
+		expect( command.enabledStyles ).not.toContain( thStyle.name );
+		command.execute( { styleName: 'Test td style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="1">' +
+				'<tableRow>' +
+					'<tableCell htmlTdAttributes="{"classes":["test-td-style"]}">' +
+						'<paragraph>regular</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell htmlTdAttributes="{"classes":["test-td-style"]}">' +
+						'<paragraph>regular</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell htmlTdAttributes="{"classes":["test-td-style"]}">' +
+						'<paragraph>footer</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+	} );
+
+	it( 'should apply th style only to th elements even if other cells are selected (header and footer)', () => {
+		_setModelData( model,
+			'<table footerRows="1" headingRows="1">' +
+				'<tableRow>' +
+					'[<tableCell>' +
+						'<paragraph>header</paragraph>' +
+					'</tableCell>]' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'[<tableCell>' +
+						'<paragraph>regular</paragraph>' +
+					'</tableCell>]' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'[<tableCell>' +
+						'<paragraph>footer</paragraph>' +
+					'</tableCell>]' +
+				'</tableRow>' +
+			'</table>'
+		);
+
+		command.execute( { styleName: 'Test th style' } );
+
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+			'<table footerRows="1" headingRows="1">' +
+				'<tableRow>' +
+					'<tableCell htmlThAttributes="{"classes":["test-th-style"]}">' +
+						'<paragraph>header</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>regular</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+				'<tableRow>' +
+					'<tableCell>' +
+						'<paragraph>footer</paragraph>' +
+					'</tableCell>' +
+				'</tableRow>' +
+			'</table>'
+		);
+	} );
+
 	it( 'should add class to td element', () => {
-		setData( model,
+		_setModelData( model,
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -420,11 +714,11 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.deep.include( tdStyle.name );
-		expect( command.enabledStyles ).to.not.deep.include( thStyle.name );
+		expect( command.enabledStyles ).toContain( tdStyle.name );
+		expect( command.enabledStyles ).not.toContain( thStyle.name );
 		command.execute( { styleName: 'Test td style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell htmlTdAttributes="{"classes":["test-td-style"]}">' +
@@ -436,7 +730,7 @@ describe( 'TableStyleSupport', () => {
 	} );
 
 	it( 'should add class to caption element', () => {
-		setData( model,
+		_setModelData( model,
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -447,10 +741,10 @@ describe( 'TableStyleSupport', () => {
 			'</table>'
 		);
 
-		expect( command.enabledStyles ).to.deep.include( captionStyle.name );
+		expect( command.enabledStyles ).toContain( captionStyle.name );
 		command.execute( { styleName: 'Test caption style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -463,7 +757,7 @@ describe( 'TableStyleSupport', () => {
 	} );
 
 	it( 'should allow setting both caption and figcaption styles on caption element', () => {
-		setData( model,
+		_setModelData( model,
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -473,12 +767,12 @@ describe( 'TableStyleSupport', () => {
 				'<caption>[abc]</caption>' +
 			'</table>'
 		);
-		expect( command.enabledStyles ).to.deep.include( captionStyle.name );
-		expect( command.enabledStyles ).to.deep.include( figcaptionStyle.name );
+		expect( command.enabledStyles ).toContain( captionStyle.name );
+		expect( command.enabledStyles ).toContain( figcaptionStyle.name );
 		command.execute( { styleName: 'Test caption style' } );
 		command.execute( { styleName: 'Test figcaption style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table>' +
 				'<tableRow>' +
 					'<tableCell>' +
@@ -495,7 +789,7 @@ describe( 'TableStyleSupport', () => {
 	} );
 
 	it( 'should apply th style only to th elements even if other cells are selected', () => {
-		setData( model,
+		_setModelData( model,
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'[<tableCell>' +
@@ -517,7 +811,7 @@ describe( 'TableStyleSupport', () => {
 
 		command.execute( { styleName: 'Test th style' } );
 
-		expect( getData( model, { withoutSelection: true } ) ).to.equal(
+		expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
 			'<table headingRows="1">' +
 				'<tableRow>' +
 					'<tableCell htmlThAttributes="{"classes":["test-th-style"]}">' +

@@ -1,14 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* eslint-disable no-undef */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import utils from '../../src/imagestyle/utils';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { ArticlePluginSet } from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+import { DEFAULT_OPTIONS } from '../../src/imagestyle/utils.js';
 
 describe( 'ImageStyleCommand', () => {
 	const {
@@ -17,7 +16,7 @@ describe( 'ImageStyleCommand', () => {
 		alignLeft: anyImage,
 		inline: onlyInline,
 		alignCenter: onlyBlock
-	} = utils.DEFAULT_OPTIONS;
+	} = DEFAULT_OPTIONS;
 
 	let editor, model, command, editorElement;
 
@@ -44,34 +43,34 @@ describe( 'ImageStyleCommand', () => {
 	} );
 
 	it( 'should use parent batch', () => {
-		setData( model, '[<imageBlock></imageBlock>]' );
+		_setModelData( model, '[<imageBlock></imageBlock>]' );
 
 		model.change( writer => {
-			expect( writer.batch.operations ).to.length( 0 );
+			expect( writer.batch.operations ).toHaveLength( 0 );
 
 			command.execute( { value: anyImage.name } );
 
-			expect( writer.batch.operations ).to.length.above( 0 );
+			expect( writer.batch.operations.length ).toBeGreaterThan( 0 );
 		} );
 	} );
 
 	it( 'should undo the whole command action if the image type has changed', () => {
-		const initialData = '[<imageBlock src="assets/sample.png"></imageBlock>]';
+		const initialData = '[<imageBlock src="sample.png"></imageBlock>]';
 
-		setData( model, initialData );
+		_setModelData( model, initialData );
 
 		command.execute( { value: onlyInline.name } );
 
-		expect( getData( model ) ).to.equal( '<paragraph>[<imageInline src="assets/sample.png"></imageInline>]</paragraph>' );
+		expect( _getModelData( model ) ).toBe( '<paragraph>[<imageInline src="sample.png"></imageInline>]</paragraph>' );
 
 		editor.execute( 'undo' );
 
-		expect( getData( model ) ).to.equal( initialData );
+		expect( _getModelData( model ) ).toBe( initialData );
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'should set default styles\' names properly if both of them are defined in the config', () => {
-			expect( command._defaultStyles ).to.deep.equal( {
+			expect( command._defaultStyles ).toEqual( {
 				imageBlock: defaultBlock.name,
 				imageInline: defaultInline.name
 			} );
@@ -92,7 +91,7 @@ describe( 'ImageStyleCommand', () => {
 
 			const customCommand = customEditor.commands.get( 'imageStyle' );
 
-			expect( customCommand._defaultStyles ).to.deep.equal( {
+			expect( customCommand._defaultStyles ).toEqual( {
 				imageBlock: defaultBlock.name,
 				imageInline: false
 			} );
@@ -102,7 +101,7 @@ describe( 'ImageStyleCommand', () => {
 		} );
 
 		it( 'should set the supported styles properly', () => {
-			expect( command._styles ).to.deep.equal( new Map( [
+			expect( command._styles ).toEqual( new Map( [
 				[ onlyBlock.name, onlyBlock ],
 				[ onlyInline.name, onlyInline ],
 				[ anyImage.name, anyImage ],
@@ -114,34 +113,34 @@ describe( 'ImageStyleCommand', () => {
 
 	describe( 'value', () => {
 		it( 'should be false if no element is selected', () => {
-			setData( model, '<paragraph>[]</paragraph><imageBlock></imageBlock>' );
+			_setModelData( model, '<paragraph>[]</paragraph><imageBlock></imageBlock>' );
 
-			expect( command.value ).to.be.false;
+			expect( command.value ).toBe( false );
 		} );
 
 		it( 'should be false if no image is selected', () => {
-			setData( model, '[<media></media>]' );
+			_setModelData( model, '[<media></media>]' );
 
-			expect( command.value ).to.be.false;
+			expect( command.value ).toBe( false );
 		} );
 
 		it( 'should match the imageStyle attribute if a block image is selected', () => {
-			setData( model, `[<imageBlock imageStyle="${ anyImage.name }"></imageBlock>]` );
+			_setModelData( model, `[<imageBlock imageStyle="${ anyImage.name }"></imageBlock>]` );
 
-			expect( command.value ).to.equal( anyImage.name );
+			expect( command.value ).toBe( anyImage.name );
 		} );
 
 		describe( 'when an inline image is selected', () => {
 			it( 'should match the imageStyle attribute if it is present', () => {
-				setData( model, `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+				_setModelData( model, `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 
-				expect( command.value ).to.equal( anyImage.name );
+				expect( command.value ).toBe( anyImage.name );
 			} );
 
 			it( 'should match the proper default style if the imageStyle attribute is not present', () => {
-				setData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+				_setModelData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 
-				expect( command.value ).to.equal( defaultInline.name );
+				expect( command.value ).toBe( defaultInline.name );
 			} );
 
 			it( 'should be false if the imageStyle attribute is not present and no default style is provided', async () => {
@@ -159,8 +158,8 @@ describe( 'ImageStyleCommand', () => {
 
 				const currentCommand = customEditor.commands.get( 'imageStyle' );
 
-				setData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
-				expect( currentCommand.value ).to.equal( false );
+				_setModelData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+				expect( currentCommand.value ).toBe( false );
 
 				customElement.remove();
 				await customEditor.destroy();
@@ -169,15 +168,15 @@ describe( 'ImageStyleCommand', () => {
 
 		describe( 'when a block image is selected', () => {
 			it( 'should match the imageStyle attribute if it is present', () => {
-				setData( model, `[<imageBlock imageStyle="${ anyImage.name }"></imageBlock>]` );
+				_setModelData( model, `[<imageBlock imageStyle="${ anyImage.name }"></imageBlock>]` );
 
-				expect( command.value ).to.equal( anyImage.name );
+				expect( command.value ).toBe( anyImage.name );
 			} );
 
 			it( 'should match the proper default style if the imageStyle attribute is not present', () => {
-				setData( model, '[<imageBlock></imageBlock>]' );
+				_setModelData( model, '[<imageBlock></imageBlock>]' );
 
-				expect( command.value ).to.equal( defaultBlock.name );
+				expect( command.value ).toBe( defaultBlock.name );
 			} );
 
 			it( 'should be false if the imageStyle attribute is not present and no default style is provided', async () => {
@@ -195,8 +194,8 @@ describe( 'ImageStyleCommand', () => {
 
 				const currentCommand = customEditor.commands.get( 'imageStyle' );
 
-				setData( model, '[<imageBlock></imageBlock>]' );
-				expect( currentCommand.value ).to.equal( false );
+				_setModelData( model, '[<imageBlock></imageBlock>]' );
+				expect( currentCommand.value ).toBe( false );
 
 				customElement.remove();
 				await customEditor.destroy();
@@ -206,68 +205,150 @@ describe( 'ImageStyleCommand', () => {
 
 	describe( 'isEnabled', () => {
 		it( 'should be enabled if an inline image is selected', () => {
-			setData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+			_setModelData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled if a block image is selected', () => {
-			setData( model, '[<imageBlock></imageBlock>]' );
+			_setModelData( model, '[<imageBlock></imageBlock>]' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be disabled if no image is selected', () => {
-			setData( model, '[<paragraph></paragraph>]' );
+			_setModelData( model, '[<paragraph></paragraph>]' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be disabled if selection is not directly on the block image', () => {
-			setData( model, '[<paragraph></paragraph><imageBlock></imageBlock>]' );
+			_setModelData( model, '[<paragraph></paragraph><imageBlock></imageBlock>]' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be disabled if selection is not directly on the inline image', () => {
-			setData( model, '[<paragraph></paragraph><paragraph><imageInline></imageInline></paragraph>]' );
+			_setModelData( model, '[<paragraph></paragraph><paragraph><imageInline></imageInline></paragraph>]' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be true when the selection is in a block image caption', () => {
-			setData( model, '<imageBlock><caption>[]Foo</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock><caption>[]Foo</caption></imageBlock>' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
+		} );
+	} );
+
+	describe( 'isStyleEnabled()', () => {
+		it( 'should return false when no image is selected', () => {
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
+
+			expect( command.isStyleEnabled( anyImage.name ) ).toBe( false );
+		} );
+
+		it( 'should return false for an unknown style name', () => {
+			_setModelData( model, '[<imageBlock></imageBlock>]' );
+
+			expect( command.isStyleEnabled( 'thisStyleDoesNotExist' ) ).toBe( false );
+		} );
+
+		it( 'should return true for a style that supports the current image type without conversion', () => {
+			_setModelData( model, `<paragraph>[<imageInline src="${ anyImage.name }"></imageInline>]</paragraph>` );
+
+			// `alignLeft` (anyImage) supports both block and inline, so applying it to an inline image is direct.
+			expect( command.isStyleEnabled( anyImage.name ) ).toBe( true );
+		} );
+
+		it( 'should return true for a type-only style when the required type conversion is allowed', () => {
+			_setModelData( model, '<paragraph>[<imageInline src="x"></imageInline>]</paragraph>' );
+
+			// `alignCenter` (onlyBlock) requires converting the inline image to block - allowed in `$root`.
+			expect( command.isStyleEnabled( onlyBlock.name ) ).toBe( true );
+		} );
+
+		describe( 'in $inlineRoot', () => {
+			let inlineEditor, inlineElement, inlineCommand;
+
+			beforeEach( async () => {
+				inlineElement = document.createElement( 'div' );
+				document.body.appendChild( inlineElement );
+
+				inlineEditor = await ClassicTestEditor.create( inlineElement, {
+					plugins: [ ArticlePluginSet ],
+					image: {
+						styles: { options: [ 'block', 'inline', 'alignLeft', 'alignCenter' ] },
+						toolbar: [ 'imageStyle:block' ]
+					},
+					root: { modelElement: '$inlineRoot' }
+				} );
+
+				inlineCommand = inlineEditor.commands.get( 'imageStyle' );
+			} );
+
+			afterEach( async () => {
+				inlineElement.remove();
+				await inlineEditor.destroy();
+			} );
+
+			it( 'should return false for a block-only style applied to an inline image (conversion blocked)', () => {
+				_setModelData( inlineEditor.model, 'foo[<imageInline src="x"></imageInline>]bar' );
+
+				// `alignCenter` is block-only, so applying it requires converting to a block image - which
+				// the schema rejects inside `$inlineRoot`.
+				expect( inlineCommand.isStyleEnabled( onlyBlock.name ) ).toBe( false );
+			} );
+
+			it( 'should return true for a dual-type style applied to an inline image (no conversion needed)', () => {
+				_setModelData( inlineEditor.model, 'foo[<imageInline src="x"></imageInline>]bar' );
+
+				expect( inlineCommand.isStyleEnabled( anyImage.name ) ).toBe( true );
+			} );
+
+			it( 'should return true for an inline-only style applied to an inline image', () => {
+				_setModelData( inlineEditor.model, 'foo[<imageInline src="x"></imageInline>]bar' );
+
+				expect( inlineCommand.isStyleEnabled( onlyInline.name ) ).toBe( true );
+			} );
+
+			it( 'should no-op when execute() is called with a style that requires a blocked conversion', () => {
+				_setModelData( inlineEditor.model, 'foo[<imageInline src="x"></imageInline>]bar' );
+
+				const before = _getModelData( inlineEditor.model );
+				inlineCommand.execute( { value: onlyBlock.name } );
+
+				expect( _getModelData( inlineEditor.model ) ).toBe( before );
+			} );
 		} );
 	} );
 
 	describe( 'execute()', () => {
-		const imgSrc = 'assets/sample.png';
+		const imgSrc = 'sample.png';
 
 		describe( 'converting image type', () => {
 			describe( 'when an inline image is selected', () => {
 				it( 'should change the image type if the requested type is other than imageInline', () => {
-					setData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+					_setModelData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 					command.execute( { value: onlyBlock.name } );
 
-					expect( getData( model ) )
-						.to.equal( `[<imageBlock imageStyle="alignCenter" src="${ imgSrc }"></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toBe( `[<imageBlock imageStyle="alignCenter" src="${ imgSrc }"></imageBlock>]` );
 				} );
 
 				it( 'should not change the image type if the requested type equals imageInline', () => {
-					setData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+					_setModelData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 					command.execute( { value: defaultInline.name } );
 
-					expect( getData( model ) )
-						.to.equal( `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+					expect( _getModelData( model ) )
+						.toBe( `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 				} );
 
 				it( 'should not change the image type if the requested type is not specified', () => {
-					setData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+					_setModelData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toEqual(
 						`<paragraph>[<imageInline imageStyle="${ anyImage.name }" src="${ imgSrc }"></imageInline>]</paragraph>`
 					);
 				} );
@@ -275,257 +356,252 @@ describe( 'ImageStyleCommand', () => {
 
 			describe( 'when a block image is selected', () => {
 				it( 'should change the image type if the requested type is other than imageBlock', () => {
-					setData( model, `[<imageBlock src="${ imgSrc }"></imageBlock>]` );
+					_setModelData( model, `[<imageBlock src="${ imgSrc }"></imageBlock>]` );
 					command.execute( { value: onlyInline.name } );
 
-					expect( getData( model ) )
-						.to.equal( `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+					expect( _getModelData( model ) )
+						.toBe( `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 				} );
 
 				it( 'should not change the image type if the requested type equals imageBlock', () => {
-					setData( model, `[<imageBlock src="${ imgSrc }"><caption></caption></imageBlock>]` );
+					_setModelData( model, `[<imageBlock src="${ imgSrc }"><caption></caption></imageBlock>]` );
 					command.execute( { value: onlyBlock.name } );
 
-					expect( getData( model ) )
-						.to.equal( `[<imageBlock imageStyle="${ onlyBlock.name }" src="${ imgSrc }"><caption></caption></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toBe( `[<imageBlock imageStyle="${ onlyBlock.name }" src="${ imgSrc }"><caption></caption></imageBlock>]` );
 				} );
 
 				it( 'should not change the image type if the requested type is not specified', () => {
-					setData( model, `[<imageBlock src="${ imgSrc }"><caption></caption></imageBlock>]` );
+					_setModelData( model, `[<imageBlock src="${ imgSrc }"><caption></caption></imageBlock>]` );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `[<imageBlock imageStyle="${ anyImage.name }" src="${ imgSrc }"><caption></caption></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toBe( `[<imageBlock imageStyle="${ anyImage.name }" src="${ imgSrc }"><caption></caption></imageBlock>]` );
 				} );
 			} );
 
 			it( 'should change the image type if the selection is inside a caption', () => {
-				setData( model, `<imageBlock src="${ imgSrc }"><caption>[]Foo</caption></imageBlock>` );
+				_setModelData( model, `<imageBlock src="${ imgSrc }"><caption>[]Foo</caption></imageBlock>` );
 				command.execute( { value: onlyInline.name } );
 
-				expect( getData( model ) ).to.equal(
-					`<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>`
-				);
+				expect( _getModelData( model ) ).toEqual( `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 			} );
 		} );
 
 		describe( 'converting image style', () => {
 			describe( 'when an inline image is selected', () => {
 				it( 'should remove the imageStyle attribute if the requested style is set as default', () => {
-					setData( model, `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+					_setModelData( model, `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 					command.execute( { value: defaultInline.name } );
 
-					expect( getData( model ) )
-						.to.equal( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+					expect( _getModelData( model ) )
+						.toBe( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 				} );
 
 				it( 'should set properly the imageStyle attribute if it is present', () => {
-					setData( model, `<paragraph>[<imageInline imageStyle="${ onlyInline.name }"></imageInline>]</paragraph>` );
+					_setModelData( model, `<paragraph>[<imageInline imageStyle="${ onlyInline.name }"></imageInline>]</paragraph>` );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+					expect( _getModelData( model ) )
+						.toBe( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 				} );
 
 				it( 'should set properly the imageStyle attribute if it is not present', () => {
-					setData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+					expect( _getModelData( model ) )
+						.toBe( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 				} );
 
 				it( 'should do nothing if requested attribute is already present', () => {
-					setData( model, `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+					_setModelData( model, `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+					expect( _getModelData( model ) )
+						.toBe( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 				} );
 
 				it( 'should set default style if executing it after another style', () => {
-					setData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 
-					expect( command.value ).to.equal( defaultInline.name );
+					expect( command.value ).toBe( defaultInline.name );
 
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
+					expect( _getModelData( model ) )
+						.toBe( `<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>` );
 
 					command.execute( { value: defaultInline.name } );
 
-					expect( getData( model ) ).to.equal( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
-					expect( command.value ).to.equal( defaultInline.name );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+					expect( command.value ).toBe( defaultInline.name );
 				} );
 
 				it( 'should set default style if no style specified', () => {
-					setData( model, '<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<imageInline imageStyle="${ anyImage.name }"></imageInline>]</paragraph>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
-					expect( command.value ).to.equal( defaultInline.name );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+					expect( command.value ).toBe( defaultInline.name );
 				} );
 
 				it( 'should set width and height when imageStyle is set (and be undoable in single step)', async () => {
-					const initialData = '<paragraph>[<imageInline src="/assets/sample.png"></imageInline>]</paragraph>';
+					const initialData = '<paragraph>[<imageInline src="/sample.png"></imageInline>]</paragraph>';
 
-					setData( model, initialData );
+					_setModelData( model, initialData );
 					command.execute( { value: anyImage.name } );
 					await timeout( 100 );
 
-					expect( getData( model ) ).to.equal(
-						`<paragraph>[<imageInline height="96" imageStyle="${ anyImage.name }" ` +
-							'src="/assets/sample.png" width="96"></imageInline>]</paragraph>'
-					);
+					expect( _getModelData( model ) ).toEqual( `<paragraph>[<imageInline height="96" imageStyle="${ anyImage.name }" ` +
+							'src="/sample.png" width="96"></imageInline>]</paragraph>' );
 
 					editor.execute( 'undo' );
 
-					expect( getData( model ) )
-						.to.equal( initialData );
+					expect( _getModelData( model ) )
+						.toBe( initialData );
 				} );
 
 				it( 'should set width and height when imageStyle is removed (and be undoable in single step)', async () => {
 					const initialData =
-						`<paragraph>[<imageInline imageStyle="${ anyImage.name }" src="/assets/sample.png"></imageInline>]</paragraph>`;
+						`<paragraph>[<imageInline imageStyle="${ anyImage.name }" src="/sample.png"></imageInline>]</paragraph>`;
 
-					setData( model, initialData );
+					_setModelData( model, initialData );
 					command.execute( { value: defaultInline.name } );
 					await timeout( 100 );
 
-					expect( getData( model ) )
-						.to.equal( '<paragraph>[<imageInline height="96" src="/assets/sample.png" width="96"></imageInline>]</paragraph>' );
+					expect( _getModelData( model ) )
+						.toBe( '<paragraph>[<imageInline height="96" src="/sample.png" width="96"></imageInline>]</paragraph>' );
 
 					editor.execute( 'undo' );
 
-					expect( getData( model ) )
-						.to.equal( initialData );
+					expect( _getModelData( model ) )
+						.toBe( initialData );
 				} );
 
 				it( 'should not set width and height when command `setImageSizes` parameter is false', async () => {
-					const initialData = '<paragraph>[<imageInline src="/assets/sample.png"></imageInline>]</paragraph>';
+					const initialData = '<paragraph>[<imageInline src="/sample.png"></imageInline>]</paragraph>';
 
-					setData( model, initialData );
+					_setModelData( model, initialData );
 					command.execute( { value: anyImage.name, setImageSizes: false } );
 					await timeout( 100 );
 
-					expect( getData( model ) ).to.equal(
-						`<paragraph>[<imageInline imageStyle="${ anyImage.name }" src="/assets/sample.png"></imageInline>]</paragraph>`
+					expect( _getModelData( model ) ).toEqual(
+						`<paragraph>[<imageInline imageStyle="${ anyImage.name }" src="/sample.png"></imageInline>]</paragraph>`
 					);
 				} );
 			} );
 
 			describe( 'when a block image is selected', () => {
 				it( 'should remove the imageStyle attribute if the requested style is set as default', () => {
-					setData( model, `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
+					_setModelData( model, `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
 					command.execute( { value: defaultBlock.name } );
 
-					expect( getData( model ) )
-						.to.equal( '[<imageBlock><caption></caption></imageBlock>]' );
+					expect( _getModelData( model ) )
+						.toBe( '[<imageBlock><caption></caption></imageBlock>]' );
 				} );
 
 				it( 'should set properly the imageStyle attribute if it is present', () => {
-					setData( model, `[<imageBlock imageStyle="${ onlyBlock.name }"><caption></caption></imageBlock>]` );
+					_setModelData( model, `[<imageBlock imageStyle="${ onlyBlock.name }"><caption></caption></imageBlock>]` );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toBe( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
 				} );
 
 				it( 'should set properly the imageStyle attribute if it is not present', () => {
-					setData( model, '[<imageBlock><caption></caption></imageBlock>]' );
+					_setModelData( model, '[<imageBlock><caption></caption></imageBlock>]' );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toBe( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
 				} );
 
 				it( 'should do nothing if requested attribute is already present', () => {
-					setData( model, `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
+					_setModelData( model, `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) )
-						.to.equal( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toBe( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
 				} );
 
 				it( 'should set default style if executing it after another style', () => {
-					setData( model, '[<imageBlock><caption></caption></imageBlock>]' );
+					_setModelData( model, '[<imageBlock><caption></caption></imageBlock>]' );
 
-					expect( command.value ).to.equal( defaultBlock.name );
+					expect( command.value ).toBe( defaultBlock.name );
 
 					command.execute( { value: anyImage.name } );
 
-					expect( getData( model ) ).to.equal( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
+					expect( _getModelData( model ) )
+						.toEqual( `[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]` );
 
 					command.execute( { value: defaultBlock.name } );
 
-					expect( getData( model ) ).to.equal( '[<imageBlock><caption></caption></imageBlock>]' );
-					expect( command.value ).to.equal( defaultBlock.name );
+					expect( _getModelData( model ) ).toBe( '[<imageBlock><caption></caption></imageBlock>]' );
+					expect( command.value ).toBe( defaultBlock.name );
 				} );
 
 				it( 'should set default style if no style specified', () => {
-					setData( model, '[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]' );
+					_setModelData( model, '[<imageBlock imageStyle="${ anyImage.name }"><caption></caption></imageBlock>]' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '[<imageBlock><caption></caption></imageBlock>]' );
-					expect( command.value ).to.equal( defaultBlock.name );
+					expect( _getModelData( model ) ).toBe( '[<imageBlock><caption></caption></imageBlock>]' );
+					expect( command.value ).toBe( defaultBlock.name );
 				} );
 
 				it( 'should set width and height when imageStyle is set (and be undoable in single step)', async () => {
-					const initialData = '[<imageBlock src="/assets/sample.png"></imageBlock>]';
+					const initialData = '[<imageBlock src="/sample.png"></imageBlock>]';
 
-					setData( model, initialData );
+					_setModelData( model, initialData );
 					command.execute( { value: anyImage.name } );
 					await timeout( 100 );
 
-					expect( getData( model ) ).to.equal(
-						`[<imageBlock height="96" imageStyle="${ anyImage.name }" src="/assets/sample.png" width="96"></imageBlock>]`
-					);
+					expect( _getModelData( model ) )
+						.toEqual( `[<imageBlock height="96" imageStyle="${ anyImage.name }" src="/sample.png" width="96"></imageBlock>]` );
 
 					editor.execute( 'undo' );
 
-					expect( getData( model ) )
-						.to.equal( initialData );
+					expect( _getModelData( model ) )
+						.toBe( initialData );
 				} );
 
 				it( 'should set width and height when imageStyle is removed (and be undoable in single step)', async () => {
 					const initialData =
-						`[<imageBlock imageStyle="${ anyImage.name }" src="/assets/sample.png"></imageBlock>]`;
+						`[<imageBlock imageStyle="${ anyImage.name }" src="/sample.png"></imageBlock>]`;
 
-					setData( model, initialData );
+					_setModelData( model, initialData );
 					command.execute( { value: defaultBlock.name } );
 					await timeout( 100 );
 
-					expect( getData( model ) )
-						.to.equal( '[<imageBlock height="96" src="/assets/sample.png" width="96"></imageBlock>]' );
+					expect( _getModelData( model ) )
+						.toBe( '[<imageBlock height="96" src="/sample.png" width="96"></imageBlock>]' );
 
 					editor.execute( 'undo' );
 
-					expect( getData( model ) )
-						.to.equal( initialData );
+					expect( _getModelData( model ) )
+						.toBe( initialData );
 				} );
 
 				it( 'should not set width and height when command `setImageSizes` parameter is false', async () => {
-					const initialData = '[<imageBlock src="/assets/sample.png"></imageBlock>]';
+					const initialData = '[<imageBlock src="/sample.png"></imageBlock>]';
 
-					setData( model, initialData );
+					_setModelData( model, initialData );
 					command.execute( { value: anyImage.name, setImageSizes: false } );
 					await timeout( 100 );
 
-					expect( getData( model ) ).to.equal(
-						`[<imageBlock imageStyle="${ anyImage.name }" src="/assets/sample.png"></imageBlock>]`
-					);
+					expect( _getModelData( model ) )
+						.toEqual( `[<imageBlock imageStyle="${ anyImage.name }" src="/sample.png"></imageBlock>]` );
 				} );
 			} );
 
 			it( 'should set the style if the selection is inside a caption', () => {
-				setData( model, `<imageBlock imageStyle="${ onlyBlock.name }"><caption>Fo[o]</caption></imageBlock>` );
+				_setModelData( model, `<imageBlock imageStyle="${ onlyBlock.name }"><caption>Fo[o]</caption></imageBlock>` );
 				command.execute( { value: anyImage.name } );
 
-				expect( getData( model ) )
-					.to.equal( `<imageBlock imageStyle="${ anyImage.name }"><caption>Fo[o]</caption></imageBlock>` );
+				expect( _getModelData( model ) )
+					.toBe( `<imageBlock imageStyle="${ anyImage.name }"><caption>Fo[o]</caption></imageBlock>` );
 			} );
 		} );
 
@@ -535,41 +611,41 @@ describe( 'ImageStyleCommand', () => {
 	} );
 
 	describe( 'shouldConvertImageType()', () => {
-		const imgSrc = 'assets/sample.png';
+		const imgSrc = 'sample.png';
 
 		describe( 'for an inline image', () => {
 			it( 'should return true if the requested type is other than imageInline', () => {
-				setData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+				_setModelData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 
 				const image = model.document.selection.getSelectedElement();
 
-				expect( command.shouldConvertImageType( onlyBlock.name, image ) ).to.be.true;
+				expect( command.shouldConvertImageType( onlyBlock.name, image ) ).toBe( true );
 			} );
 
 			it( 'should return false if the requested type equals imageInline', () => {
-				setData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
+				_setModelData( model, `<paragraph>[<imageInline src="${ imgSrc }"></imageInline>]</paragraph>` );
 
 				const image = model.document.selection.getSelectedElement();
 
-				expect( command.shouldConvertImageType( defaultInline.name, image ) ).to.be.false;
+				expect( command.shouldConvertImageType( defaultInline.name, image ) ).toBe( false );
 			} );
 		} );
 
 		describe( 'for a block image', () => {
 			it( 'should return true if the requested type is other than imageBlock', () => {
-				setData( model, `[<imageBlock src="${ imgSrc }"></imageBlock>]` );
+				_setModelData( model, `[<imageBlock src="${ imgSrc }"></imageBlock>]` );
 
 				const image = model.document.selection.getSelectedElement();
 
-				expect( command.shouldConvertImageType( onlyInline.name, image ) ).to.be.true;
+				expect( command.shouldConvertImageType( onlyInline.name, image ) ).toBe( true );
 			} );
 
 			it( 'should return false if the requested type equals imageBlock', () => {
-				setData( model, `[<imageBlock src="${ imgSrc }"><caption></caption></imageBlock>]` );
+				_setModelData( model, `[<imageBlock src="${ imgSrc }"><caption></caption></imageBlock>]` );
 
 				const image = model.document.selection.getSelectedElement();
 
-				expect( command.shouldConvertImageType( onlyBlock.name, image ) ).to.be.false;
+				expect( command.shouldConvertImageType( onlyBlock.name, image ) ).toBe( false );
 			} );
 		} );
 	} );

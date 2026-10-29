@@ -1,28 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global window, document */
-
-import global from '../../src/dom/global';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, vi } from 'vitest';
+import { global } from '../../src/dom/global.js';
 
 describe( 'global', () => {
-	testUtils.createSinonSandbox();
-
 	describe( 'global', () => {
 		describe( 'window', () => {
 			it( 'equals native DOM window', () => {
-				expect( global.window ).to.equal( window );
+				expect( global.window ).toBe( window );
 			} );
 
 			it( 'stubs', () => {
-				testUtils.sinon.stub( global, 'window' ).value( {
+				vi.spyOn( global, 'window', 'get' ).mockReturnValue( {
 					scrollX: 100
 				} );
 
-				expect( global.window ).to.deep.equal( {
+				expect( global.window ).toEqual( {
 					scrollX: 100
 				} );
 			} );
@@ -30,15 +26,15 @@ describe( 'global', () => {
 
 		describe( 'document', () => {
 			it( 'equals native DOM document', () => {
-				expect( global.document ).to.equal( document );
+				expect( global.document ).toBe( document );
 			} );
 
 			it( 'stubs', () => {
-				testUtils.sinon.stub( global, 'document' ).value( {
+				vi.spyOn( global, 'document', 'get' ).mockReturnValue( {
 					foo: 'abc'
 				} );
 
-				expect( global.document ).to.deep.equal( {
+				expect( global.document ).toEqual( {
 					foo: 'abc'
 				} );
 			} );

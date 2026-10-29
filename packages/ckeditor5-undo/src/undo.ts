@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module undo/undo
  */
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
-import UndoEditing from './undoediting';
-import UndoUI from './undoui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { UndoEditing } from './undoediting.js';
+import { UndoUI } from './undoui.js';
 
 /**
  * The undo feature.
@@ -20,7 +20,7 @@ import UndoUI from './undoui';
  * Below is an explanation of the undo mechanism working together with {@link module:engine/model/history~History History}:
  *
  * Whenever an {@link module:engine/model/operation/operation~Operation operation} is applied to the
- * {@link module:engine/model/document~Document document}, it is saved to `History` as is.
+ * {@link module:engine/model/document~ModelDocument document}, it is saved to `History` as is.
  * The {@link module:engine/model/batch~Batch batch} that owns that operation is also saved, in
  * {@link module:undo/undocommand~UndoCommand}, together with the selection that was present in the document before the
  * operation was applied. A batch is saved instead of the operation because changes are undone batch-by-batch, not operation-by-operation
@@ -108,12 +108,12 @@ import UndoUI from './undoui';
  * [ operation C3rr]
  * ```
  */
-export default class Undo extends Plugin {
+export class Undo extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ UndoEditing, UndoUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ UndoEditing, UndoUI ]> {
+		return [ UndoEditing, UndoUI ];
 	}
 
 	/**
@@ -121,5 +121,12 @@ export default class Undo extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Undo' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

@@ -1,19 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import LinkCommand from '../src/linkcommand';
-import ManualDecorator from '../src/utils/manualdecorator';
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import AutomaticDecorators from '../src/utils/automaticdecorators';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { LinkCommand } from '../src/linkcommand.js';
+import { LinkManualDecorator } from '../src/utils/manualdecorator.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+import { AutomaticLinkDecorators } from '../src/utils/automaticdecorators.js';
+import { LinkEditing } from '../src/linkediting.js';
 
 describe( 'LinkCommand', () => {
 	let editor, model, command;
 
 	beforeEach( () => {
-		return ModelTestEditor.create()
+		return ModelTestEditor.create( { plugins: [ LinkEditing ] } )
 			.then( newEditor => {
 				editor = newEditor;
 				model = editor.model;
@@ -21,7 +23,15 @@ describe( 'LinkCommand', () => {
 
 				model.schema.extend( '$text', {
 					allowIn: '$root',
-					allowAttributes: [ 'linkHref', 'bold' ]
+					allowAttributes: [ 'linkHref', 'bold', 'italic' ]
+				} );
+
+				editor.model.schema.setAttributeProperties( 'bold', {
+					isFormatting: true
+				} );
+
+				editor.model.schema.setAttributeProperties( 'italic', {
+					isFormatting: true
 				} );
 
 				model.schema.register( 'paragraph', { inheritAllFrom: '$block' } );
@@ -48,25 +58,25 @@ describe( 'LinkCommand', () => {
 
 		describe( 'when selection is collapsed', () => {
 			it( 'should be true if characters with the attribute can be placed at caret position', () => {
-				setData( model, '<paragraph>f[]oo</paragraph>' );
-				expect( command.isEnabled ).to.be.true;
+				_setModelData( model, '<paragraph>f[]oo</paragraph>' );
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be false if characters with the attribute cannot be placed at caret position', () => {
-				setData( model, '<x>fo[]o</x>' );
-				expect( command.isEnabled ).to.be.false;
+				_setModelData( model, '<x>fo[]o</x>' );
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
 		describe( 'when selection is not collapsed', () => {
 			it( 'should be true if there is at least one node in selection that can have the attribute', () => {
-				setData( model, '<paragraph>[foo]</paragraph>' );
-				expect( command.isEnabled ).to.be.true;
+				_setModelData( model, '<paragraph>[foo]</paragraph>' );
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be false if there are no nodes in selection that can have the attribute', () => {
-				setData( model, '<x>[foo]</x>' );
-				expect( command.isEnabled ).to.be.false;
+				_setModelData( model, '<x>[foo]</x>' );
+				expect( command.isEnabled ).toBe( false );
 			} );
 
 			describe( 'for linkable block elements', () => {
@@ -79,35 +89,37 @@ describe( 'LinkCommand', () => {
 				} );
 
 				it( 'should be true when a linkable is selected', () => {
-					setData( model, '[<linkableBlock linkHref="foo"></linkableBlock>]' );
+					_setModelData( model, '[<linkableBlock linkHref="foo"></linkableBlock>]' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be true when a linkable and a text are selected', () => {
-					setData( model, '[<linkableBlock linkHref="foo"></linkableBlock>Foo]' );
+					_setModelData( model, '[<linkableBlock linkHref="foo"></linkableBlock>Foo]' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be true when a text and a linkable are selected', () => {
-					setData( model, '[Foo<linkableBlock linkHref="foo"></linkableBlock>]' );
+					_setModelData( model, '[Foo<linkableBlock linkHref="foo"></linkableBlock>]' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be true when two linkables are selected', () => {
-					setData( model, '[<linkableBlock linkHref="foo"></linkableBlock><linkableBlock linkHref="foo"></linkableBlock>]' );
+					_setModelData( model,
+						'[<linkableBlock linkHref="foo"></linkableBlock><linkableBlock linkHref="foo"></linkableBlock>]'
+					);
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be false when a fake linkable is selected', () => {
 					model.schema.register( 'fake', { isBlock: true, allowWhere: '$text' } );
 
-					setData( model, '[<fake></fake>]' );
+					_setModelData( model, '[<fake></fake>]' );
 
-					expect( command.isEnabled ).to.be.false;
+					expect( command.isEnabled ).toBe( false );
 				} );
 
 				it( 'should be false if a linkable does not accept the `linkHref` attribute in given context', () => {
@@ -117,9 +129,9 @@ describe( 'LinkCommand', () => {
 						}
 					} );
 
-					setData( model, '[<linkableBlock></linkableBlock>]' );
+					_setModelData( model, '[<linkableBlock></linkableBlock>]' );
 
-					expect( command.isEnabled ).to.be.false;
+					expect( command.isEnabled ).toBe( false );
 				} );
 			} );
 
@@ -134,31 +146,31 @@ describe( 'LinkCommand', () => {
 				} );
 
 				it( 'should be true when a linkable is selected', () => {
-					setData( model, '<paragraph>foo [<linkableInline linkHref="foo"></linkableInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>foo [<linkableInline linkHref="foo"></linkableInline>]</paragraph>' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be true when a linkable and a text are selected', () => {
-					setData( model, '<paragraph>foo [<linkableInline linkHref="foo"></linkableInline>bar]</paragraph>' );
+					_setModelData( model, '<paragraph>foo [<linkableInline linkHref="foo"></linkableInline>bar]</paragraph>' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be true when a text and a linkable are selected', () => {
-					setData( model, '<paragraph>[foo<linkableInline linkHref="foo"></linkableInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[foo<linkableInline linkHref="foo"></linkableInline>]</paragraph>' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be true when two linkables are selected', () => {
-					setData( model,
+					_setModelData( model,
 						'<paragraph>' +
 							'foo ' +
 							'[<linkableInline linkHref="foo"></linkableInline><linkableInline linkHref="foo"></linkableInline>]' +
 						'</paragraph>' );
 
-					expect( command.isEnabled ).to.be.true;
+					expect( command.isEnabled ).toBe( true );
 				} );
 
 				it( 'should be false if a linkable does not accept the `linkHref` attribute in given context', () => {
@@ -168,9 +180,9 @@ describe( 'LinkCommand', () => {
 						}
 					} );
 
-					setData( model, '<paragraph>[<linkableInline></linkableInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<linkableInline></linkableInline>]</paragraph>' );
 
-					expect( command.isEnabled ).to.be.false;
+					expect( command.isEnabled ).toBe( false );
 				} );
 			} );
 		} );
@@ -179,29 +191,29 @@ describe( 'LinkCommand', () => {
 	describe( 'value', () => {
 		describe( 'collapsed selection', () => {
 			it( 'should be equal attribute value when selection is placed inside element with `linkHref` attribute', () => {
-				setData( model, '<$text linkHref="url">foo[]bar</$text>' );
+				_setModelData( model, '<$text linkHref="url">foo[]bar</$text>' );
 
-				expect( command.value ).to.equal( 'url' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should be undefined when selection is placed inside element without `linkHref` attribute', () => {
-				setData( model, '<$text bold="true">foo[]bar</$text>' );
+				_setModelData( model, '<$text bold="true">foo[]bar</$text>' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 			} );
 		} );
 
 		describe( 'non-collapsed selection', () => {
 			it( 'should be equal attribute value when selection contains only elements with `linkHref` attribute', () => {
-				setData( model, 'fo[<$text linkHref="url">ob</$text>]ar' );
+				_setModelData( model, 'fo[<$text linkHref="url">ob</$text>]ar' );
 
-				expect( command.value ).to.equal( 'url' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should be undefined when selection contains not only elements with `linkHref` attribute', () => {
-				setData( model, 'f[o<$text linkHref="url">ob</$text>]ar' );
+				_setModelData( model, 'f[o<$text linkHref="url">ob</$text>]ar' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 			} );
 		} );
 
@@ -215,34 +227,34 @@ describe( 'LinkCommand', () => {
 			} );
 
 			it( 'should read the value from a selected linkable', () => {
-				setData( model, '[<linkableBlock linkHref="foo"></linkableBlock>]' );
+				_setModelData( model, '[<linkableBlock linkHref="foo"></linkableBlock>]' );
 
-				expect( command.value ).to.be.equal( 'foo' );
+				expect( command.value ).toBe( 'foo' );
 			} );
 
 			it( 'should read the value from a selected linkable and ignore a text node', () => {
-				setData( model,
+				_setModelData( model,
 					'[<linkableBlock linkHref="foo"></linkableBlock>' +
 					'<paragraph><$text linkHref="bar">bar</$text>]</paragraph>'
 				);
 
-				expect( command.value ).to.be.equal( 'foo' );
+				expect( command.value ).toBe( 'foo' );
 			} );
 
 			it( 'should read the value from a selected text node and ignore a linkable', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>[<$text linkHref="bar">bar</$text></paragraph><linkableBlock linkHref="foo"></linkableBlock>]'
 				);
 
-				expect( command.value ).to.be.equal( 'bar' );
+				expect( command.value ).toBe( 'bar' );
 			} );
 
 			it( 'should be undefined when a fake linkable is selected', () => {
 				model.schema.register( 'fake', { isBlock: true, allowWhere: '$text' } );
 
-				setData( model, '[<fake></fake>]' );
+				_setModelData( model, '[<fake></fake>]' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 			} );
 		} );
 
@@ -257,25 +269,25 @@ describe( 'LinkCommand', () => {
 			} );
 
 			it( 'should read the value from a selected linkable', () => {
-				setData( model, '<paragraph>[<linkableInline linkHref="foo"></linkableInline>]</paragraph>' );
+				_setModelData( model, '<paragraph>[<linkableInline linkHref="foo"></linkableInline>]</paragraph>' );
 
-				expect( command.value ).to.be.equal( 'foo' );
+				expect( command.value ).toBe( 'foo' );
 			} );
 
 			it( 'should read the value from a selected linkable when a linked text follows it', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>[<linkableInline linkHref="foo"></linkableInline><$text linkHref="bar">bar</$text>]</paragraph>'
 				);
 
-				expect( command.value ).to.be.equal( 'foo' );
+				expect( command.value ).toBe( 'foo' );
 			} );
 
 			it( 'should read the value from a selected text node and ignore a linkable', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>[<$text linkHref="bar">bar</$text><linkableInline linkHref="foo"></linkableInline>]</paragraph>'
 				);
 
-				expect( command.value ).to.be.equal( 'bar' );
+				expect( command.value ).toBe( 'bar' );
 			} );
 		} );
 	} );
@@ -283,25 +295,36 @@ describe( 'LinkCommand', () => {
 	describe( 'execute()', () => {
 		describe( 'non-collapsed selection', () => {
 			it( 'should set `linkHref` attribute to selected text', () => {
-				setData( model, 'f[ooba]r' );
+				_setModelData( model, 'f[ooba]r' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( 'f[<$text linkHref="url">ooba</$text>]r' );
-				expect( command.value ).to.equal( 'url' );
+				expect( _getModelData( model ) ).toBe( 'f[<$text linkHref="url">ooba</$text>]r' );
+				expect( command.value ).toBe( 'url' );
+			} );
+
+			it( 'should set `linkHref` attribute to selected text and change the selected text', () => {
+				_setModelData( model, 'f[ooba]r' );
+
+				expect( command.value ).toBeUndefined();
+
+				command.execute( 'url', {}, 'xyz' );
+
+				expect( _getModelData( model ) ).toBe( 'f[<$text linkHref="url">xyz</$text>]r' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should set `linkHref` attribute to selected text when text already has attributes', () => {
-				setData( model, 'f[o<$text bold="true">oba]r</$text>' );
+				_setModelData( model, 'f[o<$text bold="true">oba]r</$text>' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 
 				command.execute( 'url' );
 
-				expect( command.value ).to.equal( 'url' );
-				expect( getData( model ) ).to.equal(
+				expect( command.value ).toBe( 'url' );
+				expect( _getModelData( model ) ).toBe(
 					'f[<$text linkHref="url">o</$text>' +
 					'<$text bold="true" linkHref="url">oba</$text>]' +
 					'<$text bold="true">r</$text>'
@@ -309,69 +332,113 @@ describe( 'LinkCommand', () => {
 			} );
 
 			it( 'should overwrite existing `linkHref` attribute when selected text wraps text with `linkHref` attribute', () => {
-				setData( model, 'f[o<$text linkHref="other url">o</$text>ba]r' );
+				_setModelData( model, 'f[o<$text linkHref="other url">o</$text>ba]r' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( 'f[<$text linkHref="url">ooba</$text>]r' );
-				expect( command.value ).to.equal( 'url' );
+				expect( _getModelData( model ) ).toBe( 'f[<$text linkHref="url">ooba</$text>]r' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should split text and overwrite attribute value when selection is inside text with `linkHref` attribute', () => {
-				setData( model, 'f<$text linkHref="other url">o[ob]a</$text>r' );
+				_setModelData( model, 'f<$text linkHref="other url">o[ob]a</$text>r' );
 
-				expect( command.value ).to.equal( 'other url' );
+				expect( command.value ).toBe( 'other url' );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'f' +
 					'<$text linkHref="other url">o</$text>' +
 					'[<$text linkHref="url">ob</$text>]' +
 					'<$text linkHref="other url">a</$text>' +
 					'r'
 				);
-				expect( command.value ).to.equal( 'url' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should overwrite `linkHref` attribute of selected text only, ' +
 				'when selection start inside text with `linkHref` attribute',
 			() => {
-				setData( model, 'f<$text linkHref="other url">o[o</$text>ba]r' );
+				_setModelData( model, 'f<$text linkHref="other url">o[o</$text>ba]r' );
 
-				expect( command.value ).to.equal( 'other url' );
+				expect( command.value ).toBe( 'other url' );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( 'f<$text linkHref="other url">o</$text>[<$text linkHref="url">oba</$text>]r' );
-				expect( command.value ).to.equal( 'url' );
+				expect( _getModelData( model ) ).toBe( 'f<$text linkHref="other url">o</$text>[<$text linkHref="url">oba</$text>]r' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should overwrite `linkHref` attribute of selected text only, when selection end inside text with `linkHref` ' +
 				'attribute', () => {
-				setData( model, 'f[o<$text linkHref="other url">ob]a</$text>r' );
+				_setModelData( model, 'f[o<$text linkHref="other url">ob]a</$text>r' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( 'f[<$text linkHref="url">oob</$text>]<$text linkHref="other url">a</$text>r' );
-				expect( command.value ).to.equal( 'url' );
+				expect( _getModelData( model ) ).toBe( 'f[<$text linkHref="url">oob</$text>]<$text linkHref="other url">a</$text>r' );
+				expect( command.value ).toBe( 'url' );
+			} );
+
+			it( 'should overwrite existing `linkHref` attribute and displayed text' +
+					'when whole text with `linkHref` attribute is selected', () => {
+				_setModelData( model, 'fo[<$text linkHref="other url">o</$text>]bar' );
+
+				expect( command.value ).toBe( 'other url' );
+
+				command.execute( 'url', {}, 'xyz' );
+
+				expect( _getModelData( model ) ).toBe( 'fo[<$text linkHref="url">xyz</$text>]bar' );
+				expect( command.value ).toBe( 'url' );
 			} );
 
 			it( 'should set `linkHref` attribute to selected text when text is split by $block element', () => {
-				setData( model, '<paragraph>f[oo</paragraph><paragraph>ba]r</paragraph>' );
+				_setModelData( model, '<paragraph>f[oo</paragraph><paragraph>ba]r</paragraph>' );
 
-				expect( command.value ).to.be.undefined;
+				expect( command.value ).toBeUndefined();
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>f[<$text linkHref="url">oo</$text></paragraph><paragraph><$text linkHref="url">ba</$text>]r</paragraph>'
 				);
-				expect( command.value ).to.equal( 'url' );
+				expect( command.value ).toBe( 'url' );
+			} );
+
+			it( 'should update all links which is equal its href if selection is on more than one element', () => {
+				_setModelData( model,
+					'<paragraph>' +
+						'abc<$text linkHref="foo">[foo</$text>' +
+					'</paragraph>' +
+					'<paragraph>' +
+						'<$text linkHref="foo">foo</$text>' +
+					'</paragraph>' +
+					'<paragraph>' +
+						'<$text linkHref="foo">www</$text>' +
+					'</paragraph>' +
+					'<paragraph>baz]xyz</paragraph>'
+				);
+
+				command.execute( 'bar123' );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>' +
+						'abc[<$text linkHref="bar123">bar123</$text>' +
+					'</paragraph>' +
+					'<paragraph>' +
+						'<$text linkHref="bar123">bar123</$text>' +
+					'</paragraph>' +
+					'<paragraph>' +
+						'<$text linkHref="bar123">www</$text>' +
+					'</paragraph>' +
+					'<paragraph>' +
+						'<$text linkHref="bar123">baz</$text>]xyz' +
+					'</paragraph>'
+				);
 			} );
 
 			describe( 'for block elements allowing linkHref', () => {
@@ -382,20 +449,20 @@ describe( 'LinkCommand', () => {
 						allowAttributes: [ 'linkHref' ]
 					} );
 
-					setData( model, '<paragraph>f[oo<linkableBlock></linkableBlock>ba]r</paragraph>' );
+					_setModelData( model, '<paragraph>f[oo<linkableBlock></linkableBlock>ba]r</paragraph>' );
 
-					expect( command.value ).to.be.undefined;
+					expect( command.value ).toBeUndefined();
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>' +
 							'f[<$text linkHref="url">oo</$text>' +
 							'<linkableBlock linkHref="url"></linkableBlock>' +
 							'<$text linkHref="url">ba</$text>]r' +
 						'</paragraph>'
 					);
-					expect( command.value ).to.equal( 'url' );
+					expect( command.value ).toBe( 'url' );
 				} );
 
 				it( 'should set `linkHref` attribute to nested allowed elements', () => {
@@ -406,13 +473,13 @@ describe( 'LinkCommand', () => {
 					} );
 					model.schema.register( 'blockQuote', { allowWhere: '$block', allowContentOf: '$root' } );
 
-					setData( model,
+					_setModelData( model,
 						'<paragraph>foo</paragraph>[<blockQuote><linkableBlock></linkableBlock></blockQuote>]<paragraph>bar</paragraph>'
 					);
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>foo</paragraph>' +
 							'[<blockQuote><linkableBlock linkHref="url"></linkableBlock></blockQuote>]' +
 						'<paragraph>bar</paragraph>' );
@@ -425,11 +492,11 @@ describe( 'LinkCommand', () => {
 						allowAttributes: [ 'linkHref' ]
 					} );
 
-					setData( model, '<paragraph>[<linkableBlock></linkableBlock>][<linkableBlock></linkableBlock>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<linkableBlock></linkableBlock>][<linkableBlock></linkableBlock>]</paragraph>' );
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>' +
 							'[<linkableBlock linkHref="url"></linkableBlock>][<linkableBlock linkHref="url"></linkableBlock>]' +
 						'</paragraph>'
@@ -444,11 +511,11 @@ describe( 'LinkCommand', () => {
 					model.schema.register( 'caption', { allowIn: 'linkableBlock' } );
 					model.schema.extend( '$text', { allowIn: 'caption' } );
 
-					setData( model, '<paragraph>f[oo<linkableBlock><caption>xxx</caption></linkableBlock>ba]r</paragraph>' );
+					_setModelData( model, '<paragraph>f[oo<linkableBlock><caption>xxx</caption></linkableBlock>ba]r</paragraph>' );
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>' +
 							'f[<$text linkHref="url">oo</$text>' +
 							'<linkableBlock><caption><$text linkHref="url">xxx</$text></caption></linkableBlock>' +
@@ -466,11 +533,11 @@ describe( 'LinkCommand', () => {
 					model.schema.register( 'caption', { allowIn: 'linkableBlock' } );
 					model.schema.extend( '$text', { allowIn: 'caption' } );
 
-					setData( model, '<paragraph>f[oo<linkableBlock><caption>xxx</caption></linkableBlock>ba]r</paragraph>' );
+					_setModelData( model, '<paragraph>f[oo<linkableBlock><caption>xxx</caption></linkableBlock>ba]r</paragraph>' );
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>' +
 							'f[<$text linkHref="url">oo</$text>' +
 							'<linkableBlock linkHref="url"><caption>xxx</caption></linkableBlock>' +
@@ -489,13 +556,13 @@ describe( 'LinkCommand', () => {
 						allowAttributes: [ 'linkHref' ]
 					} );
 
-					setData( model, '<paragraph>f[oo<linkableInline></linkableInline>ba]r</paragraph>' );
+					_setModelData( model, '<paragraph>f[oo<linkableInline></linkableInline>ba]r</paragraph>' );
 
-					expect( command.value ).to.be.undefined;
+					expect( command.value ).toBeUndefined();
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>' +
 							'f[<$text linkHref="url">oo</$text>' +
 							'<linkableInline linkHref="url"></linkableInline>' +
@@ -503,7 +570,7 @@ describe( 'LinkCommand', () => {
 						'</paragraph>'
 					);
 
-					expect( command.value ).to.equal( 'url' );
+					expect( command.value ).toBe( 'url' );
 				} );
 
 				it( 'should set `linkHref` attribute to nested allowed elements', () => {
@@ -515,7 +582,7 @@ describe( 'LinkCommand', () => {
 					} );
 					model.schema.register( 'blockQuote', { allowWhere: '$block', allowContentOf: '$root' } );
 
-					setData( model,
+					_setModelData( model,
 						'<paragraph>foo</paragraph>' +
 							'[<blockQuote><linkableInline></linkableInline></blockQuote>]' +
 						'<paragraph>bar</paragraph>'
@@ -523,7 +590,7 @@ describe( 'LinkCommand', () => {
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>foo</paragraph>' +
 							'[<blockQuote><linkableInline linkHref="url"></linkableInline></blockQuote>]' +
 						'<paragraph>bar</paragraph>'
@@ -538,46 +605,127 @@ describe( 'LinkCommand', () => {
 						allowAttributes: [ 'linkHref' ]
 					} );
 
-					setData( model, '<paragraph>[<linkableInline></linkableInline>][<linkableInline></linkableInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<linkableInline></linkableInline>][<linkableInline></linkableInline>]</paragraph>' );
 
 					command.execute( 'url' );
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>' +
 							'[<linkableInline linkHref="url"></linkableInline>][<linkableInline linkHref="url"></linkableInline>]' +
 						'</paragraph>'
 					);
+				} );
+
+				it( 'should set `linkHref` attribute to allowed elements and not allow to change the displayed text', () => {
+					model.schema.register( 'linkableInline', {
+						isObject: true,
+						isInline: true,
+						allowWhere: '$text',
+						allowAttributes: [ 'linkHref' ]
+					} );
+
+					_setModelData( model, '<paragraph>f[oo<linkableInline></linkableInline>ba]r</paragraph>' );
+
+					expect( command.value ).toBeUndefined();
+
+					command.execute( 'url', {}, 'xyz' );
+
+					expect( _getModelData( model ) ).toBe(
+						'<paragraph>' +
+							'f[<$text linkHref="url">oo</$text>' +
+							'<linkableInline linkHref="url"></linkableInline>' +
+							'<$text linkHref="url">ba</$text>]r' +
+						'</paragraph>'
+					);
+
+					expect( command.value ).toBe( 'url' );
+				} );
+
+				describe( 'keep formatting attributes', () => {
+					it( 'should correctly replace selected text with keeping the text attributes', () => {
+						_setModelData( model, 'foo[<$text bold="true" linkHref="url">textBar</$text>]baz' );
+
+						command.execute( 'url2', {}, 'abc' );
+
+						expect( _getModelData( model ) ).toBe( 'foo[<$text bold="true" linkHref="url2">abc</$text>]baz' );
+					} );
+
+					it( 'should keep formatting attributes in a partially replaced link text (changed link)', () => {
+						_setModelData( model, 'f<$text linkHref="foo" bold="true">o[ob]a</$text>r' );
+
+						command.execute( 'url', {}, 'xyz' );
+
+						expect( _getModelData( model ) ).toBe(
+							'f<$text bold="true" linkHref="foo">o</$text>' +
+							'[<$text bold="true" linkHref="url">xyz</$text>]' +
+							'<$text bold="true" linkHref="foo">a</$text>r'
+						);
+					} );
+
+					it( 'should keep formatting attributes in a partially replaced link text (the same link)', () => {
+						_setModelData( model, 'f<$text linkHref="foo" bold="true">o[ob]a</$text>r' );
+
+						command.execute( 'foo', {}, 'xyz' );
+
+						expect( _getModelData( model ) ).toBe( 'f<$text bold="true" linkHref="foo">o[xyz]a</$text>r' );
+					} );
+
+					it( 'should keep formatting attributes of a entirely deleted link text', () => {
+						_setModelData( model, 'f<$text linkHref="foo" bold="true">[ooba]</$text>r' );
+
+						command.execute( 'url', {}, 'xyz' );
+
+						expect( _getModelData( model ) ).toBe( 'f[<$text bold="true" linkHref="url">xyz</$text>]r' );
+					} );
+
+					it( 'should not keep selection attributes if link is removed and selection starts on unformatted text', () => {
+						_setModelData( model, 'f[oo<$text linkHref="foo" bold="true">ba</$text>]r' );
+
+						command.execute( 'url', {}, 'xyz' );
+
+						expect( _getModelData( model ) ).toBe( 'f[<$text linkHref="url">xyz</$text>]r' );
+					} );
+
+					it( 'should preserve the position of formatting attributes in complex text replacement', () => {
+						_setModelData( model, '[<$text linkHref="url">Hello</$text> <$text bold="true" linkHref="url">World</$text>]' );
+
+						command.execute( 'url2', {}, 'Replacement Text' );
+
+						expect( _getModelData( model ) ).toBe(
+							'[<$text linkHref="url2">Replacement </$text><$text bold="true" linkHref="url2">Text</$text>]'
+						);
+					} );
 				} );
 			} );
 		} );
 
 		describe( 'collapsed selection', () => {
 			it( 'should insert text with `linkHref` attribute, text data equal to href and put the selection after the new link', () => {
-				setData( model, 'foo[]bar' );
+				_setModelData( model, 'foo[]bar' );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( 'foo<$text linkHref="url">url</$text>[]bar' );
+				expect( _getModelData( model ) ).toBe( 'foo<$text linkHref="url">url</$text>[]bar' );
 			} );
 
 			it( 'should insert text with `linkHref` attribute, and selection attributes', () => {
-				setData( model, '<$text bold="true">foo[]bar</$text>', {
+				_setModelData( model, '<$text bold="true">foo[]bar</$text>', {
 					selectionAttributes: { bold: true }
 				} );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<$text bold="true">foo</$text><$text bold="true" linkHref="url">url</$text><$text bold="true">[]bar</$text>'
 				);
 			} );
 
-			it( 'should update `linkHref` attribute (text with `linkHref` attribute) and put the selection after the node', () => {
-				setData( model, '<$text linkHref="other url">foo[]bar</$text>' );
+			it( 'should update `linkHref` attribute (text with `linkHref` attribute) and keep the selection as was', () => {
+				_setModelData( model, '<$text linkHref="other url">foo[]bar</$text>' );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( '<$text linkHref="url">foobar</$text>[]' );
+				expect( _getModelData( model ) ).toBe( '<$text linkHref="url">foo[]bar</$text>' );
 			} );
 
 			it( 'should not insert text with `linkHref` attribute when is not allowed in parent', () => {
@@ -587,58 +735,295 @@ describe( 'LinkCommand', () => {
 					}
 				} );
 
-				setData( model, '<paragraph>foo[]bar</paragraph>' );
+				_setModelData( model, '<paragraph>foo[]bar</paragraph>' );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( '<paragraph>foo[]bar</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>foo[]bar</paragraph>' );
 			} );
 
 			it( 'should not insert text node if link is empty', () => {
-				setData( model, '<paragraph>foo[]bar</paragraph>' );
+				_setModelData( model, '<paragraph>foo[]bar</paragraph>' );
 
-				command.execute( '' );
+				command.execute( '', {}, '' );
 
-				expect( getData( model ) ).to.equal( '<paragraph>foo[]bar</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>foo[]bar</paragraph>' );
 			} );
 
 			// https://github.com/ckeditor/ckeditor5/issues/8210
 			it( 'should insert text with `linkHref` attribute just after text node with the same `linkHref` attribute', () => {
-				setData( model, '<$text linkHref="url">foo</$text>[]bar' );
+				_setModelData( model, '<$text linkHref="url">foo</$text>[]bar' );
 
 				model.change( writer => writer.overrideSelectionGravity() );
 
 				command.execute( 'url' );
 
-				expect( getData( model ) ).to.equal( '<$text linkHref="url">foourl</$text>[]bar' );
+				expect( _getModelData( model ) ).toBe( '<$text linkHref="url">foourl</$text>[]bar' );
+			} );
+
+			it( 'should overwrite existing `linkHref` attribute and displayed text', () => {
+				_setModelData( model, 'fo<$text linkHref="other url">o[]b</$text>ar' );
+
+				expect( command.value ).toBe( 'other url' );
+
+				command.execute( 'url', {}, 'xyz' );
+
+				expect( _getModelData( model ) ).toBe( 'fo<$text linkHref="url">xyz</$text>[]ar' );
+			} );
+
+			it( 'should change displayed text in one step', () => {
+				_setModelData( model, '<$text linkHref="url">example</$text>' );
+
+				const insertContentSpy = vi.spyOn( model, 'insertContent' );
+
+				command.execute( 'url', {}, 'excited' );
+
+				expect( insertContentSpy ).toHaveBeenCalledOnce();
+			} );
+
+			describe( 'keep formatting attributes (with TwoStepCaretMovement plugin available)', () => {
+				it( 'should maintain all formatting when changing only text inside a link', () => {
+					_setModelData( model, 'foo<$text bold="true" linkHref="url" italic="true">te[]xt</$text>bar' );
+
+					command.execute( 'url', {}, 'new text' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" italic="true" linkHref="url">new text</$text>[]bar'
+					);
+				} );
+
+				it( 'should preserve mixed formatting before and after link text change', () => {
+					_setModelData( model,
+						'foo' +
+						'<$text bold="true" linkHref="url">bo[]ld</$text>' +
+						'<$text italic="true" linkHref="url">italic</$text>' +
+						'bar'
+					);
+
+					command.execute( 'url', {}, 'new text' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" linkHref="url">new </$text>' +
+						'<$text italic="true" linkHref="url">text</$text>' +
+						'[]bar'
+					);
+				} );
+
+				it( 'should keep formatting attributes when changing URL but keeping the same text', () => {
+					_setModelData( model, 'foo<$text bold="true" linkHref="url" italic="true">te[]xt</$text>bar' );
+
+					command.execute( 'url2' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" italic="true" linkHref="url2">te[]xt</$text>bar'
+					);
+				} );
+
+				it( 'should properly handle adjacent text nodes with different formatting', () => {
+					_setModelData( model,
+						'foo' +
+						'<$text bold="true" linkHref="url">bold</$text>' +
+						'<$text italic="true" linkHref="url">ita[]lic</$text>' +
+						'bar'
+					);
+
+					command.execute( 'url', {}, 'new' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" linkHref="url">new</$text>[]bar'
+					);
+				} );
+
+				it( 'should update link range in text with mixed formatting attributes', () => {
+					_setModelData( model,
+						'foo' +
+						'<$text bold="true">bo</$text>' +
+						'<$text bold="true" linkHref="url">ld []text</$text>' +
+						'<$text italic="true" linkHref="url">in link</$text>' +
+						'bar'
+					);
+
+					command.execute( 'url2', {}, 'replacement' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true">bo</$text>' +
+						'<$text bold="true" linkHref="url2">replaceme</$text>' +
+						'<$text italic="true" linkHref="url2">nt</$text>' +
+						'[]bar'
+					);
+				} );
+
+				it( 'should be possible to prepend single character to the display text of the link' +
+					'if the selection is in the middle', () => {
+					_setModelData( model, '<$text linkHref="url" bold="true">Lin[]k text</$text>' );
+
+					command.execute( 'url', {}, 'LLink text' );
+
+					expect( _getModelData( model ) ).toBe( '<$text bold="true" linkHref="url">LLink text</$text>[]' );
+				} );
+
+				it( 'should be possible to prepend single character to the display text of the link' +
+					'if the selection is in the end', () => {
+					_setModelData( model, '<$text linkHref="url" bold="true">Link text[]</$text>' );
+
+					command.execute( 'url', {}, 'LLink text' );
+
+					expect( _getModelData( model ) ).toBe( '<$text bold="true" linkHref="url">LLink text</$text>[]' );
+				} );
+
+				it( 'should be possible to append single character to the display text of the link' +
+					'if the selection is in the middle', () => {
+					_setModelData( model, '<$text linkHref="url" bold="true">Lin[]k text</$text>' );
+
+					command.execute( 'url', {}, 'Link textL' );
+
+					expect( _getModelData( model ) ).toBe( '<$text bold="true" linkHref="url">Link textL</$text>[]' );
+				} );
+
+				it( 'should be possible to append single character to the display text of the link' +
+					'if the selection is in the start', () => {
+					_setModelData( model, '<$text linkHref="url" bold="true">[]Link text</$text>' );
+
+					command.execute( 'url', {}, 'LLink text' );
+
+					expect( _getModelData( model ) ).toBe( '<$text bold="true" linkHref="url">LLink text</$text>[]' );
+				} );
+			} );
+
+			describe( 'keep formatting attributes (without TwoStepCaretMovement plugin)', () => {
+				beforeEach( async () => {
+					await editor.destroy();
+
+					return ModelTestEditor.create()
+						.then( newEditor => {
+							editor = newEditor;
+							model = editor.model;
+							command = new LinkCommand( editor );
+
+							model.schema.extend( '$text', {
+								allowIn: '$root',
+								allowAttributes: [ 'linkHref', 'bold', 'italic' ]
+							} );
+
+							editor.model.schema.setAttributeProperties( 'bold', {
+								isFormatting: true
+							} );
+
+							editor.model.schema.setAttributeProperties( 'italic', {
+								isFormatting: true
+							} );
+
+							model.schema.register( 'paragraph', { inheritAllFrom: '$block' } );
+						} );
+				} );
+
+				afterEach( () => {
+					return editor.destroy();
+				} );
+
+				it( 'should maintain all formatting when changing only text inside a link', () => {
+					_setModelData( model, 'foo<$text bold="true" linkHref="url" italic="true">te[]xt</$text>bar' );
+
+					command.execute( 'url', {}, 'new text' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" italic="true" linkHref="url">new text</$text>' +
+						'<$text bold="true" italic="true">[]</$text>bar'
+					);
+				} );
+
+				it( 'should preserve mixed formatting before and after link text change', () => {
+					_setModelData( model,
+						'foo' +
+						'<$text bold="true" linkHref="url">bo[]ld</$text>' +
+						'<$text italic="true" linkHref="url">italic</$text>' +
+						'bar'
+					);
+
+					command.execute( 'url', {}, 'new text' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" linkHref="url">new </$text>' +
+						'<$text italic="true" linkHref="url">text</$text>' +
+						'<$text italic="true">[]</$text>' +
+						'bar'
+					);
+				} );
+
+				it( 'should keep formatting attributes when changing URL but keeping the same text', () => {
+					_setModelData( model, 'foo<$text bold="true" linkHref="url" italic="true">te[]xt</$text>bar' );
+
+					command.execute( 'url2' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" italic="true" linkHref="url2">te[]xt</$text>bar'
+					);
+				} );
+
+				it( 'should properly handle adjacent text nodes with different formatting', () => {
+					_setModelData( model,
+						'foo' +
+						'<$text bold="true" linkHref="url">bold</$text>' +
+						'<$text italic="true" linkHref="url">ita[]lic</$text>' +
+						'bar'
+					);
+
+					command.execute( 'url', {}, 'new' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true" linkHref="url">new</$text>' +
+						'<$text bold="true">[]</$text>' +
+						'bar'
+					);
+				} );
+
+				it( 'should update link range in text with mixed formatting attributes', () => {
+					_setModelData( model,
+						'foo' +
+						'<$text bold="true">bo</$text>' +
+						'<$text bold="true" linkHref="url">ld []text</$text>' +
+						'<$text italic="true" linkHref="url">in link</$text>' +
+						'bar'
+					);
+
+					command.execute( 'url2', {}, 'replacement' );
+
+					expect( _getModelData( model ) ).toBe(
+						'foo<$text bold="true">bo</$text>' +
+						'<$text bold="true" linkHref="url2">replaceme</$text>' +
+						'<$text italic="true" linkHref="url2">nt</$text>' +
+						'<$text italic="true">[]</$text>' +
+						'bar'
+					);
+				} );
 			} );
 		} );
 	} );
 
 	describe( 'manual decorators', () => {
-		beforeEach( () => {
-			editor.destroy();
-			return ModelTestEditor.create()
+		beforeEach( async () => {
+			await editor.destroy();
+			return ModelTestEditor.create( { plugins: [ LinkEditing ] } )
 				.then( newEditor => {
 					editor = newEditor;
-					model = editor.model;
-					command = new LinkCommand( editor );
+					model = newEditor.model;
+					command = new LinkCommand( newEditor );
 
-					command.manualDecorators.add( new ManualDecorator( {
+					command.manualDecorators.add( new LinkManualDecorator( {
 						id: 'linkIsFoo',
 						label: 'Foo',
 						attributes: {
 							class: 'Foo'
 						}
 					} ) );
-					command.manualDecorators.add( new ManualDecorator( {
+					command.manualDecorators.add( new LinkManualDecorator( {
 						id: 'linkIsBar',
 						label: 'Bar',
 						attributes: {
 							target: '_blank'
 						}
 					} ) );
-					command.manualDecorators.add( new ManualDecorator( {
+					command.manualDecorators.add( new LinkManualDecorator( {
 						id: 'linkIsSth',
 						label: 'Sth',
 						attributes: {
@@ -676,168 +1061,142 @@ describe( 'LinkCommand', () => {
 
 		describe( 'collapsed selection', () => {
 			it( 'should insert additional attributes to link when it is created', () => {
-				setData( model, 'foo[]bar' );
+				_setModelData( model, 'foo[]bar' );
 
 				command.execute( 'url', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">url</$text>[]bar' );
+				expect( _getModelData( model ) ).toBe(
+					'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">url</$text>[]bar' );
 			} );
 
 			it( 'should add additional attributes to link when link is modified', () => {
-				setData( model, 'f<$text linkHref="url">o[]oba</$text>r' );
+				_setModelData( model, 'f<$text linkHref="url">o[]oba</$text>r' );
 
 				command.execute( 'url', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( 'f<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">ooba</$text>[]r' );
+				expect( _getModelData( model ) ).toBe(
+					'f<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">o[]oba</$text>r' );
 			} );
 
 			it( 'should remove additional attributes to link if those are falsy', () => {
-				setData( model, 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true">u[]rl</$text>bar' );
+				_setModelData( model, 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true">u[]rl</$text>bar' );
 
 				command.execute( 'url', { linkIsFoo: false, linkIsBar: false } );
 
-				expect( getData( model ) ).to.equal( 'foo<$text linkHref="url">url</$text>[]bar' );
+				expect( _getModelData( model ) ).toBe( 'foo<$text linkHref="url">u[]rl</$text>bar' );
 			} );
 
 			it( 'should update content if href is equal to content', () => {
-				setData( model, '<$text linkHref="url">ur[]l</$text>' );
+				_setModelData( model, '<$text linkHref="url">ur[]l</$text>' );
 
 				command.execute( 'url2', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( '<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">url2</$text>[]' );
+				expect( _getModelData( model ) ).toBe(
+					'<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">url2</$text>[]' );
 			} );
 
 			it( 'should not add new attributes if there are falsy when href is equal to content', () => {
-				setData( model, '<$text linkHref="url">ur[]l</$text>' );
+				_setModelData( model, '<$text linkHref="url">ur[]l</$text>' );
 
 				command.execute( 'url2', { linkIsFoo: false, linkIsBar: false, linkIsSth: false } );
 
-				expect( getData( model ) ).to
-					.equal( '<$text linkHref="url2">url2</$text>[]' );
+				expect( _getModelData( model ) ).toBe(
+					'<$text linkHref="url2">url2</$text>[]' );
 			} );
 		} );
 
 		describe( 'range selection', () => {
 			it( 'should insert additional attributes to link when it is created', () => {
-				setData( model, 'f[ooba]r' );
+				_setModelData( model, 'f[ooba]r' );
 
 				command.execute( 'url', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( 'f[<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">ooba</$text>]r' );
+				expect( _getModelData( model ) ).toBe(
+					'f[<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">ooba</$text>]r' );
 			} );
 
 			it( 'should add additional attributes to link when link is modified', () => {
-				setData( model, 'f[<$text linkHref="foo">ooba</$text>]r' );
+				_setModelData( model, 'f[<$text linkHref="foo">ooba</$text>]r' );
 
 				command.execute( 'url', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( 'f[<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">ooba</$text>]r' );
+				expect( _getModelData( model ) ).toBe(
+					'f[<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">ooba</$text>]r' );
 			} );
 
 			it( 'should remove additional attributes to link if those are falsy', () => {
-				setData( model, 'foo[<$text linkHref="url" linkIsBar="true" linkIsFoo="true">url</$text>]bar' );
+				_setModelData( model, 'foo[<$text linkHref="url" linkIsBar="true" linkIsFoo="true">url</$text>]bar' );
 
 				command.execute( 'url', { linkIsFoo: false, linkIsBar: false } );
 
-				expect( getData( model ) ).to.equal( 'foo[<$text linkHref="url">url</$text>]bar' );
+				expect( _getModelData( model ) ).toBe( 'foo[<$text linkHref="url">url</$text>]bar' );
 			} );
 
 			it( 'should insert additional attributes to a linkable block when it is created', () => {
-				setData( model, '[<linkableBlock></linkableBlock>]' );
+				_setModelData( model, '[<linkableBlock></linkableBlock>]' );
 
 				command.execute( 'url', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( '[<linkableBlock linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true"></linkableBlock>]' );
+				expect( _getModelData( model ) ).toBe(
+					'[<linkableBlock linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true"></linkableBlock>]' );
 			} );
 
 			it( 'should insert additional attributes to a linkable inline element when it is created', () => {
-				setData( model, '<paragraph>foo[<linkableInline></linkableInline>]bar</paragraph>' );
+				_setModelData( model, '<paragraph>foo[<linkableInline></linkableInline>]bar</paragraph>' );
 
 				command.execute( 'url', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph>' +
 						'foo[<linkableInline linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true"></linkableInline>]bar' +
 					'</paragraph>'
 				);
 			} );
 
-			it( 'should update content if href is equal to content', () => {
-				setData( model, '[<$text linkHref="url">url</$text>]' );
+			it( 'should not update content even if href is equal to content', () => {
+				_setModelData( model, '[<$text linkHref="url">url</$text>]' );
 
 				command.execute( 'url2', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal( '[<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">url2</$text>]' );
+				expect( _getModelData( model ) ).toBe(
+					'[<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">url2</$text>]' );
 			} );
 
 			it( 'should not update content if href is equal to content but there is a non-link following in the selection', () => {
-				setData( model, '<paragraph>[<$text linkHref="url">url</$text>foo]</paragraph>' );
+				_setModelData( model, '<paragraph>[<$text linkHref="url">url</$text>foo]</paragraph>' );
 
 				command.execute( 'url2', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal(
-						'<paragraph>[<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">urlfoo</$text>]</paragraph>'
-					);
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>[<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">urlfoo</$text>]</paragraph>'
+				);
 			} );
 
 			it( 'should not update content if href is equal to content but there is a non-link preceding in the selection', () => {
-				setData( model, '<paragraph>[foo<$text linkHref="url">url</$text>]</paragraph>' );
+				_setModelData( model, '<paragraph>[foo<$text linkHref="url">url</$text>]</paragraph>' );
 
 				command.execute( 'url2', { linkIsFoo: true, linkIsBar: true, linkIsSth: true } );
 
-				expect( getData( model ) ).to
-					.equal(
-						'<paragraph>[<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">foourl</$text>]</paragraph>'
-					);
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>[<$text linkHref="url2" linkIsBar="true" linkIsFoo="true" linkIsSth="true">foourl</$text>]</paragraph>'
+				);
 			} );
 
 			it( 'should not add new attributes if there are falsy when href is equal to content', () => {
-				setData( model, '[<$text linkHref="url">url</$text>]' );
+				_setModelData( model, '[<$text linkHref="url">url</$text>]' );
 
 				command.execute( 'url2', { linkIsFoo: false, linkIsBar: false, linkIsSth: false } );
 
-				expect( getData( model ) ).to
-					.equal( '[<$text linkHref="url2">url2</$text>]' );
-			} );
-
-			it( 'should not update link which is equal its href if selection is on more than one element', () => {
-				setData( model,
-					'<paragraph>' +
-						'<$text linkHref="foo">[foo</$text>' +
-					'</paragraph>' +
-					'<paragraph>bar</paragraph>' +
-					'<paragraph>baz]</paragraph>'
-				);
-
-				command.execute( 'foooo' );
-
-				expect( getData( model ) ).to
-					.equal( '<paragraph>' +
-								'[<$text linkHref="foooo">foo</$text>' +
-							'</paragraph>' +
-							'<paragraph>' +
-								'<$text linkHref="foooo">bar</$text>' +
-							'</paragraph>' +
-							'<paragraph>' +
-								'<$text linkHref="foooo">baz</$text>]' +
-							'</paragraph>'
-					);
+				expect( _getModelData( model ) ).toBe(
+					'[<$text linkHref="url2">url2</$text>]' );
 			} );
 		} );
 
 		describe( 'restoreManualDecoratorStates()', () => {
 			it( 'synchronize values with current model state', () => {
-				setData( model, 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">u[]rl</$text>bar' );
+				_setModelData( model, 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="true">u[]rl</$text>bar' );
 
-				expect( decoratorStates( command.manualDecorators ) ).to.deep.equal( {
+				expect( decoratorStates( command.manualDecorators ) ).toEqual( {
 					linkIsFoo: true,
 					linkIsBar: true,
 					linkIsSth: true
@@ -845,7 +1204,7 @@ describe( 'LinkCommand', () => {
 
 				command.manualDecorators.first.value = false;
 
-				expect( decoratorStates( command.manualDecorators ) ).to.deep.equal( {
+				expect( decoratorStates( command.manualDecorators ) ).toEqual( {
 					linkIsFoo: false,
 					linkIsBar: true,
 					linkIsSth: true
@@ -853,7 +1212,7 @@ describe( 'LinkCommand', () => {
 
 				command.restoreManualDecoratorStates();
 
-				expect( decoratorStates( command.manualDecorators ) ).to.deep.equal( {
+				expect( decoratorStates( command.manualDecorators ) ).toEqual( {
 					linkIsFoo: true,
 					linkIsBar: true,
 					linkIsSth: true
@@ -861,9 +1220,9 @@ describe( 'LinkCommand', () => {
 			} );
 
 			it( 'synchronize values with current model state when the decorator that is "on" default is "off"', () => {
-				setData( model, 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="false">u[]rl</$text>bar' );
+				_setModelData( model, 'foo<$text linkHref="url" linkIsBar="true" linkIsFoo="true" linkIsSth="false">u[]rl</$text>bar' );
 
-				expect( decoratorStates( command.manualDecorators ) ).to.deep.equal( {
+				expect( decoratorStates( command.manualDecorators ) ).toEqual( {
 					linkIsFoo: true,
 					linkIsBar: true,
 					linkIsSth: false
@@ -871,7 +1230,7 @@ describe( 'LinkCommand', () => {
 
 				command.manualDecorators.last.value = true;
 
-				expect( decoratorStates( command.manualDecorators ) ).to.deep.equal( {
+				expect( decoratorStates( command.manualDecorators ) ).toEqual( {
 					linkIsFoo: true,
 					linkIsBar: true,
 					linkIsSth: true
@@ -879,7 +1238,7 @@ describe( 'LinkCommand', () => {
 
 				command.restoreManualDecoratorStates();
 
-				expect( decoratorStates( command.manualDecorators ) ).to.deep.equal( {
+				expect( decoratorStates( command.manualDecorators ) ).toEqual( {
 					linkIsFoo: true,
 					linkIsBar: true,
 					linkIsSth: false
@@ -889,31 +1248,293 @@ describe( 'LinkCommand', () => {
 
 		describe( '_getDecoratorStateFromModel', () => {
 			it( 'obtain current values from the model', () => {
-				setData( model, 'foo[<$text linkHref="url" linkIsBar="true">url</$text>]bar' );
+				_setModelData( model, 'foo[<$text linkHref="url" linkIsBar="true">url</$text>]bar' );
 
-				expect( command._getDecoratorStateFromModel( 'linkIsFoo' ) ).to.be.undefined;
-				expect( command._getDecoratorStateFromModel( 'linkIsBar' ) ).to.be.true;
+				expect( command._getDecoratorStateFromModel( 'linkIsFoo' ) ).toBeUndefined();
+				expect( command._getDecoratorStateFromModel( 'linkIsBar' ) ).toBe( true );
 			} );
 
 			it( 'obtain current values from the linkable block element', () => {
-				setData( model, '[<linkableBlock linkHref="url" linkIsBar="true"></linkableBlock>]' );
+				_setModelData( model, '[<linkableBlock linkHref="url" linkIsBar="true"></linkableBlock>]' );
 
-				expect( command._getDecoratorStateFromModel( 'linkIsFoo' ) ).to.be.undefined;
-				expect( command._getDecoratorStateFromModel( 'linkIsBar' ) ).to.be.true;
+				expect( command._getDecoratorStateFromModel( 'linkIsFoo' ) ).toBeUndefined();
+				expect( command._getDecoratorStateFromModel( 'linkIsBar' ) ).toBe( true );
 			} );
 
 			it( 'obtain current values from the linkable inline element', () => {
-				setData( model, '<paragraph>[<linkableInline linkHref="url" linkIsBar="true"></linkableInline>]</paragraph>' );
+				_setModelData( model, '<paragraph>[<linkableInline linkHref="url" linkIsBar="true"></linkableInline>]</paragraph>' );
 
-				expect( command._getDecoratorStateFromModel( 'linkIsFoo' ) ).to.be.undefined;
-				expect( command._getDecoratorStateFromModel( 'linkIsBar' ) ).to.be.true;
+				expect( command._getDecoratorStateFromModel( 'linkIsFoo' ) ).toBeUndefined();
+				expect( command._getDecoratorStateFromModel( 'linkIsBar' ) ).toBe( true );
 			} );
 		} );
 	} );
 
 	describe( '#automaticDecorators', () => {
 		it( 'is defined', () => {
-			expect( command.automaticDecorators ).to.be.an.instanceOf( AutomaticDecorators );
+			expect( command.automaticDecorators ).toBeInstanceOf( AutomaticLinkDecorators );
+		} );
+	} );
+
+	describe( 'conflicting manual decorators', () => {
+		beforeEach( async () => {
+			await editor.destroy();
+
+			return ModelTestEditor.create( { plugins: [ LinkEditing ] } )
+				.then( newEditor => {
+					editor = newEditor;
+					model = editor.model;
+					command = new LinkCommand( editor );
+
+					model.schema.extend( '$text', {
+						allowIn: '$root',
+						allowAttributes: [ 'linkHref' ]
+					} );
+
+					model.schema.register( 'paragraph', { inheritAllFrom: '$block' } );
+
+					// Decorators with conflicting `rel` attribute.
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsRelA',
+						label: 'Rel A',
+						attributes: { rel: 'rel-a' }
+					} ) );
+
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsRelB',
+						label: 'Rel B',
+						attributes: { rel: 'rel-b' }
+					} ) );
+
+					// Decorators with conflicting `class` attribute.
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsClassA',
+						label: 'Class A',
+						attributes: { class: 'class-a' }
+					} ) );
+
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsClassB',
+						label: 'Class B',
+						attributes: { class: 'class-b' }
+					} ) );
+
+					// Decorators with conflicting `color` style.
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsStyleA',
+						label: 'Style A',
+						styles: { color: 'red', 'text-decoration': 'underline' }
+					} ) );
+
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsStyleC',
+						label: 'Style C',
+						styles: { color: 'purple' }
+					} ) );
+
+					// Non-conflicting decorator with different style property.
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsStyleB',
+						label: 'Style B',
+						styles: { fontWeight: 'bold' }
+					} ) );
+
+					// Decorator with non-mergeable attribute (target).
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsExternal',
+						label: 'External',
+						attributes: { target: '_blank' }
+					} ) );
+
+					command.manualDecorators.add( new LinkManualDecorator( {
+						id: 'linkIsExternalSelf',
+						label: 'External Self',
+						attributes: { target: '_self' }
+					} ) );
+
+					model.schema.extend( '$text', {
+						allowAttributes: [
+							'linkIsRelA',
+							'linkIsRelB',
+							'linkIsClassA',
+							'linkIsClassB',
+							'linkIsStyleA',
+							'linkIsStyleB',
+							'linkIsStyleC',
+							'linkIsExternal',
+							'linkIsExternalSelf'
+						]
+					} );
+				} );
+		} );
+
+		afterEach( () => {
+			return editor.destroy();
+		} );
+
+		describe( 'conflicting rel attribute', () => {
+			it( 'should not disable linkIsRelA when enabling linkIsRelB (mergeable)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsRelA="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsRelB: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsRelA="true" linkIsRelB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should not disable linkIsRelB when enabling linkIsRelA (mergeable)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsRelB="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsRelA: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsRelA="true" linkIsRelB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should handle multiple conflicting decorators being enabled at once', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsRelA="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsRelB: true, linkIsClassA: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsClassA="true" linkIsRelA="true" linkIsRelB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+		} );
+
+		describe( 'conflicting class attribute', () => {
+			it( 'should not disable linkIsClassA when enabling linkIsClassB (mergeable)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsClassA="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsClassB: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsClassA="true" linkIsClassB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should not disable linkIsClassB when enabling linkIsClassA (mergeable)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsClassB="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsClassA: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsClassA="true" linkIsClassB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+		} );
+
+		describe( 'conflicting style properties', () => {
+			it( 'should disable linkIsStyleA when enabling linkIsStyleC (conflicting color)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsStyleA="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsStyleC: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsStyleC="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should disable linkIsStyleC when enabling linkIsStyleA (conflicting color)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsStyleC="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsStyleA: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsStyleA="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should allow non-conflicting style decorators to coexist', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsStyleA="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsStyleB: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsStyleA="true" linkIsStyleB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+		} );
+
+		describe( 'conflicting non-mergeable attributes', () => {
+			it( 'should disable linkIsExternal when enabling linkIsExternalSelf (conflicting target)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsExternal="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsExternalSelf: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsExternalSelf="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should disable linkIsExternalSelf when enabling linkIsExternal (conflicting target)', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsExternalSelf="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsExternal: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsExternal="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+		} );
+
+		describe( 'complex conflict scenarios', () => {
+			it( 'should handle enabling multiple decorators with different conflicts', () => {
+				_setModelData( model,
+					'<paragraph>' +
+						'<$text linkHref="url" linkIsRelA="true" linkIsClassA="true" linkIsStyleA="true">foo[]bar</$text>' +
+					'</paragraph>'
+				);
+
+				command.execute( 'url', {
+					linkIsRelB: true,
+					linkIsClassB: true,
+					linkIsStyleC: true
+				} );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsClassA="true" linkIsClassB="true" ' +
+					'linkIsRelA="true" linkIsRelB="true" linkIsStyleC="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+
+			it( 'should not disable decorators when enabling a non-conflicting one', () => {
+				_setModelData( model,
+					'<paragraph><$text linkHref="url" linkIsRelA="true" linkIsClassA="true">foo[]bar</$text></paragraph>'
+				);
+
+				command.execute( 'url', { linkIsStyleB: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>' +
+						'<$text linkHref="url" linkIsClassA="true" linkIsRelA="true" linkIsStyleB="true">foo[]bar</$text>' +
+					'</paragraph>'
+				);
+			} );
+
+			it( 'should handle disabling a decorator explicitly while enabling a conflicting one', () => {
+				_setModelData( model, '<paragraph><$text linkHref="url" linkIsRelA="true">foo[]bar</$text></paragraph>' );
+
+				command.execute( 'url', { linkIsRelA: false, linkIsRelB: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph><$text linkHref="url" linkIsRelB="true">foo[]bar</$text></paragraph>'
+				);
+			} );
+		} );
+
+		describe( 'range selection', () => {
+			it( 'should resolve conflicts when modifying an existing link in range selection', () => {
+				_setModelData( model, '<paragraph>f[<$text linkHref="url" linkIsStyleA="true">ooba</$text>]r</paragraph>' );
+
+				command.execute( 'url', { linkIsStyleC: true } );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>f[<$text linkHref="url" linkIsStyleC="true">ooba</$text>]r</paragraph>'
+				);
+			} );
 		} );
 	} );
 } );

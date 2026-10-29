@@ -1,19 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageresize/imageresizehandles
  */
 
-import type { Element, ViewElement } from 'ckeditor5/src/engine';
-import { Plugin } from 'ckeditor5/src/core';
-import { WidgetResize } from 'ckeditor5/src/widget';
-import ImageUtils from '../imageutils';
+import type { ModelElement, ViewElement } from '@ckeditor/ckeditor5-engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { WidgetResize } from '@ckeditor/ckeditor5-widget';
+import { ImageUtils } from '../imageutils.js';
 
-import ImageLoadObserver, { type ImageLoadedEvent } from '../image/imageloadobserver';
-import type ResizeImageCommand from './resizeimagecommand';
+import { ImageLoadObserver, type ImageLoadedEvent } from '../image/imageloadobserver.js';
+import { type ResizeImageCommand } from './resizeimagecommand.js';
 
 const RESIZABLE_IMAGES_CSS_SELECTOR =
 	'figure.image.ck-widget > img,' +
@@ -31,12 +31,12 @@ const RESIZED_IMAGE_CLASS = 'image_resized';
  * It adds the ability to resize each image using handles or manually by
  * {@link module:image/imageresize/imageresizebuttons~ImageResizeButtons} buttons.
  */
-export default class ImageResizeHandles extends Plugin {
+export class ImageResizeHandles extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ WidgetResize, ImageUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ WidgetResize, ImageUtils ]> {
+		return [ WidgetResize, ImageUtils ];
 	}
 
 	/**
@@ -44,6 +44,13 @@ export default class ImageResizeHandles extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageResizeHandles' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -101,14 +108,13 @@ export default class ImageResizeHandles extends Plugin {
 						return domWidgetElement.querySelector( 'img' )!;
 					},
 					getResizeHost() {
-						// Return the model image element parent to avoid setting an inline element (<a>/<span>) as a resize host.
-						return domConverter.mapViewToDom( mapper.toViewElement( imageModel.parent as Element )! ) as HTMLElement;
+						return domConverter.mapViewToDom( mapper.toViewElement( imageModel as ModelElement )! ) as HTMLElement;
 					},
-					// TODO consider other positions.
+
 					isCentered() {
 						const imageStyle = imageModel.getAttribute( 'imageStyle' );
 
-						return !imageStyle || imageStyle == 'block' || imageStyle == 'alignCenter';
+						return imageStyle == 'alignCenter';
 					},
 
 					onCommit( newValue ) {

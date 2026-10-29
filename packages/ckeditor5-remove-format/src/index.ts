@@ -1,16 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module remove-format
  */
 
-export { default as RemoveFormat } from './removeformat';
-export { default as RemoveFormatEditing } from './removeformatediting';
-export { default as RemoveFormatUI } from './removeformatui';
+export { RemoveFormat } from './removeformat.js';
+export { RemoveFormatEditing } from './removeformatediting.js';
+export { RemoveFormatUI } from './removeformatui.js';
+export {
+	RemoveFormatCommand,
+	type IsFormattingCallback,
+	type RemoveFormattingCallback
+} from './removeformatcommand.js';
 
-export type { default as RemoveFormatCommand } from './removeformatcommand';
-
-import './augmentation';
+import './augmentation.js';

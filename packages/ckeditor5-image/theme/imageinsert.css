@@ -1,23 +1,79 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-.ck.ck-image-insert__panel {
-	padding: var(--ck-spacing-large);
+
+:root,
+:host {
+	--ck-image-insert-insert-by-url-width: var(--ck-width-md);
+
+	/* Spacing */
+	--ck-image-insert-form-padding: var(--ck-spacing-padding);
+	--ck-image-insert-form-button-gap: var(--ck-spacing-gap-tight);
 }
 
-.ck.ck-image-insert__ck-finder-button {
-	display: block;
-	width: 100%;
-	margin: var(--ck-spacing-standard) auto;
-	border: 1px solid hsl(0, 0%, 80%);
-	border-radius: var(--ck-border-radius);
+.ck.ck-image-insert-url {
+	--ck-input-width: 100%;
+
+	width: 400px;
+
+	& .ck-image-insert-url__action-row {
+		grid-column-gap: var(--ck-spacing-large, var(--ck-spacing-lg));
+		margin-top: var(--ck-spacing-large, var(--ck-spacing-lg));
+		display: grid;
+
+		&:empty {
+			margin-top: 0;
+		}
+
+		& .ck-button-save,
+		& .ck-button-cancel {
+			justify-content: center;
+			min-width: auto;
+		}
+
+		& .ck-button .ck-button__label {
+			color: var(--ck-color-text);
+		}
+		grid-template-columns: repeat(2, 1fr)
+	}
+	padding: var(--ck-dialog-content-padding)
 }
 
-/* https://github.com/ckeditor/ckeditor5/issues/7986 */
-.ck.ck-splitbutton > .ck-file-dialog-button.ck-button {
-	padding: 0;
-	margin: 0;
-	border: none;
+.ck.ck-image-insert-form {
+	padding: var(--ck-image-insert-form-padding);
+
+	& > .ck.ck-button {
+		display: block;
+		width: 100%;
+
+		[dir="ltr"] & {
+			text-align: left;
+		}
+
+		[dir="rtl"] & {
+			text-align: right;
+		}
+
+		&:not(:last-child) {
+			margin-bottom: var(--ck-image-insert-form-button-gap);
+		}
+	}
+
+	& > .ck.ck-collapsible {
+		&:not(:first-child) {
+			border-top: 1px solid var(--ck-color-base-border);
+		}
+
+		&:not(:last-child) {
+			border-bottom: 1px solid var(--ck-color-base-border);
+		}
+
+		min-width: var(--ck-image-insert-insert-by-url-width);
+	}
+
+	&:focus {
+		outline: none;
+	}
 }

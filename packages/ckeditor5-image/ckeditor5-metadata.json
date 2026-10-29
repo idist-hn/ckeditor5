@@ -5,7 +5,7 @@
 			"className": "AutoImage",
 			"description": "Allows for inserting images simply by pasting a URL of the image into the content. It turns the pasted URL into an image on the go.",
 			"docs": "features/images/images-inserting.html#inserting-images-via-pasting-a-url-into-the-editor",
-			"path": "src/autoimage.js",
+			"path": "src/autoimage.ts",
 			"requires": [
 				[
 					"ImageBlock",
@@ -18,15 +18,15 @@
 			"className": "ImageBlock",
 			"description": "Enables support for inserting images between the blocks of text, like paragraphs or block quotes. This functionality is also provided by the main Image plugin. Note: The image feature is introduced in a granular form, implemented by separate plugins responsible for such aspects as image caption, toolbar, resize, upload or styles.",
 			"docs": "features/images/images-installation.html#inline-and-block-images",
-			"path": "src/imageblock.js",
+			"path": "src/imageblock.ts",
 			"uiComponents": [
 				{
 					"type": "Button",
 					"name": "imageTextAlternative",
-					"iconPath": "",
 					"toolbars": [
 						"image.toolbar"
-					]
+					],
+					"iconName": "IconTextAlternative"
 				}
 			],
 			"htmlOutput": [
@@ -38,6 +38,7 @@
 					"elements": "img",
 					"attributes": [
 						"alt",
+						"height",
 						"sizes",
 						"src",
 						"srcset",
@@ -51,15 +52,15 @@
 			"className": "ImageInline",
 			"description": "Enables support for inserting images inside the blocks of text, like paragraphs, header or block quotes. This functionality is also provided by the main Image plugin. Note: The image feature is introduced in a granular form, implemented by separate plugins responsible for such aspects as image toolbar, resize, upload or styles.",
 			"docs": "features/images/images-installation.html#inline-and-block-images",
-			"path": "src/imageinline.js",
+			"path": "src/imageinline.ts",
 			"uiComponents": [
 				{
 					"type": "Button",
 					"name": "imageTextAlternative",
-					"iconPath": "",
 					"toolbars": [
 						"image.toolbar"
-					]
+					],
+					"iconName": "IconTextAlternative"
 				}
 			],
 			"htmlOutput": [
@@ -67,6 +68,7 @@
 					"elements": "img",
 					"attributes": [
 						"alt",
+						"height",
 						"sizes",
 						"src",
 						"srcset",
@@ -80,14 +82,14 @@
 			"className": "Image",
 			"description": "Enables support for image handling. Note: The image feature is introduced in a granular form, implemented by separate plugins responsible for such aspects as image caption, toolbar, resize, upload or styles.",
 			"docs": "features/images/images-overview.html",
-			"path": "src/image.js"
+			"path": "src/image.ts"
 		},
 		{
 			"name": "Image caption",
 			"className": "ImageCaption",
 			"description": "Allows for adding captions to block images to give additional context.",
 			"docs": "features/images/images-captions.html",
-			"path": "src/imagecaption.js",
+			"path": "src/imagecaption.ts",
 			"requires": [
 				"ImageBlock"
 			],
@@ -95,10 +97,10 @@
 				{
 					"type": "Button",
 					"name": "toggleImageCaption",
-					"iconPath": "",
 					"toolbars": [
 						"image.toolbar"
-					]
+					],
+					"iconName": "IconCaption"
 				}
 			],
 			"htmlOutput": [
@@ -110,9 +112,9 @@
 		{
 			"name": "Image resize",
 			"className": "ImageResize",
-			"description": "Allows for resizing images using handles.",
+			"description": "Allows for resizing images using handles and offers the UI to fine tune the sizes.",
 			"docs": "features/images/images-resizing.html",
-			"path": "src/imageresize.js",
+			"path": "src/imageresize.ts",
 			"requires": [
 				[
 					"ImageBlock",
@@ -124,6 +126,16 @@
 					"elements": "figure",
 					"classes": "image_resized",
 					"styles": [
+						"height",
+						"width"
+					]
+				},
+				{
+					"elements": "img",
+					"classes": "image_resized",
+					"styles": [
+						"aspect-ratio",
+						"height",
 						"width"
 					]
 				}
@@ -134,7 +146,7 @@
 			"className": "ImageStyle",
 			"description": "Allows for using predefined, configurable styles to display the images, for example, as a full width image or side image.",
 			"docs": "features/images/images-styles.html",
-			"path": "src/imagestyle.js",
+			"path": "src/imagestyle.ts",
 			"requires": [
 				[
 					"ImageBlock",
@@ -148,7 +160,7 @@
 					"toolbars": [
 						"image.toolbar"
 					],
-					"iconPath": "@ckeditor/ckeditor5-core/theme/icons/object-inline.svg"
+					"iconName": "IconObjectInline"
 				},
 				{
 					"type": "Button",
@@ -156,7 +168,7 @@
 					"toolbars": [
 						"image.toolbar"
 					],
-					"iconPath": "@ckeditor/ckeditor5-core/theme/icons/object-center.svg"
+					"iconName": "IconObjectCenter"
 				},
 				{
 					"type": "Button",
@@ -164,7 +176,7 @@
 					"toolbars": [
 						"image.toolbar"
 					],
-					"iconPath": "@ckeditor/ckeditor5-core/theme/icons/object-right.svg"
+					"iconName": "IconObjectRight"
 				}
 			],
 			"htmlOutput": [
@@ -192,7 +204,7 @@
 			"className": "ImageToolbar",
 			"description": "Introduces a contextual toolbar for images. It appears when an image is selected and can be configured to contain buttons for features such as the text alternative or image styles.",
 			"docs": "features/images/images-overview.html#image-contextual-toolbar",
-			"path": "src/imagetoolbar.js",
+			"path": "src/imagetoolbar.ts",
 			"requires": [
 				[
 					"ImageBlock",
@@ -208,7 +220,7 @@
 			"className": "ImageUpload",
 			"description": "Allows for pasting images from the clipboard, dragging and dropping of images, selecting them through a file system dialog or from a media management tool. You need to set this plugin up with an official or a custom upload adapter.",
 			"docs": "features/images/image-upload/image-upload.html",
-			"path": "src/imageupload.js",
+			"path": "src/imageupload.ts",
 			"requires": [
 				[
 					"ImageBlock",
@@ -218,27 +230,55 @@
 			"uiComponents": [
 				{
 					"type": "Button",
-					"name": "imageUpload",
-					"iconPath": "@ckeditor/ckeditor5-core/theme/icons/image.svg"
+					"name": "uploadImage",
+					"iconName": "IconImage"
 				}
 			]
 		},
 		{
 			"name": "Image insert",
 			"className": "ImageInsert",
-			"description": "Allows for inserting images via source URL",
-			"docs": "features/images/images-inserting.html#inserting-images-via-a-source-url",
-			"path": "src/imageinsert.js",
+			"description": "Allows for inserting images via source URL.",
+			"docs": "features/images/images-inserting.html",
+			"path": "src/imageinsert.ts",
 			"requires": [
 				"ImageUpload"
 			],
 			"uiComponents": [
 				{
 					"type": "SplitButton",
-					"name": "imageInsert",
-					"iconPath": "@ckeditor/ckeditor5-core/theme/icons/image.svg"
+					"name": "insertImage",
+					"iconName": "IconImage"
 				}
 			]
+		},
+		{
+			"name": "Image insert via URL",
+			"className": "ImageInsertViaUrl",
+			"description": "The image insert via URL plugin. This plugin does not do anything directly, but it loads a set of specific plugins to enable image inserting via URL.",
+			"docs": "features/images/images-inserting.html#inserting-images-via-a-source-url",
+			"path": "src/imageinsertviaurl.ts",
+			"uiComponents": [
+				{
+					"type": "Button",
+					"name": "insertImageViaUrl",
+					"iconName": "IconImageUrl"
+				}
+			]
+		},
+		{
+			"name": "Image utils",
+			"className": "ImageUtils",
+			"description": "Provides utility functions for image handling.",
+			"docs": "features/images/images-overview.html",
+			"path": "src/imageutils.ts"
+		},
+		{
+			"name": "Image editing",
+			"className": "ImageEditing",
+			"description": "Provides basic common image engine features.",
+			"docs": "features/images/images-overview.html",
+			"path": "src/image/imageediting.ts"
 		}
 	]
 }

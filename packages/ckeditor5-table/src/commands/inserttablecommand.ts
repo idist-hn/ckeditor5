@@ -1,21 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/commands/inserttablecommand
  */
 
-import { Command } from 'ckeditor5/src/core';
+import { Command } from '@ckeditor/ckeditor5-core';
 
-import type {
-	DocumentSelection,
-	Schema,
-	Selection,
-	Element
-} from 'ckeditor5/src/engine';
-import type TableUtils from '../tableutils';
+import {
+	ModelDocumentSelection,
+	type ModelSchema,
+	type ModelSelection,
+	type ModelElement
+} from '@ckeditor/ckeditor5-engine';
+import { _getCopyOnEnterAttributes } from '@ckeditor/ckeditor5-enter';
+import { type TableUtils } from '../tableutils.js';
+import { getEmptyTableCellBlocks } from '../utils/common.js';
 
 /**
  * The insert table command.
@@ -28,7 +30,7 @@ import type TableUtils from '../tableutils';
  * editor.execute( 'insertTable', { rows: 20, columns: 5 } );
  * ```
  */
-export default class InsertTableCommand extends Command {
+export class InsertTableCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -51,6 +53,13 @@ export default class InsertTableCommand extends Command {
 	 * {@link module:table/tableconfig~TableConfig#defaultHeadings `config.table.defaultHeadings.rows`} table config.
 	 * @param options.headingColumns The number of heading columns. If not provided it will default to
 	 * {@link module:table/tableconfig~TableConfig#defaultHeadings `config.table.defaultHeadings.columns`} table config.
+	 * @param options.footerRows The number of footer rows. If not provided it will default to
+	 * {@link module:table/tableconfig~TableConfig#defaultFooters `config.table.defaultFooters`} table config.
+	 * This option is ignored when {@link module:table/tableconfig~TableConfig#enableFooters `config.table.enableFooters`} is `false`.
+	 * @param options.inheritTextFormattingAttributes Whether every empty cell should inherit the `copyOnEnter` text
+	 * formatting attributes (e.g. bold, font color) that were uniformly active in the content right before
+	 * the table, so that whichever cell the user starts typing in first continues that formatting. Defaults
+	 * to `true`.
 	 * @fires execute
 	 */
 	public override execute(
@@ -59,14 +68,20 @@ export default class InsertTableCommand extends Command {
 			columns?: number;
 			headingRows?: number;
 			headingColumns?: number;
+			footerRows?: number;
+			inheritTextFormattingAttributes?: boolean;
 		} = {}
 	): void {
 		const editor = this.editor;
 		const model = editor.model;
+		const selection = model.document.selection;
+
 		const tableUtils: TableUtils = editor.plugins.get( 'TableUtils' );
+		const areTableFootersEnabled = !!editor.config.get( 'table.enableFooters' );
 
 		const defaultRows = editor.config.get( 'table.defaultHeadings.rows' );
 		const defaultColumns = editor.config.get( 'table.defaultHeadings.columns' );
+		const defaultFooterRows = editor.config.get( 'table.defaultFooters' );
 
 		if ( options.headingRows === undefined && defaultRows ) {
 			options.headingRows = defaultRows;
@@ -76,12 +91,32 @@ export default class InsertTableCommand extends Command {
 			options.headingColumns = defaultColumns;
 		}
 
+		if ( areTableFootersEnabled && options.footerRows === undefined && defaultFooterRows ) {
+			options.footerRows = defaultFooterRows;
+		}
+
+		if ( !areTableFootersEnabled && 'footerRows' in options ) {
+			delete options.footerRows;
+		}
+
 		model.change( writer => {
+			const selectionAttributesToCopy = Array.from(
+				_getCopyOnEnterAttributes( model.schema, selection.getAttributes() )
+			);
+
 			const table = tableUtils.createTable( writer, options );
 
 			model.insertObject( table, null, null, { findOptimalPosition: 'auto' } );
 
 			writer.setSelection( writer.createPositionAt( table.getNodeByPath( [ 0, 0, 0 ] ), 0 ) );
+
+			if ( options.inheritTextFormattingAttributes !== false && selectionAttributesToCopy.length ) {
+				for ( const cellBlock of getEmptyTableCellBlocks( table ) ) {
+					for ( const [ key, value ] of selectionAttributesToCopy ) {
+						writer.setAttribute( ModelDocumentSelection._getStoreAttributeKey( key ), value, cellBlock );
+					}
+				}
+			}
 		} );
 	}
 }
@@ -89,9 +124,9 @@ export default class InsertTableCommand extends Command {
 /**
  * Checks if the table is allowed in the parent.
  */
-function isAllowedInParent( selection: Selection | DocumentSelection, schema: Schema ) {
+function isAllowedInParent( selection: ModelSelection | ModelDocumentSelection, schema: ModelSchema ) {
 	const positionParent = selection.getFirstPosition()!.parent;
 	const validParent = positionParent === positionParent.root ? positionParent : positionParent.parent;
 
-	return schema.checkChild( validParent as Element, 'table' );
+	return schema.checkChild( validParent as ModelElement, 'table' );
 }

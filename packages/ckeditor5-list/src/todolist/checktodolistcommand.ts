@@ -1,26 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module list/todolist/checktodolistcommand
  */
 
-import { Command, type Editor } from 'ckeditor5/src/core';
-import type { Element } from 'ckeditor5/src/engine';
-
-const attributeKey = 'todoListChecked';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
+import { getAllListItemBlocks } from '../list/utils/model.js';
 
 /**
  * The check to-do command.
  *
  * The command is registered by the {@link module:list/todolist/todolistediting~TodoListEditing} as
- * the `checkTodoList` editor command and it is also available via aliased `todoListCheck` name.
+ * the `checkTodoList` editor command.
  */
-export default class CheckTodoListCommand extends Command {
+export class CheckTodoListCommand extends Command {
 	/**
-	 * A list of to-do list items selected by the {@link module:engine/model/selection~Selection}.
+	 * A list of to-do list items selected by the {@link module:engine/model/selection~ModelSelection}.
 	 *
 	 * @observable
 	 * @readonly
@@ -28,19 +27,10 @@ export default class CheckTodoListCommand extends Command {
 	declare public value: boolean;
 
 	/**
-	 * A list of to-do list items selected by the {@link module:engine/model/selection~Selection}.
-	 *
-	 * @internal
-	 */
-	public _selectedElements: Array<Element>;
-
-	/**
 	 * @inheritDoc
 	 */
 	constructor( editor: Editor ) {
 		super( editor );
-
-		this._selectedElements = [];
 
 		// Refresh command before executing to be sure all values are up to date.
 		// It is needed when selection has changed before command execution, in the same change block.
@@ -53,33 +43,10 @@ export default class CheckTodoListCommand extends Command {
 	 * Updates the command's {@link #value} and {@link #isEnabled} properties based on the current selection.
 	 */
 	public override refresh(): void {
-		this._selectedElements = this._getSelectedItems();
-		this.value = this._selectedElements.every( element => !!element.getAttribute( attributeKey ) );
-		this.isEnabled = !!this._selectedElements.length;
-	}
+		const selectedElements = this._getSelectedItems();
 
-	/**
-	 * Gets all to-do list items selected by the {@link module:engine/model/selection~Selection}.
-	 */
-	private _getSelectedItems() {
-		const model = this.editor.model;
-		const schema = model.schema;
-
-		const selectionRange = model.document.selection.getFirstRange()!;
-		const startElement = selectionRange.start.parent as Element;
-		const elements: Array<Element> = [];
-
-		if ( schema.checkAttribute( startElement, attributeKey ) ) {
-			elements.push( startElement );
-		}
-
-		for ( const item of selectionRange.getItems() as Iterable<Element> ) {
-			if ( schema.checkAttribute( item, attributeKey ) && !elements.includes( item ) ) {
-				elements.push( item );
-			}
-		}
-
-		return elements;
+		this.value = this._getValue( selectedElements );
+		this.isEnabled = !!selectedElements.length;
 	}
 
 	/**
@@ -91,15 +58,47 @@ export default class CheckTodoListCommand extends Command {
 	 */
 	public override execute( options: { forceValue?: boolean } = {} ): void {
 		this.editor.model.change( writer => {
-			for ( const element of this._selectedElements ) {
-				const value = ( options.forceValue === undefined ) ? !this.value : options.forceValue;
+			const selectedElements = this._getSelectedItems();
+			const value = ( options.forceValue === undefined ) ? !this._getValue( selectedElements ) : options.forceValue;
 
+			for ( const element of selectedElements ) {
 				if ( value ) {
-					writer.setAttribute( attributeKey, true, element );
+					writer.setAttribute( 'todoListChecked', true, element );
 				} else {
-					writer.removeAttribute( attributeKey, element );
+					writer.removeAttribute( 'todoListChecked', element );
 				}
 			}
 		} );
+	}
+
+	/**
+	 * Returns a value for the command.
+	 */
+	private _getValue( selectedElements: Array<ModelElement> ): boolean {
+		return selectedElements.every( element => element.getAttribute( 'todoListChecked' ) );
+	}
+
+	/**
+	 * Gets all to-do list items selected by the {@link module:engine/model/selection~ModelSelection}.
+	 */
+	private _getSelectedItems() {
+		const model = this.editor.model;
+		const schema = model.schema;
+
+		const selectionRange = model.document.selection.getFirstRange()!;
+		const startElement = selectionRange.start.parent as ModelElement;
+		const elements: Array<ModelElement> = [];
+
+		if ( schema.checkAttribute( startElement, 'todoListChecked' ) ) {
+			elements.push( ...getAllListItemBlocks( startElement ) );
+		}
+
+		for ( const item of selectionRange.getItems( { shallow: true } ) as Iterable<ModelElement> ) {
+			if ( schema.checkAttribute( item, 'todoListChecked' ) && !elements.includes( item ) ) {
+				elements.push( ...getAllListItemBlocks( item ) );
+			}
+		}
+
+		return elements;
 	}
 }

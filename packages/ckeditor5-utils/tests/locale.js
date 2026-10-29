@@ -1,21 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console */
-
-import Locale from '../src/locale';
+import { Locale } from '../src/locale.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	add as addTranslations,
 	_clear as clearTranslations
-} from '../src/translation-service';
-import { expectToThrowCKEditorError } from './_utils/utils';
+} from '../src/translation-service.js';
+import { expectToThrowCKEditorError } from './_utils/utils.js';
 
 describe( 'Locale', () => {
 	afterEach( () => {
 		clearTranslations();
-		sinon.restore();
 	} );
 
 	describe( 'constructor', () => {
@@ -24,7 +22,7 @@ describe( 'Locale', () => {
 				uiLanguage: 'pl'
 			} );
 
-			expect( locale ).to.have.property( 'uiLanguage', 'pl' );
+			expect( locale ).toHaveProperty( 'uiLanguage', 'pl' );
 		} );
 
 		it( 'sets the #contentLanguage', () => {
@@ -33,14 +31,49 @@ describe( 'Locale', () => {
 				contentLanguage: 'en'
 			} );
 
-			expect( locale ).to.have.property( 'uiLanguage', 'pl' );
-			expect( locale ).to.have.property( 'contentLanguage', 'en' );
+			expect( locale ).toHaveProperty( 'uiLanguage', 'pl' );
+			expect( locale ).toHaveProperty( 'contentLanguage', 'en' );
+		} );
+
+		it( 'sets the #translations', () => {
+			const translations = [ {
+				pl: {
+					dictionary: {
+						bold: 'Pogrubienie'
+					}
+				}
+			},
+			{
+				de: {
+					dictionary: {
+						bold: 'Fett'
+					}
+				}
+			}
+			];
+
+			const locale = new Locale( {
+				translations
+			} );
+
+			expect( locale ).toHaveProperty( 'translations', {
+				pl: {
+					dictionary: {
+						bold: 'Pogrubienie'
+					}
+				},
+				de: {
+					dictionary: {
+						bold: 'Fett'
+					}
+				}
+			} );
 		} );
 
 		it( 'defaults #language to en', () => {
 			const locale = new Locale();
 
-			expect( locale ).to.have.property( 'uiLanguage', 'en' );
+			expect( locale ).toHaveProperty( 'uiLanguage', 'en' );
 		} );
 
 		it( 'inherits the #contentLanguage from the #language (if not passed)', () => {
@@ -48,69 +81,69 @@ describe( 'Locale', () => {
 				uiLanguage: 'pl'
 			} );
 
-			expect( locale ).to.have.property( 'uiLanguage', 'pl' );
-			expect( locale ).to.have.property( 'contentLanguage', 'pl' );
+			expect( locale ).toHaveProperty( 'uiLanguage', 'pl' );
+			expect( locale ).toHaveProperty( 'contentLanguage', 'pl' );
 		} );
 
 		it( 'determines the #uiLanguageDirection', () => {
 			expect( new Locale( {
 				uiLanguage: 'pl'
-			} ) ).to.have.property( 'uiLanguageDirection', 'ltr' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'ltr' );
 
 			expect( new Locale( {
 				uiLanguage: 'en'
-			} ) ).to.have.property( 'uiLanguageDirection', 'ltr' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'ltr' );
 
 			expect( new Locale( {
 				uiLanguage: 'ar'
-			} ) ).to.have.property( 'uiLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'rtl' );
 
 			expect( new Locale( {
 				uiLanguage: 'fa'
-			} ) ).to.have.property( 'uiLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'rtl' );
 
 			expect( new Locale( {
 				uiLanguage: 'he'
-			} ) ).to.have.property( 'uiLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'rtl' );
 
 			expect( new Locale( {
 				uiLanguage: 'ku'
-			} ) ).to.have.property( 'uiLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'rtl' );
 
 			expect( new Locale( {
 				uiLanguage: 'ug'
-			} ) ).to.have.property( 'uiLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'uiLanguageDirection', 'rtl' );
 		} );
 
 		it( 'determines the #contentLanguageDirection (not passed)', () => {
 			expect( new Locale( {
 				uiLanguage: 'pl'
-			} ) ).to.have.property( 'contentLanguageDirection', 'ltr' );
+			} ) ).toHaveProperty( 'contentLanguageDirection', 'ltr' );
 
 			expect( new Locale( {
 				uiLanguage: 'en'
-			} ) ).to.have.property( 'contentLanguageDirection', 'ltr' );
+			} ) ).toHaveProperty( 'contentLanguageDirection', 'ltr' );
 
 			expect( new Locale( {
 				uiLanguage: 'ar'
-			} ) ).to.have.property( 'contentLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'contentLanguageDirection', 'rtl' );
 		} );
 
 		it( 'determines the #contentLanguageDirection (passed)', () => {
 			expect( new Locale( {
 				uiLanguage: 'pl',
 				contentLanguage: 'pl'
-			} ) ).to.have.property( 'contentLanguageDirection', 'ltr' );
+			} ) ).toHaveProperty( 'contentLanguageDirection', 'ltr' );
 
 			expect( new Locale( {
 				uiLanguage: 'en',
 				contentLanguage: 'ar'
-			} ) ).to.have.property( 'contentLanguageDirection', 'rtl' );
+			} ) ).toHaveProperty( 'contentLanguageDirection', 'rtl' );
 
 			expect( new Locale( {
 				uiLanguage: 'ar',
 				contentLanguage: 'pl'
-			} ) ).to.have.property( 'contentLanguageDirection', 'ltr' );
+			} ) ).toHaveProperty( 'contentLanguageDirection', 'ltr' );
 		} );
 	} );
 
@@ -140,7 +173,7 @@ describe( 'Locale', () => {
 		it( 'should translate a message to the target ui language', () => {
 			const t = locale.t;
 
-			expect( t( 'foo' ) ).to.equal( 'foo_pl' );
+			expect( t( 'foo' ) ).toBe( 'foo_pl' );
 		} );
 
 		it( 'should translate a message using the message id if it was passed', () => {
@@ -151,15 +184,15 @@ describe( 'Locale', () => {
 				'image': 'foo'
 			} );
 
-			expect( t( { string: 'image', id: 'ADD_IMAGE' } ) ).to.equal( 'obrazek' );
+			expect( t( { string: 'image', id: 'ADD_IMAGE' } ) ).toBe( 'obrazek' );
 		} );
 
 		it( 'should translate a message supporting plural forms', () => {
 			const t = locale.t;
 
-			expect( t( { string: 'bar', plural: '%0 bars' }, 1 ), 1 ).to.equal( 'bar_pl_0' );
-			expect( t( { string: 'bar', plural: '%0 bars' }, 2 ), 2 ).to.equal( '2 bar_pl_1' );
-			expect( t( { string: 'bar', plural: '%0 bars' }, 5 ), 3 ).to.equal( '5 bar_pl_2' );
+			expect( t( { string: 'bar', plural: '%0 bars' }, 1 ), 1 ).toBe( 'bar_pl_0' );
+			expect( t( { string: 'bar', plural: '%0 bars' }, 2 ), 2 ).toBe( '2 bar_pl_1' );
+			expect( t( { string: 'bar', plural: '%0 bars' }, 5 ), 3 ).toBe( '5 bar_pl_2' );
 		} );
 
 		it( 'should translate a message supporting plural forms with a message id if it was passed', () => {
@@ -173,30 +206,30 @@ describe( 'Locale', () => {
 
 			const addOrRemoveSpaceMessage = { string: '%1 a space', plural: '%1 %0 spaces', id: 'ADD_SPACE' };
 
-			expect( t( addOrRemoveSpaceMessage, [ 1, t( 'Add' ) ] ), 1 ).to.equal( 'Dodaj spację' );
-			expect( t( addOrRemoveSpaceMessage, [ 2, t( 'Remove' ) ] ), 2 ).to.equal( 'Usuń 2 spacje' );
-			expect( t( addOrRemoveSpaceMessage, [ 5, t( 'Add' ) ] ), 3 ).to.equal( 'Dodaj 5 spacji' );
+			expect( t( addOrRemoveSpaceMessage, [ 1, t( 'Add' ) ] ), 1 ).toBe( 'Dodaj spację' );
+			expect( t( addOrRemoveSpaceMessage, [ 2, t( 'Remove' ) ] ), 2 ).toBe( 'Usuń 2 spacje' );
+			expect( t( addOrRemoveSpaceMessage, [ 5, t( 'Add' ) ] ), 3 ).toBe( 'Dodaj 5 spacji' );
 		} );
 
 		it( 'should interpolate a message with provided values', () => {
 			const t = locale.t;
 
-			expect( t( '%0 - %0', 'foo' ) ).to.equal( 'foo - foo' );
-			expect( t( '%1 - %0 - %2', [ 'a', 'b', 'c' ] ) ).to.equal( 'b - a - c' );
+			expect( t( '%0 - %0', 'foo' ) ).toBe( 'foo - foo' );
+			expect( t( '%1 - %0 - %2', [ 'a', 'b', 'c' ] ) ).toBe( 'b - a - c' );
 
 			// Those test make sure that if %0 is really to be used, then it's going to work.
 			// It'd be a super rare case if one would need to use %0 and at the same time interpolate something.
-			expect( t( '%1 - %0 - %2' ) ).to.equal( '%1 - %0 - %2' );
-			expect( t( '%1 - %0 - %2', 'a' ) ).to.equal( '%1 - a - %2' );
+			expect( t( '%1 - %0 - %2' ) ).toBe( '%1 - %0 - %2' );
+			expect( t( '%1 - %0 - %2', 'a' ) ).toBe( '%1 - a - %2' );
 		} );
 
 		it( 'should interpolate a message with a provided value (shorthand version)', () => {
 			const t = locale.t;
 
-			expect( t( 'Add %0', 'space' ) ).to.equal( 'Add space' );
-			expect( t( 'Remove %0 %1', 'spaces' ) ).to.equal( 'Remove spaces %1' );
+			expect( t( 'Add %0', 'space' ) ).toBe( 'Add space' );
+			expect( t( 'Remove %0 %1', 'spaces' ) ).toBe( 'Remove spaces %1' );
 
-			expect( t( '%0 bar %0', 'foo' ) ).to.equal( 'foo bar foo' );
+			expect( t( '%0 bar %0', 'foo' ) ).toBe( 'foo bar foo' );
 		} );
 
 		it( 'should throw an error when a value used to determine the plural version is not a number', () => {
@@ -216,25 +249,7 @@ describe( 'Locale', () => {
 				t( { string: 'Add %1', plural: 'Add %0 %1' }, [ 3, 'spaces' ] );
 				t( { string: 'Add %0' }, [ 'space' ] );
 				t( { string: 'Add %0' }, 'space' );
-			} ).to.not.throw();
-		} );
-	} );
-
-	describe( 'language()', () => {
-		it( 'should return #uiLanguage', () => {
-			const stub = sinon.stub( console, 'warn' );
-			const locale = new Locale();
-
-			expect( locale.language ).to.equal( locale.uiLanguage );
-			sinon.assert.calledWithMatch( stub, 'locale-deprecated-language-property' );
-		} );
-
-		it( 'should warn about deprecation', () => {
-			const stub = sinon.stub( console, 'warn' );
-			const locale = new Locale();
-
-			expect( locale.language ).to.equal( 'en' );
-			sinon.assert.calledWithMatch( stub, 'locale-deprecated-language-property' );
+			} ).not.toThrow();
 		} );
 	} );
 } );

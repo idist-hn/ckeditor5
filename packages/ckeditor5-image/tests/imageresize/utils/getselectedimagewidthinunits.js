@@ -1,0 +1,95 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Widget } from '@ckeditor/ckeditor5-widget';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { ImageResizeEditing } from '../../../src/imageresize/imageresizeediting.js';
+import { ImageCaptionEditing } from '../../../src/imagecaption/imagecaptionediting.js';
+import { Image } from '../../../src/image.js';
+import { ImageStyle } from '../../../src/imagestyle.js';
+import { IMAGE_SRC_FIXTURE } from '../_utils/utils.js';
+import { getSelectedImageWidthInUnits } from '../../../src/imageresize/utils/getselectedimagewidthinunits.js';
+
+describe( 'getSelectedImageWidthInUnits', () => {
+	let editor, model, editorElement;
+
+	beforeEach( async () => {
+		editorElement = document.createElement( 'div' );
+		document.body.appendChild( editorElement );
+
+		editor = await createEditor();
+	} );
+
+	afterEach( async () => {
+		editorElement.remove();
+
+		await editor.destroy();
+	} );
+
+	it( 'should return selected image width in pixels', () => {
+		_setModelData( model, '[<imageBlock resizedWidth="50px"></imageBlock>]' );
+
+		expect( getSelectedImageWidthInUnits( editor, 'px' ) ).toEqual( {
+			value: 50,
+			unit: 'px'
+		} );
+	} );
+
+	it( 'should return null if image is not selected', () => {
+		_setModelData( model, '<imageBlock resizedWidth="0px"></imageBlock><paragraph>[abc]</paragraph>' );
+
+		expect( getSelectedImageWidthInUnits( editor, 'px' ) ).toEqual( null );
+	} );
+
+	it( 'should return null if resizeWidth is malformed', () => {
+		_setModelData( model, '[<imageBlock resizedWidth="sdasdpx"></imageBlock>]' );
+
+		expect( getSelectedImageWidthInUnits( editor, 'px' ) ).toEqual( null );
+	} );
+
+	it( 'should return casted percentage value to pixels', () => {
+		_setModelData( model, `[<imageBlock src="${ IMAGE_SRC_FIXTURE }" resizedWidth="62%"></imageBlock>]` );
+
+		const { unit, value } = getSelectedImageWidthInUnits( editor, 'px' );
+
+		expect( unit ).toEqual( 'px' );
+		expect( value ).toEqual( 310 );
+	} );
+
+	it( 'should return casted pixels value to percentage', () => {
+		_setModelData( model, `[<imageBlock src="${ IMAGE_SRC_FIXTURE }" resizedWidth="250px"></imageBlock>]` );
+
+		const { unit, value } = getSelectedImageWidthInUnits( editor, '%' );
+
+		expect( unit ).toEqual( '%' );
+		expect( value ).toEqual( 50 );
+	} );
+
+	async function createEditor( config ) {
+		const editor = await ClassicEditor.create( editorElement, config || {
+			plugins: [ Widget, Image, ImageStyle, ImageCaptionEditing, ImageResizeEditing, Paragraph ],
+			image: {
+				resizeUnit: 'px'
+			}
+		} );
+
+		editor.editing.view.change( writer => {
+			writer.setStyle(
+				{
+					width: '500px',
+					padding: '0px'
+				},
+				editor.editing.view.document.getRoot()
+			);
+		} );
+
+		model = editor.model;
+		return editor;
+	}
+} );

@@ -1,31 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, window */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Enter from '@ckeditor/ckeditor5-enter/src/enter';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Widget from '../src/widget';
-import WidgetTypeAround from '../src/widgettypearound/widgettypearound';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
-import Delete from '@ckeditor/ckeditor5-typing/src/delete';
-import MouseObserver from '@ckeditor/ckeditor5-engine/src/view/observer/mouseobserver';
-import { toWidget } from '../src/utils';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import { setData as setModelData, getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import toArray from '@ckeditor/ckeditor5-utils/src/toarray';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import env from '@ckeditor/ckeditor5-utils/src/env';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Enter } from '@ckeditor/ckeditor5-enter';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Widget } from '../src/widget.js';
+import { WidgetTypeAround } from '../src/widgettypearound/widgettypearound.js';
+import { Typing, Delete } from '@ckeditor/ckeditor5-typing';
+import {
+	MouseObserver,
+	PointerObserver,
+	ViewDocumentDomEventData,
+	_setModelData,
+	_getModelData,
+	_getViewData,
+	EditingView,
+	ViewRootEditableElement,
+	ViewEditableElement
+} from '@ckeditor/ckeditor5-engine';
+import { toWidget } from '../src/utils.js';
+import { getCode, keyCodes, toArray, env } from '@ckeditor/ckeditor5-utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe( 'Widget', () => {
 	let element, editor, model, view, viewDocument;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		element = document.createElement( 'div' );
@@ -43,8 +43,10 @@ describe( 'Widget', () => {
 
 				model.schema.register( 'widget', {
 					inheritAllFrom: '$block',
-					isObject: true
+					isObject: true,
+					allowIn: [ '$root', 'div', 'editable' ]
 				} );
+
 				model.schema.extend( 'paragraph', {
 					allowIn: 'div'
 				} );
@@ -137,98 +139,665 @@ describe( 'Widget', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have a name', () => {
+		expect( Widget.pluginName ).toBe( 'Widget' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( Widget.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( Widget.isPremiumPlugin ).toBe( false );
+	} );
+
+	it( 'should add keystroke accessibility info', () => {
+		expect( editor.accessibility.keystrokeInfos.get( 'contentEditing' ).groups.get( 'widget' ).label ).toBe(
+			'Keystrokes that can be used when a widget is selected (for example: image, table, etc.)'
+		);
+
+		const keystrokes = editor.accessibility.keystrokeInfos.get( 'contentEditing' ).groups.get( 'widget' ).keystrokes;
+
+		expect( keystrokes ).toEqual( expect.arrayContaining( [ {
+			label: 'Move focus from an editable area back to the parent widget',
+			keystroke: 'Esc'
+		} ] ) );
+
+		expect( keystrokes ).toEqual( expect.arrayContaining( [ {
+			label: 'Insert a new paragraph directly after a widget',
+			keystroke: 'Enter'
+		} ] ) );
+
+		expect( keystrokes ).toEqual( expect.arrayContaining( [ {
+			label: 'Insert a new paragraph directly before a widget',
+			keystroke: 'Shift+Enter'
+		} ] ) );
+
+		expect( keystrokes ).toEqual( expect.arrayContaining( [ {
+			label: 'Move the caret to allow typing directly before a widget',
+			keystroke: [ [ 'arrowup' ], [ 'arrowleft' ] ]
+		} ] ) );
+
+		expect( keystrokes ).toEqual( expect.arrayContaining( [ {
+			label: 'Move the caret to allow typing directly after a widget',
+			keystroke: [ [ 'arrowdown' ], [ 'arrowright' ] ]
+		} ] ) );
+	} );
+
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( Widget ) ).to.be.instanceOf( Widget );
+		expect( editor.plugins.get( Widget ) ).toBeInstanceOf( Widget );
 	} );
 
 	it( 'should add MouseObserver', () => {
-		expect( view.getObserver( MouseObserver ) ).to.be.instanceof( MouseObserver );
+		expect( view.getObserver( MouseObserver ) ).toBeInstanceOf( MouseObserver );
+	} );
+
+	it( 'should add PointerObserver', () => {
+		expect( view.getObserver( PointerObserver ) ).toBeInstanceOf( PointerObserver );
 	} );
 
 	it( 'should require the WidgetTypeAround and Delete plugins', () => {
-		expect( Widget.requires ).to.have.members( [ WidgetTypeAround, Delete ] );
+		expect( Widget.requires ).toEqual( [ WidgetTypeAround, Delete ] );
+	} );
+
+	it( 'should not focus anything when there is no editable ancestor on pointerdown', () => {
+		_setModelData( model, '<paragraph>Hello</paragraph>' );
+
+		const paragraphView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( paragraphView ),
+			isPrimary: true,
+			preventDefault: vi.fn()
+		} );
+
+		const isEditableElementStub = vi
+			.spyOn( ViewRootEditableElement.prototype, 'is' )
+			.mockImplementation( type => type !== 'editableElement' );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).not.toHaveBeenCalled();
+
+		isEditableElementStub.mockRestore();
+		focusSpy.mockRestore();
+	} );
+
+	it( 'should not crash if the click target is not inside nested editable', () => {
+		_setModelData( model, '<widget><nested>Hello</nested></widget>' );
+
+		const nestedView = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
+
+		nestedView.parent = null;
+
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( nestedView ),
+			isPrimary: true,
+			preventDefault: vi.fn()
+		} );
+
+		const isEditableElementStub = vi
+			.spyOn( ViewEditableElement.prototype, 'is' )
+			.mockImplementation( type => type !== 'editableElement' );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).not.toHaveBeenCalled();
+
+		isEditableElementStub.mockRestore();
+		focusSpy.mockRestore();
+	} );
+
+	it( 'should not focus anything when the range start element is not present', () => {
+		_setModelData( model, '<paragraph>Hello</paragraph>' );
+
+		const paragraphView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( paragraphView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument, domEventDataMock.domTarget );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				parent: null
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should use `createRange` fallback if extracting range from mouse event is not possible', () => {
+		_setModelData( model, '<editable><widget></widget></editable>' );
+
+		const editableView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( editableView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument );
+
+		// Expect to execute `createRangeIn` in hope to find the range.
+		// Let's assume it won't find it and return null.
+		const createPositionAtSpy = vi.spyOn( editor.editing.view, 'createPositionAt' );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( createPositionAtSpy ).toHaveBeenCalledOnce();
+		expect( createPositionAtSpy ).toHaveBeenCalledWith( editableView, 0 );
+		expect( focusSpy ).toHaveBeenCalledOnce();
+	} );
+
+	it( 'should not crash and not focus anything if event target is null', () => {
+		_setModelData( model, '<editable><widget></widget></editable>' );
+
+		const editableView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( editableView ),
+			isPrimary: true,
+			preventDefault: vi.fn()
+		} );
+
+		// Lets simulate that the other plugin overrides the target to null.
+		editor.plugins.get( Widget ).listenTo(
+			viewDocument, 'pointerdown',
+			( eventInfo, domEventData ) => {
+				vi.spyOn( domEventData, 'target', 'get' ).mockReturnValue( null );
+			},
+			{
+				priority: 'high'
+			}
+		);
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+		expect( focusSpy ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should not focus anything when it\'s not possible to extract range from mouse event', () => {
+		_setModelData( model, '<widget><nested></nested></widget>' );
+
+		const widgetView = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
+		const target = view.domConverter.mapViewToDom( widgetView );
+
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target,
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument );
+
+		// Expect to execute `createRangeIn` in hope to find the range.
+		// Let's assume it won't find it and return null.
+		const position = editor.editing.view.createPositionAt( target, 0 );
+		const createRangeStub = vi.spyOn( editor.editing.view, 'createPositionAt' ).mockReturnValue( position );
+
+		vi.spyOn( editor.editing.view, 'createRange' ).mockReturnValue( null );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				parent: widgetView
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( createRangeStub ).toHaveBeenCalledOnce();
+		expect( focusSpy ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should not focus anything when the range start element is text node', () => {
+		_setModelData( model, '<paragraph>Hello</paragraph>' );
+
+		const paragraphView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( paragraphView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument, domEventDataMock.domTarget );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				parent: {
+					is: vi.fn().mockImplementation( type => type === '$text' )
+				}
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should not focus anything if there is no widget ancestor of element found in click point', () => {
+		_setModelData( model, '<paragraph>Hello</paragraph>' );
+
+		const paragraphView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( paragraphView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument, domEventDataMock.domTarget );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				parent: paragraphView
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should not lookup for widget ancestor of element found in click point if it\'s widget', () => {
+		_setModelData( model, '<paragraph>Hello</paragraph><widget>ABC</widget>' );
+
+		const paragraphView = viewDocument.getRoot().getChild( 0 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( paragraphView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument, domEventDataMock.domTarget );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				parent: viewDocument.getRoot( ).getChild( 1 )
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' ).mockReturnValue( true );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).toHaveBeenCalled();
+	} );
+
+	it( 'should focus widget if clicked node that is at the end and parent contenteditable is selected', () => {
+		_setModelData( model, '<editable><inline-widget></inline-widget></editable>' );
+
+		const parentView = viewDocument.getRoot().getChild( 0 );
+		const widgetView = parentView.getChild( 0 );
+
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( parentView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument, domEventDataMock.domTarget );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				isAtEnd: true,
+				parent: parentView,
+				nodeBefore: widgetView
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' ).mockReturnValue( true );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).toHaveBeenCalled();
+	} );
+
+	it( 'should focus widget if clicked node that is at the start and parent contenteditable is selected', () => {
+		_setModelData( model, '<editable><inline-widget></inline-widget></editable>' );
+
+		const parentView = viewDocument.getRoot().getChild( 0 );
+		const widgetView = parentView.getChild( 0 );
+
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( parentView ),
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
+		} );
+
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument, domEventDataMock.domTarget );
+
+		vi.spyOn( view.domConverter, 'domRangeToView' ).mockReturnValue( {
+			start: {
+				isAtStart: true,
+				parent: parentView,
+				nodeAfter: widgetView
+			}
+		} );
+
+		const focusSpy = vi.spyOn( EditingView.prototype, 'focus' ).mockReturnValue( true );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( focusSpy ).toHaveBeenCalled();
+	} );
+
+	describe( 'clicking beside a block widget in an element that cannot hold the caret', () => {
+		// The `widget` element above inherits `$text` from `$block`, so it can hold the caret itself. A real block
+		// widget - an image, a table - cannot, which is the shape these tests need.
+		beforeEach( () => {
+			model.schema.register( 'block-widget', {
+				allowIn: [ '$root', 'blockQuote' ],
+				isObject: true,
+				isBlock: true
+			} );
+			model.schema.register( 'block-widget-caption', {
+				allowIn: 'block-widget',
+				isLimit: true
+			} );
+			model.schema.extend( '$text', { allowIn: 'block-widget-caption' } );
+
+			editor.conversion.for( 'downcast' )
+				.elementToElement( {
+					model: 'block-widget',
+					view: ( modelItem, { writer } ) => toWidget( writer.createContainerElement( 'figure' ), writer )
+				} )
+				.elementToElement( {
+					model: 'block-widget-caption',
+					view: ( modelItem, { writer } ) => writer.createEditableElement( 'figcaption' )
+				} );
+		} );
+
+		it( 'should select a widget that is the only child of a block quote when clicked after it', () => {
+			_setModelData( model, '<paragraph>foo[]</paragraph><blockQuote><widget></widget></blockQuote>' );
+
+			const domBlockQuote = view.domConverter.mapViewToDom( viewDocument.getRoot().getChild( 1 ) );
+
+			// Where the browser resolves a click in the block quote's own padding to: after the widget, with no text
+			// node for the caret. Only the hit test is stubbed, everything downstream of it runs for real.
+			stubCaretPositionAt( domBlockQuote, 1 );
+
+			viewDocument.fire( 'pointerdown', new ViewDocumentDomEventData( view, {
+				target: domBlockQuote,
+				isPrimary: true,
+				preventDefault: vi.fn(),
+				clientX: 0,
+				clientY: 0
+			} ) );
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph><blockQuote>[<widget></widget>]</blockQuote>'
+			);
+		} );
+
+		it( 'should select a widget that is the only child of a block quote when clicked before it', () => {
+			_setModelData( model, '<paragraph>foo[]</paragraph><blockQuote><widget></widget></blockQuote>' );
+
+			const domBlockQuote = view.domConverter.mapViewToDom( viewDocument.getRoot().getChild( 1 ) );
+
+			stubCaretPositionAt( domBlockQuote, 0 );
+
+			viewDocument.fire( 'pointerdown', new ViewDocumentDomEventData( view, {
+				target: domBlockQuote,
+				isPrimary: true,
+				preventDefault: vi.fn(),
+				clientX: 0,
+				clientY: 0
+			} ) );
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph><blockQuote>[<widget></widget>]</blockQuote>'
+			);
+		} );
+
+		it( 'should not select a widget in a block quote that has a paragraph after it', () => {
+			_setModelData( model, '<paragraph>foo[]</paragraph><blockQuote><widget></widget><paragraph>bar</paragraph></blockQuote>' );
+
+			const domBlockQuote = view.domConverter.mapViewToDom( viewDocument.getRoot().getChild( 1 ) );
+
+			// The same position as above, but no longer at the end of the block quote, so the caret has the
+			// paragraph to go to and the click is left to the browser.
+			stubCaretPositionAt( domBlockQuote, 1 );
+
+			viewDocument.fire( 'pointerdown', new ViewDocumentDomEventData( view, {
+				target: domBlockQuote,
+				isPrimary: true,
+				preventDefault: vi.fn(),
+				clientX: 0,
+				clientY: 0
+			} ) );
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo[]</paragraph><blockQuote><widget></widget><paragraph>bar</paragraph></blockQuote>'
+			);
+		} );
+
+		it( 'should select a widget when the click point resolves to the end of the widget itself', () => {
+			_setModelData( model,
+				'<paragraph>foo[]</paragraph><block-widget><block-widget-caption>abc</block-widget-caption></block-widget>'
+			);
+
+			const widgetView = viewDocument.getRoot().getChild( 1 );
+			const domWidget = view.domConverter.mapViewToDom( widgetView );
+
+			// A click that misses everything selectable resolves to a position inside the widget, while the event
+			// target stays the root editable. The widget itself must be picked, not whatever child sits at that
+			// position - a nested editable or the type around UI, neither of which is a widget.
+			stubCaretPositionAt( domWidget, domWidget.childNodes.length );
+
+			viewDocument.fire( 'pointerdown', new ViewDocumentDomEventData( view, {
+				target: view.getDomRoot(),
+				isPrimary: true,
+				preventDefault: vi.fn(),
+				clientX: 0,
+				clientY: 0
+			} ) );
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>[<block-widget><block-widget-caption>abc</block-widget-caption></block-widget>]'
+			);
+		} );
+
+		it( 'should not select an inline widget when clicking at the start of a paragraph holding it', () => {
+			_setModelData( model, '<paragraph>foo[]</paragraph><paragraph><inline-widget></inline-widget></paragraph>' );
+
+			const domParagraph = view.domConverter.mapViewToDom( viewDocument.getRoot().getChild( 1 ) );
+
+			// A paragraph accepts `$text`, so the caret can sit in it and the widget must not be selected instead.
+			stubCaretPositionAt( domParagraph, 0 );
+
+			viewDocument.fire( 'pointerdown', new ViewDocumentDomEventData( view, {
+				target: domParagraph,
+				isPrimary: true,
+				preventDefault: vi.fn(),
+				clientX: 0,
+				clientY: 0
+			} ) );
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo[]</paragraph><paragraph><inline-widget></inline-widget></paragraph>'
+			);
+		} );
 	} );
 
 	it( 'should create selection over clicked widget', () => {
-		setModelData( model, '[]<widget></widget>' );
-		const viewDiv = viewDocument.getRoot().getChild( 0 );
-		const domEventDataMock = new DomEventData( view, {
+		_setModelData( model, '<paragraph>[]</paragraph><widget></widget>' );
+		const viewDiv = viewDocument.getRoot().getChild( 1 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
 			target: view.domConverter.mapViewToDom( viewDiv ),
-			preventDefault: sinon.spy()
+			isPrimary: true,
+			preventDefault: vi.fn()
 		} );
 
-		viewDocument.fire( 'mousedown', domEventDataMock );
+		viewDocument.fire( 'pointerdown', domEventDataMock );
 
-		expect( getModelData( model ) ).to.equal( '[<widget></widget>]' );
+		expect( _getModelData( model ) ).toBe( '<paragraph></paragraph>[<widget></widget>]' );
 	} );
 
 	it( 'should create selection over clicked widget (Android)', () => {
 		env.isAndroid = true;
 
-		setModelData( model, '[]<widget></widget>' );
-		const viewDiv = viewDocument.getRoot().getChild( 0 );
-		const domEventDataMock = new DomEventData( view, {
+		_setModelData( model, '<paragraph>[]</paragraph><widget></widget>' );
+		const viewDiv = viewDocument.getRoot().getChild( 1 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
 			target: view.domConverter.mapViewToDom( viewDiv ),
-			preventDefault: sinon.spy()
+			isPrimary: true,
+			preventDefault: vi.fn()
 		} );
 
-		viewDocument.fire( 'mousedown', domEventDataMock );
+		viewDocument.fire( 'pointerdown', domEventDataMock );
 
-		sinon.assert.calledOnce( domEventDataMock.domEvent.preventDefault );
-		expect( getModelData( model ) ).to.equal( '[<widget></widget>]' );
+		expect( domEventDataMock.domEvent.preventDefault ).toHaveBeenCalledOnce();
+		expect( _getModelData( model ) ).toBe( '<paragraph></paragraph>[<widget></widget>]' );
+
+		env.isAndroid = false;
+	} );
+
+	it( 'should create selection over clicked widget (iOS)', () => {
+		env.isiOS = true;
+
+		_setModelData( model, '<paragraph>[]</paragraph><widget></widget>' );
+		const viewDiv = viewDocument.getRoot().getChild( 1 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( viewDiv ),
+			isPrimary: true,
+			preventDefault: vi.fn()
+		} );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( domEventDataMock.domEvent.preventDefault ).toHaveBeenCalledOnce();
+		expect( _getModelData( model ) ).toBe( '<paragraph></paragraph>[<widget></widget>]' );
+
+		env.isiOS = false;
+	} );
+
+	// https://github.com/ckeditor/ckeditor5/issues/20103
+	it( 'should do nothing on pointerdown on a widget type around button (Android)', () => {
+		env.isAndroid = true;
+
+		_setModelData( model, '<paragraph>[]</paragraph><widget></widget>' );
+		const viewDiv = viewDocument.getRoot().getChild( 1 );
+		const domWidget = view.domConverter.mapViewToDom( viewDiv );
+		const domButton = domWidget.querySelector( '.ck-widget__type-around__button' );
+
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: domButton,
+			isPrimary: true,
+			preventDefault: vi.fn()
+		} );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		// Canceling the event would suppress the compatibility mousedown that activates the button.
+		expect( domEventDataMock.domEvent.preventDefault ).not.toHaveBeenCalled();
+		expect( _getModelData( model ) ).toBe( '<paragraph>[]</paragraph><widget></widget>' );
 
 		env.isAndroid = false;
 	} );
 
 	it( 'should create selection when clicked in nested element', () => {
-		setModelData( model, '[]<widget></widget>' );
-		const viewDiv = viewDocument.getRoot().getChild( 0 );
+		_setModelData( model, '<paragraph>[]</paragraph><widget></widget>' );
+		const viewDiv = viewDocument.getRoot().getChild( 1 );
 		const viewB = viewDiv.getChild( 0 );
-		const domEventDataMock = new DomEventData( view, {
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
 			target: view.domConverter.mapViewToDom( viewB ),
-			preventDefault: sinon.spy()
+			isPrimary: true,
+			preventDefault: vi.fn()
 		} );
 
-		viewDocument.fire( 'mousedown', domEventDataMock );
+		viewDocument.fire( 'pointerdown', domEventDataMock );
 
-		expect( getModelData( model ) ).to.equal( '[<widget></widget>]' );
+		expect( _getModelData( model ) ).toBe( '<paragraph></paragraph>[<widget></widget>]' );
+	} );
+
+	it( 'should do nothing when clicked widget with secondary touch', () => {
+		_setModelData( model, '<paragraph>[]</paragraph><widget></widget>' );
+		const viewDiv = viewDocument.getRoot().getChild( 1 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
+			target: view.domConverter.mapViewToDom( viewDiv ),
+			isPrimary: false,
+			preventDefault: vi.fn()
+		} );
+
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( _getModelData( model ) ).toBe( '<paragraph>[]</paragraph><widget></widget>' );
+		expect( domEventDataMock.domEvent.preventDefault ).not.toHaveBeenCalled();
 	} );
 
 	it( 'should do nothing if clicked in non-widget element', () => {
-		setModelData( model, '<paragraph>[]foo bar</paragraph><widget></widget>' );
+		_setModelData( model, '<paragraph>[]foo bar</paragraph><widget></widget>' );
 		const viewP = viewDocument.getRoot().getChild( 0 );
-		const domEventDataMock = new DomEventData( view, {
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
 			target: view.domConverter.mapViewToDom( viewP ),
-			preventDefault: sinon.spy()
+			isPrimary: true,
+			preventDefault: vi.fn(),
+			clientX: 0,
+			clientY: 0
 		} );
 
-		view.focus();
-		viewDocument.fire( 'mousedown', domEventDataMock );
+		stubCaretFromPoint( domEventDataMock.domTarget.ownerDocument );
 
-		expect( getModelData( model ) ).to.equal( '<paragraph>[]foo bar</paragraph><widget></widget>' );
-		sinon.assert.notCalled( domEventDataMock.domEvent.preventDefault );
+		view.focus();
+		viewDocument.fire( 'pointerdown', domEventDataMock );
+
+		expect( _getModelData( model ) ).toBe( '<paragraph>[]foo bar</paragraph><widget></widget>' );
+		expect( domEventDataMock.domEvent.preventDefault ).not.toHaveBeenCalled();
 	} );
 
 	it( 'should not focus editable if already is focused', () => {
-		setModelData( model, '<widget></widget>' );
-		const widget = viewDocument.getRoot().getChild( 0 );
-		const domEventDataMock = new DomEventData( view, {
+		_setModelData( model, '<paragraph></paragraph><widget></widget>' );
+		const widget = viewDocument.getRoot().getChild( 1 );
+		const domEventDataMock = new ViewDocumentDomEventData( view, {
 			target: view.domConverter.mapViewToDom( widget ),
-			preventDefault: sinon.spy()
+			isPrimary: true,
+			preventDefault: vi.fn()
 		} );
-		const focusSpy = sinon.spy( view, 'focus' );
+		const focusSpy = vi.spyOn( view, 'focus' );
 
 		viewDocument.isFocused = true;
-		viewDocument.fire( 'mousedown', domEventDataMock );
+		viewDocument.fire( 'pointerdown', domEventDataMock );
 
-		sinon.assert.notCalled( focusSpy );
-		expect( getModelData( model ) ).to.equal( '[<widget></widget>]' );
+		expect( focusSpy ).not.toHaveBeenCalled();
+		expect( _getModelData( model ) ).toBe( '<paragraph></paragraph>[<widget></widget>]' );
 	} );
 
 	it( 'should apply fake view selection if model selection is on widget element', () => {
-		setModelData( model, '[<widget>foo bar</widget>]' );
+		_setModelData( model, '[<widget>foo bar</widget>]' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'[<div class="ck-widget ck-widget_selected" ' +
 			'contenteditable="false">' +
 				'foo bar' +
@@ -236,13 +805,13 @@ describe( 'Widget', () => {
 				'<div class="ck ck-reset_all ck-widget__type-around"></div>' +
 			'</div>]'
 		);
-		expect( viewDocument.selection.isFake ).to.be.true;
+		expect( viewDocument.selection.isFake ).toBe( true );
 	} );
 
 	it( 'should apply fake view selection when an inline widget is surrounded by an attribute element', () => {
-		setModelData( model, '<paragraph>foo [<inline-widget attr="foo"></inline-widget>] bar</paragraph>' );
+		_setModelData( model, '<paragraph>foo [<inline-widget attr="foo"></inline-widget>] bar</paragraph>' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>foo ' +
 				'<attr value="foo">' +
 					'[<span class="ck-widget ck-widget_selected" contenteditable="false"></span>]' +
@@ -250,13 +819,13 @@ describe( 'Widget', () => {
 			' bar</p>'
 		);
 
-		expect( viewDocument.selection.isFake ).to.be.true;
+		expect( viewDocument.selection.isFake ).toBe( true );
 	} );
 
 	it( 'should apply fake view selection when an inline widget is surrounded by a couple of nested attribute elements', () => {
-		setModelData( model, '<paragraph>foo [<inline-widget attr="foo" bttr="bar"></inline-widget>] bar</paragraph>' );
+		_setModelData( model, '<paragraph>foo [<inline-widget attr="foo" bttr="bar"></inline-widget>] bar</paragraph>' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>foo ' +
 				'<attr value="foo">' +
 					'<bttr value="bar">' +
@@ -266,11 +835,11 @@ describe( 'Widget', () => {
 			' bar</p>'
 		);
 
-		expect( viewDocument.selection.isFake ).to.be.true;
+		expect( viewDocument.selection.isFake ).toBe( true );
 	} );
 
 	it( 'should apply fake view selection when the model selection surrounds the inline widget and an UI element', () => {
-		setModelData( model, '<paragraph>[]<inline-widget></inline-widget></paragraph>' );
+		_setModelData( model, '<paragraph>[]<inline-widget></inline-widget></paragraph>' );
 
 		editor.conversion.for( 'editingDowncast' ).markerToElement( {
 			model: 'testMarker',
@@ -286,18 +855,18 @@ describe( 'Widget', () => {
 			writer.setSelection( model.document.getRoot().getChild( 0 ), 'in' );
 		} );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>' +
 				'<span class="ui"></span>' +
 				'[<span class="ck-widget ck-widget_selected" contenteditable="false"></span>]' +
 			'</p>'
 		);
 
-		expect( viewDocument.selection.isFake ).to.be.true;
+		expect( viewDocument.selection.isFake ).toBe( true );
 	} );
 
 	it( 'should allow overriding the selection downcast', () => {
-		const spy = sinon.spy();
+		const spy = vi.fn();
 
 		editor.conversion.for( 'editingDowncast' ).add(
 			dispatcher => dispatcher.on( 'selection', ( evt, data, conversionApi ) => {
@@ -316,10 +885,10 @@ describe( 'Widget', () => {
 			}, { priority: 'high' } )
 		);
 
-		setModelData( model, '<paragraph>foo[<inline-widget></inline-widget>]bar</paragraph>' );
+		_setModelData( model, '<paragraph>foo[<inline-widget></inline-widget>]bar</paragraph>' );
 
-		expect( spy.calledOnce ).to.be.true;
-		expect( getViewData( view ) ).to.equal(
+		expect( spy ).toHaveBeenCalledOnce();
+		expect( _getViewData( view ) ).toBe(
 			'<p>' +
 				'foo' +
 				'<span class="ck-widget" contenteditable="false"></span>' +
@@ -329,9 +898,9 @@ describe( 'Widget', () => {
 	} );
 
 	it( 'should not apply fake view selection when an inline widget and some other content is surrounded by an attribute element', () => {
-		setModelData( model, '<paragraph>foo [<inline-widget attr="foo"></inline-widget><$text attr="foo">bar]</$text></paragraph>' );
+		_setModelData( model, '<paragraph>foo [<inline-widget attr="foo"></inline-widget><$text attr="foo">bar]</$text></paragraph>' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>foo ' +
 				'{<attr value="foo">' +
 					'<span class="ck-widget ck-widget_selected" contenteditable="false"></span>bar' +
@@ -339,13 +908,13 @@ describe( 'Widget', () => {
 			'</p>'
 		);
 
-		expect( viewDocument.selection.isFake ).to.be.false;
+		expect( viewDocument.selection.isFake ).toBe( false );
 	} );
 
 	it( 'should not apply fake view selection when a non-widget element is surrounded by an attribute element', () => {
-		setModelData( model, '<paragraph>foo [<inline attr="foo"></inline>] bar</paragraph>' );
+		_setModelData( model, '<paragraph>foo [<inline attr="foo"></inline>] bar</paragraph>' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>foo ' +
 				'{<attr value="foo">' +
 					'<figure></figure>' +
@@ -354,22 +923,22 @@ describe( 'Widget', () => {
 			'</p>'
 		);
 
-		expect( viewDocument.selection.isFake ).to.be.false;
+		expect( viewDocument.selection.isFake ).toBe( false );
 	} );
 
 	it( 'should use element\'s label to set fake selection if one is provided', () => {
-		setModelData( model, '[<widget>foo bar</widget>]' );
+		_setModelData( model, '[<widget>foo bar</widget>]' );
 
-		expect( viewDocument.selection.fakeSelectionLabel ).to.equal(
+		expect( viewDocument.selection.fakeSelectionLabel ).toBe(
 			'element label. Press Enter to type after or press Shift + Enter to type before the widget'
 		);
 	} );
 
 	it( 'should add selected class when other content is selected with widget', () => {
-		setModelData( model, '[<paragraph>foo</paragraph><widget></widget><widget></widget>]' );
+		_setModelData( model, '[<paragraph>foo</paragraph><widget></widget><widget></widget>]' );
 
-		expect( viewDocument.selection.isFake ).to.be.false;
-		expect( getViewData( view ) ).to.equal(
+		expect( viewDocument.selection.isFake ).toBe( false );
+		expect( _getViewData( view ) ).toBe(
 			'<p>{foo</p>' +
 			'<div class="ck-widget ck-widget_selected" contenteditable="false">' +
 				'<b></b>' +
@@ -384,15 +953,15 @@ describe( 'Widget', () => {
 	} );
 
 	it( 'fake selection should be empty if widget is not selected', () => {
-		setModelData( model, '<paragraph>foo</paragraph><widget>foo bar</widget>' );
+		_setModelData( model, '<paragraph>foo</paragraph><widget>foo bar</widget>' );
 
-		expect( viewDocument.selection.fakeSelectionLabel ).to.equal( '' );
+		expect( viewDocument.selection.fakeSelectionLabel ).toBe( '' );
 	} );
 
 	it( 'should toggle selected class', () => {
-		setModelData( model, '<paragraph>foo</paragraph>[<widget>foo</widget>]' );
+		_setModelData( model, '<paragraph>foo</paragraph>[<widget>foo</widget>]' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>foo</p>' +
 			'[<div class="ck-widget ck-widget_selected" contenteditable="false">' +
 				'foo' +
@@ -405,7 +974,7 @@ describe( 'Widget', () => {
 			writer.setSelection( null );
 		} );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<p>{}foo</p>' +
 			'<div class="ck-widget" contenteditable="false">' +
 				'foo' +
@@ -416,9 +985,9 @@ describe( 'Widget', () => {
 	} );
 
 	it( 'should do nothing when selection is placed in other editable', () => {
-		setModelData( model, '<widget><editable>foo bar</editable></widget><editable>[baz]</editable>' );
+		_setModelData( model, '<widget><editable>foo bar</editable></widget><editable>[baz]</editable>' );
 
-		expect( getViewData( view ) ).to.equal(
+		expect( _getViewData( view ) ).toBe(
 			'<div class="ck-widget" contenteditable="false">' +
 				'<figcaption contenteditable="true">foo bar</figcaption>' +
 				'<b></b>' +
@@ -426,6 +995,333 @@ describe( 'Widget', () => {
 			'</div>' +
 			'<figcaption contenteditable="true">{baz}</figcaption>'
 		);
+	} );
+
+	describe( 'triple click', () => {
+		it( 'should set selection on entire paragraph', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo bar</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo bar]</paragraph>'
+			);
+		} );
+
+		it( 'should set selection on entire paragraph with attributes in text', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo <$text attr="true">bar</$text></paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const bold = paragraph.getChild( 1 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( bold ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo <$text attr="true">bar</$text>]</paragraph>'
+			);
+		} );
+
+		it( 'should extend selection to include start of next text block', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo bar</paragraph>' +
+				'<paragraph>baz</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo bar</paragraph>' +
+				'<paragraph>]baz</paragraph>'
+			);
+		} );
+
+		it( 'should not extend selection to include following block widget', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo bar</paragraph>' +
+				'<widget><nested>foo bar</nested></widget>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo bar]</paragraph>' +
+				'<widget><nested>foo bar</nested></widget>'
+			);
+		} );
+
+		it( 'should extend selection to include start of next text block in block quote', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo bar</paragraph>' +
+				'<blockQuote><paragraph>foo bar</paragraph></blockQuote>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo bar</paragraph>' +
+				'<blockQuote><paragraph>]foo bar</paragraph></blockQuote>'
+			);
+		} );
+
+		it( 'should extend selection starting in block quote', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<blockQuote><paragraph>foo bar</paragraph></blockQuote>' +
+				'<paragraph>foo bar</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const blockQuote = viewRoot.getChild( 1 );
+			const paragraph = blockQuote.getChild( 0 );
+			const preventDefault = vi.fn();
+
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<blockQuote><paragraph>[foo bar</paragraph></blockQuote>' +
+				'<paragraph>]foo bar</paragraph>'
+			);
+		} );
+
+		it( 'should set selection on entire parqgraph with inline inside', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo<inline></inline>bar</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo<inline></inline>bar]</paragraph>'
+			);
+		} );
+
+		it( 'should extend selection with inline in paragraph', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo<inline></inline>bar</paragraph>' +
+				'<paragraph>foo</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( paragraph ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo<inline></inline>bar</paragraph>' +
+				'<paragraph>]foo</paragraph>'
+			);
+		} );
+
+		it( 'should extend selection with inline in paragraph (when inline widget clicked)', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<paragraph>foo<inline></inline>bar</paragraph>' +
+				'<paragraph>foo</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const paragraph = viewRoot.getChild( 1 );
+			const inline = paragraph.getChild( 1 );
+			const preventDefault = vi.fn();
+
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( inline ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<paragraph>[foo<inline></inline>bar</paragraph>' +
+				'<paragraph>]foo</paragraph>'
+			);
+		} );
+
+		it( 'should not extend selection inside widget', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<widget><nested>foo bar</nested></widget>' +
+				'<paragraph>foo bar</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const widget = viewRoot.getChild( 1 );
+			const nested = widget.getChild( 0 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( nested ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<widget><nested>[foo bar]</nested></widget>' +
+				'<paragraph>foo bar</paragraph>'
+			);
+		} );
+
+		it( 'should not extend selection outside limit element', () => {
+			_setModelData( model,
+				'<paragraph>f[o]o</paragraph>' +
+				'<widget>foo</widget>' +
+				'<paragraph>foo bar</paragraph>'
+			);
+
+			const viewRoot = viewDocument.getRoot();
+			const widget = viewRoot.getChild( 1 );
+			const preventDefault = vi.fn();
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( widget ),
+				preventDefault,
+				detail: 3
+			} );
+
+			viewDocument.fire( 'mousedown', domEventDataMock );
+
+			expect( preventDefault ).toHaveBeenCalled();
+
+			expect( _getModelData( model ) ).toBe(
+				'<paragraph>foo</paragraph>' +
+				'<widget>[foo]</widget>' +
+				'<paragraph>foo bar</paragraph>'
+			);
+		} );
+
+		it( 'should not crash if event target is null', () => {
+			_setModelData( model, '<editable><widget></widget></editable>' );
+
+			const editableView = viewDocument.getRoot().getChild( 0 );
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
+				target: view.domConverter.mapViewToDom( editableView ),
+				detail: 3,
+				preventDefault: vi.fn()
+			} );
+
+			// Lets simulate that the other plugin overrides the target to null.
+			editor.plugins.get( Widget ).listenTo(
+				viewDocument, 'mousedown',
+				( eventInfo, domEventData ) => {
+					vi.spyOn( domEventData, 'target', 'get' ).mockReturnValue( null );
+				},
+				{
+					priority: 'high'
+				}
+			);
+
+			expect( () => {
+				viewDocument.fire( 'mousedown', domEventDataMock );
+			} ).not.toThrow();
+		} );
 	} );
 
 	describe( 'keys handling', () => {
@@ -609,39 +1505,39 @@ describe( 'Widget', () => {
 			);
 
 			it( 'should prevent default behaviour when there is no correct location - document end', () => {
-				const keydownHandler = sinon.spy();
+				const keydownHandler = vi.fn();
 				const domEventDataMock = {
 					keyCode: keyCodes.arrowright,
-					preventDefault: sinon.spy()
+					preventDefault: vi.fn()
 				};
-				setModelData( model, '<paragraph>foo</paragraph>[<widget></widget>]' );
+				_setModelData( model, '<paragraph>foo</paragraph>[<widget></widget>]' );
 				viewDocument.on( 'keydown', keydownHandler );
 
 				// Note: The first step is handled by the WidgetTypeAround plugin.
 				viewDocument.fire( 'keydown', domEventDataMock );
 				viewDocument.fire( 'keydown', domEventDataMock );
 
-				expect( getModelData( model ) ).to.equal( '<paragraph>foo</paragraph>[<widget></widget>]' );
-				sinon.assert.called( domEventDataMock.preventDefault );
-				sinon.assert.notCalled( keydownHandler );
+				expect( _getModelData( model ) ).toBe( '<paragraph>foo</paragraph>[<widget></widget>]' );
+				expect( domEventDataMock.preventDefault ).toHaveBeenCalled();
+				expect( keydownHandler ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should prevent default behaviour when there is no correct location - document start', () => {
-				const keydownHandler = sinon.spy();
+				const keydownHandler = vi.fn();
 				const domEventDataMock = {
 					keyCode: keyCodes.arrowleft,
-					preventDefault: sinon.spy()
+					preventDefault: vi.fn()
 				};
-				setModelData( model, '[<widget></widget>]<paragraph>foo</paragraph>' );
+				_setModelData( model, '[<widget></widget>]<paragraph>foo</paragraph>' );
 				viewDocument.on( 'keydown', keydownHandler );
 
 				// Note: The first step is handled by the WidgetTypeAround plugin.
 				viewDocument.fire( 'keydown', domEventDataMock );
 				viewDocument.fire( 'keydown', domEventDataMock );
 
-				expect( getModelData( model ) ).to.equal( '[<widget></widget>]<paragraph>foo</paragraph>' );
-				sinon.assert.called( domEventDataMock.preventDefault );
-				sinon.assert.notCalled( keydownHandler );
+				expect( _getModelData( model ) ).toBe( '[<widget></widget>]<paragraph>foo</paragraph>' );
+				expect( domEventDataMock.preventDefault ).toHaveBeenCalled();
+				expect( keydownHandler ).not.toHaveBeenCalled();
 			} );
 
 			test(
@@ -730,7 +1626,18 @@ describe( 'Widget', () => {
 					{ keyCode: keyCodes.arrowright, shiftKey: true },
 					{ keyCode: keyCodes.arrowright, shiftKey: true }
 				],
-				'<widget></widget><paragraph>[]foo</paragraph>'
+				'[<widget></widget><paragraph>f]oo</paragraph>'
+			);
+
+			test(
+				'should work correctly with modifier key when selection starts before widget: right arrow + shift',
+				'<paragraph>fo[o</paragraph><widget></widget>]<paragraph>bar</paragraph>',
+				// Note: The first step is handled by the WidgetTypeAround plugin.
+				[
+					{ keyCode: keyCodes.arrowright, shiftKey: true },
+					{ keyCode: keyCodes.arrowright, shiftKey: true }
+				],
+				'<paragraph>fo[o</paragraph><widget></widget><paragraph>b]ar</paragraph>'
 			);
 
 			test(
@@ -763,7 +1670,7 @@ describe( 'Widget', () => {
 					{ keyCode: keyCodes.arrowdown, shiftKey: true },
 					{ keyCode: keyCodes.arrowdown, shiftKey: true }
 				],
-				'<widget></widget><paragraph>[]foo</paragraph>'
+				'[<widget></widget><paragraph>f]oo</paragraph>'
 			);
 
 			test(
@@ -796,7 +1703,22 @@ describe( 'Widget', () => {
 					{ keyCode: keyCodes.arrowleft, shiftKey: true },
 					{ keyCode: keyCodes.arrowleft, shiftKey: true }
 				],
-				'<paragraph>foo[]</paragraph><widget></widget>'
+				'<paragraph>fo[o</paragraph><widget></widget>]'
+			);
+
+			test(
+				'should work correctly with modifier key when selection starts after widget: left arrow + shift',
+				'<paragraph>foo</paragraph>[<widget></widget><paragraph>b]ar</paragraph>',
+				// Note: The first step is handled by the WidgetTypeAround plugin.
+				[
+					{ keyCode: keyCodes.arrowleft, shiftKey: true },
+					{ keyCode: keyCodes.arrowleft, shiftKey: true }
+				],
+				'<paragraph>fo[o</paragraph><widget></widget><paragraph>b]ar</paragraph>',
+				undefined,
+				undefined,
+				undefined,
+				{ lastRangeBackward: true }
 			);
 
 			test(
@@ -829,7 +1751,7 @@ describe( 'Widget', () => {
 					{ keyCode: keyCodes.arrowup, shiftKey: true },
 					{ keyCode: keyCodes.arrowup, shiftKey: true }
 				],
-				'<paragraph>foo[]</paragraph><widget></widget>'
+				'<paragraph>fo[o</paragraph><widget></widget>]'
 			);
 
 			test(
@@ -951,6 +1873,76 @@ describe( 'Widget', () => {
 				'<paragraph>foo</paragraph>'
 			);
 
+			describe( 'navigation between empty paragraphs and widgets', () => {
+				test(
+					'arrow-up should work if selection is at the beginning of paragraph, that is placed after widget and empty paragraph',
+
+					'<imageBlock></imageBlock>' +
+					'<paragraph></paragraph>' +
+					'<paragraph>[]Foo</paragraph>',
+
+					keyCodes.arrowup,
+
+					// It's expected that selection will stay here, because the browser should move the caret.
+					'<imageBlock></imageBlock>' +
+					'<paragraph></paragraph>' +
+					'<paragraph>[]Foo</paragraph>'
+				);
+
+				test(
+					'arrow-down should work if selection is at the beginning of paragraph, that is placed after widget and empty paragraph',
+
+					'<paragraph>Foo[]</paragraph>' +
+					'<paragraph></paragraph>' +
+					'<imageBlock></imageBlock>',
+
+					keyCodes.arrowdown,
+
+					// It's expected that selection will stay here, because the browser should move the caret.
+					'<paragraph>Foo[]</paragraph>' +
+					'<paragraph></paragraph>' +
+					'<imageBlock></imageBlock>'
+				);
+
+				test(
+					'shift+arrow-up should work if selection is at the beginning of paragraph, ' +
+						'that is placed after widget and empty paragraph',
+
+					'<imageBlock></imageBlock>' +
+					'<paragraph></paragraph>' +
+					'<paragraph>[]Foo</paragraph>',
+
+					// It's expected that selection will stay here, because the browser should move the caret.
+					{
+						keyCode: keyCodes.arrowup,
+						shiftKey: true
+					},
+
+					'<imageBlock></imageBlock>' +
+					'<paragraph></paragraph>' +
+					'<paragraph>[]Foo</paragraph>'
+				);
+
+				test(
+					'shift+arrow-down should work if selection is at the beginning of paragraph, ' +
+						'that is placed after widget and empty paragraph',
+
+					'<paragraph>Foo[]</paragraph>' +
+					'<paragraph></paragraph>' +
+					'<imageBlock></imageBlock>',
+
+					// It's expected that selection will stay here, because the browser should move the caret.
+					{
+						keyCode: keyCodes.arrowdown,
+						shiftKey: true
+					},
+
+					'<paragraph>Foo[]</paragraph>' +
+					'<paragraph></paragraph>' +
+					'<imageBlock></imageBlock>'
+				);
+			} );
+
 			describe( 'RTL (right-to-left) content', () => {
 				test(
 					'should move selection forward from selected object - left arrow',
@@ -994,9 +1986,1216 @@ describe( 'Widget', () => {
 			} );
 		} );
 
-		function test( name, data, actions, expected, expectedView, contentLanguageDirection = 'ltr' ) {
-			it( name, () => {
-				testUtils.sinon.stub( editor.locale, 'contentLanguageDirection' ).value( contentLanguageDirection );
+		describe( 'tab, shift+tab, esc', () => {
+			beforeEach( () => {
+				model.schema.register( 'table', {
+					inheritAllFrom: '$blockObject'
+				} );
+
+				model.schema.register( 'tableRow', {
+					allowIn: 'table',
+					isLimit: true
+				} );
+
+				model.schema.register( 'tableCell', {
+					allowContentOf: '$container',
+					allowIn: 'tableRow',
+					isLimit: true,
+					isSelectable: true
+				} );
+
+				model.schema.register( 'tableCellLimited', {
+					allowIn: 'tableCell',
+					allowContentOf: '$block',
+					isLimit: true
+				} );
+
+				editor.conversion.for( 'downcast' )
+					.elementToElement( {
+						model: 'table',
+						view: ( modelItem, { writer } ) => toWidget( writer.createContainerElement( 'div' ), writer )
+					} )
+					.elementToElement( {
+						model: 'tableRow',
+						view: 'div'
+					} )
+					.elementToElement( {
+						model: 'tableCell',
+						view: ( modelItem, { writer } ) => writer.createEditableElement( 'div', { contenteditable: true } )
+					} )
+					.elementToElement( {
+						model: 'tableCellLimited',
+						view: 'div'
+					} );
+
+				model.schema.extend( '$text', { allowAttributes: 'bold' } );
+
+				editor.conversion.for( 'downcast' )
+					.attributeToElement( { model: 'bold', view: 'b' } );
+			} );
+
+			describe( 'tab', () => {
+				test(
+					'should move selection into first nested editable when widget is selected',
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[a]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to widget when selection is before a widget',
+					'<paragraph>f[]oo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to next editable when selection is on a widget',
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[a]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to a next editable when other editable in widget is selected',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[a]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to a next editable when other editable in widget is selected (attribute element)',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[<$text bold="true">a</$text>]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph><$text bold="true">a</$text></paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to a next editable with limit element inside',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<tableCellLimited>[]a</tableCellLimited>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<tableCellLimited>b</tableCellLimited>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<tableCellLimited>a</tableCellLimited>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<tableCellLimited>[b]</tableCellLimited>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection after a widget if there is no more editable elements in the widget',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[]b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>[]bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to next widget when inside a nested editable element',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[]a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to top nested when selection is backward',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'[<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>]' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'[<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>]' +
+							'<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 },
+					{ lastRangeBackward: true }
+				);
+
+				test(
+					'should move selection to bottom nested when selection is forward',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'[<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>]' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'[<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>]' +
+							'<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[d]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 },
+					{ lastRangeBackward: false }
+				);
+
+				test(
+					'should move selection after widget when widget has no nested editable',
+					'<paragraph>foo</paragraph>[<widget></widget>]<paragraph>bar</paragraph>',
+					keyCodes.tab,
+					'<paragraph>foo</paragraph><widget></widget><paragraph>[]bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should not change selection when tab pressed outside widget and no following editable elements',
+					'<paragraph>foo</paragraph><widget><nested>abc</nested></widget><paragraph>[]bar</paragraph>',
+					keyCodes.tab,
+					'<paragraph>foo</paragraph><widget><nested>abc</nested></widget><paragraph>[]bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 0 }
+				);
+
+				test(
+					'should move selection to paragraph between widgets',
+					'<table><tableRow><tableCell><paragraph>[]a</paragraph></tableCell></tableRow></table>' +
+					'<paragraph>foo</paragraph>' +
+					'<table><tableRow><tableCell><paragraph>a</paragraph></tableCell></tableRow></table>',
+
+					keyCodes.tab,
+
+					'<table><tableRow><tableCell><paragraph>a</paragraph></tableCell></tableRow></table>' +
+					'<paragraph>[]foo</paragraph>' +
+					'<table><tableRow><tableCell><paragraph>a</paragraph></tableCell></tableRow></table>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to next editable when selection is in the last nested editable',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>[]a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection after nested widget when selection is in the last nested editable',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>[]a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+								'<paragraph>x</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+								'<paragraph>[]x</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should not select inline widget',
+					'<paragraph>f[]oo</paragraph>' +
+					'<paragraph>abc<inline-widget></inline-widget>def</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.tab,
+
+					'<paragraph>foo</paragraph>' +
+					'<paragraph>abc<inline-widget></inline-widget>def</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+			} );
+
+			describe( 'shift+tab', () => {
+				test(
+					'should move selection into last nested editable when widget is selected',
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to widget when selection is after a widget',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>ba[]r</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to a next editable when other editable in widget is selected',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[a]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to a next editable with limit element inside',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<tableCellLimited>a</tableCellLimited>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<tableCellLimited>[b]</tableCellLimited>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<tableCellLimited>[a]</tableCellLimited>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<tableCellLimited>b</tableCellLimited>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection after a widget if there is no more editable elements in the widget',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[]a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo[]</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to next widget if there is no more editables',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[]b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to top nested when selection is backward',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'[<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>]' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>' +
+							'[<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>]' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[a]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 },
+					{ lastRangeBackward: true }
+				);
+
+				test(
+					'should move selection to bottom nested when selection is forward',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'[<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>]' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>c</paragraph>' +
+							'</tableCell>' +
+							'[<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>]' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[c]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>d</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 },
+					{ lastRangeBackward: false }
+				);
+
+				test(
+					'should move selection before widget when widget has no nested editable',
+					'<paragraph>foo</paragraph>[<widget></widget>]<paragraph>bar</paragraph>',
+					{ keyCode: keyCodes.tab, shiftKey: true },
+					'<paragraph>foo[]</paragraph><widget></widget><paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should not change selection when shift+tab pressed outside widget and no following editable elements',
+					'<paragraph>foo[]</paragraph><widget><nested>abc</nested></widget><paragraph>bar</paragraph>',
+					{ keyCode: keyCodes.tab, shiftKey: true },
+					'<paragraph>foo[]</paragraph><widget><nested>abc</nested></widget><paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 0 }
+				);
+
+				test(
+					'should move selection to paragraph between widgets',
+					'<table><tableRow><tableCell><paragraph>a</paragraph></tableCell></tableRow></table>' +
+					'<paragraph>foo</paragraph>' +
+					'<table><tableRow><tableCell><paragraph>[]a</paragraph></tableCell></tableRow></table>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<table><tableRow><tableCell><paragraph>a</paragraph></tableCell></tableRow></table>' +
+					'<paragraph>foo[]</paragraph>' +
+					'<table><tableRow><tableCell><paragraph>a</paragraph></tableCell></tableRow></table>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection to next editable when selection is in the last nested editable',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>[]a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>[b]</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should move selection after nested widget when selection is in the last nested editable',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>x</paragraph>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>[]a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>b</paragraph>' +
+							'</tableCell>' +
+							'<tableCell>' +
+								'<paragraph>x[]</paragraph>' +
+								'<table>' +
+									'<tableRow>' +
+										'<tableCell>' +
+											'<paragraph>a</paragraph>' +
+										'</tableCell>' +
+									'</tableRow>' +
+								'</table>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should not select inline widget',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>abc<inline-widget></inline-widget>def</paragraph>' +
+					'<paragraph>b[]ar</paragraph>',
+
+					{ keyCode: keyCodes.tab, shiftKey: true },
+
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>abc<inline-widget></inline-widget>def</paragraph>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+			} );
+
+			describe( 'esc', () => {
+				test(
+					'should select widget when esc pressed inside nested editable',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>a[]bc</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.esc,
+
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>abc</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				test(
+					'should select widget when esc pressed inside widget but not inside nested editable',
+					'<paragraph>foo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'[<tableCell>' +
+								'<paragraph>abc</paragraph>' +
+							'</tableCell>]' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.esc,
+
+					'<paragraph>foo</paragraph>' +
+					'[<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>abc</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>]' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 1 }
+				);
+
+				it( 'should not handle esc when ancestor widget cannot be mapped to a model element', () => {
+					const preventDefaultSpy = vi.fn();
+					const stopPropagationSpy = vi.fn();
+
+					_setModelData(
+						model,
+						'<paragraph>foo</paragraph>' +
+						'<table>' +
+							'<tableRow>' +
+								'<tableCell>' +
+									'<paragraph>a[]bc</paragraph>' +
+								'</tableCell>' +
+							'</tableRow>' +
+						'</table>' +
+						'<paragraph>bar</paragraph>'
+					);
+
+					vi.spyOn( editor.editing.mapper, 'toModelElement' ).mockReturnValue( undefined );
+
+					viewDocument.fire( 'keydown', new ViewDocumentDomEventData(
+						viewDocument,
+						{
+							target: document.createElement( 'div' ),
+							preventDefault: preventDefaultSpy,
+							stopPropagation: stopPropagationSpy
+						},
+						{
+							keyCode: keyCodes.esc,
+							get keystroke() {
+								return getCode( this );
+							}
+						}
+					) );
+
+					expect( _getModelData( model ) ).toBe(
+						'<paragraph>foo</paragraph>' +
+						'<table>' +
+							'<tableRow>' +
+								'<tableCell>' +
+									'<paragraph>a[]bc</paragraph>' +
+								'</tableCell>' +
+							'</tableRow>' +
+						'</table>' +
+						'<paragraph>bar</paragraph>'
+					);
+					expect( preventDefaultSpy ).not.toHaveBeenCalled();
+					expect( stopPropagationSpy ).not.toHaveBeenCalled();
+				} );
+
+				test(
+					'should not change selection when esc pressed outside widget',
+					'<paragraph>f[]oo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>abc</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+
+					keyCodes.esc,
+
+					'<paragraph>f[]oo</paragraph>' +
+					'<table>' +
+						'<tableRow>' +
+							'<tableCell>' +
+								'<paragraph>abc</paragraph>' +
+							'</tableCell>' +
+						'</tableRow>' +
+					'</table>' +
+					'<paragraph>bar</paragraph>',
+					undefined,
+					undefined,
+					{ preventDefault: 0 }
+				);
+			} );
+		} );
+
+		function test( name, data, actions, expected, expectedView, contentLanguageDirection = 'ltr', stubCalls = null, modelOptions ) {
+			it( `${ name }`, () => {
+				vi.spyOn( editor.locale, 'contentLanguageDirection', 'get' ).mockReturnValue( contentLanguageDirection );
+
+				const preventDefaultSpy = vi.fn();
+				const stopPropagationSpy = vi.fn();
 
 				actions = toArray( actions );
 				actions = actions.map( action => {
@@ -1005,36 +3204,50 @@ describe( 'Widget', () => {
 					}
 
 					return {
-						keyCode: action
+						keyCode: action,
+						get keystroke() {
+							return getCode( this );
+						}
 					};
 				} );
 
-				setModelData( model, data );
+				_setModelData( model, data, modelOptions );
 
 				for ( const action of actions ) {
-					viewDocument.fire( 'keydown', new DomEventData(
+					viewDocument.fire( 'keydown', new ViewDocumentDomEventData(
 						viewDocument,
-						{ target: document.createElement( 'div' ), preventDefault() {}, stopPropagation() {} },
+						{
+							target: view.getDomRoot(),
+							preventDefault: preventDefaultSpy,
+							stopPropagation: stopPropagationSpy
+						},
 						action
 					) );
 				}
 
-				expect( getModelData( model ) ).to.equal( expected );
+				expect( _getModelData( model ) ).toBe( expected );
 
-				if ( expectedView ) {
-					expect( getViewData( view ) ).to.equal( expectedView );
-				}
+				// The view and stub assertions are optional. To avoid conditional expects, both sides
+				// are normalized to `null` when a given expectation is not provided.
+				const actualViewData = expectedView ? _getViewData( view ) : null;
+
+				expect( actualViewData ).toBe( expectedView || null );
+
+				const actualPreventDefaultCalls = stubCalls ? preventDefaultSpy.mock.calls.length : null;
+				const expectedPreventDefaultCalls = stubCalls ? stubCalls.preventDefault : null;
+
+				expect( actualPreventDefaultCalls, 'preventDefault' ).toBe( expectedPreventDefaultCalls );
 			} );
 		}
 	} );
 
 	describe( 'delete integration', () => {
 		function test( name, input, direction, expected ) {
-			it( name, () => {
-				setModelData( model, input );
-				const scrollStub = sinon.stub( view, 'scrollToTheSelection' );
+			it( `${ name }`, () => {
+				_setModelData( model, input );
+				const scrollStub = vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
 
-				viewDocument.fire( 'delete', new DomEventData( viewDocument, {
+				viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, {
 					preventDefault: () => {}
 				}, {
 					direction,
@@ -1043,8 +3256,8 @@ describe( 'Widget', () => {
 					inputType: direction == 'backward' ? 'deleteContentBackward' : 'deleteContentForward'
 				} ) );
 
-				expect( getModelData( model ) ).to.equal( expected );
-				scrollStub.restore();
+				expect( _getModelData( model ) ).toBe( expected );
+				scrollStub.mockRestore();
 			} );
 		}
 
@@ -1052,7 +3265,7 @@ describe( 'Widget', () => {
 		// cases like https://github.com/ckeditor/ckeditor5/issues/753.
 		// Originally, this test file used the Delete feature only which was not "integrational" enough.
 		it( 'tests are executed with the Typing feature', () => {
-			expect( editor.plugins.get( 'Typing' ) ).to.not.be.undefined;
+			expect( editor.plugins.get( 'Typing' ) ).not.toBeUndefined();
 		} );
 
 		test(
@@ -1238,14 +3451,14 @@ describe( 'Widget', () => {
 		);
 
 		it( 'should prevent default behaviour and stop event propagation', () => {
-			setModelData( model, '<paragraph>foo[]</paragraph><widget></widget>' );
-			const scrollStub = sinon.stub( view, 'scrollToTheSelection' );
-			const deleteSpy = sinon.spy();
-			const preventDefaultSpy = sinon.spy();
+			_setModelData( model, '<paragraph>foo[]</paragraph><widget></widget>' );
+			const scrollStub = vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+			const deleteSpy = vi.fn();
+			const preventDefaultSpy = vi.fn();
 
 			viewDocument.on( 'delete', deleteSpy );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, {
 				preventDefault: preventDefaultSpy
 			}, {
 				direction: 'forward',
@@ -1254,9 +3467,9 @@ describe( 'Widget', () => {
 				inputType: 'deleteContentForward'
 			} ) );
 
-			sinon.assert.calledOnce( preventDefaultSpy );
-			sinon.assert.notCalled( deleteSpy );
-			scrollStub.restore();
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+			expect( deleteSpy ).not.toHaveBeenCalled();
+			scrollStub.mockRestore();
 		} );
 
 		test(
@@ -1388,8 +3601,8 @@ describe( 'Widget', () => {
 		);
 
 		it( 'does nothing when editor when read only mode is enabled (delete)', () => {
-			const scrollStub = sinon.stub( view, 'scrollToTheSelection' );
-			setModelData( model,
+			const scrollStub = vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+			_setModelData( model,
 				'<paragraph>foo</paragraph>' +
 				'<imageBlock></imageBlock>' +
 				'<blockQuote><paragraph>[]</paragraph></blockQuote>' +
@@ -1398,8 +3611,8 @@ describe( 'Widget', () => {
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, {
-				preventDefault: sinon.spy()
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, {
+				preventDefault: vi.fn()
 			}, {
 				direction: 'backward',
 				unit: 'character',
@@ -1408,18 +3621,18 @@ describe( 'Widget', () => {
 				sequence: 0
 			} ) );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'<paragraph>foo</paragraph>' +
 				'<imageBlock></imageBlock>' +
 				'<blockQuote><paragraph>[]</paragraph></blockQuote>' +
 				'<paragraph>foo</paragraph>'
 			);
-			scrollStub.restore();
+			scrollStub.mockRestore();
 		} );
 
 		it( 'does nothing when editor when read only mode is enabled (delete forward)', () => {
-			const scrollStub = sinon.stub( view, 'scrollToTheSelection' );
-			setModelData( model,
+			const scrollStub = vi.spyOn( view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+			_setModelData( model,
 				'<paragraph>foo</paragraph>' +
 				'<imageBlock></imageBlock>' +
 				'<blockQuote><paragraph>[]</paragraph></blockQuote>' +
@@ -1428,8 +3641,8 @@ describe( 'Widget', () => {
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, {
-				preventDefault: sinon.spy()
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, {
+				preventDefault: vi.fn()
 			}, {
 				direction: 'forward',
 				unit: 'character',
@@ -1438,13 +3651,13 @@ describe( 'Widget', () => {
 				sequence: 0
 			} ) );
 
-			expect( getModelData( model ) ).to.equal(
+			expect( _getModelData( model ) ).toBe(
 				'<paragraph>foo</paragraph>' +
 				'<imageBlock></imageBlock>' +
 				'<blockQuote><paragraph>[]</paragraph></blockQuote>' +
 				'<paragraph>foo</paragraph>'
 			);
-			scrollStub.restore();
+			scrollStub.mockRestore();
 		} );
 	} );
 
@@ -1502,34 +3715,36 @@ describe( 'Widget', () => {
 		} );
 
 		it( 'should select a widget on mouse click', () => {
-			setModelData( model, '<paragraph>bar</paragraph><widget></widget><paragraph>foo[]</paragraph>' );
+			_setModelData( model, '<paragraph>bar</paragraph><widget></widget><paragraph>foo[]</paragraph>' );
 
 			const viewWidgetSelectionHandle = viewDocument.getRoot().getChild( 1 ).getChild( 0 );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom( viewWidgetSelectionHandle ),
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
-			expect( getModelData( model ) ).to.equal( '<paragraph>bar</paragraph>[<widget></widget>]<paragraph>foo</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>bar</paragraph>[<widget></widget>]<paragraph>foo</paragraph>' );
 		} );
 
 		it( 'should select the most top-outer widget if widgets are nested', () => {
-			setModelData( model, '<widget><widget></widget><widget></widget></widget>' );
+			_setModelData( model, '<widget><widget></widget><widget></widget></widget>' );
 
 			// The top-outer widget.
 			const viewWidgetSelectionHandle = viewDocument.getRoot().getChild( 0 );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom( viewWidgetSelectionHandle ),
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<div class="' +
 					'ck-widget ' +
 					'ck-widget_selected ck-widget_with-selection-handle" contenteditable="false"' +
@@ -1552,7 +3767,7 @@ describe( 'Widget', () => {
 		} );
 
 		it( 'should select a proper widget if they are nested and multiplied', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<widget></widget>' +
 				'<widget>' +
 					'<widget></widget>' +
@@ -1563,14 +3778,15 @@ describe( 'Widget', () => {
 
 			const viewWidgetSelectionHandle = viewDocument.getRoot().getChild( 1 );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom( viewWidgetSelectionHandle ),
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<div class="ck-widget ck-widget_with-selection-handle" ' +
 				'contenteditable="false">' +
 					'<div class="ck ck-widget__selection-handle"></div>' +
@@ -1604,7 +3820,7 @@ describe( 'Widget', () => {
 		} );
 
 		it( 'works fine with a widget that contains more children', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<widget>' +
 					'<nested>foo bar</nested>' +
 					'<widget></widget>' +
@@ -1613,14 +3829,15 @@ describe( 'Widget', () => {
 
 			const viewWidgetSelectionHandle = viewDocument.getRoot().getChild( 0 );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom( viewWidgetSelectionHandle ),
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'[<div class="' +
 					'ck-widget ' +
 					'ck-widget_selected ck-widget_with-selection-handle" contenteditable="false"' +
@@ -1637,7 +3854,7 @@ describe( 'Widget', () => {
 		} );
 
 		it( 'should select a proper widget for more complex structures', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<widget>' +
 					'<widget></widget>' +
 					'<widget>' +
@@ -1648,14 +3865,15 @@ describe( 'Widget', () => {
 
 			const viewWidgetSelectionHandle = viewDocument.getRoot().getChild( 0 ).getChild( 1 );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom( viewWidgetSelectionHandle ),
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<div class="' +
 					'ck-widget ' +
 					'ck-widget_with-selection-handle" contenteditable="false"' +
@@ -1687,18 +3905,19 @@ describe( 'Widget', () => {
 		it( 'should select widget in editable', () => {
 			model.schema.extend( 'widget', { allowIn: 'nested' } );
 
-			setModelData( model, '[]<widget><nested><widget></widget></nested></widget>' );
+			_setModelData( model, '[]<widget><nested><widget></widget></nested></widget>' );
 
 			const widgetInEditable = viewDocument.getRoot().getChild( 0 ).getChild( 0 ).getChild( 0 );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target: view.domConverter.mapViewToDom( widgetInEditable ),
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
-			expect( getViewData( view ) ).to.equal(
+			expect( _getViewData( view ) ).toBe(
 				'<div class="' +
 					'ck-widget ' +
 					'ck-widget_with-selection-handle" contenteditable="false"' +
@@ -1719,19 +3938,20 @@ describe( 'Widget', () => {
 		} );
 
 		it( 'should show the selection handle only for selected widget if widgets are nested', () => {
-			setModelData( model, '<widget><widget></widget><widget></widget></widget>' );
+			_setModelData( model, '<widget><widget></widget><widget></widget></widget>' );
 
 			// The top-outer widget.
 			const viewWidgetSelectionHandle = viewDocument.getRoot().getChild( 0 );
 
 			const target = view.domConverter.mapViewToDom( viewWidgetSelectionHandle );
 
-			const domEventDataMock = new DomEventData( view, {
+			const domEventDataMock = new ViewDocumentDomEventData( view, {
 				target,
-				preventDefault: sinon.spy()
+				isPrimary: true,
+				preventDefault: vi.fn()
 			} );
 
-			viewDocument.fire( 'mousedown', domEventDataMock );
+			viewDocument.fire( 'pointerdown', domEventDataMock );
 
 			// Get all selection handles for all widgets nested inside the top-most one.
 			const selectionHandles = target.querySelectorAll( ':scope .ck-widget .ck-widget__selection-handle' );
@@ -1739,8 +3959,37 @@ describe( 'Widget', () => {
 			for ( const selectionHandle of selectionHandles ) {
 				const opacity = window.getComputedStyle( selectionHandle ).getPropertyValue( 'opacity' );
 
-				expect( opacity ).to.equal( '0' );
+				expect( opacity ).toBe( '0' );
 			}
 		} );
 	} );
 } );
+
+function stubCaretPositionAt( domNode, offset ) {
+	const domDocument = domNode.ownerDocument;
+
+	if ( domDocument.caretPositionFromPoint ) {
+		vi.spyOn( domDocument, 'caretPositionFromPoint' ).mockReturnValue( { offsetNode: domNode, offset } );
+	}
+
+	vi.spyOn( domDocument, 'caretRangeFromPoint' ).mockImplementation( () => {
+		const domRange = domDocument.createRange();
+
+		domRange.setStart( domNode, offset );
+		domRange.collapse( true );
+
+		return domRange;
+	} );
+}
+
+function stubCaretFromPoint( domDocument, offsetNode = null ) {
+	if ( domDocument.caretPositionFromPoint ) {
+		vi
+			.spyOn( domDocument, 'caretPositionFromPoint' )
+			.mockReturnValue( offsetNode ? { offsetNode, offset: 0 } : null );
+	}
+
+	vi
+		.spyOn( domDocument, 'caretRangeFromPoint' )
+		.mockReturnValue( offsetNode ? {} : null );
+}

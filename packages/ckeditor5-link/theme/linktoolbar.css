@@ -1,0 +1,77 @@
+/*
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+
+:root,
+:host {
+	--ck-link-bookmark-icon-size: calc( var(--ck-icon-size) * 0.7); /* 0.7 = 14/20 cause default the icon size is 20px */
+}
+
+.ck.ck-toolbar.ck-link-toolbar {
+	& > .ck-toolbar__items {
+		flex-wrap: nowrap;
+	}
+}
+
+a.ck.ck-button.ck-link-toolbar__preview {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	padding: 0 var(--ck-spacing-medium, var(--ck-spacing-base));
+	color: var(--ck-color-link-default);
+	cursor: pointer;
+
+	& .ck.ck-button__label {
+		text-overflow: ellipsis;
+
+		/* Match the box model of the link editor form's input so the balloon
+		does not change width when moving between actions and the form. */
+		max-width: var(--ck-input-width);
+	}
+
+	&,
+	&:hover,
+	&:focus,
+	&:active {
+		background: none;
+	}
+
+	&:active {
+		box-shadow: none;
+	}
+
+	&:hover,
+	&:focus {
+		text-decoration: underline;
+	}
+
+	&.ck-button_with-text .ck.ck-icon.ck-button__icon {
+		width: var(--ck-link-bookmark-icon-size);
+		height: var(--ck-link-bookmark-icon-size);
+
+		[dir="ltr"] & {
+			margin-right: var(--ck-spacing-tiny, var(--ck-spacing-xs));
+			margin-left: var(--ck-spacing-small, var(--ck-spacing-sm));
+		}
+
+		[dir="rtl"] & {
+			margin-left: var(--ck-spacing-tiny, var(--ck-spacing-xs));
+			margin-right: var(--ck-spacing-small, var(--ck-spacing-sm));
+		}
+	}
+
+	&:has( .ck-icon ) {
+		padding-left: var(--ck-spacing-extra-tiny, var(--ck-spacing-2xs));
+	}
+}
+
+.ck.ck-link-toolbar__preview {
+	display: inline-block;
+
+	& .ck-button__label {
+		overflow: hidden;
+	}
+}

@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tableproperties/tablepropertiesui
  */
 
-import { type Editor, Plugin } from 'ckeditor5/src/core';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { IconTableProperties } from '@ckeditor/ckeditor5-icons';
 import {
 	ButtonView,
 	ContextualBalloon,
 	clickOutsideHandler,
 	getLocalizedColorOptions,
 	normalizeColorOptions,
-	type LabeledFieldView
-} from 'ckeditor5/src/ui';
+	type LabeledFieldView,
+	_DEFAULT_COLOR_GRID_COLUMNS as defaultColorGridColumns
+} from '@ckeditor/ckeditor5-ui';
 
-import { debounce } from 'lodash-es';
+import { debounce } from 'es-toolkit/compat';
 
-import TablePropertiesView from './ui/tablepropertiesview';
-import tableProperties from './../../theme/icons/table-properties.svg';
+import { TablePropertiesView } from './ui/tablepropertiesview.js';
 import {
 	colorFieldValidator,
 	getLocalizedColorErrorText,
@@ -28,14 +29,18 @@ import {
 	lengthFieldValidator,
 	lineWidthFieldValidator,
 	defaultColors
-} from '../utils/ui/table-properties';
-import { getTableWidgetAncestor } from '../utils/ui/widget';
-import { getBalloonTablePositionData, repositionContextualBalloon } from '../utils/ui/contextualballoon';
-import { getNormalizedDefaultProperties, type NormalizedDefaultProperties } from '../utils/table-properties';
-import type { Batch } from 'ckeditor5/src/engine';
-import type { EventInfo, ObservableChangeEvent } from 'ckeditor5/src/utils';
+} from '../utils/ui/table-properties.js';
+import { getSelectionAffectedTableWidget } from '../utils/ui/widget.js';
+import { getBalloonTablePositionData, repositionContextualBalloon } from '../utils/ui/contextualballoon.js';
+import {
+	getNormalizedDefaultProperties,
+	getNormalizedDefaultTableProperties,
+	type NormalizedDefaultProperties
+} from '../utils/table-properties.js';
+import type { Batch } from '@ckeditor/ckeditor5-engine';
+import type { EventInfo, ObservableChangeEvent } from '@ckeditor/ckeditor5-utils';
 
-import type TableBorderStyleCommand from './commands/tableborderstylecommand';
+import { type TableBorderStyleCommand } from './commands/tableborderstylecommand.js';
 
 const ERROR_TEXT_TIMEOUT = 500;
 
@@ -56,11 +61,16 @@ const propertyToCommandMap = {
  *
  * It uses the {@link module:ui/panel/balloon/contextualballoon~ContextualBalloon contextual balloon plugin}.
  */
-export default class TablePropertiesUI extends Plugin {
+export class TablePropertiesUI extends Plugin {
 	/**
 	 * The default table properties.
 	 */
-	private _defaultTableProperties!: NormalizedDefaultProperties;
+	private _defaultContentTableProperties!: NormalizedDefaultProperties;
+
+	/**
+	 * The default layout table properties.
+	 */
+	private _defaultLayoutTableProperties!: NormalizedDefaultProperties;
 
 	/**
 	 * The contextual balloon plugin instance.
@@ -71,6 +81,16 @@ export default class TablePropertiesUI extends Plugin {
 	 * The properties form view displayed inside the balloon.
 	 */
 	public view: TablePropertiesView | null = null;
+
+	/**
+	 * The properties form view displayed inside the balloon (content table).
+	 */
+	private _viewWithContentTableDefaults: TablePropertiesView | null = null;
+
+	/**
+	 * The properties form view displayed inside the balloon (layout table).
+	 */
+	private _viewWithLayoutTableDefaults: TablePropertiesView | null = null;
 
 	/**
 	 * The batch used to undo all changes made by the form (which are live, as the user types)
@@ -87,8 +107,8 @@ export default class TablePropertiesUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ContextualBalloon ] as const;
+	public static get requires(): PluginDependenciesOf<[ ContextualBalloon ]> {
+		return [ ContextualBalloon ];
 	}
 
 	/**
@@ -101,12 +121,20 @@ export default class TablePropertiesUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	constructor( editor: Editor ) {
 		super( editor );
 
 		editor.config.define( 'table.tableProperties', {
 			borderColors: defaultColors,
-			backgroundColors: defaultColors
+			backgroundColors: defaultColors,
+			colorGridColumns: defaultColorGridColumns
 		} );
 	}
 
@@ -115,33 +143,47 @@ export default class TablePropertiesUI extends Plugin {
 	 */
 	public init(): void {
 		const editor = this.editor;
-		const t = editor.t;
 
-		this._defaultTableProperties = getNormalizedDefaultProperties( editor.config.get( 'table.tableProperties.defaultProperties' )!, {
-			includeAlignmentProperty: true
-		} );
+		this._defaultContentTableProperties = getNormalizedDefaultTableProperties(
+			editor.config.get( 'table.tableProperties.defaultProperties' )!,
+			{
+				includeAlignmentProperty: true
+			}
+		);
+		this._defaultLayoutTableProperties = getNormalizedDefaultProperties();
+
 		this._balloon = editor.plugins.get( ContextualBalloon );
 
-		editor.ui.componentFactory.add( 'tableProperties', locale => {
-			const view = new ButtonView( locale );
+		editor.ui.componentFactory.add( 'tableProperties', () => this._createTablePropertiesButton() );
+	}
 
-			view.set( {
-				label: t( 'Table properties' ),
-				icon: tableProperties,
-				tooltip: true
-			} );
+	/**
+	 * Creates the table properties button.
+	 *
+	 * @internal
+	 */
+	public _createTablePropertiesButton(): ButtonView {
+		const editor = this.editor;
+		const t = editor.t;
 
-			this.listenTo( view, 'execute', () => this._showView() );
+		const view = new ButtonView( editor.locale );
 
-			const commands = Object.values( propertyToCommandMap )
-				.map( commandName => editor.commands.get( commandName )! );
-
-			view.bind( 'isEnabled' ).toMany( commands, 'isEnabled', ( ...areEnabled ) => (
-				areEnabled.some( isCommandEnabled => isCommandEnabled )
-			) );
-
-			return view;
+		view.set( {
+			label: t( 'Table properties' ),
+			icon: IconTableProperties,
+			tooltip: true
 		} );
+
+		this.listenTo( view, 'execute', () => this._showView() );
+
+		const commands = Object.values( propertyToCommandMap )
+			.map( commandName => editor.commands.get( commandName )! );
+
+		view.bind( 'isEnabled' ).toMany( commands, 'isEnabled', ( ...areEnabled ) => (
+			areEnabled.some( isCommandEnabled => isCommandEnabled )
+		) );
+
+		return view;
 	}
 
 	/**
@@ -162,7 +204,7 @@ export default class TablePropertiesUI extends Plugin {
 	 *
 	 * @returns The table properties form view instance.
 	 */
-	private _createPropertiesView() {
+	private _createPropertiesView( defaultTableProperties: NormalizedDefaultProperties ) {
 		const editor = this.editor;
 		const config = editor.config.get( 'table.tableProperties' )!;
 		const borderColorsConfig = normalizeColorOptions( config.borderColors! );
@@ -174,7 +216,8 @@ export default class TablePropertiesUI extends Plugin {
 		const view = new TablePropertiesView( editor.locale, {
 			borderColors: localizedBorderColors,
 			backgroundColors: localizedBackgroundColors,
-			defaultTableProperties: this._defaultTableProperties,
+			defaultTableProperties,
+			colorGridColumns: config.colorGridColumns!,
 			colorPickerConfig: hasColorPicker ? ( config.colorPicker || {} ) : false
 		} );
 		const t = editor.t;
@@ -280,7 +323,9 @@ export default class TablePropertiesUI extends Plugin {
 		Object.entries( propertyToCommandMap )
 			.map( ( [ property, commandName ] ) => {
 				const propertyKey = property as keyof typeof propertyToCommandMap;
-				const defaultValue = this._defaultTableProperties[ propertyKey ] || '';
+				const defaultValue = this.view === this._viewWithContentTableDefaults ?
+					this._defaultContentTableProperties[ propertyKey ] || '' :
+					this._defaultLayoutTableProperties[ propertyKey ] || '';
 
 				return [ propertyKey, ( commands.get( commandName )!.value || defaultValue ) as string ] as const;
 			} )
@@ -306,9 +351,17 @@ export default class TablePropertiesUI extends Plugin {
 	protected _showView(): void {
 		const editor = this.editor;
 
-		if ( !this.view ) {
-			this.view = this._createPropertiesView();
+		const viewTable = getSelectionAffectedTableWidget( editor.editing.view.document.selection );
+		const modelTable = viewTable && editor.editing.mapper.toModelElement( viewTable );
+		const useDefaults = !modelTable || modelTable.getAttribute( 'tableType' ) !== 'layout';
+
+		if ( useDefaults && !this._viewWithContentTableDefaults ) {
+			this._viewWithContentTableDefaults = this._createPropertiesView( this._defaultContentTableProperties );
+		} else if ( !useDefaults && !this._viewWithLayoutTableDefaults ) {
+			this._viewWithLayoutTableDefaults = this._createPropertiesView( this._defaultLayoutTableProperties );
 		}
+
+		this.view = useDefaults ? this._viewWithContentTableDefaults! : this._viewWithLayoutTableDefaults!;
 
 		this.listenTo( editor.ui, 'update', () => {
 			this._updateView();
@@ -357,7 +410,7 @@ export default class TablePropertiesUI extends Plugin {
 		const editor = this.editor;
 		const viewDocument = editor.editing.view.document;
 
-		if ( !getTableWidgetAncestor( viewDocument.selection ) ) {
+		if ( !getSelectionAffectedTableWidget( viewDocument.selection ) ) {
 			this._hideView();
 		} else if ( this._isViewVisible ) {
 			repositionContextualBalloon( editor, 'table' );

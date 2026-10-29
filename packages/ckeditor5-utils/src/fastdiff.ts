@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { DiffResult } from './diff';
-import type { Change } from './difftochanges';
 
 /**
  * @module utils/fastdiff
  */
+
+import type { DiffResult } from './diff.js';
+import type { Change } from './difftochanges.js';
 
 /**
  * Finds positions of the first and last change in the given string/array and generates a set of changes:
@@ -112,7 +112,7 @@ import type { Change } from './difftochanges';
  * @returns Array of changes. The elements are either {@link module:utils/diff~DiffResult} or {@link module:utils/difftochanges~Change},
  * depending on `atomicChanges` parameter.
  */
-export default function fastDiff<T, AtomicChanges extends boolean = false>(
+export function fastDiff<T, AtomicChanges extends boolean = false>(
 	a: ArrayLike<T>,
 	b: ArrayLike<T>,
 	cmp?: ( a: T, b: T ) => boolean,
@@ -126,7 +126,7 @@ export default function fastDiff<T, AtomicChanges extends boolean = false>(
 	// Convert the string (or any array-like object - eg. NodeList) to an array by using the slice() method because,
 	// unlike Array.from(), it returns array of UTF-16 code units instead of the code points of a string.
 	// One code point might be a surrogate pair of two code units. All text offsets are expected to be in code units.
-	// See ckeditor/ckeditor5#3147.
+	// See https://github.com/ckeditor/ckeditor5/issues/3147.
 	//
 	// We need to make sure here that fastDiff() works identical to diff().
 	const arrayA: Array<T> = Array.isArray( a ) ? a : Array.prototype.slice.call( a );

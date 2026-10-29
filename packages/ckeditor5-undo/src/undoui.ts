@@ -1,22 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module undo/undoui
  */
-
 import { Plugin } from '@ckeditor/ckeditor5-core';
-import { ButtonView } from '@ckeditor/ckeditor5-ui';
-
-import undoIcon from '../theme/icons/undo.svg';
-import redoIcon from '../theme/icons/redo.svg';
+import { ButtonView, MenuBarMenuListItemButtonView } from '@ckeditor/ckeditor5-ui';
+import { IconUndo, IconRedo } from '@ckeditor/ckeditor5-icons';
 
 /**
  * The undo UI feature. It introduces the `'undo'` and `'redo'` buttons to the editor.
  */
-export default class UndoUI extends Plugin {
+export class UndoUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -27,16 +24,23 @@ export default class UndoUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
 		const locale = editor.locale;
 		const t = editor.t;
 
-		const localizedUndoIcon = locale.uiLanguageDirection == 'ltr' ? undoIcon : redoIcon;
-		const localizedRedoIcon = locale.uiLanguageDirection == 'ltr' ? redoIcon : undoIcon;
+		const localizedUndoIcon = locale.uiLanguageDirection == 'ltr' ? IconUndo : IconRedo;
+		const localizedRedoIcon = locale.uiLanguageDirection == 'ltr' ? IconRedo : IconUndo;
 
-		this._addButton( 'undo', t( 'Undo' ), 'CTRL+Z', localizedUndoIcon );
-		this._addButton( 'redo', t( 'Redo' ), 'CTRL+Y', localizedRedoIcon );
+		this._addButtonsToFactory( 'undo', t( 'Undo' ), 'CTRL+Z', localizedUndoIcon );
+		this._addButtonsToFactory( 'redo', t( 'Redo' ), 'CTRL+Y', localizedRedoIcon );
 	}
 
 	/**
@@ -47,28 +51,52 @@ export default class UndoUI extends Plugin {
 	 * @param keystroke Command keystroke.
 	 * @param Icon Source of the icon.
 	 */
-	private _addButton( name: 'undo' | 'redo', label: string, keystroke: string, Icon: string ) {
+	private _addButtonsToFactory( name: 'undo' | 'redo', label: string, keystroke: string, Icon: string ) {
 		const editor = this.editor;
 
-		editor.ui.componentFactory.add( name, locale => {
-			const command = editor.commands.get( name )!;
-			const view = new ButtonView( locale );
+		editor.ui.componentFactory.add( name, () => {
+			const buttonView = this._createButton( ButtonView, name, label, keystroke, Icon );
 
-			view.set( {
-				label,
-				icon: Icon,
-				keystroke,
+			buttonView.set( {
 				tooltip: true
 			} );
 
-			view.bind( 'isEnabled' ).to( command, 'isEnabled' );
-
-			this.listenTo( view, 'execute', () => {
-				editor.execute( name );
-				editor.editing.view.focus();
-			} );
-
-			return view;
+			return buttonView;
 		} );
+
+		editor.ui.componentFactory.add( 'menuBar:' + name, () => {
+			return this._createButton( MenuBarMenuListItemButtonView, name, label, keystroke, Icon );
+		} );
+	}
+
+	/**
+	 * TODO
+	 */
+	private _createButton<T extends typeof ButtonView | typeof MenuBarMenuListItemButtonView>(
+		ButtonClass: T,
+		name: 'undo' | 'redo',
+		label: string,
+		keystroke: string,
+		Icon: string
+	): InstanceType<T> {
+		const editor = this.editor;
+		const locale = editor.locale;
+		const command = editor.commands.get( name )!;
+		const view = new ButtonClass( locale ) as InstanceType<T>;
+
+		view.set( {
+			label,
+			icon: Icon,
+			keystroke
+		} );
+
+		view.bind( 'isEnabled' ).to( command, 'isEnabled' );
+
+		this.listenTo( view, 'execute', () => {
+			editor.execute( name );
+			editor.editing.view.focus();
+		} );
+
+		return view;
 	}
 }

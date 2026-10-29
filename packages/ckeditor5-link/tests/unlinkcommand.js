@@ -1,18 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import UnlinkCommand from '../src/unlinkcommand';
-import LinkEditing from '../src/linkediting';
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { UnlinkCommand } from '../src/unlinkcommand.js';
+import { LinkEditing } from '../src/linkediting.js';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+import { LinkImageEditing } from '../src/linkimageediting.js';
+import { Image } from '@ckeditor/ckeditor5-image';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+
+function checkAssertions( ...assertions ) {
+	const errors = [];
+
+	for ( const assertFn of assertions ) {
+		try {
+			assertFn();
+
+			return;
+		} catch ( err ) {
+			errors.push( err.message );
+		}
+	}
+
+	throw new Error( errors.join( '\n\n' ) );
+}
 
 describe( 'UnlinkCommand', () => {
 	let editor, model, document, command;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return ModelTestEditor.create()
@@ -40,7 +58,7 @@ describe( 'UnlinkCommand', () => {
 				writer.setSelectionAttribute( 'linkHref', 'value' );
 			} );
 
-			expect( command.isEnabled ).to.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false when selection doesn\'t have `linkHref` attribute', () => {
@@ -48,7 +66,7 @@ describe( 'UnlinkCommand', () => {
 				writer.removeSelectionAttribute( 'linkHref' );
 			} );
 
-			expect( command.isEnabled ).to.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		describe( 'for block images', () => {
@@ -57,35 +75,35 @@ describe( 'UnlinkCommand', () => {
 			} );
 
 			it( 'should be true when an image is selected', () => {
-				setData( model, '[<imageBlock linkHref="foo"></imageBlock>]' );
+				_setModelData( model, '[<imageBlock linkHref="foo"></imageBlock>]' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true when an image and a text are selected', () => {
-				setData( model, '[<imageBlock linkHref="foo"></imageBlock>Foo]' );
+				_setModelData( model, '[<imageBlock linkHref="foo"></imageBlock>Foo]' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true when a text and an image are selected', () => {
-				setData( model, '[Foo<imageBlock linkHref="foo"></imageBlock>]' );
+				_setModelData( model, '[Foo<imageBlock linkHref="foo"></imageBlock>]' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true when two images are selected', () => {
-				setData( model, '[<imageBlock linkHref="foo"></imageBlock><imageBlock linkHref="foo"></imageBlock>]' );
+				_setModelData( model, '[<imageBlock linkHref="foo"></imageBlock><imageBlock linkHref="foo"></imageBlock>]' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be false when a fake image is selected', () => {
 				model.schema.register( 'fake', { isBlock: true, allowWhere: '$text' } );
 
-				setData( model, '[<fake></fake>]' );
+				_setModelData( model, '[<fake></fake>]' );
 
-				expect( command.isEnabled ).to.be.false;
+				expect( command.isEnabled ).toBe( false );
 			} );
 
 			it( 'should be false if an image does not accept the `linkHref` attribute in given context', () => {
@@ -95,9 +113,9 @@ describe( 'UnlinkCommand', () => {
 					}
 				} );
 
-				setData( model, '[<imageBlock></imageBlock>]' );
+				_setModelData( model, '[<imageBlock></imageBlock>]' );
 
-				expect( command.isEnabled ).to.be.false;
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 
@@ -112,29 +130,29 @@ describe( 'UnlinkCommand', () => {
 			} );
 
 			it( 'should be true when a linked inline image is selected', () => {
-				setData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>]</paragraph>' );
+				_setModelData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>]</paragraph>' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true when a linked inline image and a text are selected', () => {
-				setData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>Foo]</paragraph>' );
+				_setModelData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>Foo]</paragraph>' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true when a text and a linked inline image are selected', () => {
-				setData( model, '<paragraph>[Foo<imageInline linkHref="foo"></imageInline>]</paragraph>' );
+				_setModelData( model, '<paragraph>[Foo<imageInline linkHref="foo"></imageInline>]</paragraph>' );
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be true when two linked inline images are selected', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph>[<imageInline linkHref="foo"></imageInline><imageInline linkHref="foo"></imageInline>]</paragraph>'
 				);
 
-				expect( command.isEnabled ).to.be.true;
+				expect( command.isEnabled ).toBe( true );
 			} );
 
 			it( 'should be false if an inline image does not accept the `linkHref` attribute in given context', () => {
@@ -144,9 +162,9 @@ describe( 'UnlinkCommand', () => {
 					}
 				} );
 
-				setData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+				_setModelData( model, '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 
-				expect( command.isEnabled ).to.be.false;
+				expect( command.isEnabled ).toBe( false );
 			} );
 		} );
 	} );
@@ -154,20 +172,20 @@ describe( 'UnlinkCommand', () => {
 	describe( 'execute()', () => {
 		describe( 'non-collapsed selection', () => {
 			it( 'should remove `linkHref` attribute from selected text', () => {
-				setData( model, '<$text linkHref="url">f[ooba]r</$text>' );
+				_setModelData( model, '<$text linkHref="url">f[ooba]r</$text>' );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( '<$text linkHref="url">f</$text>[ooba]<$text linkHref="url">r</$text>' );
+				expect( _getModelData( model ) ).toBe( '<$text linkHref="url">f</$text>[ooba]<$text linkHref="url">r</$text>' );
 			} );
 
 			it( 'should remove `linkHref` attribute from selected text and do not modified other attributes', () => {
-				setData( model, '<$text bold="true" linkHref="url">f[ooba]r</$text>' );
+				_setModelData( model, '<$text bold="true" linkHref="url">f[ooba]r</$text>' );
 
 				command.execute();
 
 				const assertAll = () => {
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<$text bold="true" linkHref="url">f</$text>' +
 						'[<$text bold="true">ooba</$text>]' +
 						'<$text bold="true" linkHref="url">r</$text>'
@@ -175,25 +193,25 @@ describe( 'UnlinkCommand', () => {
 				};
 
 				const assertEdge = () => {
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<$text bold="true" linkHref="url">f</$text>' +
 						'[<$text bold="true">ooba]<$text linkHref="url">r</$text></$text>'
 					);
 				};
 
-				testUtils.checkAssertions( assertAll, assertEdge );
+				checkAssertions( assertAll, assertEdge );
 			} );
 
 			it( 'should remove `linkHref` attribute from selected text when attributes have different value', () => {
-				setData( model, '[<$text linkHref="url">foo</$text><$text linkHref="other url">bar</$text>]' );
+				_setModelData( model, '[<$text linkHref="url">foo</$text><$text linkHref="other url">bar</$text>]' );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( '[foobar]' );
+				expect( _getModelData( model ) ).toBe( '[foobar]' );
 			} );
 
 			it( 'should remove `linkHref` attribute from multiple blocks', () => {
-				setData( model,
+				_setModelData( model,
 					'<paragraph><$text linkHref="url">fo[oo</$text></paragraph>' +
 					'<paragraph><$text linkHref="url">123</$text></paragraph>' +
 					'<paragraph><$text linkHref="url">baa]ar</$text></paragraph>'
@@ -201,7 +219,7 @@ describe( 'UnlinkCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph><$text linkHref="url">fo</$text>[oo</paragraph>' +
 					'<paragraph>123</paragraph>' +
 					'<paragraph>baa]<$text linkHref="url">ar</$text></paragraph>'
@@ -209,11 +227,11 @@ describe( 'UnlinkCommand', () => {
 			} );
 
 			it( 'should remove `linkHref` attribute from selection', () => {
-				setData( model, '<$text linkHref="url">f[ooba]r</$text>' );
+				_setModelData( model, '<$text linkHref="url">f[ooba]r</$text>' );
 
 				command.execute();
 
-				expect( document.selection.hasAttribute( 'linkHref' ) ).to.false;
+				expect( document.selection.hasAttribute( 'linkHref' ) ).toBe( false );
 			} );
 
 			describe( 'for block elements allowing linkHref', () => {
@@ -222,35 +240,35 @@ describe( 'UnlinkCommand', () => {
 				} );
 
 				it( 'should remove the linkHref attribute when a linked block is selected', () => {
-					setData( model, '[<imageBlock linkHref="foo"></imageBlock>]' );
+					_setModelData( model, '[<imageBlock linkHref="foo"></imageBlock>]' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '[<imageBlock></imageBlock>]' );
+					expect( _getModelData( model ) ).toBe( '[<imageBlock></imageBlock>]' );
 				} );
 
 				it( 'should remove the linkHref attribute when a linked block and text are selected', () => {
-					setData( model, '[<imageBlock linkHref="foo"></imageBlock><paragraph>Foo]</paragraph>' );
+					_setModelData( model, '[<imageBlock linkHref="foo"></imageBlock><paragraph>Foo]</paragraph>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '[<imageBlock></imageBlock><paragraph>Foo]</paragraph>' );
+					expect( _getModelData( model ) ).toBe( '[<imageBlock></imageBlock><paragraph>Foo]</paragraph>' );
 				} );
 
 				it( 'should remove the linkHref attribute when a text and a linked block are selected', () => {
-					setData( model, '<paragraph>[Foo</paragraph><imageBlock linkHref="foo"></imageBlock>]' );
+					_setModelData( model, '<paragraph>[Foo</paragraph><imageBlock linkHref="foo"></imageBlock>]' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<paragraph>[Foo</paragraph><imageBlock></imageBlock>]' );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[Foo</paragraph><imageBlock></imageBlock>]' );
 				} );
 
 				it( 'should remove the linkHref attribute when two linked blocks are selected', () => {
-					setData( model, '[<imageBlock linkHref="foo"></imageBlock><imageBlock linkHref="bar"></imageBlock>]' );
+					_setModelData( model, '[<imageBlock linkHref="foo"></imageBlock><imageBlock linkHref="bar"></imageBlock>]' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '[<imageBlock></imageBlock><imageBlock></imageBlock>]' );
+					expect( _getModelData( model ) ).toBe( '[<imageBlock></imageBlock><imageBlock></imageBlock>]' );
 				} );
 			} );
 
@@ -265,37 +283,37 @@ describe( 'UnlinkCommand', () => {
 				} );
 
 				it( 'should be true when a linked inline element is selected', () => {
-					setData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>]</paragraph>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[<imageInline></imageInline>]</paragraph>' );
 				} );
 
 				it( 'should be true when a linked inline element and a text are selected', () => {
-					setData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>Foo]</paragraph>' );
+					_setModelData( model, '<paragraph>[<imageInline linkHref="foo"></imageInline>Foo]</paragraph>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<paragraph>[<imageInline></imageInline>Foo]</paragraph>' );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[<imageInline></imageInline>Foo]</paragraph>' );
 				} );
 
 				it( 'should be true when a text and a linked inline element are selected', () => {
-					setData( model, '<paragraph>[Foo<imageInline linkHref="foo"></imageInline>]</paragraph>' );
+					_setModelData( model, '<paragraph>[Foo<imageInline linkHref="foo"></imageInline>]</paragraph>' );
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal( '<paragraph>[Foo<imageInline></imageInline>]</paragraph>' );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[Foo<imageInline></imageInline>]</paragraph>' );
 				} );
 
 				it( 'should be true when two linked inline element are selected', () => {
-					setData( model,
+					_setModelData( model,
 						'<paragraph>[<imageInline linkHref="foo"></imageInline><imageInline linkHref="foo"></imageInline>]</paragraph>'
 					);
 
 					command.execute();
 
-					expect( getData( model ) ).to.equal(
+					expect( _getModelData( model ) ).toBe(
 						'<paragraph>[<imageInline></imageInline><imageInline></imageInline>]</paragraph>'
 					);
 				} );
@@ -304,16 +322,16 @@ describe( 'UnlinkCommand', () => {
 
 		describe( 'collapsed selection', () => {
 			it( 'should remove `linkHref` attribute from selection siblings with the same attribute value', () => {
-				setData( model, '<$text linkHref="url">foo[]bar</$text>' );
+				_setModelData( model, '<$text linkHref="url">foo[]bar</$text>' );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( 'foo[]bar' );
+				expect( _getModelData( model ) ).toBe( 'foo[]bar' );
 			} );
 
 			it( 'should remove `linkHref` attribute from selection siblings with the same attribute value and do not modify ' +
 				'other attributes', () => {
-				setData(
+				_setModelData(
 					model,
 					'<$text linkHref="other url">fo</$text>' +
 					'<$text linkHref="url">o[]b</$text>' +
@@ -322,7 +340,7 @@ describe( 'UnlinkCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<$text linkHref="other url">fo</$text>' +
 					'o[]b' +
 					'<$text linkHref="other url">ar</$text>'
@@ -331,7 +349,7 @@ describe( 'UnlinkCommand', () => {
 
 			it( 'should do nothing with nodes with the same `linkHref` value when there is a node with different value `linkHref` ' +
 				'attribute between', () => {
-				setData(
+				_setModelData(
 					model,
 					'<$text linkHref="same url">f</$text>' +
 					'<$text linkHref="other url">o</$text>' +
@@ -342,20 +360,19 @@ describe( 'UnlinkCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) )
-					.to.equal(
-						'<$text linkHref="same url">f</$text>' +
-						'<$text linkHref="other url">o</$text>' +
-						'o[]b' +
-						'<$text linkHref="other url">a</$text>' +
-						'<$text linkHref="same url">r</$text>'
-					);
+				expect( _getModelData( model ) ).toBe(
+					'<$text linkHref="same url">f</$text>' +
+					'<$text linkHref="other url">o</$text>' +
+					'o[]b' +
+					'<$text linkHref="other url">a</$text>' +
+					'<$text linkHref="same url">r</$text>'
+				);
 			} );
 
 			it( 'should remove `linkHref` attribute from selection siblings with the same attribute value ' +
 				'and do nothing with other attributes',
 			() => {
-				setData(
+				_setModelData(
 					model,
 					'<$text linkHref="url">f</$text>' +
 					'<$text bold="true" linkHref="url">o</$text>' +
@@ -366,7 +383,7 @@ describe( 'UnlinkCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'f' +
 					'<$text bold="true">o</$text>' +
 					'o[]b' +
@@ -376,7 +393,7 @@ describe( 'UnlinkCommand', () => {
 			} );
 
 			it( 'should remove `linkHref` attribute from selection siblings only in the same parent as selection parent', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph><$text linkHref="url">bar</$text></paragraph>' +
 					'<paragraph><$text linkHref="url">fo[]o</$text></paragraph>' +
@@ -385,7 +402,7 @@ describe( 'UnlinkCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<paragraph><$text linkHref="url">bar</$text></paragraph>' +
 					'<paragraph>fo[]o</paragraph>' +
 					'<paragraph><$text linkHref="url">bar</$text></paragraph>'
@@ -393,44 +410,44 @@ describe( 'UnlinkCommand', () => {
 			} );
 
 			it( 'should remove `linkHref` attribute from selection siblings when selection is at the end of link', () => {
-				setData( model, '<$text linkHref="url">foobar</$text>[]' );
+				_setModelData( model, '<$text linkHref="url">foobar</$text>[]' );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( 'foobar[]' );
+				expect( _getModelData( model ) ).toBe( 'foobar[]' );
 			} );
 
 			it( 'should remove `linkHref` attribute from selection siblings when selection is at the beginning of link', () => {
-				setData( model, '[]<$text linkHref="url">foobar</$text>' );
+				_setModelData( model, '[]<$text linkHref="url">foobar</$text>' );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( '[]foobar' );
+				expect( _getModelData( model ) ).toBe( '[]foobar' );
 			} );
 
 			it( 'should remove `linkHref` attribute from selection siblings on the left side when selection is between two elements with ' +
 				'different `linkHref` attributes',
 			() => {
-				setData( model, '<$text linkHref="url">foo</$text>[]<$text linkHref="other url">bar</$text>' );
+				_setModelData( model, '<$text linkHref="url">foo</$text>[]<$text linkHref="other url">bar</$text>' );
 
 				command.execute();
 
-				expect( getData( model ) ).to.equal( 'foo[]<$text linkHref="other url">bar</$text>' );
+				expect( _getModelData( model ) ).toBe( 'foo[]<$text linkHref="other url">bar</$text>' );
 			} );
 
 			it( 'should remove `linkHref` attribute from selection', () => {
-				setData( model, '<$text linkHref="url">foo[]bar</$text>' );
+				_setModelData( model, '<$text linkHref="url">foo[]bar</$text>' );
 
 				command.execute();
 
-				expect( document.selection.hasAttribute( 'linkHref' ) ).to.false;
+				expect( document.selection.hasAttribute( 'linkHref' ) ).toBe( false );
 			} );
 		} );
 	} );
 
 	describe( 'manual decorators', () => {
-		beforeEach( () => {
-			editor.destroy();
+		beforeEach( async () => {
+			await editor.destroy();
 			return ModelTestEditor.create( {
 				extraPlugins: [ LinkEditing ],
 				link: {
@@ -485,27 +502,68 @@ describe( 'UnlinkCommand', () => {
 		} );
 
 		it( 'should remove manual decorators from links together with linkHref', () => {
-			setData( model, '<$text linkIsFoo="true" linkIsBar="true" linkHref="url">f[]oobar</$text>' );
+			_setModelData( model, '<$text linkIsFoo="true" linkIsBar="true" linkHref="url">f[]oobar</$text>' );
 
 			command.execute();
 
-			expect( getData( model ) ).to.equal( 'f[]oobar' );
+			expect( _getModelData( model ) ).toBe( 'f[]oobar' );
 		} );
 
 		it( 'should remove manual decorators from linkable blocks together with linkHref', () => {
-			setData( model, '[<linkableBlock linkIsFoo="true" linkIsBar="true" linkHref="url"></linkableBlock>]' );
+			_setModelData( model, '[<linkableBlock linkIsFoo="true" linkIsBar="true" linkHref="url"></linkableBlock>]' );
 
 			command.execute();
 
-			expect( getData( model ) ).to.equal( '[<linkableBlock></linkableBlock>]' );
+			expect( _getModelData( model ) ).toBe( '[<linkableBlock></linkableBlock>]' );
 		} );
 
 		it( 'should remove manual decorators from linkable inline elements together with linkHref', () => {
-			setData( model, '<paragraph>[<linkableInline linkIsFoo="true" linkIsBar="true" linkHref="foo"></linkableInline>]</paragraph>' );
+			_setModelData( model,
+				'<paragraph>[<linkableInline linkIsFoo="true" linkIsBar="true" linkHref="foo"></linkableInline>]</paragraph>'
+			);
 
 			command.execute();
 
-			expect( getData( model ) ).to.equal( '<paragraph>[<linkableInline></linkableInline>]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>[<linkableInline></linkableInline>]</paragraph>' );
+		} );
+	} );
+
+	describe( '`Image` plugin integration', () => {
+		let editorElement;
+
+		beforeEach( async () => {
+			await editor.destroy();
+
+			editorElement = global.document.body.appendChild(
+				global.document.createElement( 'div' )
+			);
+
+			return ClassicTestEditor.create( editorElement, {
+				extraPlugins: [ LinkEditing, LinkImageEditing, Image ],
+				link: {
+					addTargetToExternalLinks: true
+				}
+			} )
+				.then( newEditor => {
+					editor = newEditor;
+					model = editor.model;
+					document = model.document;
+				} );
+		} );
+
+		afterEach( async () => {
+			await editor.destroy();
+			editorElement.remove();
+		} );
+
+		it( 'should not crash during removal of external `linkHref` from `imageBlock` when `Image` plugin is present', () => {
+			_setModelData( model, '[<imageBlock linkHref="url"></imageBlock>]' );
+
+			expect( () => {
+				editor.execute( 'unlink' );
+			} ).not.toThrow();
+
+			expect( _getModelData( model ) ).toBe( '[<imageBlock></imageBlock>]' );
 		} );
 	} );
 } );

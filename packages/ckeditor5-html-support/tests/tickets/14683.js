@@ -1,0 +1,54 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { LinkEditing } from '@ckeditor/ckeditor5-link';
+import { StyleEditing } from '@ckeditor/ckeditor5-style';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+import { GeneralHtmlSupport } from '../../src/generalhtmlsupport.js';
+
+describe( 'bug #14683', () => {
+	let editor, model, editorElement;
+
+	beforeEach( async () => {
+		editorElement = document.createElement( 'div' );
+		document.body.appendChild( editorElement );
+
+		editor = await ClassicTestEditor.create( editorElement, {
+			plugins: [ Paragraph, LinkEditing, GeneralHtmlSupport, StyleEditing ],
+			style: {
+				definitions: [
+					{
+						name: 'Button',
+						element: 'a',
+						classes: [ 'button' ]
+					}
+				]
+			}
+		} );
+
+		model = editor.model;
+	} );
+
+	afterEach( async () => {
+		editorElement.remove();
+
+		await editor.destroy();
+	} );
+
+	it( 'should not copy additional attributes for the link element after pressing Enter', () => {
+		_setModelData( model, '<paragraph><$text linkHref="example.com">foo[]</$text></paragraph>' );
+
+		editor.commands.get( 'style' ).execute( { styleName: 'Button' } );
+		editor.commands.get( 'enter' ).execute();
+
+		expect( _getModelData( model ) ).toBe(
+			'<paragraph><$text htmlA="{"classes":["button"]}" linkHref="example.com">foo</$text></paragraph>' +
+			'<paragraph>[]</paragraph>'
+		);
+	} );
+} );

@@ -1,9 +1,7 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-/* globals Node */
 
 /**
  * @module utils/dom/getancestors
@@ -18,13 +16,17 @@
  * @param node DOM node.
  * @returns Array of given `node` parents.
  */
-export default function getAncestors( node: Node ): Array<Node> {
+export function getAncestors( node: Node ): Array<Node> {
 	const nodes: Array<Node> = [];
 	let currentNode: Node | null = node;
 
 	// We are interested in `Node`s `DocumentFragment`s only.
 	while ( currentNode && currentNode.nodeType != Node.DOCUMENT_NODE ) {
 		nodes.unshift( currentNode );
+
+		// This walk deliberately does not cross shadow boundaries. It stops at the containing `DocumentFragment`
+		// (a `ShadowRoot` is one), which is the documented behavior of this function.
+		// eslint-disable-next-line ckeditor5-rules/no-shadow-unsafe-dom-apis
 		currentNode = currentNode.parentNode;
 	}
 

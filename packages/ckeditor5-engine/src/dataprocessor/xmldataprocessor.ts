@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/dataprocessor/xmldataprocessor
  */
 
-/* globals DOMParser */
+import { trustedHtml } from '@ckeditor/ckeditor5-utils';
 
-import BasicHtmlWriter from './basichtmlwriter';
-import DomConverter from '../view/domconverter';
+import { BasicHtmlWriter } from './basichtmlwriter.js';
+import { ViewDomConverter } from '../view/domconverter.js';
 
-import type DataProcessor from './dataprocessor';
-import type HtmlWriter from './htmlwriter';
-import type ViewDocument from '../view/document';
-import type ViewDocumentFragment from '../view/documentfragment';
-import type { MatcherPattern } from '../view/matcher';
+import { type DataProcessor } from './dataprocessor.js';
+import { type DataProcessorHtmlWriter } from './htmlwriter.js';
+import { type ViewDocument } from '../view/document.js';
+import { type ViewDocumentFragment } from '../view/documentfragment.js';
+import type { MatcherPattern } from '../view/matcher.js';
 
 /**
  * The XML data processor class.
@@ -24,7 +24,7 @@ import type { MatcherPattern } from '../view/matcher';
  * This class is needed because unlike HTML, XML allows to use any tag with any value.
  * For example, `<link>Text</link>` is a valid XML but invalid HTML.
  */
-export default class XmlDataProcessor implements DataProcessor {
+export class XmlDataProcessor implements DataProcessor {
 	/**
 	 * A list of namespaces allowed to use in the XML input.
 	 *
@@ -41,15 +41,28 @@ export default class XmlDataProcessor implements DataProcessor {
 	/**
 	 * DOM converter used to convert DOM elements to view elements.
 	 */
-	public domConverter: DomConverter;
+	public domConverter: ViewDomConverter;
 
 	/**
 	 * A basic HTML writer instance used to convert DOM elements to an XML string.
 	 * There is no need to use a dedicated XML writer because the basic HTML writer works well in this case.
 	 */
-	public htmlWriter: HtmlWriter;
+	public htmlWriter: DataProcessorHtmlWriter;
 
+	/**
+	 * If `false`, comment nodes will be converted. Otherwise, comment nodes are ignored.
+	 *
+	 * @default true
+	 */
 	public skipComments: boolean = true;
+
+	/**
+	 * If `false`, processing instruction nodes (for example `<?target data?>`) will be converted.
+	 * Otherwise, processing instruction nodes are ignored.
+	 *
+	 * @default true
+	 */
+	public skipProcessingInstructions: boolean = true;
 
 	/**
 	 * Creates a new instance of the XML data processor class.
@@ -61,19 +74,19 @@ export default class XmlDataProcessor implements DataProcessor {
 	constructor( document: ViewDocument, options: { namespaces?: Array<string> } = {} ) {
 		this.namespaces = options.namespaces || [];
 		this.domParser = new DOMParser();
-		this.domConverter = new DomConverter( document, { renderingMode: 'data' } );
+		this.domConverter = new ViewDomConverter( document, { renderingMode: 'data' } );
 		this.htmlWriter = new BasicHtmlWriter();
 	}
 
 	/**
-	 * Converts the provided {@link module:engine/view/documentfragment~DocumentFragment document fragment}
-	 * to data format &mdash; in this case an XML string.
+	 * Converts the provided {@link module:engine/view/documentfragment~ViewDocumentFragment document fragment}
+	 * to data format &ndash; in this case an XML string.
 	 *
 	 * @returns An XML string.
 	 */
 	public toData( viewFragment: ViewDocumentFragment ): string {
 		// Convert view DocumentFragment to DOM DocumentFragment.
-		const domFragment = this.domConverter.viewToDom( viewFragment ) as DocumentFragment;
+		const domFragment = this.domConverter.viewToDom( viewFragment );
 
 		// Convert DOM DocumentFragment to XML output.
 		// There is no need to use dedicated for XML serializing method because BasicHtmlWriter works well in this case.
@@ -95,7 +108,8 @@ export default class XmlDataProcessor implements DataProcessor {
 			domFragment,
 			{
 				keepOriginalCase: true,
-				skipComments: this.skipComments
+				skipComments: this.skipComments,
+				skipProcessingInstructions: this.skipProcessingInstructions
 			}
 		) as ViewDocumentFragment;
 	}
@@ -105,7 +119,7 @@ export default class XmlDataProcessor implements DataProcessor {
 	 * and not processed during the conversion from XML to view elements.
 	 *
 	 * The raw data can be later accessed by a
-	 * {@link module:engine/view/element~Element#getCustomProperty custom property of a view element} called `"$rawContent"`.
+	 * {@link module:engine/view/element~ViewElement#getCustomProperty custom property of a view element} called `"$rawContent"`.
 	 *
 	 * @param pattern Pattern matching all view elements whose content should be treated as raw data.
 	 */
@@ -139,7 +153,7 @@ export default class XmlDataProcessor implements DataProcessor {
 		// Wrap data into root element with optional namespace definitions.
 		data = `<xml ${ namespaces }>${ data }</xml>`;
 
-		const parsedDocument = this.domParser.parseFromString( data, 'text/xml' );
+		const parsedDocument = this.domParser.parseFromString( trustedHtml( data ), 'text/xml' );
 
 		// Parse validation.
 		const parserError = parsedDocument.querySelector( 'parsererror' );

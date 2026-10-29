@@ -1,0 +1,151 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+/**
+ * @module list/listformatting/listitemfontsizeintegration
+ */
+
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ViewElement } from '@ckeditor/ckeditor5-engine';
+import { env } from '@ckeditor/ckeditor5-utils';
+import { _normalizeFontSizeOptions } from '@ckeditor/ckeditor5-font';
+
+import { ListEditing } from '../list/listediting.js';
+import type { ListFormatting } from '../listformatting.js';
+
+/**
+ * The list item font size integration plugin.
+ */
+export class ListItemFontSizeIntegration extends Plugin {
+	/**
+	 * @inheritDoc
+	 */
+	public static get pluginName() {
+		return 'ListItemFontSizeIntegration' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ListEditing ]> {
+		return [ ListEditing ];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public init(): void {
+		const editor = this.editor;
+		const ListFormatting: ListFormatting = editor.plugins.get( 'ListFormatting' );
+		const listEditing = editor.plugins.get( ListEditing );
+
+		if ( !editor.plugins.has( 'FontSizeEditing' ) || !this.editor.config.get( 'list.enableListItemMarkerFormatting' ) ) {
+			return;
+		}
+
+		const normalizedFontSizeOptions = _normalizeFontSizeOptions( editor.config.get( 'fontSize.options' )! );
+
+		ListFormatting.registerFormatAttribute( 'fontSize', 'listItemFontSize' );
+
+		// Register the downcast strategy in init() so that the attribute name is registered before the list editing
+		// registers its converters.
+		// This ensures that the attribute is recognized by downcast strategies and bogus paragraphs are handled correctly.
+		listEditing.registerDowncastStrategy( {
+			scope: 'item',
+			attributeName: 'listItemFontSize',
+
+			setAttributeOnDowncast( writer, value: string, viewElement, options ) {
+				/* v8 ignore next -- Downcast callbacks are only registered for meaningful list marker formatting values. */
+				if ( value ) {
+					const fontSizeOption = normalizedFontSizeOptions.find( option => option.model == value );
+
+					if ( fontSizeOption && fontSizeOption.view && typeof fontSizeOption.view != 'string' ) {
+						if ( fontSizeOption.view.styles ) {
+							writer.addClass( 'ck-list-marker-font-size', viewElement );
+							writer.setStyle( '--ck-content-list-marker-font-size', fontSizeOption.view.styles[ 'font-size' ], viewElement );
+						}
+
+						/* v8 ignore next -- Normalized font size options used by the integration expose styles or classes. */
+						else if ( fontSizeOption.view.classes ) {
+							writer.addClass( `ck-list-marker-font-size-${ value }`, viewElement );
+
+							// See: https://github.com/ckeditor/ckeditor5/issues/18790.
+							if ( env.isSafari && !( options && options.dataPipeline ) ) {
+								writer.setStyle( '--ck-content-list-marker-dummy-font-size', '0', viewElement );
+							}
+						}
+					} else {
+						writer.addClass( 'ck-list-marker-font-size', viewElement );
+						writer.setStyle( '--ck-content-list-marker-font-size', value as string, viewElement );
+					}
+				}
+			}
+		} );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public afterInit(): void {
+		const editor = this.editor;
+		const model = editor.model;
+
+		if ( !editor.plugins.has( 'FontSizeEditing' ) || !this.editor.config.get( 'list.enableListItemMarkerFormatting' ) ) {
+			return;
+		}
+
+		model.schema.extend( '$listItem', { allowAttributes: 'listItemFontSize' } );
+		model.schema.setAttributeProperties( 'listItemFontSize', {
+			isFormatting: true
+		} );
+
+		model.schema.addAttributeCheck( context => {
+			const item = context.last;
+
+			if ( !item.getAttribute( 'listItemId' ) ) {
+				return false;
+			}
+		}, 'listItemFontSize' );
+
+		editor.conversion.for( 'upcast' ).elementToAttribute( {
+			model: {
+				key: 'listItemFontSize',
+				value: ( viewElement: ViewElement ) => viewElement.getStyle( '--ck-content-list-marker-font-size' )
+			},
+			view: {
+				name: 'li',
+				classes: 'ck-list-marker-font-size',
+				styles: {
+					'--ck-content-list-marker-font-size': /.*/
+				}
+			}
+		} );
+
+		const fontSizeOptions = _normalizeFontSizeOptions( editor.config.get( 'fontSize.options' )! );
+
+		for ( const option of fontSizeOptions ) {
+			/* v8 ignore next -- Normalized font size options used by the integration provide model and view values. */
+			if ( option.model && option.view ) {
+				editor.conversion.for( 'upcast' ).elementToAttribute( {
+					model: {
+						key: 'listItemFontSize',
+						value: option.model
+					},
+					view: {
+						name: 'li',
+						classes: `ck-list-marker-font-size-${ option.model }`
+					}
+				} );
+			}
+		}
+	}
+}

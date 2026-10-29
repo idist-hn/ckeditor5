@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /* eslint-disable @typescript-eslint/unified-signatures */
@@ -9,11 +9,11 @@
  * @module utils/observablemixin
  */
 
-import EmitterMixin, { type Emitter } from './emittermixin';
-import CKEditorError from './ckeditorerror';
-import type { Constructor, Mixed } from './mix';
+import { EmitterMixin, type Emitter } from './emittermixin.js';
+import { CKEditorError } from './ckeditorerror.js';
+import type { Constructor, Mixed } from './mix.js';
 
-import { isObject } from 'lodash-es';
+import { isObject } from 'es-toolkit/compat';
 
 const observablePropertiesSymbol = Symbol( 'observableProperties' );
 const boundObservablesSymbol = Symbol( 'boundObservables' );
@@ -22,7 +22,23 @@ const boundPropertiesSymbol = Symbol( 'boundProperties' );
 const decoratedMethods = Symbol( 'decoratedMethods' );
 const decoratedOriginal = Symbol( 'decoratedOriginal' );
 
-const defaultObservableClass = ObservableMixin( EmitterMixin() );
+// Keep this a plain alias. A conditional type does not work here: TypeScript cannot reduce a
+// conditional over an unresolved type parameter, so a generic wrapper around `ObservableMixin( base )`
+// silently loses the base class members. The default is a concrete nullary constructor, which
+// is why `undefined` is no longer a valid type argument.
+// See https://github.com/ckeditor/ckeditor5/issues/20238.
+/**
+ * Constructor returned by {@link ~ObservableMixin}. Use it to name a mixin base class before extending it.
+ *
+ * ```ts
+ * const MyObservableBase: ObservableMixinConstructor<typeof BaseClass> = ObservableMixin( BaseClass );
+ *
+ * class MyObservable extends MyObservableBase {}
+ * ```
+ */
+export type ObservableMixinConstructor<Base extends Constructor<Emitter> = new () => Emitter> = Mixed<Base, Observable>;
+
+const defaultObservableClass = /* #__PURE__ */ ObservableMixin( /* #__PURE__ */ EmitterMixin() );
 
 /**
  * A mixin that injects the "observable properties" and data binding functionality described in the
@@ -45,7 +61,7 @@ const defaultObservableClass = ObservableMixin( EmitterMixin() );
  *
  * @label EXTENDS
  */
-export default function ObservableMixin<Base extends Constructor<Emitter>>( base: Base ): Mixed<Base, Observable>;
+export function ObservableMixin<Base extends Constructor<Emitter>>( base: Base ): ObservableMixinConstructor<Base>;
 
 /**
  * A mixin that injects the "observable properties" and data binding functionality described in the
@@ -66,12 +82,9 @@ export default function ObservableMixin<Base extends Constructor<Emitter>>( base
  *
  * @label NO_ARGUMENTS
  */
-export default function ObservableMixin(): {
-	new (): Observable;
-	prototype: Observable;
-};
+export function ObservableMixin(): ObservableMixinConstructor;
 
-export default function ObservableMixin( base?: Constructor<Emitter> ): unknown {
+export function ObservableMixin( base?: Constructor<Emitter> ): unknown {
 	if ( !base ) {
 		return defaultObservableClass;
 	}
@@ -132,7 +145,8 @@ export default function ObservableMixin( base?: Constructor<Emitter> ): unknown 
 						newValue = value;
 					}
 
-					// Allow undefined as an initial value like A.define( 'x', undefined ) (#132).
+					// Allow undefined as an initial value like A.define( 'x', undefined ).
+					// See https://github.com/ckeditor/ckeditor5/issues/132.
 					// Note: When properties map has no such own property, then its value is undefined.
 					if ( oldValue !== newValue || !properties!.has( name ) ) {
 						properties!.set( name, newValue );
@@ -263,8 +277,8 @@ export default function ObservableMixin( base?: Constructor<Emitter> ): unknown 
 				 * Cannot decorate an undefined method.
 				 *
 				 * @error observablemixin-cannot-decorate-undefined
-				 * @param {Object} object The object which method should be decorated.
-				 * @param {String} methodName Name of the method which does not exist.
+				 * @param {object} object The object which method should be decorated.
+				 * @param {string} methodName Name of the method which does not exist.
 				 */
 				throw new CKEditorError(
 					'observablemixin-cannot-decorate-undefined',
@@ -319,21 +333,11 @@ export default function ObservableMixin( base?: Constructor<Emitter> ): unknown 
 
 		public [ boundPropertiesSymbol ]?: Map<string, Binding>;
 
-		public [ boundObservablesSymbol]?: Map<Observable, Record<string, Set<Binding>>>;
+		public [ boundObservablesSymbol ]?: Map<Observable, Record<string, Set<Binding>>>;
 	}
 
 	return Mixin;
 }
-
-// Backward compatibility with `mix`
-( [
-	'set', 'bind', 'unbind', 'decorate',
-	'on', 'once', 'off', 'listenTo',
-	'stopListening', 'fire', 'delegate', 'stopDelegating',
-	'_addEventListener', '_removeEventListener'
-] ).forEach( key => {
-	( ObservableMixin as any )[ key ] = ( defaultObservableClass.prototype as any )[ key ];
-} );
 
 interface Binding {
 
@@ -913,7 +917,7 @@ export interface Observable extends Emitter {
 	 */
 	bind<K extends keyof this & string>(
 		bindProperty: K
-	): SingleBindChain<K, this[ K ]>;
+	): ObservableSingleBindChain<K, this[ K ]>;
 
 	/**
 	 * Binds {@link #set observable properties} to other objects implementing the
@@ -992,7 +996,7 @@ export interface Observable extends Emitter {
 	bind<K1 extends keyof this & string, K2 extends keyof this & string>(
 		bindProperty1: K1,
 		bindProperty2: K2
-	): DualBindChain<K1, this[ K1 ], K2, this[ K2 ]>;
+	): ObservableDualBindChain<K1, this[ K1 ], K2, this[ K2 ]>;
 
 	/**
 	 * Binds {@link #set observable properties} to other objects implementing the
@@ -1067,7 +1071,7 @@ export interface Observable extends Emitter {
 	 * @param bindProperties Observable properties that will be bound to other observable(s).
 	 * @returns The bind chain with the `to()` and `toMany()` methods.
 	 */
-	bind( ...bindProperties: Array<keyof this & string> ): MultiBindChain;
+	bind( ...bindProperties: Array<keyof this & string> ): ObservableMultiBindChain;
 
 	/**
 	 * Removes the binding created with {@link #bind}.
@@ -1260,7 +1264,7 @@ export type DecoratedMethodEvent<
 	return: ReturnType<TObservable[ TName ]>;
 };
 
-interface SingleBindChain<TKey extends string, TVal> {
+export interface ObservableSingleBindChain<TKey extends string, TVal> {
 	toMany<O extends Observable, K extends keyof O>(
 		observables: ReadonlyArray<O>,
 		key: K,
@@ -1416,7 +1420,7 @@ export type ObservableWithProperty<TKey extends PropertyKey, TVal = any> = undef
 	Observable & { [ P in TKey ]?: TVal } :
 	Observable & { [ P in TKey ]: TVal };
 
-interface DualBindChain<TKey1 extends string, TVal1, TKey2 extends string, TVal2> {
+export interface ObservableDualBindChain<TKey1 extends string, TVal1, TKey2 extends string, TVal2> {
 	to<
 		O extends ObservableWithProperty<K1, TVal1> & ObservableWithProperty<K2, TVal2>,
 		K1 extends keyof O,
@@ -1434,6 +1438,6 @@ interface DualBindChain<TKey1 extends string, TVal1, TKey2 extends string, TVal2
 	): void;
 }
 
-interface MultiBindChain {
+export interface ObservableMultiBindChain {
 	to<O extends Observable>( observable: O, ...properties: Array<keyof O> ): void;
 }

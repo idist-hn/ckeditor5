@@ -1,19 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/toolbar/block/blockbuttonview
  */
 
-import ButtonView from '../../button/buttonview';
+import { ButtonView } from '../../button/buttonview.js';
 
 import { toUnit, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import '../../../theme/components/toolbar/blocktoolbar.css';
-
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * The block button view class.
@@ -22,7 +20,7 @@ const toPx = toUnit( 'px' );
  *
  * See {@link module:ui/toolbar/block/blocktoolbar~BlockToolbar}.
  */
-export default class BlockButtonView extends ButtonView {
+export class BlockButtonView extends ButtonView {
 	/**
 	 * Top offset.
 	 *

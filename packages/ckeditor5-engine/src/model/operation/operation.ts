@@ -1,38 +1,41 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-
-import type Batch from '../batch';
-import type Document from '../document';
-import type { Selectable } from '../selection';
 
 /**
  * @module engine/model/operation/operation
  */
 
+import { type Batch } from '../batch.js';
+import { type ModelDocument } from '../document.js';
+import type { ModelSelectable } from '../selection.js';
+
 /**
  * Abstract base operation class.
  */
-export default abstract class Operation {
+export abstract class Operation {
 	/**
-	 * {@link module:engine/model/document~Document#version} on which operation can be applied. If you try to
+	 * {@link module:engine/model/document~ModelDocument#version} on which operation can be applied. If you try to
 	 * {@link module:engine/model/model~Model#applyOperation apply} operation with different base version than the
-	 * {@link module:engine/model/document~Document#version document version} the
+	 * {@link module:engine/model/document~ModelDocument#version document version} the
 	 * {@link module:utils/ckeditorerror~CKEditorError model-document-applyOperation-wrong-version} error is thrown.
 	 */
 	public baseVersion: number | null;
 
 	/**
-	 * Defines whether operation is executed on attached or detached {@link module:engine/model/item~Item items}.
+	 * Defines whether operation is executed on attached or detached {@link module:engine/model/item~ModelItem items}.
 	 */
 	public readonly isDocumentOperation: boolean;
 
 	/**
 	 * {@link module:engine/model/batch~Batch Batch} to which the operation is added or `null` if the operation is not
 	 * added to any batch yet.
+	 *
+	 * Note, that a {@link #isDocumentOperation non-document operation} has this property always set to `null`, and is never added
+	 * to any batch.
 	 */
 	public batch: Batch | null;
 
@@ -44,7 +47,7 @@ export default abstract class Operation {
 	/**
 	 * Base operation constructor.
 	 *
-	 * @param baseVersion Document {@link module:engine/model/document~Document#version} on which operation
+	 * @param baseVersion Document {@link module:engine/model/document~ModelDocument#version} on which operation
 	 * can be applied or `null` if the operation operates on detached (non-document) tree.
 	 */
 	constructor( baseVersion: number | null ) {
@@ -58,7 +61,7 @@ export default abstract class Operation {
 	 *
 	 * The exact returned parameter differs between operation types.
 	 */
-	public abstract get affectedSelectable(): Selectable;
+	public abstract get affectedSelectable(): ModelSelectable;
 
 	/**
 	 * Creates and returns an operation that has the same parameters as this operation.
@@ -111,7 +114,7 @@ export default abstract class Operation {
 		// Remove reference to the parent `Batch` to avoid circular dependencies.
 		delete json.batch;
 
-		// Only document operations are shared with other clients so it is not necessary to keep this information.
+		// This can be derived from `baseVersion` so we can remove it.
 		delete json.isDocumentOperation;
 
 		return json;
@@ -128,9 +131,9 @@ export default abstract class Operation {
 	 * Creates `Operation` object from deserialized object, i.e. from parsed JSON string.
 	 *
 	 * @param json Deserialized JSON object.
-	 * @param doc Document on which this operation will be applied.
+	 * @param document Document on which this operation will be applied.
 	 */
-	public static fromJSON( json: any, document: Document ): Operation {
+	public static fromJSON( json: any, document: ModelDocument ): Operation {
 		return new ( this as any )( json.baseVersion );
 	}
 

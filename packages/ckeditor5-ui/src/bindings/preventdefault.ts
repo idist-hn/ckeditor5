@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/bindings/preventdefault
  */
 
-import type { ListenerBinding } from '../template';
-import type View from '../view';
+import type { ListenerBinding } from '../template.js';
+import { type View } from '../view.js';
 
 /**
  * A helper which executes a native `Event.preventDefault()` if the target of an event equals the
@@ -17,7 +17,7 @@ import type View from '../view';
  *
  * ```ts
  * // In a class extending View.
- * import preventDefault from '@ckeditor/ckeditor5-ui/src/bindings/preventdefault';
+ * import { preventDefault } from '@ckeditor/ckeditor5-ui/src/bindings/preventdefault';
  *
  * // ...
  *
@@ -32,8 +32,9 @@ import type View from '../view';
  * ```
  *
  * @param view View instance that defines the template.
+ * @internal
  */
-export default function preventDefault( view: View ): ListenerBinding {
+export function preventDefault( view: View ): ListenerBinding {
 	return view.bindTemplate.to( evt => {
 		if ( evt.target === view.element ) {
 			evt.preventDefault();

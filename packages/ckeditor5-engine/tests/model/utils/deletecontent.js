@@ -1,16 +1,19 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../../src/model/model';
-import Position from '../../../src/model/position';
-import Range from '../../../src/model/range';
-import Selection from '../../../src/model/selection';
-import Element from '../../../src/model/element';
-import deleteContent from '../../../src/model/utils/deletecontent';
-import { setData, getData } from '../../../src/dev-utils/model';
-import { stringify } from '../../../src/dev-utils/view';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Model } from '../../../src/model/model.js';
+import { ModelPosition } from '../../../src/model/position.js';
+import { ModelRange } from '../../../src/model/range.js';
+import { ModelSelection } from '../../../src/model/selection.js';
+import { ModelElement } from '../../../src/model/element.js';
+import { ModelWriter } from '../../../src/model/writer.js';
+import { ModelLivePosition } from '../../../src/model/liveposition.js';
+import { deleteContent } from '../../../src/model/utils/deletecontent.js';
+import { _setModelData, _getModelData, _parseModel, _stringifyModel } from '../../../src/dev-utils/model.js';
+import { _stringifyView } from '../../../src/dev-utils/view.js';
 
 describe( 'DataController utils', () => {
 	let model, doc;
@@ -22,11 +25,11 @@ describe( 'DataController utils', () => {
 			doc.createRoot();
 
 			model.schema.extend( '$text', { allowIn: '$root' } );
-			setData( model, 'x[abc]x' );
+			_setModelData( model, 'x[abc]x' );
 
 			model.change( writer => {
 				deleteContent( model, doc.selection );
-				expect( writer.batch.operations ).to.length( 1 );
+				expect( writer.batch.operations ).toHaveLength( 1 );
 			} );
 		} );
 
@@ -36,21 +39,21 @@ describe( 'DataController utils', () => {
 
 			const gy = model.document.graveyard;
 
-			gy._appendChild( new Element( 'paragraph' ) );
+			gy._appendChild( new ModelElement( 'paragraph' ) );
 
 			const baseVersion = model.document.baseVersion;
 
 			model.change( writer => {
-				sinon.spy( writer, 'remove' );
+				vi.spyOn( writer, 'remove' );
 
 				const selection = writer.createSelection( writer.createRangeIn( gy ) );
 
 				deleteContent( model, selection );
 
-				expect( writer.remove.called ).to.be.false;
+				expect( writer.remove ).not.toHaveBeenCalled();
 			} );
 
-			expect( model.document.baseVersion ).to.equal( baseVersion );
+			expect( model.document.baseVersion ).toBe( baseVersion );
 		} );
 
 		describe( 'in simple scenarios', () => {
@@ -66,18 +69,18 @@ describe( 'DataController utils', () => {
 			} );
 
 			it( 'should be able to delete content at custom selection', () => {
-				setData( model, 'a[]bcd' );
+				_setModelData( model, 'a[]bcd' );
 
-				const range = new Range(
-					new Position( doc.getRoot(), [ 2 ] ),
-					new Position( doc.getRoot(), [ 3 ] )
+				const range = new ModelRange(
+					new ModelPosition( doc.getRoot(), [ 2 ] ),
+					new ModelPosition( doc.getRoot(), [ 3 ] )
 				);
 
-				const selection = new Selection( [ range ] );
+				const selection = new ModelSelection( [ range ] );
 
 				model.change( () => {
 					deleteContent( model, selection );
-					expect( getData( model ) ).to.equal( 'a[]bd' );
+					expect( _getModelData( model ) ).toBe( 'a[]bd' );
 				} );
 			} );
 
@@ -94,11 +97,11 @@ describe( 'DataController utils', () => {
 			);
 
 			it( 'deletes single character (backward selection)', () => {
-				setData( model, 'f[o]o', { lastRangeBackward: true } );
+				_setModelData( model, 'f[o]o', { lastRangeBackward: true } );
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal( 'f[]o' );
+				expect( _getModelData( model ) ).toBe( 'f[]o' );
 			} );
 
 			test(
@@ -132,6 +135,70 @@ describe( 'DataController utils', () => {
 			);
 		} );
 
+		describe( 'in a detached document fragment', () => {
+			beforeEach( () => {
+				model = new Model();
+				doc = model.document;
+				doc.createRoot();
+
+				model.schema.register( 'paragraph', { inheritAllFrom: '$block' } );
+			} );
+
+			function parseFragment( data ) {
+				const { model: fragment, selection } = _parseModel( data, model.schema );
+
+				return { fragment, selection };
+			}
+
+			it( 'should delete content within a single block of a fragment', () => {
+				const { fragment, selection } = parseFragment(
+					'<paragraph>fo[ob]ar</paragraph><paragraph>baz</paragraph>'
+				);
+
+				deleteContent( model, selection );
+
+				expect( _stringifyModel( fragment, selection ) ).toBe(
+					'<paragraph>fo[]ar</paragraph><paragraph>baz</paragraph>'
+				);
+			} );
+
+			it( 'should merge blocks when deleting across elements of a fragment', () => {
+				const { fragment, selection } = parseFragment(
+					'<paragraph>fo[o</paragraph><paragraph>b]ar</paragraph>'
+				);
+
+				deleteContent( model, selection );
+
+				expect( _stringifyModel( fragment, selection ) ).toBe(
+					'<paragraph>fo[]ar</paragraph>'
+				);
+			} );
+
+			it( 'should keep the blocks unmerged when the `leaveUnmerged` option is set', () => {
+				const { fragment, selection } = parseFragment(
+					'<paragraph>fo[o</paragraph><paragraph>b]ar</paragraph>'
+				);
+
+				deleteContent( model, selection, { leaveUnmerged: true } );
+
+				expect( _stringifyModel( fragment, selection ) ).toBe(
+					'<paragraph>fo[]</paragraph><paragraph>ar</paragraph>'
+				);
+			} );
+
+			it( 'should use detached-root live positions for a fragment selection', () => {
+				const spy = vi.spyOn( ModelLivePosition, '_fromPositionInDocumentFragment' );
+
+				const { selection } = parseFragment(
+					'<paragraph>fo[o</paragraph><paragraph>b]ar</paragraph>'
+				);
+
+				deleteContent( model, selection );
+
+				expect( spy ).toHaveBeenCalledTimes( 2 );
+			} );
+		} );
+
 		describe( 'with text attributes', () => {
 			beforeEach( () => {
 				model = new Model();
@@ -147,37 +214,46 @@ describe( 'DataController utils', () => {
 					allowIn: '$root',
 					allowAttributes: [ 'bold', 'italic' ]
 				} );
+
+				schema.setAttributeProperties( 'bold', { isFormatting: true } );
+				schema.setAttributeProperties( 'italic', { isFormatting: true } );
 			} );
 
 			it( 'deletes characters (first half has attrs)', () => {
-				setData( model, '<$text bold="true">fo[o</$text>b]ar' );
+				_setModelData( model, '<$text bold="true">fo[o</$text>b]ar' );
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal( '<$text bold="true">fo[]</$text>ar' );
-				expect( doc.selection.getAttribute( 'bold' ) ).to.equal( true );
+				expect( _getModelData( model ) ).toBe( '<$text bold="true">fo[]</$text>ar' );
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
 			} );
 
 			it( 'deletes characters (2nd half has attrs)', () => {
-				setData( model, 'fo[o<$text bold="true">b]ar</$text>' );
+				_setModelData( model, 'fo[o<$text bold="true">b]ar</$text>' );
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal( 'fo[]<$text bold="true">ar</$text>' );
-				expect( doc.selection.getAttribute( 'bold' ) ).to.undefined;
+				expect( _getModelData( model ) ).toBe( 'fo[]<$text bold="true">ar</$text>' );
+				expect( doc.selection.getAttribute( 'bold' ) ).toBeUndefined();
 			} );
 
-			it( 'clears selection attrs when emptied content', () => {
-				setData( model, '<paragraph>x</paragraph><paragraph>[<$text bold="true">foo</$text>]</paragraph><paragraph>y</paragraph>' );
+			it( 'preserves selection attrs when emptied content', () => {
+				_setModelData( model,
+					'<paragraph>x</paragraph><paragraph><$text bold="true">[foo]</$text></paragraph><paragraph>y</paragraph>'
+				);
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal( '<paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>y</paragraph>' );
-				expect( doc.selection.getAttribute( 'bold' ) ).to.undefined;
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>x</paragraph>' +
+					'<paragraph selection:bold="true"><$text bold="true">[]</$text></paragraph>' +
+					'<paragraph>y</paragraph>'
+				);
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
 			} );
 
 			it( 'leaves selection attributes when text contains them', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>x<$text bold="true">a[foo]b</$text>y</paragraph>',
 					{
@@ -189,8 +265,288 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal( '<paragraph>x<$text bold="true">a[]b</$text>y</paragraph>' );
-				expect( doc.selection.getAttribute( 'bold' ) ).to.equal( true );
+				expect( _getModelData( model ) ).toBe( '<paragraph>x<$text bold="true">a[]b</$text>y</paragraph>' );
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'clears selection attrs when replacing the entire content with a paragraph', () => {
+				_setModelData(
+					model,
+					'<paragraph>[<$text bold="true">foo</$text></paragraph><paragraph>bar]</paragraph>',
+					{
+						selectionAttributes: {
+							bold: true
+						}
+					}
+				);
+
+				deleteContent( model, doc.selection );
+
+				expect( _getModelData( model ) ).toBe( '<paragraph>[]</paragraph>' );
+				expect( doc.selection.getAttribute( 'bold' ) ).toBeUndefined();
+			} );
+
+			it( 'preserves selection attrs when deleting the entire content of a single paragraph', () => {
+				_setModelData(
+					model,
+					'<paragraph>[<$text bold="true">foo</$text>]</paragraph>',
+					{
+						selectionAttributes: {
+							bold: true
+						}
+					}
+				);
+
+				deleteContent( model, doc.selection );
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph selection:bold="true"><$text bold="true">[]</$text></paragraph>'
+				);
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'does not restore attrs when the live selection is already in an unrelated empty paragraph', () => {
+				const setSelectionAttributeSpy = vi.spyOn( ModelWriter.prototype, 'setSelectionAttribute' );
+
+				_setModelData(
+					model,
+					'<paragraph>[]</paragraph>' +
+					'<paragraph>foo</paragraph>' +
+					'<paragraph>bar</paragraph>',
+					{
+						selectionAttributes: {
+							bold: true
+						}
+					}
+				);
+				setSelectionAttributeSpy.mockClear();
+
+				const range = new ModelRange(
+					new ModelPosition( doc.getRoot(), [ 1, 0 ] ),
+					new ModelPosition( doc.getRoot(), [ 1, 3 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( setSelectionAttributeSpy ).not.toHaveBeenCalled();
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph selection:bold="true"><$text bold="true">[]</$text></paragraph>' +
+					'<paragraph></paragraph>' +
+					'<paragraph>bar</paragraph>'
+				);
+			} );
+
+			it( 'does not restore attrs when the document selection anchor was in an already empty paragraph', () => {
+				const setSelectionAttributeSpy = vi.spyOn( ModelWriter.prototype, 'setSelectionAttribute' );
+
+				// Paragraph 0 ("x") and paragraph 3 ("y") are outside the selection so that
+				// shouldEntireContentBeReplacedWithParagraph() returns false and the normal
+				// deletion path is taken. Paragraph 1 is empty – this is where the selection
+				// will be anchored. Paragraph 2 contains the content that will be deleted.
+				_setModelData(
+					model,
+					'<paragraph>x</paragraph>' +
+					'<paragraph>[]</paragraph>' +
+					'<paragraph><$text bold="true">foo</$text></paragraph>' +
+					'<paragraph>y</paragraph>'
+				);
+
+				// Extend the document selection so it is non-collapsed but still anchored
+				// inside the already-empty paragraph 1.
+				model.change( writer => {
+					const root = doc.getRoot();
+
+					writer.setSelection( writer.createRange(
+						writer.createPositionAt( root.getChild( 1 ), 0 ),
+						writer.createPositionAt( root.getChild( 2 ), 'end' )
+					) );
+					writer.setSelectionAttribute( 'bold', true );
+				} );
+
+				setSelectionAttributeSpy.mockClear();
+
+				deleteContent( model, doc.selection );
+
+				// The anchor paragraph was already empty before the deletion, so attributes
+				// must not be restored – the user did not have the caret inside formatted content.
+				expect( setSelectionAttributeSpy ).not.toHaveBeenCalled();
+			} );
+
+			it( 'does not restore a non-formatting attribute when deleting the entire content of a paragraph', () => {
+				const schema = model.schema;
+
+				schema.extend( '$text', {
+					allowAttributes: [ 'linkHref' ]
+				} );
+
+				_setModelData(
+					model,
+					'<paragraph>[<$text linkHref="http://example.com">foo</$text>]</paragraph>',
+					{
+						selectionAttributes: {
+							linkHref: 'http://example.com'
+						}
+					}
+				);
+
+				deleteContent( model, doc.selection );
+
+				expect( _getModelData( model ) ).toBe( '<paragraph>[]</paragraph>' );
+				expect( doc.selection.getAttribute( 'linkHref' ) ).toBeUndefined();
+			} );
+		} );
+
+		describe( 'selection relation detection (isRelatedToDocumentSelection)', () => {
+			beforeEach( () => {
+				model = new Model();
+				doc = model.document;
+				doc.createRoot();
+
+				const schema = model.schema;
+
+				schema.register( 'paragraph', { inheritAllFrom: '$block' } );
+				schema.extend( '$text', {
+					allowAttributes: [ 'bold' ]
+				} );
+				schema.setAttributeProperties( 'bold', { isFormatting: true } );
+			} );
+
+			it( 'restores attributes when selection is the DocumentSelection instance', () => {
+				_setModelData(
+					model,
+					'<paragraph><$text bold="true">[foo]</$text></paragraph>'
+				);
+
+				deleteContent( model, doc.selection );
+
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'restores attributes when document selection is collapsed at the start of the given range', () => {
+				_setModelData(
+					model,
+					'<paragraph><$text bold="true">[]foo</$text></paragraph>'
+				);
+
+				const root = doc.getRoot();
+				const range = new ModelRange(
+					new ModelPosition( root, [ 0, 0 ] ),
+					new ModelPosition( root, [ 0, 3 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'restores attributes when document selection is collapsed at the end of the given range', () => {
+				_setModelData(
+					model,
+					'<paragraph><$text bold="true">foo[]</$text></paragraph>'
+				);
+
+				const root = doc.getRoot();
+				const range = new ModelRange(
+					new ModelPosition( root, [ 0, 0 ] ),
+					new ModelPosition( root, [ 0, 3 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'does not restore attributes when document selection is collapsed at an unrelated position', () => {
+				const setSelectionAttributeSpy = vi.spyOn( ModelWriter.prototype, 'setSelectionAttribute' );
+
+				_setModelData(
+					model,
+					'<paragraph><$text bold="true">[]abc</$text></paragraph>' +
+					'<paragraph>foo</paragraph>'
+				);
+				setSelectionAttributeSpy.mockClear();
+
+				const root = doc.getRoot();
+				const range = new ModelRange(
+					new ModelPosition( root, [ 1, 0 ] ),
+					new ModelPosition( root, [ 1, 3 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( setSelectionAttributeSpy ).not.toHaveBeenCalled();
+			} );
+
+			it( 'restores attributes when non-collapsed document selection intersects the given range', () => {
+				_setModelData(
+					model,
+					'<paragraph><$text bold="true">[abc</$text></paragraph>' +
+					'<paragraph>fo]o</paragraph>'
+				);
+
+				const root = doc.getRoot();
+				const range = new ModelRange(
+					new ModelPosition( root, [ 0, 1 ] ),
+					new ModelPosition( root, [ 1, 3 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'restores attributes when non-collapsed document selection intersects the given range (other side)', () => {
+				_setModelData(
+					model,
+					'<paragraph>foo</paragraph>' +
+					'<paragraph><$text bold="true">a[bc]</$text></paragraph>'
+				);
+
+				const root = doc.getRoot();
+				const range = new ModelRange(
+					new ModelPosition( root, [ 0, 0 ] ),
+					new ModelPosition( root, [ 1, 2 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( doc.selection.getAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'does not restore attributes when non-collapsed document selection does not intersect the given range', () => {
+				const setSelectionAttributeSpy = vi.spyOn( ModelWriter.prototype, 'setSelectionAttribute' );
+
+				_setModelData(
+					model,
+					'<paragraph><$text bold="true">[abc]</$text></paragraph>' +
+					'<paragraph>foo</paragraph>' +
+					'<paragraph>bar</paragraph>'
+				);
+				setSelectionAttributeSpy.mockClear();
+
+				const root = doc.getRoot();
+				const range = new ModelRange(
+					new ModelPosition( root, [ 2, 0 ] ),
+					new ModelPosition( root, [ 2, 3 ] )
+				);
+
+				const selection = new ModelSelection( [ range ] );
+
+				deleteContent( model, selection );
+
+				expect( setSelectionAttributeSpy ).not.toHaveBeenCalled();
 			} );
 		} );
 
@@ -244,15 +600,29 @@ describe( 'DataController utils', () => {
 			);
 
 			test(
-				'do not remove end block if selection ends at start position of it',
+				'do not merge end block if selection ends at start position of it',
 				'<paragraph>x</paragraph><paragraph>[foo</paragraph><paragraph>]bar</paragraph><paragraph>y</paragraph>',
 				'<paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>bar</paragraph><paragraph>y</paragraph>'
 			);
 
 			test(
-				'do not remove end block if selection ends at start position of it (multiple paragraphs)',
+				'do not merge end block if selection ends at start position of it (multiple paragraphs)',
 				'<paragraph>x</paragraph><paragraph>[foo</paragraph><paragraph>a</paragraph><paragraph>]bar</paragraph>',
 				'<paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>bar</paragraph>'
+			);
+
+			test(
+				'merge end block if selection ends at start position of it with `doNotFixSelection` option',
+				'<paragraph>x</paragraph><paragraph>[foo</paragraph><paragraph>]bar</paragraph><paragraph>y</paragraph>',
+				'<paragraph>x</paragraph><paragraph>[]bar</paragraph><paragraph>y</paragraph>',
+				{ doNotFixSelection: true }
+			);
+
+			test(
+				'merge end block if selection ends at start position of it with `doNotFixSelection` option (multiple paragraphs)',
+				'<paragraph>x</paragraph><paragraph>[foo</paragraph><paragraph>a</paragraph><paragraph>]bar</paragraph>',
+				'<paragraph>x</paragraph><paragraph>[]bar</paragraph>',
+				{ doNotFixSelection: true }
 			);
 
 			test(
@@ -309,7 +679,7 @@ describe( 'DataController utils', () => {
 			// If https://github.com/ckeditor/ckeditor5-engine/issues/470 was fixed we could differently treat
 			// forward and backward delete.
 			it( 'merges second element into the first one (different name, backward selection)', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>x</paragraph><heading1>fo[o</heading1><paragraph>b]ar</paragraph><paragraph>y</paragraph>',
 					{ lastRangeBackward: true }
@@ -317,7 +687,7 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal( '<paragraph>x</paragraph><heading1>fo[]ar</heading1><paragraph>y</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>x</paragraph><heading1>fo[]ar</heading1><paragraph>y</paragraph>' );
 			} );
 
 			test(
@@ -359,78 +729,78 @@ describe( 'DataController utils', () => {
 			it( 'uses merge operation even if merged element is empty', () => {
 				let mergeSpy;
 
-				setData( model, '<paragraph>ab[cd</paragraph><paragraph>efgh]</paragraph>' );
+				_setModelData( model, '<paragraph>ab[cd</paragraph><paragraph>efgh]</paragraph>' );
 
 				model.change( writer => {
-					mergeSpy = sinon.spy( writer, 'merge' );
+					mergeSpy = vi.spyOn( writer, 'merge' );
 					deleteContent( model, doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal( '<paragraph>ab[]</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>ab[]</paragraph>' );
 
-				expect( mergeSpy.called ).to.be.true;
+				expect( mergeSpy ).toHaveBeenCalled();
 			} );
 
 			it( 'uses merge operation even if merged element is empty #2', () => {
 				let mergeSpy;
 
-				setData( model, '<paragraph>ab[</paragraph><paragraph>]</paragraph>' );
+				_setModelData( model, '<paragraph>ab[</paragraph><paragraph>]</paragraph>' );
 
 				model.change( writer => {
-					mergeSpy = sinon.spy( writer, 'merge' );
+					mergeSpy = vi.spyOn( writer, 'merge' );
 					deleteContent( model, doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal( '<paragraph>ab[]</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>ab[]</paragraph>' );
 
-				expect( mergeSpy.called ).to.be.true;
+				expect( mergeSpy ).toHaveBeenCalled();
 			} );
 
 			it( 'uses "merge" operation (from OT) if first element is empty (because of content delete) and last is not', () => {
 				let mergeSpy;
 
-				setData( model, '<paragraph>[abcd</paragraph><paragraph>ef]gh</paragraph>' );
+				_setModelData( model, '<paragraph>[abcd</paragraph><paragraph>ef]gh</paragraph>' );
 
 				model.change( writer => {
-					mergeSpy = sinon.spy( writer, 'merge' );
+					mergeSpy = vi.spyOn( writer, 'merge' );
 					deleteContent( model, doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal( '<paragraph>[]gh</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>[]gh</paragraph>' );
 
-				expect( mergeSpy.called ).to.be.true;
+				expect( mergeSpy ).toHaveBeenCalled();
 			} );
 
 			it( 'uses merge operation if first element is empty and last is not', () => {
 				let mergeSpy;
 
-				setData( model, '<paragraph>[</paragraph><paragraph>ef]gh</paragraph>' );
+				_setModelData( model, '<paragraph>[</paragraph><paragraph>ef]gh</paragraph>' );
 
 				model.change( writer => {
-					mergeSpy = sinon.spy( writer, 'merge' );
+					mergeSpy = vi.spyOn( writer, 'merge' );
 					deleteContent( model, doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal( '<paragraph>[]gh</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>[]gh</paragraph>' );
 
-				expect( mergeSpy.called ).to.be.true;
+				expect( mergeSpy ).toHaveBeenCalled();
 			} );
 
 			it( 'does not try to move the second block if not needed', () => {
 				let mergeSpy, moveSpy;
 
-				setData( model, '<paragraph>ab[cd</paragraph><paragraph>ef]gh</paragraph>' );
+				_setModelData( model, '<paragraph>ab[cd</paragraph><paragraph>ef]gh</paragraph>' );
 
 				model.change( writer => {
-					mergeSpy = sinon.spy( writer, 'merge' );
-					moveSpy = sinon.spy( writer, 'move' );
+					mergeSpy = vi.spyOn( writer, 'merge' );
+					moveSpy = vi.spyOn( writer, 'move' );
 					deleteContent( model, doc.selection );
 				} );
 
-				expect( getData( model ) ).to.equal( '<paragraph>ab[]gh</paragraph>' );
+				expect( _getModelData( model ) ).toBe( '<paragraph>ab[]gh</paragraph>' );
 
-				expect( moveSpy.called ).to.be.false;
-				expect( mergeSpy.called ).to.be.true;
+				expect( moveSpy ).not.toHaveBeenCalled();
+				expect( mergeSpy ).toHaveBeenCalled();
 			} );
 
 			// Note: in all these cases we ignore the direction of merge.
@@ -687,7 +1057,7 @@ describe( 'DataController utils', () => {
 
 			describe( 'with markers', () => {
 				it( 'should merge left if the first element is not empty', () => {
-					setData( model, '<heading1>foo[</heading1><paragraph>]bar</paragraph>' );
+					_setModelData( model, '<heading1>foo[</heading1><paragraph>]bar</paragraph>' );
 
 					model.enqueueChange( { isUndoable: false }, writer => {
 						const root = doc.getRoot( );
@@ -700,11 +1070,11 @@ describe( 'DataController utils', () => {
 
 					deleteContent( model, doc.selection );
 
-					expect( getData( model ) ).to.equal( '<heading1>foo[]bar</heading1>' );
+					expect( _getModelData( model ) ).toBe( '<heading1>foo[]bar</heading1>' );
 				} );
 
 				it( 'should merge right if the first element is empty', () => {
-					setData( model, '<heading1>[</heading1><paragraph>]bar</paragraph>' );
+					_setModelData( model, '<heading1>[</heading1><paragraph>]bar</paragraph>' );
 
 					model.enqueueChange( { isUndoable: false }, writer => {
 						const root = doc.getRoot( );
@@ -717,11 +1087,11 @@ describe( 'DataController utils', () => {
 
 					deleteContent( model, doc.selection );
 
-					expect( getData( model ) ).to.equal( '<paragraph>[]bar</paragraph>' );
+					expect( _getModelData( model ) ).toBe( '<paragraph>[]bar</paragraph>' );
 				} );
 
 				it( 'should merge left if the last element is empty', () => {
-					setData( model, '<heading1>foo[</heading1><paragraph>]</paragraph>' );
+					_setModelData( model, '<heading1>foo[</heading1><paragraph>]</paragraph>' );
 
 					model.enqueueChange( { isUndoable: false }, writer => {
 						const root = doc.getRoot( );
@@ -734,7 +1104,7 @@ describe( 'DataController utils', () => {
 
 					deleteContent( model, doc.selection );
 
-					expect( getData( model ) ).to.equal( '<heading1>foo[]</heading1>' );
+					expect( _getModelData( model ) ).toBe( '<heading1>foo[]</heading1>' );
 				} );
 			} );
 
@@ -833,7 +1203,7 @@ describe( 'DataController utils', () => {
 					isLimit: true
 				} );
 
-				setData(
+				_setModelData(
 					model,
 					'x[<imageBlock></imageBlock><imageBlock></imageBlock>]z',
 					{ rootName: 'paragraphRoot' }
@@ -841,12 +1211,12 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'paragraphRoot' } ) )
-					.to.equal( 'x[]z' );
+				expect( _getModelData( model, { rootName: 'paragraphRoot' } ) )
+					.toBe( 'x[]z' );
 			} );
 
 			it( 'moves the (custom) selection to the nearest paragraph', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>[x]</paragraph><paragraph>yyy</paragraph><paragraph>z</paragraph>',
 					{ rootName: 'bodyRoot' }
@@ -855,21 +1225,21 @@ describe( 'DataController utils', () => {
 				const root = doc.getRoot( 'bodyRoot' );
 
 				// [<paragraph>yyy</paragraph>]
-				const selection = new Selection( [
-					new Range( new Position( root, [ 1 ] ), new Position( root, [ 2 ] ) )
+				const selection = new ModelSelection( [
+					new ModelRange( new ModelPosition( root, [ 1 ] ), new ModelPosition( root, [ 2 ] ) )
 				] );
 
 				deleteContent( model, selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph>[x]</paragraph><paragraph></paragraph><paragraph>z</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph>[x]</paragraph><paragraph></paragraph><paragraph>z</paragraph>' );
 
-				expect( stringify( root, selection ) )
-					.to.equal( '<$root><paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>z</paragraph></$root>' );
+				expect( _stringifyView( root, selection ) )
+					.toBe( '<$root><paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>z</paragraph></$root>' );
 			} );
 
 			it( 'creates a paragraph when text is not allowed (block widget selected)', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>x</paragraph>[<blockWidget></blockWidget>]<paragraph>z</paragraph>',
 					{ rootName: 'bodyRoot' }
@@ -877,50 +1247,50 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>z</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph>x</paragraph><paragraph>[]</paragraph><paragraph>z</paragraph>' );
 			} );
 
 			it( 'creates paragraph when text is not allowed (heading selected)', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>x</paragraph><heading1>yyy</heading1><paragraph>z</paragraph>',
 					{ rootName: 'bodyRoot' }
 				);
 
 				// [<heading1>yyy</heading1>]
-				const range = new Range(
-					new Position( doc.getRoot( 'bodyRoot' ), [ 1 ] ),
-					new Position( doc.getRoot( 'bodyRoot' ), [ 2 ] )
+				const range = new ModelRange(
+					new ModelPosition( doc.getRoot( 'bodyRoot' ), [ 1 ] ),
+					new ModelPosition( doc.getRoot( 'bodyRoot' ), [ 2 ] )
 				);
 
-				deleteContent( model, new Selection( range ) );
+				deleteContent( model, new ModelSelection( range ) );
 
-				expect( getData( model, { rootName: 'bodyRoot', withoutSelection: true } ) )
-					.to.equal( '<paragraph>x</paragraph><paragraph></paragraph><paragraph>z</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot', withoutSelection: true } ) )
+					.toBe( '<paragraph>x</paragraph><paragraph></paragraph><paragraph>z</paragraph>' );
 			} );
 
 			it( 'creates paragraph when text is not allowed (two blocks selected)', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>x</paragraph><heading1>yyy</heading1><paragraph>yyy</paragraph><paragraph>z</paragraph>',
 					{ rootName: 'bodyRoot' }
 				);
 
 				// [<heading1>yyy</heading1><paragraph>yyy</paragraph>]
-				const range = new Range(
-					new Position( doc.getRoot( 'bodyRoot' ), [ 1 ] ),
-					new Position( doc.getRoot( 'bodyRoot' ), [ 3 ] )
+				const range = new ModelRange(
+					new ModelPosition( doc.getRoot( 'bodyRoot' ), [ 1 ] ),
+					new ModelPosition( doc.getRoot( 'bodyRoot' ), [ 3 ] )
 				);
 
-				deleteContent( model, new Selection( range ) );
+				deleteContent( model, new ModelSelection( range ) );
 
-				expect( getData( model, { rootName: 'bodyRoot', withoutSelection: true } ) )
-					.to.equal( '<paragraph>x</paragraph><paragraph></paragraph><paragraph>z</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot', withoutSelection: true } ) )
+					.toBe( '<paragraph>x</paragraph><paragraph></paragraph><paragraph>z</paragraph>' );
 			} );
 
 			it( 'creates paragraph when text is not allowed (all content selected)', () => {
-				setData(
+				_setModelData(
 					model,
 					'[<heading1>x</heading1><paragraph>z</paragraph>]',
 					{ rootName: 'bodyRoot' }
@@ -928,12 +1298,12 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph>[]</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph>[]</paragraph>' );
 			} );
 
 			it( 'does not create a paragraph when it is not allowed', () => {
-				setData(
+				_setModelData(
 					model,
 					'<blockWidget></blockWidget>[<blockWidget></blockWidget>]<blockWidget></blockWidget>',
 					{ rootName: 'restrictedRoot' }
@@ -941,12 +1311,12 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'restrictedRoot' } ) )
-					.to.equal( '<blockWidget></blockWidget>[]<blockWidget></blockWidget>' );
+				expect( _getModelData( model, { rootName: 'restrictedRoot' } ) )
+					.toBe( '<blockWidget></blockWidget>[]<blockWidget></blockWidget>' );
 			} );
 
 			it( 'does not create a paragraph when doNotAutoparagraph option is set to true', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>x</paragraph>[<blockWidget></blockWidget>]<paragraph>z</paragraph>',
 					{ rootName: 'bodyRoot' }
@@ -954,12 +1324,12 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection, { doNotAutoparagraph: true } );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph>x[]</paragraph><paragraph>z</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph>x[]</paragraph><paragraph>z</paragraph>' );
 			} );
 
 			it( 'does not create a paragraph when after deletion there is no valid selection range (empty root)', () => {
-				setData(
+				_setModelData(
 					model,
 					'[<blockWidget></blockWidget>]',
 					{ rootName: 'bodyRoot' }
@@ -969,11 +1339,11 @@ describe( 'DataController utils', () => {
 				model.change( () => {
 					deleteContent( model, doc.selection, { doNotAutoparagraph: true } );
 
-					expect( getData( model, { rootName: 'bodyRoot' } ) ).to.equal( '[]' );
+					expect( _getModelData( model, { rootName: 'bodyRoot' } ) ).toBe( '[]' );
 				} );
 
 				// Note that auto-paragraphing post-fixer injected a paragraph into the empty root.
-				expect( getData( model, { rootName: 'bodyRoot' } ) ).to.equal( '<paragraph>[]</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) ).toBe( '<paragraph>[]</paragraph>' );
 			} );
 
 			it( 'creates a paragraph that inherits a deleted block widget attribute with copyOnReplace property', () => {
@@ -989,7 +1359,7 @@ describe( 'DataController utils', () => {
 					copyOnReplace: true
 				} );
 
-				setData(
+				_setModelData(
 					model,
 					'[<blockWidget foo="true"></blockWidget>]',
 					{ rootName: 'bodyRoot' }
@@ -997,8 +1367,8 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph foo="true">[]</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph foo="true">[]</paragraph>' );
 			} );
 
 			it( 'creates a paragraph that inherits a deleted block widget attributes with copyOnReplace property', () => {
@@ -1018,7 +1388,7 @@ describe( 'DataController utils', () => {
 					copyOnReplace: true
 				} );
 
-				setData(
+				_setModelData(
 					model,
 					'[<blockWidget bar="true" foo="true"></blockWidget>]',
 					{ rootName: 'bodyRoot' }
@@ -1026,8 +1396,8 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph bar="true" foo="true">[]</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph bar="true" foo="true">[]</paragraph>' );
 			} );
 
 			it( 'creates a paragraph that does not inherit a deleted block widget attribute without copyOnReplace property', () => {
@@ -1039,7 +1409,7 @@ describe( 'DataController utils', () => {
 					allowAttributes: 'foo'
 				} );
 
-				setData(
+				_setModelData(
 					model,
 					'[<blockWidget foo="true"></blockWidget>]',
 					{ rootName: 'bodyRoot' }
@@ -1047,8 +1417,8 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph>[]</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph>[]</paragraph>' );
 			} );
 
 			it( 'creates a paragraph that does not inherit a deleted block widget attribute if it is not allowed on paragraph', () => {
@@ -1060,7 +1430,7 @@ describe( 'DataController utils', () => {
 					copyOnReplace: true
 				} );
 
-				setData(
+				_setModelData(
 					model,
 					'[<blockWidget foo="true"></blockWidget>]',
 					{ rootName: 'bodyRoot' }
@@ -1068,8 +1438,8 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'bodyRoot' } ) )
-					.to.equal( '<paragraph>[]</paragraph>' );
+				expect( _getModelData( model, { rootName: 'bodyRoot' } ) )
+					.toBe( '<paragraph>[]</paragraph>' );
 			} );
 		} );
 
@@ -1182,7 +1552,7 @@ describe( 'DataController utils', () => {
 
 			// See: https://github.com/ckeditor/ckeditor5/issues/1265.
 			it( 'should proper merge two elements which are inside limit element', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockLimit>' +
 						'<blockQuote>' +
 							'<paragraph>Foo</paragraph>' +
@@ -1194,7 +1564,7 @@ describe( 'DataController utils', () => {
 				model.modifySelection( doc.selection, { direction: 'backward' } );
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<blockLimit>' +
 						'<blockQuote>' +
 							'<paragraph>Foo[]Bar</paragraph>' +
@@ -1203,7 +1573,7 @@ describe( 'DataController utils', () => {
 			} );
 
 			it( 'should proper merge elements which are inside limit element (nested elements)', () => {
-				setData( model,
+				_setModelData( model,
 					'<blockQuote>' +
 						'<blockLimit>' +
 							'<blockQuote>' +
@@ -1220,7 +1590,7 @@ describe( 'DataController utils', () => {
 				model.modifySelection( doc.selection, { direction: 'backward' } );
 				deleteContent( model, doc.selection );
 
-				expect( getData( model ) ).to.equal(
+				expect( _getModelData( model ) ).toBe(
 					'<blockQuote>' +
 						'<blockLimit>' +
 							'<blockQuote>' +
@@ -1317,7 +1687,7 @@ describe( 'DataController utils', () => {
 			it( 'when root element was not added as Schema limits work fine as well', () => {
 				doc.createRoot( 'paragraph', 'paragraphRoot' );
 
-				setData(
+				_setModelData(
 					model,
 					'x[<imageBlock></imageBlock><imageBlock></imageBlock>]z',
 					{ rootName: 'paragraphRoot' }
@@ -1325,8 +1695,8 @@ describe( 'DataController utils', () => {
 
 				deleteContent( model, doc.selection );
 
-				expect( getData( model, { rootName: 'paragraphRoot' } ) )
-					.to.equal( 'x[]z' );
+				expect( _getModelData( model, { rootName: 'paragraphRoot' } ) )
+					.toBe( 'x[]z' );
 			} );
 
 			test(
@@ -1340,14 +1710,14 @@ describe( 'DataController utils', () => {
 		} );
 
 		function test( title, input, output, options ) {
-			it( title, () => {
+			it( `${ title }`, () => {
 				model.enqueueChange( { isUndoable: false }, () => {
-					setData( model, input );
+					_setModelData( model, input );
 
 					deleteContent( model, doc.selection, options );
 				} );
 
-				expect( getData( model ) ).to.equal( output );
+				expect( _getModelData( model ) ).toBe( output );
 			} );
 		}
 	} );

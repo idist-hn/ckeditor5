@@ -1,18 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import viewToPlainText from '../../src/utils/viewtoplaintext';
-
-import { parse as parseView } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ViewDomConverter, StylesProcessor, ViewDocument, ViewDowncastWriter, _parseView } from '@ckeditor/ckeditor5-engine';
+import { viewToPlainText } from '../../src/utils/viewtoplaintext.js';
 
 describe( 'viewToPlainText()', () => {
-	function testViewToPlainText( viewString, expectedText ) {
-		const view = parseView( viewString );
-		const text = viewToPlainText( view );
+	let converter, viewDocument;
 
-		expect( text ).to.equal( expectedText );
+	beforeEach( () => {
+		viewDocument = new ViewDocument( new StylesProcessor() );
+		converter = new ViewDomConverter( viewDocument );
+	} );
+
+	afterEach( () => {
+		viewDocument.destroy();
+	} );
+
+	function testViewToPlainText( viewString, expectedText ) {
+		const view = _parseView( viewString );
+		const text = viewToPlainText( converter, view );
+
+		expect( text ).toBe( expectedText );
 	}
 
 	it( 'should output text contents of given view', () => {
@@ -32,6 +43,18 @@ describe( 'viewToPlainText()', () => {
 
 			'Header\n\nFoo\n\nBar\n\nAbc\n\nXyz'
 		);
+	} );
+
+	it( 'should not put empty line before or after the element with `dataPipeline:transparentRendering` property', () => {
+		const viewString = 'Abc <container:h1>Header</container:h1> xyz';
+		const expectedText = 'Abc Header xyz';
+
+		const view = _parseView( viewString );
+		view.getChild( 1 )._setCustomProperty( 'dataPipeline:transparentRendering', true );
+
+		const text = viewToPlainText( converter, view );
+
+		expect( text ).toBe( expectedText );
 	} );
 
 	it( 'should turn a soft break into a single empty line', () => {
@@ -64,7 +87,7 @@ describe( 'viewToPlainText()', () => {
 			'<container:p>Foo</container:p>' +
 			'<container:ul>' +
 				'<container:li>A</container:li>' +
-				'<container:li>B</container:li>' +
+				'<container:li><strong>B</strong></container:li>' +
 				'<container:li>C</container:li>' +
 			'</container:ul>' +
 			'<container:p>Bar</container:p>',
@@ -85,4 +108,62 @@ describe( 'viewToPlainText()', () => {
 			'Foo\n\nAlt\nCaption\n\nBar'
 		);
 	} );
+
+	it( 'should add two line breaks between document list items', () => {
+		testViewToPlainText(
+			'<container:p>Foo</container:p>' +
+			'<ul>' +
+				'<li><container:p>A</container:p></li>' +
+				'<li><container:p>B</container:p></li>' +
+				'<li><container:p>C</container:p></li>' +
+			'</ul>' +
+			'<container:p>Bar</container:p>',
+
+			'Foo\n\nA\n\nB\n\nC\n\nBar'
+		);
+	} );
+
+	it( 'should add line breaks between two document lists with one item each', () => {
+		testViewToPlainText(
+			'<container:p>Foo</container:p>' +
+			'<ul>' +
+				'<li><span>A</span></li>' +
+			'</ul>' +
+			'<ol>' +
+				'<li><span>B</span></li>' +
+			'</ol>' +
+			'<container:p>Bar</container:p>',
+
+			'Foo\n\nA\n\nB\n\nBar'
+		);
+	} );
+
+	it( 'should convert a view RawElement', () => {
+		const writer = new ViewDowncastWriter( viewDocument );
+		const rawElement = writer.createRawElement( 'div', { 'data-foo': 'bar' }, function( domElement ) {
+			domElement.innerHTML = '<p>Foo</p><br><p>Bar</p>';
+		} );
+		const text = viewToPlainText( converter, rawElement );
+
+		expect( text ).toBe( 'Foo\nBar' );
+	} );
+
+	it( 'should not execute img#onerror js handler while conversion a view RawElement', async () => {
+		const writer = new ViewDowncastWriter( viewDocument );
+		const rawElement = writer.createRawElement( 'div', { 'data-foo': 'bar' }, function( domElement ) {
+			domElement.innerHTML = '<img src=x onerror=window.__testOnErrorExecuted=true>';
+		} );
+
+		window.__testOnErrorExecuted = false;
+		viewToPlainText( converter, rawElement );
+
+		await timeout( 50 );
+
+		expect( window.__testOnErrorExecuted ).toBe( false );
+		delete window.__testOnErrorExecuted;
+	} );
 } );
+
+function timeout( ms ) {
+	return new Promise( resolve => setTimeout( resolve, ms ) );
+}

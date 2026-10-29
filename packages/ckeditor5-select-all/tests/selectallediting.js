@@ -1,13 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import SelectAllEditing from '../src/selectallediting';
-import SelectAllCommand from '../src/selectallcommand';
-import env from '@ckeditor/ckeditor5-utils/src/env';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { SelectAllEditing } from '../src/selectallediting.js';
+import { SelectAllCommand } from '../src/selectallcommand.js';
+import { env, keyCodes } from '@ckeditor/ckeditor5-utils';
 
 describe( 'SelectAllEditing', () => {
 	let editor, viewDocument;
@@ -21,7 +21,7 @@ describe( 'SelectAllEditing', () => {
 				editor = newEditor;
 				viewDocument = editor.editing.view.document;
 
-				sinon.spy( editor, 'execute' );
+				vi.spyOn( editor, 'execute' );
 			} );
 	} );
 
@@ -30,13 +30,28 @@ describe( 'SelectAllEditing', () => {
 	} );
 
 	it( 'should have a name', () => {
-		expect( SelectAllEditing.pluginName ).to.equal( 'SelectAllEditing' );
+		expect( SelectAllEditing.pluginName ).toBe( 'SelectAllEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( SelectAllEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( SelectAllEditing.isPremiumPlugin ).toBe( false );
+	} );
+
+	it( 'should add keystroke accessibility info', () => {
+		expect( editor.accessibility.keystrokeInfos.get( 'contentEditing' ).groups.get( 'common' ).keystrokes ).toContainEqual( {
+			label: 'Select all',
+			keystroke: 'CTRL+A'
+		} );
 	} );
 
 	it( 'should register the "selectAll" command', () => {
 		const command = editor.commands.get( 'selectAll' );
 
-		expect( command ).to.be.instanceOf( SelectAllCommand );
+		expect( command ).toBeInstanceOf( SelectAllCommand );
 	} );
 
 	describe( 'Ctrl+A keystroke listener', () => {
@@ -45,13 +60,13 @@ describe( 'SelectAllEditing', () => {
 				keyCode: keyCodes.a,
 				ctrlKey: !env.isMac,
 				metaKey: env.isMac,
-				preventDefault: sinon.spy()
+				preventDefault: vi.fn()
 			};
 
 			viewDocument.fire( 'keydown', domEventDataMock );
 
-			sinon.assert.calledOnce( editor.execute );
-			sinon.assert.calledWithExactly( editor.execute, 'selectAll' );
+			expect( editor.execute ).toHaveBeenCalledTimes( 1 );
+			expect( editor.execute ).toHaveBeenCalledWith( 'selectAll' );
 		} );
 
 		it( 'should prevent the default action', () => {
@@ -59,12 +74,12 @@ describe( 'SelectAllEditing', () => {
 				keyCode: keyCodes.a,
 				ctrlKey: !env.isMac,
 				metaKey: env.isMac,
-				preventDefault: sinon.spy()
+				preventDefault: vi.fn()
 			};
 
 			viewDocument.fire( 'keydown', domEventDataMock );
 
-			sinon.assert.calledOnce( domEventDataMock.preventDefault );
+			expect( domEventDataMock.preventDefault ).toHaveBeenCalledTimes( 1 );
 		} );
 
 		it( 'should not react to other keystrokes', () => {
@@ -72,13 +87,13 @@ describe( 'SelectAllEditing', () => {
 				keyCode: keyCodes.x,
 				ctrlKey: !env.isMac,
 				metaKey: env.isMac,
-				preventDefault: sinon.spy()
+				preventDefault: vi.fn()
 			};
 
 			viewDocument.fire( 'keydown', domEventDataMock );
 
-			sinon.assert.notCalled( editor.execute );
-			sinon.assert.notCalled( domEventDataMock.preventDefault );
+			expect( editor.execute ).not.toHaveBeenCalled();
+			expect( domEventDataMock.preventDefault ).not.toHaveBeenCalled();
 		} );
 	} );
 } );

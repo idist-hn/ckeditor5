@@ -1,36 +1,41 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module minimap/minimap
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { findClosestScrollableAncestor, global } from 'ckeditor5/src/utils';
-import MinimapView, { type MinimapDragEvent, type MinimapClickEvent } from './minimapview';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { findClosestScrollableAncestor, global } from '@ckeditor/ckeditor5-utils';
+import { MinimapView, type MinimapDragEvent, type MinimapClickEvent } from './minimapview.js';
 import {
 	cloneEditingViewDomRoot,
 	getClientHeight,
 	getDomElementRect,
 	getPageStyles,
 	getScrollable
-} from './utils';
+} from './utils.js';
 
-// @if CK_DEBUG_MINIMAP // const RectDrawer = require( '@ckeditor/ckeditor5-utils/tests/_utils/rectdrawer' ).default;
-
-import '../theme/minimap.css';
+// @if CK_DEBUG_MINIMAP // import { RectDrawer } from '@ckeditor/ckeditor5-utils/tests/_utils/rectdrawer.js';
 
 /**
  * The content minimap feature.
  */
-export default class Minimap extends Plugin {
+export class Minimap extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'Minimap' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -65,6 +70,8 @@ export default class Minimap extends Plugin {
 	 * @inheritDoc
 	 */
 	public override destroy(): void {
+		super.destroy();
+
 		this._minimapView!.destroy();
 		this._minimapView!.element!.remove();
 	}
@@ -82,7 +89,7 @@ export default class Minimap extends Plugin {
 		this._scrollableRootAncestor = findClosestScrollableAncestor( editingRootElement );
 
 		// DOM root element is not yet attached to the document.
-		if ( !editingRootElement.ownerDocument.body.contains( editingRootElement ) ) {
+		if ( !editingRootElement.isConnected ) {
 			editor.ui.once( 'update', this._onUiReady.bind( this ) );
 
 			return;
@@ -91,6 +98,10 @@ export default class Minimap extends Plugin {
 		this._initializeMinimapView();
 
 		this.listenTo( editor.editing.view, 'render', () => {
+			if ( editor.state !== 'ready' ) {
+				return;
+			}
+
 			this._syncMinimapToEditingRootScrollPosition();
 		} );
 
@@ -127,7 +138,7 @@ export default class Minimap extends Plugin {
 		minimapView.render();
 
 		// Scrollable ancestor scroll -> minimap position update.
-		minimapView.listenTo( global.document, 'scroll', ( evt, data ) => {
+		minimapView.listenTo( scrollableRootAncestor.getRootNode(), 'scroll', ( evt, data ) => {
 			if ( scrollableRootAncestor === global.document.body ) {
 				if ( data.target !== global.document ) {
 					return;
@@ -184,6 +195,12 @@ export default class Minimap extends Plugin {
 		const editingRootRect = getDomElementRect( editingRootElement );
 		const scrollableRootAncestorRect = getDomElementRect( this._scrollableRootAncestor! );
 		let scrollProgress;
+
+		// It's possible that at some point elements do not intersect, e.g. when entering the fullscreen mode.
+		// Prevent the minimap from being updated in such case.
+		if ( !scrollableRootAncestorRect.getIntersection( editingRootRect ) ) {
+			return;
+		}
 
 		// @if CK_DEBUG_MINIMAP // RectDrawer.clear();
 		// @if CK_DEBUG_MINIMAP // RectDrawer.draw( scrollableRootAncestorRect, { outlineColor: 'red' }, 'scrollableRootAncestor' );

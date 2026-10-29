@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../src/model';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { UIModel } from '../src/model.js';
 
 let Car, car;
 
-describe( 'Model', () => {
+describe( 'UIModel', () => {
 	beforeEach( () => {
-		Car = class extends Model {};
+		Car = class extends UIModel {};
 
 		car = new Car( {
 			color: 'red',
@@ -18,15 +19,15 @@ describe( 'Model', () => {
 	} );
 
 	it( 'should set attributes on creation', () => {
-		expect( car ).to.have.property( 'color', 'red' );
-		expect( car ).to.have.property( 'year', 2015 );
+		expect( car ).toHaveProperty( 'color', 'red' );
+		expect( car ).toHaveProperty( 'year', 2015 );
 
-		const spy = sinon.spy();
+		const spy = vi.fn();
 
 		car.on( 'change:color', spy );
 		car.color = 'blue';
 
-		expect( spy.called ).to.be.true;
+		expect( spy ).toHaveBeenCalled();
 	} );
 
 	it( 'should add properties on creation', () => {
@@ -34,6 +35,6 @@ describe( 'Model', () => {
 			prop: 1
 		} );
 
-		expect( car ).to.have.property( 'prop', 1 );
+		expect( car ).toHaveProperty( 'prop', 1 );
 	} );
 } );

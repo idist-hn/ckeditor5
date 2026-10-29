@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -14,10 +14,12 @@ export type LanguageDirection = 'ltr' | 'rtl';
 
 const RTL_LANGUAGE_CODES = [
 	'ar', 'ara', // Arabic
+	'dv', 'div', // Dhivehi
 	'fa', 'per', 'fas', // Persian
 	'he', 'heb', // Hebrew
 	'ku', 'kur', // Kurdish
-	'ug', 'uig' // Uighur, Uyghur
+	'ug', 'uig', // Uighur, Uyghur
+	'ur', 'urd' // Urdu
 ];
 
 /**

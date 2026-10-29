@@ -1,29 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module language/textpartlanguageediting
  */
 
-import type { ViewElement } from 'ckeditor5/src/engine';
-import type { LanguageDirection } from 'ckeditor5/src/utils';
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import TextPartLanguageCommand from './textpartlanguagecommand';
-import { stringifyLanguageAttribute, parseLanguageAttribute } from './utils';
+import type { ViewElement } from '@ckeditor/ckeditor5-engine';
+import type { LanguageDirection } from '@ckeditor/ckeditor5-utils';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import { TextPartLanguageCommand } from './textpartlanguagecommand.js';
+import { stringifyLanguageAttribute, parseLanguageAttribute } from './utils.js';
 
 /**
  * The text part language editing.
  *
  * Introduces the `'textPartLanguage'` command and the `'language'` model element attribute.
  */
-export default class TextPartLanguageEditing extends Plugin {
+export class TextPartLanguageEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'TextPartLanguageEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

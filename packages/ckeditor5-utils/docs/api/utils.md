@@ -4,8 +4,6 @@ category: api-reference
 
 # CKEditor&nbsp;5 utilities
 
-[![npm version](https://badge.fury.io/js/%40ckeditor%2Fckeditor5-utils.svg)](https://www.npmjs.com/package/@ckeditor/ckeditor5-utils)
-
 Various utilities used by CKEditor&nbsp;5 and its features. This is a sort of  CKEditor&nbsp;5's standard library.
 
 ## Documentation
@@ -14,8 +12,10 @@ You can browse the API documentation of this package by using the module tree on
 
 ## Installation
 
+This package is part of our open-source aggregate package.
+
 ```bash
-npm install --save @ckeditor/ckeditor5-utils
+npm install ckeditor5
 ```
 
 ## Contribute

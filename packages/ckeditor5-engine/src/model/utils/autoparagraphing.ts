@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type Node from '../node';
-import type Position from '../position';
-import type Schema from '../schema';
-import type Writer from '../writer';
 
 /**
  * @module engine/model/utils/autoparagraphing
  */
+
+import { type ModelNode } from '../node.js';
+import { type ModelPosition } from '../position.js';
+import { type ModelSchema } from '../schema.js';
+import { type ModelWriter } from '../writer.js';
 
 /**
  * Fixes all empty roots.
@@ -19,7 +19,7 @@ import type Writer from '../writer';
  * @param writer The model writer.
  * @returns `true` if any change has been applied, `false` otherwise.
  */
-export function autoParagraphEmptyRoots( writer: Writer ): boolean {
+export function autoParagraphEmptyRoots( writer: ModelWriter ): boolean {
 	const { schema, document } = writer.model;
 
 	for ( const root of document.getRoots() ) {
@@ -48,9 +48,9 @@ export function autoParagraphEmptyRoots( writer: Writer ): boolean {
  * @param schema A schema instance used for element validation.
  */
 export function isParagraphable(
-	position: Position,
-	nodeOrType: Node | string,
-	schema: Schema
+	position: ModelPosition,
+	nodeOrType: ModelNode | string,
+	schema: ModelSchema
 ): boolean {
 	const context = schema.createContext( position );
 
@@ -75,7 +75,7 @@ export function isParagraphable(
  * @param writer The model writer.
  * @returns  Position inside the created paragraph.
  */
-export function wrapInParagraph( position: Position, writer: Writer ): Position {
+export function wrapInParagraph( position: ModelPosition, writer: ModelWriter ): ModelPosition {
 	const paragraph = writer.createElement( 'paragraph' );
 
 	writer.insert( paragraph, position );

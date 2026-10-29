@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontcolor
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import FontColorEditing from './fontcolor/fontcolorediting';
-import FontColorUI from './fontcolor/fontcolorui';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { FontColorEditing } from './fontcolor/fontcolorediting.js';
+import { FontColorUI } from './fontcolor/fontcolorui.js';
 
 /**
  * The font color plugin.
@@ -20,12 +20,12 @@ import FontColorUI from './fontcolor/fontcolorui';
  * This is a "glue" plugin which loads the {@link module:font/fontcolor/fontcolorediting~FontColorEditing} and
  * {@link module:font/fontcolor/fontcolorui~FontColorUI} features in the editor.
  */
-export default class FontColor extends Plugin {
+export class FontColor extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ FontColorEditing, FontColorUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ FontColorEditing, FontColorUI ]> {
+		return [ FontColorEditing, FontColorUI ];
 	}
 
 	/**
@@ -33,5 +33,12 @@ export default class FontColor extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'FontColor' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

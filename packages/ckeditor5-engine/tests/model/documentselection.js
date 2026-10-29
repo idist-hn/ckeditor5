@@ -1,45 +1,43 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console */
-
-import Model from '../../src/model/model';
-import Batch from '../../src/model/batch';
-import Element from '../../src/model/element';
-import Text from '../../src/model/text';
-import Range from '../../src/model/range';
-import Position from '../../src/model/position';
-import LiveRange from '../../src/model/liverange';
-import DocumentSelection from '../../src/model/documentselection';
-import InsertOperation from '../../src/model/operation/insertoperation';
-import MoveOperation from '../../src/model/operation/moveoperation';
-import AttributeOperation from '../../src/model/operation/attributeoperation';
-import SplitOperation from '../../src/model/operation/splitoperation';
-import Collection from '@ckeditor/ckeditor5-utils/src/collection';
-import count from '@ckeditor/ckeditor5-utils/src/count';
-import { setData, getData } from '../../src/dev-utils/model';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Model } from '../../src/model/model.js';
+import { Batch } from '../../src/model/batch.js';
+import { ModelElement } from '../../src/model/element.js';
+import { ModelText } from '../../src/model/text.js';
+import { ModelRange } from '../../src/model/range.js';
+import { ModelPosition } from '../../src/model/position.js';
+import { ModelLiveRange } from '../../src/model/liverange.js';
+import { ModelDocumentSelection } from '../../src/model/documentselection.js';
+import { InsertOperation } from '../../src/model/operation/insertoperation.js';
+import { MoveOperation } from '../../src/model/operation/moveoperation.js';
+import { AttributeOperation } from '../../src/model/operation/attributeoperation.js';
+import { SplitOperation } from '../../src/model/operation/splitoperation.js';
+import { Collection, count } from '@ckeditor/ckeditor5-utils';
+import { _setModelData, _getModelData } from '../../src/dev-utils/model.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 describe( 'DocumentSelection', () => {
 	let model, doc, root, selection, liveRange, range;
 
-	const fooStoreAttrKey = DocumentSelection._getStoreAttributeKey( 'foo' );
-	const abcStoreAttrKey = DocumentSelection._getStoreAttributeKey( 'abc' );
+	const fooStoreAttrKey = ModelDocumentSelection._getStoreAttributeKey( 'foo' );
+	const abcStoreAttrKey = ModelDocumentSelection._getStoreAttributeKey( 'abc' );
 
 	beforeEach( () => {
 		model = new Model();
 		doc = model.document;
 		root = doc.createRoot();
 		root._appendChild( [
-			new Element( 'p' ),
-			new Element( 'p' ),
-			new Element( 'p', [], new Text( 'foobar' ) ),
-			new Element( 'p' ),
-			new Element( 'p' ),
-			new Element( 'p' ),
-			new Element( 'p', [], new Text( 'foobar' ) )
+			new ModelElement( 'p' ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p', [], new ModelText( 'foobar' ) ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p', [], new ModelText( 'foobar' ) )
 		] );
 		selection = doc.selection;
 		model.schema.register( 'p', { inheritAllFrom: '$block' } );
@@ -52,12 +50,11 @@ describe( 'DocumentSelection', () => {
 			isObject: true
 		} );
 
-		liveRange = new LiveRange( new Position( root, [ 0 ] ), new Position( root, [ 1 ] ) );
-		range = new Range( new Position( root, [ 2 ] ), new Position( root, [ 2, 2 ] ) );
+		liveRange = new ModelLiveRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 1 ] ) );
+		range = new ModelRange( new ModelPosition( root, [ 2 ] ), new ModelPosition( root, [ 2, 2 ] ) );
 	} );
 
 	afterEach( () => {
-		sinon.restore();
 		model.destroy();
 		liveRange.detach();
 	} );
@@ -66,35 +63,35 @@ describe( 'DocumentSelection', () => {
 		it( 'should go to the first editable element', () => {
 			const ranges = Array.from( selection.getRanges() );
 
-			expect( ranges.length ).to.equal( 1 );
-			expect( selection.anchor.isEqual( new Position( root, [ 0, 0 ] ) ) ).to.be.true;
-			expect( selection.focus.isEqual( new Position( root, [ 0, 0 ] ) ) ).to.be.true;
-			expect( selection ).to.have.property( 'isBackward', false );
+			expect( ranges.length ).toBe( 1 );
+			expect( selection.anchor.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
+			expect( selection.focus.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
+			expect( selection ).toHaveProperty( 'isBackward', false );
 		} );
 
 		it( 'should be set to the beginning of the doc if there is no editable element', () => {
 			model = new Model();
 			doc = model.document;
 			root = doc.createRoot();
-			root._insertChild( 0, new Text( 'foobar' ) );
+			root._insertChild( 0, new ModelText( 'foobar' ) );
 			selection = doc.selection;
 
 			const ranges = Array.from( selection.getRanges() );
 
-			expect( ranges.length ).to.equal( 1 );
-			expect( selection.anchor.isEqual( new Position( root, [ 0 ] ) ) ).to.be.true;
-			expect( selection.focus.isEqual( new Position( root, [ 0 ] ) ) ).to.be.true;
-			expect( selection ).to.have.property( 'isBackward', false );
-			expect( count( selection.getAttributes() ) ).to.equal( 0 );
+			expect( ranges.length ).toBe( 1 );
+			expect( selection.anchor.isEqual( new ModelPosition( root, [ 0 ] ) ) ).toBe( true );
+			expect( selection.focus.isEqual( new ModelPosition( root, [ 0 ] ) ) ).toBe( true );
+			expect( selection ).toHaveProperty( 'isBackward', false );
+			expect( count( selection.getAttributes() ) ).toBe( 0 );
 		} );
 
-		it( 'should skip element when you can not put selection', () => {
+		it( 'should skip element when you cannot put selection', () => {
 			model = new Model();
 			doc = model.document;
 			root = doc.createRoot();
 			root._insertChild( 0, [
-				new Element( 'img' ),
-				new Element( 'p', [], new Text( 'foobar' ) )
+				new ModelElement( 'img' ),
+				new ModelElement( 'p', [], new ModelText( 'foobar' ) )
 			] );
 			model.schema.register( 'img' );
 			model.schema.register( 'p', { inheritAllFrom: '$block' } );
@@ -102,110 +99,110 @@ describe( 'DocumentSelection', () => {
 
 			const ranges = Array.from( selection.getRanges() );
 
-			expect( ranges.length ).to.equal( 1 );
-			expect( selection.anchor.isEqual( new Position( root, [ 1, 0 ] ) ) ).to.be.true;
-			expect( selection.focus.isEqual( new Position( root, [ 1, 0 ] ) ) ).to.be.true;
-			expect( selection ).to.have.property( 'isBackward', false );
-			expect( count( selection.getAttributes() ) ).to.equal( 0 );
+			expect( ranges.length ).toBe( 1 );
+			expect( selection.anchor.isEqual( new ModelPosition( root, [ 1, 0 ] ) ) ).toBe( true );
+			expect( selection.focus.isEqual( new ModelPosition( root, [ 1, 0 ] ) ) ).toBe( true );
+			expect( selection ).toHaveProperty( 'isBackward', false );
+			expect( count( selection.getAttributes() ) ).toBe( 0 );
 		} );
 	} );
 
 	describe( 'isCollapsed', () => {
 		it( 'should be true for the default range (in text position)', () => {
-			expect( selection.isCollapsed ).to.be.true;
+			expect( selection.isCollapsed ).toBe( true );
 		} );
 
-		it( 'should be false for the default range (object selection) ', () => {
-			root._insertChild( 0, new Element( 'widget' ) );
+		it( 'should be false for the default range (object selection)', () => {
+			root._insertChild( 0, new ModelElement( 'widget' ) );
 
-			expect( selection.isCollapsed ).to.be.false;
+			expect( selection.isCollapsed ).toBe( false );
 		} );
 
 		it( 'should back off to the default algorithm if selection has ranges', () => {
 			selection._setTo( range );
 
-			expect( selection.isCollapsed ).to.be.false;
+			expect( selection.isCollapsed ).toBe( false );
 		} );
 	} );
 
 	describe( 'anchor', () => {
 		it( 'should equal the default range\'s start (in text position)', () => {
-			const expectedPos = new Position( root, [ 0, 0 ] );
+			const expectedPos = new ModelPosition( root, [ 0, 0 ] );
 
-			expect( selection.anchor.isEqual( expectedPos ) ).to.be.true;
+			expect( selection.anchor.isEqual( expectedPos ) ).toBe( true );
 		} );
 
 		it( 'should equal the default range\'s start (object selection)', () => {
-			root._insertChild( 0, new Element( 'widget' ) );
+			root._insertChild( 0, new ModelElement( 'widget' ) );
 
-			const expectedPos = new Position( root, [ 0 ] );
+			const expectedPos = new ModelPosition( root, [ 0 ] );
 
-			expect( selection.anchor.isEqual( expectedPos ) ).to.be.true;
+			expect( selection.anchor.isEqual( expectedPos ) ).toBe( true );
 		} );
 
 		it( 'should back off to the default algorithm if selection has ranges', () => {
 			selection._setTo( range );
 
-			expect( selection.anchor.isEqual( range.start ) ).to.be.true;
+			expect( selection.anchor.isEqual( range.start ) ).toBe( true );
 		} );
 	} );
 
 	describe( 'focus', () => {
 		it( 'should equal the default range\'s end (in text position)', () => {
-			const expectedPos = new Position( root, [ 0, 0 ] );
+			const expectedPos = new ModelPosition( root, [ 0, 0 ] );
 
-			expect( selection.focus.isEqual( expectedPos ) ).to.be.true;
+			expect( selection.focus.isEqual( expectedPos ) ).toBe( true );
 		} );
 
 		it( 'should equal the default range\'s end (object selection)', () => {
-			root._insertChild( 0, new Element( 'widget' ) );
+			root._insertChild( 0, new ModelElement( 'widget' ) );
 
-			const expectedPos = new Position( root, [ 1 ] );
+			const expectedPos = new ModelPosition( root, [ 1 ] );
 
-			expect( selection.focus.isEqual( expectedPos ) ).to.be.true;
-			expect( selection.focus.isEqual( selection.getFirstRange().end ) ).to.be.true;
+			expect( selection.focus.isEqual( expectedPos ) ).toBe( true );
+			expect( selection.focus.isEqual( selection.getFirstRange().end ) ).toBe( true );
 		} );
 
 		it( 'should back off to the default algorithm if selection has ranges', () => {
 			selection._setTo( range );
 
-			expect( selection.focus.isEqual( range.end ) ).to.be.true;
+			expect( selection.focus.isEqual( range.end ) ).toBe( true );
 		} );
 	} );
 
 	describe( 'rangeCount', () => {
 		it( 'should return proper range count', () => {
-			expect( selection.rangeCount ).to.equal( 1 );
+			expect( selection.rangeCount ).toBe( 1 );
 
-			selection._setTo( new Range( new Position( root, [ 0 ] ), new Position( root, [ 0 ] ) ) );
+			selection._setTo( new ModelRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 0 ] ) ) );
 
-			expect( selection.rangeCount ).to.equal( 1 );
+			expect( selection.rangeCount ).toBe( 1 );
 
 			selection._setTo( [
-				new Range( new Position( root, [ 2 ] ), new Position( root, [ 2 ] ) ),
-				new Range( new Position( root, [ 0 ] ), new Position( root, [ 0 ] ) )
+				new ModelRange( new ModelPosition( root, [ 2 ] ), new ModelPosition( root, [ 2 ] ) ),
+				new ModelRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 0 ] ) )
 			] );
 
-			expect( selection.rangeCount ).to.equal( 2 );
+			expect( selection.rangeCount ).toBe( 2 );
 		} );
 	} );
 
 	describe( 'hasOwnRange', () => {
 		it( 'should return true if selection has any ranges set', () => {
-			selection._setTo( new Range( new Position( root, [ 0 ] ), new Position( root, [ 0 ] ) ) );
+			selection._setTo( new ModelRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 0 ] ) ) );
 
-			expect( selection.hasOwnRange ).to.be.true;
+			expect( selection.hasOwnRange ).toBe( true );
 		} );
 
 		it( 'should return false if selection has a default range', () => {
-			expect( selection.hasOwnRange ).to.be.false;
+			expect( selection.hasOwnRange ).toBe( false );
 		} );
 	} );
 
 	describe( 'markers', () => {
 		it( 'should implement #markers collection', () => {
-			expect( selection.markers ).to.instanceof( Collection );
-			expect( selection.markers ).to.length( 0 );
+			expect( selection.markers ).toBeInstanceOf( Collection );
+			expect( selection.markers ).toHaveLength( 0 );
 		} );
 
 		it( 'should add markers to the collection when selection is inside the marker range', () => {
@@ -250,7 +247,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:2', 'marker:3' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:2', 'marker:3' ] ) );
 		} );
 
 		it( 'should update markers after selection change', () => {
@@ -287,7 +284,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:1', 'marker:2' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:1', 'marker:2' ] ) );
 
 			model.change( writer => {
 				writer.setSelection( writer.createRange(
@@ -296,7 +293,7 @@ describe( 'DocumentSelection', () => {
 				) );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:1', 'marker:3' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:1', 'marker:3' ] ) );
 		} );
 
 		it( 'should update markers after markers change', () => {
@@ -333,7 +330,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ), 1 ).to.have.members( [ 'marker:1', 'marker:2' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:1', 'marker:2' ] ) );
 
 			model.change( writer => {
 				writer.removeMarker( 'marker:1' );
@@ -355,7 +352,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ), 2 ).to.have.members( [ 'marker:3' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:3' ] ) );
 		} );
 
 		it( 'should not add marker when collapsed selection is on the marker left bound', () => {
@@ -375,7 +372,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers ).to.length( 0 );
+			expect( selection.markers ).toHaveLength( 0 );
 		} );
 
 		it( 'should not add marker when collapsed selection is on the marker right bound', () => {
@@ -395,7 +392,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers ).to.length( 0 );
+			expect( selection.markers ).toHaveLength( 0 );
 		} );
 
 		it( 'should add marker when non-collapsed selection is inside a marker and touches the left bound', () => {
@@ -416,7 +413,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:1' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:1' ] ) );
 		} );
 
 		it( 'should add marker when non-collapsed selection is inside a marker and touches the right bound', () => {
@@ -437,13 +434,13 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:1' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:1' ] ) );
 		} );
 
 		it( 'should add marker of selected widget', () => {
 			selection.observeMarkers( 'marker' );
 
-			root._insertChild( 0, new Element( 'widget' ) );
+			root._insertChild( 0, new ModelElement( 'widget' ) );
 
 			model.change( writer => {
 				writer.setSelection( writer.createRange(
@@ -460,7 +457,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:1' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:1' ] ) );
 		} );
 
 		it( 'should not add markers to the collection when markers observing is not enabled', () => {
@@ -503,7 +500,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers ).to.length( 0 );
+			expect( selection.markers ).toHaveLength( 0 );
 		} );
 
 		it( 'should add markers to the collection only for observed marker groups', () => {
@@ -548,7 +545,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'marker:2' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'marker:2' ] ) );
 		} );
 
 		it( 'should add marker to the collection only for observed marker name', () => {
@@ -593,7 +590,7 @@ describe( 'DocumentSelection', () => {
 				} );
 			} );
 
-			expect( selection.markers.map( marker => marker.name ) ).to.have.members( [ 'testMarker' ] );
+			expect( selection.markers.map( marker => marker.name ) ).toEqual( expect.arrayContaining( [ 'testMarker' ] ) );
 		} );
 
 		describe( 'should fire change:marker event when', () => {
@@ -611,14 +608,14 @@ describe( 'DocumentSelection', () => {
 			} );
 
 			it( 'selection ranges change (marker added to the selection)', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				selection.observeMarkers( 'marker' );
 
 				model.change( writer => {
 					// The selection has no markers before the change.
 					model.document.selection.on( 'change:marker', ( evt, data ) => {
-						expect( data.oldMarkers ).to.deep.equal( [] );
+						expect( data.oldMarkers ).toEqual( [] );
 						spy();
 					} );
 
@@ -629,11 +626,11 @@ describe( 'DocumentSelection', () => {
 					) );
 				} );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'selection ranges change (marker removed from the selection)', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				selection.observeMarkers( 'marker' );
 
@@ -645,7 +642,7 @@ describe( 'DocumentSelection', () => {
 
 					// The selection is in a marker before the change.
 					model.document.selection.on( 'change:marker', ( evt, data ) => {
-						expect( data.oldMarkers.map( marker => marker.name ) ).to.deep.equal( [ 'marker:1' ] );
+						expect( data.oldMarkers.map( marker => marker.name ) ).toEqual( [ 'marker:1' ] );
 						spy();
 					} );
 
@@ -653,11 +650,11 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 5 ] ) );
 				} );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'selection focus changes (marker removed from the selection)', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				selection.observeMarkers( 'marker' );
 
@@ -666,7 +663,7 @@ describe( 'DocumentSelection', () => {
 
 					// The selection is in a marker before the change.
 					model.document.selection.on( 'change:marker', ( evt, data ) => {
-						expect( data.oldMarkers.map( marker => marker.name ) ).to.deep.equal( [ 'marker:1' ] );
+						expect( data.oldMarkers.map( marker => marker.name ) ).toEqual( [ 'marker:1' ] );
 						spy();
 					} );
 
@@ -674,11 +671,11 @@ describe( 'DocumentSelection', () => {
 					writer.setSelectionFocus( writer.createPositionFromPath( root, [ 2, 5 ] ) );
 				} );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'a new marker contains the selection', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				selection.observeMarkers( 'marker' );
 
@@ -687,7 +684,7 @@ describe( 'DocumentSelection', () => {
 
 					// The selection is not in a marker before the change.
 					model.document.selection.on( 'change:marker', ( evt, data ) => {
-						expect( data.oldMarkers ).to.deep.equal( [] );
+						expect( data.oldMarkers ).toEqual( [] );
 						spy();
 					} );
 
@@ -699,11 +696,11 @@ describe( 'DocumentSelection', () => {
 					} );
 				} );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'a marker stops contains the selection', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				selection.observeMarkers( 'marker' );
 
@@ -712,7 +709,7 @@ describe( 'DocumentSelection', () => {
 
 					// The selection is in a marker before the change.
 					model.document.selection.on( 'change:marker', ( evt, data ) => {
-						expect( data.oldMarkers.map( marker => marker.name ) ).to.deep.equal( [ 'marker:1' ] );
+						expect( data.oldMarkers.map( marker => marker.name ) ).toEqual( [ 'marker:1' ] );
 						spy();
 					} );
 
@@ -724,7 +721,7 @@ describe( 'DocumentSelection', () => {
 					} );
 				} );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 		} );
 
@@ -743,7 +740,7 @@ describe( 'DocumentSelection', () => {
 			} );
 
 			it( 'selection ranges change does not change selection markers (no markers)', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				selection.observeMarkers( 'marker' );
 
@@ -753,7 +750,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 5 ] ) );
 				} );
 
-				expect( spy.called ).to.be.false;
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'selection ranges change does not change selection markers (same markers)', () => {
@@ -763,7 +760,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 2 ] ) );
 				} );
 
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				model.document.selection.on( 'change:marker', spy );
 
@@ -771,7 +768,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 3 ] ) );
 				} );
 
-				expect( spy.called ).to.be.false;
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'selection focus change does not change selection markers', () => {
@@ -781,7 +778,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 2 ] ) );
 				} );
 
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				model.document.selection.on( 'change:marker', spy );
 
@@ -789,7 +786,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelectionFocus( writer.createPositionFromPath( root, [ 2, 3 ] ) );
 				} );
 
-				expect( spy.called ).to.be.false;
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'changed marker still contains the selection', () => {
@@ -799,7 +796,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 2 ] ) );
 				} );
 
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				model.document.selection.on( 'change:marker', spy );
 
@@ -812,7 +809,7 @@ describe( 'DocumentSelection', () => {
 					} );
 				} );
 
-				expect( spy.called ).to.be.false;
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'removed marker did not contain the selection', () => {
@@ -822,7 +819,7 @@ describe( 'DocumentSelection', () => {
 					writer.setSelection( writer.createPositionFromPath( root, [ 2, 5 ] ) );
 				} );
 
-				const spy = sinon.spy();
+				const spy = vi.fn();
 
 				model.document.selection.on( 'change:marker', spy );
 
@@ -830,7 +827,7 @@ describe( 'DocumentSelection', () => {
 					writer.removeMarker( 'marker:1' );
 				} );
 
-				expect( spy.called ).to.be.false;
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 		} );
 	} );
@@ -841,13 +838,13 @@ describe( 'DocumentSelection', () => {
 
 			const ranges = Array.from( selection._selection._ranges );
 
-			sinon.spy( ranges[ 0 ], 'detach' );
-			sinon.spy( ranges[ 1 ], 'detach' );
+			vi.spyOn( ranges[ 0 ], 'detach' );
+			vi.spyOn( ranges[ 1 ], 'detach' );
 
 			selection.destroy();
 
-			expect( ranges[ 0 ].detach.called ).to.be.true;
-			expect( ranges[ 1 ].detach.called ).to.be.true;
+			expect( ranges[ 0 ].detach ).toHaveBeenCalled();
+			expect( ranges[ 1 ].detach ).toHaveBeenCalled();
 		} );
 	} );
 
@@ -855,8 +852,8 @@ describe( 'DocumentSelection', () => {
 		it( 'should return default range if no ranges were added', () => {
 			const firstRange = selection.getFirstRange();
 
-			expect( firstRange.start.isEqual( new Position( root, [ 0, 0 ] ) ) );
-			expect( firstRange.end.isEqual( new Position( root, [ 0, 0 ] ) ) );
+			expect( firstRange.start.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
+			expect( firstRange.end.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
 		} );
 	} );
 
@@ -864,8 +861,8 @@ describe( 'DocumentSelection', () => {
 		it( 'should return default range if no ranges were added', () => {
 			const lastRange = selection.getLastRange();
 
-			expect( lastRange.start.isEqual( new Position( root, [ 0, 0 ] ) ) );
-			expect( lastRange.end.isEqual( new Position( root, [ 0, 0 ] ) ) );
+			expect( lastRange.start.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
+			expect( lastRange.end.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
 		} );
 	} );
 
@@ -874,31 +871,31 @@ describe( 'DocumentSelection', () => {
 			selection._setTo( liveRange );
 			const p = root.getChild( 0 );
 
-			expect( selection.getSelectedElement() ).to.equal( p );
+			expect( selection.getSelectedElement() ).toBe( p );
 		} );
 	} );
 
 	describe( 'is()', () => {
 		it( 'should return true for selection', () => {
-			expect( selection.is( 'selection' ) ).to.be.true;
-			expect( selection.is( 'model:selection' ) ).to.be.true;
+			expect( selection.is( 'selection' ) ).toBe( true );
+			expect( selection.is( 'model:selection' ) ).toBe( true );
 		} );
 
 		it( 'should return true for documentSelection', () => {
-			expect( selection.is( 'documentSelection' ) ).to.be.true;
-			expect( selection.is( 'model:documentSelection' ) ).to.be.true;
+			expect( selection.is( 'documentSelection' ) ).toBe( true );
+			expect( selection.is( 'model:documentSelection' ) ).toBe( true );
 		} );
 
 		it( 'should return false for other values', () => {
-			expect( selection.is( 'node' ) ).to.be.false;
-			expect( selection.is( 'model:node' ) ).to.be.false;
-			expect( selection.is( '$text' ) ).to.be.false;
-			expect( selection.is( '$textProxy' ) ).to.be.false;
-			expect( selection.is( 'element' ) ).to.be.false;
-			expect( selection.is( 'element', 'paragraph' ) ).to.be.false;
-			expect( selection.is( 'rootElement' ) ).to.be.false;
-			expect( selection.is( 'view:selection' ) ).to.be.false;
-			expect( selection.is( 'view:documentSelection' ) ).to.be.false;
+			expect( selection.is( 'node' ) ).toBe( false );
+			expect( selection.is( 'model:node' ) ).toBe( false );
+			expect( selection.is( '$text' ) ).toBe( false );
+			expect( selection.is( '$textProxy' ) ).toBe( false );
+			expect( selection.is( 'element' ) ).toBe( false );
+			expect( selection.is( 'element', 'paragraph' ) ).toBe( false );
+			expect( selection.is( 'rootElement' ) ).toBe( false );
+			expect( selection.is( 'view:selection' ) ).toBe( false );
+			expect( selection.is( 'view:documentSelection' ) ).toBe( false );
 		} );
 	} );
 
@@ -906,43 +903,43 @@ describe( 'DocumentSelection', () => {
 		it( 'detaches all existing ranges', () => {
 			selection._setTo( [ range, liveRange ] );
 
-			const spy = sinon.spy( LiveRange.prototype, 'detach' );
+			const spy = vi.spyOn( ModelLiveRange.prototype, 'detach' );
 			selection._setTo( root, 0 );
 
-			expect( spy.calledTwice ).to.be.true;
+			expect( spy ).toHaveBeenCalledTimes( 2 );
 		} );
 	} );
 
 	describe( '_setFocus()', () => {
 		it( 'modifies default range', () => {
 			const startPos = selection.getFirstPosition();
-			const endPos = Position._createAt( root, 'end' );
+			const endPos = ModelPosition._createAt( root, 'end' );
 
 			selection._setFocus( endPos );
 
-			expect( selection.anchor.compareWith( startPos ) ).to.equal( 'same' );
-			expect( selection.focus.compareWith( endPos ) ).to.equal( 'same' );
+			expect( selection.anchor.compareWith( startPos ) ).toBe( 'same' );
+			expect( selection.focus.compareWith( endPos ) ).toBe( 'same' );
 		} );
 
 		it( 'detaches the range it replaces', () => {
-			const startPos = Position._createAt( root, 1 );
-			const endPos = Position._createAt( root, 2 );
-			const newEndPos = Position._createAt( root, 4 );
-			const spy = sinon.spy( LiveRange.prototype, 'detach' );
+			const startPos = ModelPosition._createAt( root, 1 );
+			const endPos = ModelPosition._createAt( root, 2 );
+			const newEndPos = ModelPosition._createAt( root, 4 );
+			const spy = vi.spyOn( ModelLiveRange.prototype, 'detach' );
 
-			selection._setTo( new Range( startPos, endPos ) );
+			selection._setTo( new ModelRange( startPos, endPos ) );
 
 			selection._setFocus( newEndPos );
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'refreshes attributes', () => {
-			const spy = sinon.spy( selection._selection, '_updateAttributes' );
+			const spy = vi.spyOn( selection._selection, '_updateAttributes' );
 
-			selection._setFocus( Position._createAt( root, 1 ) );
+			selection._setFocus( ModelPosition._createAt( root, 1 ) );
 
-			expect( spy.called ).to.be.true;
+			expect( spy ).toHaveBeenCalled();
 		} );
 	} );
 
@@ -952,34 +949,34 @@ describe( 'DocumentSelection', () => {
 		beforeEach( () => {
 			selection._setTo( [ liveRange, range ] );
 
-			spy = sinon.spy();
+			spy = vi.fn();
 			selection.on( 'change:range', spy );
 
 			ranges = Array.from( selection._selection._ranges );
 
-			sinon.spy( ranges[ 0 ], 'detach' );
-			sinon.spy( ranges[ 1 ], 'detach' );
+			vi.spyOn( ranges[ 0 ], 'detach' );
+			vi.spyOn( ranges[ 1 ], 'detach' );
 
 			selection._setTo( null );
 		} );
 
 		it( 'should remove all stored ranges (and reset to default range)', () => {
-			expect( Array.from( selection.getRanges() ).length ).to.equal( 1 );
-			expect( selection.anchor.isEqual( new Position( root, [ 0, 0 ] ) ) ).to.be.true;
-			expect( selection.focus.isEqual( new Position( root, [ 0, 0 ] ) ) ).to.be.true;
+			expect( Array.from( selection.getRanges() ).length ).toBe( 1 );
+			expect( selection.anchor.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
+			expect( selection.focus.isEqual( new ModelPosition( root, [ 0, 0 ] ) ) ).toBe( true );
 		} );
 
 		it( 'should detach ranges', () => {
-			expect( ranges[ 0 ].detach.called ).to.be.true;
-			expect( ranges[ 1 ].detach.called ).to.be.true;
+			expect( ranges[ 0 ].detach ).toHaveBeenCalled();
+			expect( ranges[ 1 ].detach ).toHaveBeenCalled();
 		} );
 
 		it( 'should refresh attributes', () => {
-			const spy = sinon.spy( selection._selection, '_updateAttributes' );
+			const spy = vi.spyOn( selection._selection, '_updateAttributes' );
 
 			selection._setTo( null );
 
-			expect( spy.called ).to.be.true;
+			expect( spy ).toHaveBeenCalled();
 		} );
 	} );
 
@@ -992,12 +989,12 @@ describe( 'DocumentSelection', () => {
 
 		it( 'should do nothing when trying to set selection to the graveyard', () => {
 			// Catches the 'Trying to add a Range that is in the graveyard root. Range rejected.' warning in the CK_DEBUG mode.
-			sinon.stub( console, 'warn' );
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
-			const range = new Range( new Position( model.document.graveyard, [ 0 ] ) );
+			const range = new ModelRange( new ModelPosition( model.document.graveyard, [ 0 ] ) );
 			selection._setTo( range );
 
-			expect( selection._ranges ).to.deep.equal( [] );
+			expect( selection._ranges ).toEqual( [] );
 		} );
 
 		it( 'should detach removed ranges', () => {
@@ -1005,46 +1002,68 @@ describe( 'DocumentSelection', () => {
 
 			const oldRanges = Array.from( selection._selection._ranges );
 
-			sinon.spy( oldRanges[ 0 ], 'detach' );
-			sinon.spy( oldRanges[ 1 ], 'detach' );
+			vi.spyOn( oldRanges[ 0 ], 'detach' );
+			vi.spyOn( oldRanges[ 1 ], 'detach' );
 
 			selection._setTo( [] );
 
-			expect( oldRanges[ 0 ].detach.called ).to.be.true;
-			expect( oldRanges[ 1 ].detach.called ).to.be.true;
+			expect( oldRanges[ 0 ].detach ).toHaveBeenCalled();
+			expect( oldRanges[ 1 ].detach ).toHaveBeenCalled();
 		} );
 
 		it( 'should refresh attributes', () => {
-			const spy = sinon.spy( selection._selection, '_updateAttributes' );
+			const spy = vi.spyOn( selection._selection, '_updateAttributes' );
 
 			selection._setTo( [ range ] );
 
-			expect( spy.called ).to.be.true;
+			expect( spy ).toHaveBeenCalled();
 		} );
 
-		// See #630.
+		// See https://github.com/ckeditor/ckeditor5-engine/issues/630.
 		it( 'should refresh attributes – integration test for #630', () => {
 			model.schema.extend( '$text', { allowIn: '$root' } );
 
-			setData( model, 'f<$text italic="true">[o</$text><$text bold="true">ob]a</$text>r' );
+			_setModelData( model, 'f<$text italic="true">[o</$text><$text bold="true">ob]a</$text>r' );
 
-			selection._setTo( [ Range._createFromPositionAndShift( selection.getLastRange().end, 0 ) ] );
+			selection._setTo( [ ModelRange._createFromPositionAndShift( selection.getLastRange().end, 0 ) ] );
 
-			expect( selection.getAttribute( 'bold' ) ).to.equal( true );
-			expect( selection.hasAttribute( 'italic' ) ).to.equal( false );
+			expect( selection.getAttribute( 'bold' ) ).toBe( true );
+			expect( selection.hasAttribute( 'italic' ) ).toBe( false );
 
-			expect( getData( model ) )
-				.to.equal( 'f<$text italic="true">o</$text><$text bold="true">ob[]a</$text>r' );
+			expect( _getModelData( model ) )
+				.toBe( 'f<$text italic="true">o</$text><$text bold="true">ob[]a</$text>r' );
 		} );
 	} );
 
 	describe( '_isStoreAttributeKey', () => {
-		it( 'should return true if given key is a key of an attribute stored in element by DocumentSelection', () => {
-			expect( DocumentSelection._isStoreAttributeKey( fooStoreAttrKey ) ).to.be.true;
+		it( 'should return true if given key is a key of an attribute stored in element by ModelDocumentSelection', () => {
+			expect( ModelDocumentSelection._isStoreAttributeKey( fooStoreAttrKey ) ).toBe( true );
 		} );
 
-		it( 'should return false if given key is not a key of an attribute stored in element by DocumentSelection', () => {
-			expect( DocumentSelection._isStoreAttributeKey( 'foo' ) ).to.be.false;
+		it( 'should return false if given key is not a key of an attribute stored in element by ModelDocumentSelection', () => {
+			expect( ModelDocumentSelection._isStoreAttributeKey( 'foo' ) ).toBe( false );
+		} );
+	} );
+
+	describe( '_dropStoreAttributeKeyPrefix', () => {
+		it( 'should return the original attribute key with the store prefix removed', () => {
+			expect( ModelDocumentSelection._dropStoreAttributeKeyPrefix( fooStoreAttrKey ) ).toBe( 'foo' );
+		} );
+
+		it( 'should work for a different key too, not just "foo"', () => {
+			expect( ModelDocumentSelection._dropStoreAttributeKeyPrefix( abcStoreAttrKey ) ).toBe( 'abc' );
+		} );
+
+		it( 'should return the key unchanged if it does not have the store prefix', () => {
+			expect( ModelDocumentSelection._dropStoreAttributeKeyPrefix( 'foo' ) ).toBe( 'foo' );
+		} );
+
+		it( 'should round-trip with _getStoreAttributeKey for an arbitrary key', () => {
+			const key = 'someArbitraryAttributeName';
+
+			expect(
+				ModelDocumentSelection._dropStoreAttributeKeyPrefix( ModelDocumentSelection._getStoreAttributeKey( key ) )
+			).toBe( key );
 		} );
 	} );
 
@@ -1054,19 +1073,20 @@ describe( 'DocumentSelection', () => {
 		beforeEach( () => {
 			root._removeChildren( 0, root.childCount );
 			root._appendChild( [
-				new Element( 'p', [], new Text( 'foobar' ) ),
-				new Element( 'p', [], [] )
+				new ModelElement( 'p', [], new ModelText( 'foobar' ) ),
+				new ModelElement( 'p', [], [] )
 			] );
 
 			fullP = root.getChild( 0 );
 			emptyP = root.getChild( 1 );
 
-			rangeInFullP = new Range( new Position( root, [ 0, 4 ] ), new Position( root, [ 0, 4 ] ) );
-			rangeInEmptyP = new Range( new Position( root, [ 1, 0 ] ), new Position( root, [ 1, 0 ] ) );
+			rangeInFullP = new ModelRange( new ModelPosition( root, [ 0, 4 ] ), new ModelPosition( root, [ 0, 4 ] ) );
+			rangeInEmptyP = new ModelRange( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 1, 0 ] ) );
 
 			// I've lost 30 mins debugging why my tests fail and that was due to the above code reusing
 			// a root which wasn't empty (so the ranges didn't actually make much sense).
-			expect( root.childCount ).to.equal( 2 );
+			// eslint-disable-next-line vitest/no-standalone-expect -- Sanity check of the setup, must run in `beforeEach()`.
+			expect( root.childCount ).toBe( 2 );
 		} );
 
 		describe( '_setAttribute()', () => {
@@ -1074,7 +1094,7 @@ describe( 'DocumentSelection', () => {
 				selection._setTo( [ rangeInEmptyP ] );
 				selection._setAttribute( 'foo', 'bar' );
 
-				expect( selection.getAttribute( 'foo' ) ).to.equal( 'bar' );
+				expect( selection.getAttribute( 'foo' ) ).toBe( 'bar' );
 			} );
 		} );
 
@@ -1084,22 +1104,22 @@ describe( 'DocumentSelection', () => {
 				selection._setAttribute( 'foo', 'bar' );
 				selection._removeAttribute( 'foo' );
 
-				expect( selection.getAttribute( 'foo' ) ).to.be.undefined;
+				expect( selection.getAttribute( 'foo' ) ).toBeUndefined();
 			} );
 
 			it( 'should prevent auto update of the attribute even if attribute is not preset yet', () => {
-				selection._setTo( new Position( root, [ 0, 1 ] ) );
+				selection._setTo( new ModelPosition( root, [ 0, 1 ] ) );
 
 				// Remove "foo" attribute that is not present in selection yet.
-				expect( selection.hasAttribute( 'foo' ) ).to.be.false;
+				expect( selection.hasAttribute( 'foo' ) ).toBe( false );
 				selection._removeAttribute( 'foo' );
 
 				// Trigger selecton auto update on document change. It should not get attribute from surrounding text;
 				model.change( writer => {
-					writer.setAttribute( 'foo', 'bar', Range._createIn( fullP ) );
+					writer.setAttribute( 'foo', 'bar', ModelRange._createIn( fullP ) );
 				} );
 
-				expect( selection.getAttribute( 'foo' ) ).to.be.undefined;
+				expect( selection.getAttribute( 'foo' ) ).toBeUndefined();
 			} );
 		} );
 
@@ -1107,96 +1127,121 @@ describe( 'DocumentSelection', () => {
 			it( 'should return no values if there are no ranges in selection', () => {
 				const values = Array.from( selection._getStoredAttributes() );
 
-				expect( values ).to.deep.equal( [] );
+				expect( values ).toEqual( [] );
 			} );
 		} );
 
 		describe( 'are updated on a direct range change', () => {
 			beforeEach( () => {
 				root._insertChild( 0, [
-					new Element( 'p', { p: true } ),
-					new Text( 'a', { a: true } ),
-					new Element( 'p', { p: true } ),
-					new Text( 'b', { b: true } ),
-					new Text( 'c', { c: true } ),
-					new Element( 'p', [], [
-						new Text( 'd', { d: true } )
+					new ModelElement( 'p', { p: true } ),
+					new ModelText( 'a', { a: true } ),
+					new ModelElement( 'p', { p: true } ),
+					new ModelText( 'b', { b: true } ),
+					new ModelText( 'c', { c: true } ),
+					new ModelElement( 'p', [], [
+						new ModelText( 'd', { d: true } )
 					] ),
-					new Element( 'p', { p: true } ),
-					new Text( 'e', { e: true } )
+					new ModelElement( 'p', { p: true } ),
+					new ModelText( 'e', { e: true } )
 				] );
+
+				// Just to make sure how model looks.
+				// eslint-disable-next-line vitest/no-standalone-expect -- Sanity check of the setup, must run in `beforeEach()`.
+				expect( _getModelData( model, { withoutSelection: true } ) ).toBe(
+					'<p p="true"></p>' +
+
+					'<$text a="true">a</$text>' +
+
+					'<p p="true"></p>' +
+
+					'<$text b="true">b</$text>' +
+					'<$text c="true">c</$text>' +
+
+					'<p>' +
+						'<$text d="true">d</$text>' +
+					'</p>' +
+
+					'<p p="true"></p>' +
+
+					'<$text e="true">e</$text>' +
+
+					// Left-overs from parent describe.
+					'<p>foobar</p>' +
+					'<p></p>'
+				);
 			} );
 
 			it( 'if selection is a range, should find first character in it and copy it\'s attributes', () => {
-				selection._setTo( [ new Range( new Position( root, [ 2 ] ), new Position( root, [ 5 ] ) ) ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 2 ] ), new ModelPosition( root, [ 5 ] ) ) ] );
 
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'b', true ] ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'b', true ] ] );
 
 				// Step into elements when looking for first character:
-				selection._setTo( [ new Range( new Position( root, [ 5 ] ), new Position( root, [ 7 ] ) ) ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 5 ] ), new ModelPosition( root, [ 7 ] ) ) ] );
 
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'd', true ] ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'd', true ] ] );
 			} );
 
 			it( 'if selection is collapsed it should seek a character to copy that character\'s attributes', () => {
 				// Take styles from character before selection.
-				selection._setTo( [ new Range( new Position( root, [ 2 ] ), new Position( root, [ 2 ] ) ) ] );
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'a', true ] ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 2 ] ), new ModelPosition( root, [ 2 ] ) ) ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'a', true ] ] );
 
 				// If there are none,
 				// Take styles from character after selection.
-				selection._setTo( [ new Range( new Position( root, [ 3 ] ), new Position( root, [ 3 ] ) ) ] );
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'b', true ] ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 3 ] ), new ModelPosition( root, [ 3 ] ) ) ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'b', true ] ] );
 
 				// If there are none,
 				// Look from the selection position to the beginning of node looking for character to take attributes from.
-				selection._setTo( [ new Range( new Position( root, [ 6 ] ), new Position( root, [ 6 ] ) ) ] );
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'c', true ] ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 6 ] ), new ModelPosition( root, [ 6 ] ) ) ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'c', true ] ] );
 
 				// If there are none,
 				// Look from the selection position to the end of node looking for character to take attributes from.
-				selection._setTo( [ new Range( new Position( root, [ 0 ] ), new Position( root, [ 0 ] ) ) ] );
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'a', true ] ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 0 ] ) ) ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'a', true ] ] );
 
 				// If there are no characters to copy attributes from, use stored attributes.
-				selection._setTo( [ new Range( new Position( root, [ 0, 0 ] ), new Position( root, [ 0, 0 ] ) ) ] );
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 0, 0 ] ), new ModelPosition( root, [ 0, 0 ] ) ) ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [] );
 			} );
 
 			it( 'should overwrite any previously set attributes', () => {
-				selection._setTo( new Position( root, [ 5, 0 ] ) );
+				selection._setTo( new ModelPosition( root, [ 5, 0 ] ) );
 
 				selection._setAttribute( 'x', true );
 				selection._setAttribute( 'y', true );
 
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'd', true ], [ 'x', true ], [ 'y', true ] ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'd', true ], [ 'x', true ], [ 'y', true ] ] );
 
-				selection._setTo( new Position( root, [ 1 ] ) );
+				selection._setTo( new ModelPosition( root, [ 1 ] ) );
 
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'a', true ] ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'a', true ] ] );
 			} );
 
 			it( 'should fire change:attribute event', () => {
-				const spy = sinon.spy();
+				const spy = vi.fn();
 				selection.on( 'change:attribute', spy );
 
-				selection._setTo( [ new Range( new Position( root, [ 2 ] ), new Position( root, [ 5 ] ) ) ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 2 ] ), new ModelPosition( root, [ 5 ] ) ) ] );
 
-				expect( spy.calledOnce ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should not fire change:attribute event if attributes did not change', () => {
-				selection._setTo( new Position( root, [ 5, 0 ] ) );
+				selection._setTo( new ModelPosition( root, [ 5, 0 ] ) );
 
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'd', true ] ] );
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'd', true ] ] );
 
-				const spy = sinon.spy();
+				const spy = vi.fn();
 				selection.on( 'change:attribute', spy );
 
-				selection._setTo( new Position( root, [ 5, 1 ] ) );
+				selection._setTo( new ModelPosition( root, [ 5, 1 ] ) );
 
-				expect( Array.from( selection.getAttributes() ) ).to.deep.equal( [ [ 'd', true ] ] );
-				expect( spy.called ).to.be.false;
+				expect( Array.from( selection.getAttributes() ) ).toEqual( [ [ 'd', true ] ] );
+				expect( spy ).not.toHaveBeenCalled();
 			} );
 		} );
 
@@ -1218,39 +1263,41 @@ describe( 'DocumentSelection', () => {
 			} );
 
 			it( 'ignores attributes inside an object if selection contains that object', () => {
-				setData( model, '<p>[<imageBlock><$text bold="true">Caption for the image.</$text></imageBlock>]</p>' );
+				_setModelData( model, '<p>[<imageBlock><$text bold="true">Caption for the image.</$text></imageBlock>]</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 
 			it( 'ignores attributes inside an object if selection contains that object (deeper structure)', () => {
-				setData( model, '<p>[<imageBlock><caption><$text bold="true">Caption for the image.</$text></caption></imageBlock>]</p>' );
+				_setModelData( model,
+					'<p>[<imageBlock><caption><$text bold="true">Caption for the image.</$text></caption></imageBlock>]</p>'
+				);
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 
 			it( 'ignores attributes inside an object if selection contains that object (block level)', () => {
-				setData( model, '<p>foo</p>[<imageBlock><$text bold="true">Caption for the image.</$text></imageBlock>]<p>foo</p>' );
+				_setModelData( model, '<p>foo</p>[<imageBlock><$text bold="true">Caption for the image.</$text></imageBlock>]<p>foo</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 
 			it( 'reads attributes from text even if the selection contains an object', () => {
-				setData( model, '<p>x<$text bold="true">[bar</$text><imageBlock></imageBlock>foo]</p>' );
+				_setModelData( model, '<p>x<$text bold="true">[bar</$text><imageBlock></imageBlock>foo]</p>' );
 
-				expect( selection.getAttribute( 'bold' ) ).to.equal( true );
+				expect( selection.getAttribute( 'bold' ) ).toBe( true );
 			} );
 
 			it( 'reads attributes when the entire selection inside an object', () => {
-				setData( model, '<p><imageBlock><caption><$text bold="true">[bar]</$text></caption></imageBlock></p>' );
+				_setModelData( model, '<p><imageBlock><caption><$text bold="true">[bar]</$text></caption></imageBlock></p>' );
 
-				expect( selection.getAttribute( 'bold' ) ).to.equal( true );
+				expect( selection.getAttribute( 'bold' ) ).toBe( true );
 			} );
 
 			it( 'stops reading attributes if selection starts with an object', () => {
-				setData( model, '<p>[<imageBlock></imageBlock><$text bold="true">bar]</$text></p>' );
+				_setModelData( model, '<p>[<imageBlock></imageBlock><$text bold="true">bar]</$text></p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 		} );
 
@@ -1263,8 +1310,8 @@ describe( 'DocumentSelection', () => {
 				writer.detachRoot( 'main' );
 			} );
 
-			expect( selection.anchor.root ).to.equal( model.document.graveyard );
-			expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+			expect( selection.anchor.root ).toBe( model.document.graveyard );
+			expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 		} );
 
 		describe( 'parent element\'s attributes', () => {
@@ -1282,9 +1329,9 @@ describe( 'DocumentSelection', () => {
 					writer.setSelectionAttribute( 'foo', 'bar' );
 				} );
 
-				expect( batch.isUndoable ).to.be.true;
+				expect( batch.isUndoable ).toBe( true );
 
-				expect( emptyP.getAttribute( fooStoreAttrKey ) ).to.equal( 'bar' );
+				expect( emptyP.getAttribute( fooStoreAttrKey ) ).toBe( 'bar' );
 			} );
 
 			it( 'are removed when any content is inserted (reuses the same batch)', () => {
@@ -1305,14 +1352,14 @@ describe( 'DocumentSelection', () => {
 					writer.insertText( 'x', rangeInEmptyP.start );
 				} );
 
-				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.false;
-				expect( emptyP.hasAttribute( abcStoreAttrKey ) ).to.be.false;
+				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( false );
+				expect( emptyP.hasAttribute( abcStoreAttrKey ) ).toBe( false );
 
-				expect( batches.size ).to.equal( 1 );
+				expect( batches.size ).toBe( 1 );
 
 				const batch = Array.from( batches )[ 0 ];
 
-				expect( batch.isUndoable ).to.be.true;
+				expect( batch.isUndoable ).toBe( true );
 			} );
 
 			it( 'are removed when any content is moved into', () => {
@@ -1323,11 +1370,11 @@ describe( 'DocumentSelection', () => {
 					writer.move( writer.createRangeOn( fullP.getChild( 0 ) ), rangeInEmptyP.start );
 				} );
 
-				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.false;
+				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( false );
 			} );
 
 			it( 'are removed when containing element is merged with a non-empty element', () => {
-				const emptyP2 = new Element( 'p', null, 'x' );
+				const emptyP2 = new ModelElement( 'p', null, 'x' );
 				root._appendChild( emptyP2 );
 
 				emptyP._setAttribute( fooStoreAttrKey, 'bar' );
@@ -1338,8 +1385,8 @@ describe( 'DocumentSelection', () => {
 					writer.merge( writer.createPositionAfter( emptyP ) );
 				} );
 
-				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.false;
-				expect( emptyP.parent ).to.equal( root ); // Just to be sure we're checking the right element.
+				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( false );
+				expect( emptyP.parent ).toBe( root ); // Just to be sure we're checking the right element.
 			} );
 
 			it( 'are removed even when there is no selection in it', () => {
@@ -1351,7 +1398,7 @@ describe( 'DocumentSelection', () => {
 					writer.insertText( 'x', rangeInEmptyP.start );
 				} );
 
-				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.false;
+				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( false );
 			} );
 
 			it( 'uses model change to clear attributes', () => {
@@ -1362,30 +1409,30 @@ describe( 'DocumentSelection', () => {
 					writer.insertText( 'x', rangeInEmptyP.start );
 
 					// `emptyP` still has the attribute, because attribute clearing is in enqueued block.
-					expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.true;
+					expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( true );
 				} );
 
 				// When the dust settles, `emptyP` should not have the attribute.
-				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.false;
+				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( false );
 			} );
 
 			it( 'are not removed or merged when containing element is merged with another empty element', () => {
-				const emptyP2 = new Element( 'p', null );
+				const emptyP2 = new ModelElement( 'p', null );
 				root._appendChild( emptyP2 );
 
 				emptyP._setAttribute( fooStoreAttrKey, 'bar' );
 				emptyP2._setAttribute( abcStoreAttrKey, 'bar' );
 
-				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).to.be.true;
-				expect( emptyP.hasAttribute( abcStoreAttrKey ) ).to.be.false;
+				expect( emptyP.hasAttribute( fooStoreAttrKey ) ).toBe( true );
+				expect( emptyP.hasAttribute( abcStoreAttrKey ) ).toBe( false );
 
 				model.change( writer => {
 					// <emptyP>{}<emptyP2>
 					writer.merge( writer.createPositionAfter( emptyP ) );
 				} );
 
-				expect( emptyP.getAttribute( fooStoreAttrKey ) ).to.equal( 'bar' );
-				expect( emptyP.parent ).to.equal( root ); // Just to be sure we're checking the right element.
+				expect( emptyP.getAttribute( fooStoreAttrKey ) ).toBe( 'bar' );
+				expect( emptyP.parent ).toBe( root ); // Just to be sure we're checking the right element.
 			} );
 
 			// Rename and some other operations don't specify range in doc#change event.
@@ -1396,38 +1443,55 @@ describe( 'DocumentSelection', () => {
 					writer.setSelectionAttribute( 'foo', 'bar' );
 				} );
 
-				sinon.spy( model, 'enqueueChange' );
+				vi.spyOn( model, 'enqueueChange' );
 
 				model.change( writer => {
 					writer.rename( emptyP, 'pnew' );
 				} );
 
-				expect( model.enqueueChange.called ).to.be.false;
-				expect( emptyP.getAttribute( fooStoreAttrKey ) ).to.equal( 'bar' );
+				expect( model.enqueueChange ).not.toHaveBeenCalled();
+				expect( emptyP.getAttribute( fooStoreAttrKey ) ).toBe( 'bar' );
 			} );
 		} );
 
 		// #7459
-		describe( 'ignores inline elements while reading surrounding attributes', () => {
+		describe( 'softBreak integration', () => {
 			beforeEach( () => {
 				model.schema.register( 'softBreak', {
 					allowWhere: '$text',
+					allowAttributesOf: '$text',
 					isInline: true
 				} );
 			} );
 
 			it( 'should not inherit attributes from a node before an inline element', () => {
-				setData( model, '<p><$text bold="true">Foo Bar.</$text><softBreak></softBreak>[]</p>' );
+				_setModelData( model, '<p><$text bold="true">Foo Bar.</$text><softBreak></softBreak>[]</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 
 			it( 'should not inherit attributes from a node after an inline element (override gravity)', () => {
-				setData( model, '<p>[]<softBreak></softBreak><$text bold="true">Foo Bar.</$text></p>' );
+				_setModelData( model, '<p>[]<softBreak></softBreak><$text bold="true">Foo Bar.</$text></p>' );
 
 				const overrideGravityUid = selection._overrideGravity();
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
+
+				selection._restoreGravity( overrideGravityUid );
+			} );
+
+			it( 'should inherit attributes from an inline element', () => {
+				_setModelData( model, '<p><$text bold="true">Foo Bar.</$text><softBreak bold="true"></softBreak>[]</p>' );
+
+				expect( selection.hasAttribute( 'bold' ) ).toBe( true );
+			} );
+
+			it( 'should inherit attributes from an inline element (override gravity)', () => {
+				_setModelData( model, '<p>[]<softBreak bold="true"></softBreak><$text bold="true">Foo Bar.</$text></p>' );
+
+				const overrideGravityUid = selection._overrideGravity();
+
+				expect( selection.hasAttribute( 'bold' ) ).toBe( true );
 
 				selection._restoreGravity( overrideGravityUid );
 			} );
@@ -1443,64 +1507,64 @@ describe( 'DocumentSelection', () => {
 			} );
 
 			it( 'inherits attributes from a node before', () => {
-				setData( model, '<p><$text bold="true">Foo Bar.</$text><imageInline bold="true"></imageInline>[]</p>' );
+				_setModelData( model, '<p><$text bold="true">Foo Bar.</$text><imageInline bold="true"></imageInline>[]</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( true );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( true );
 			} );
 
 			it( 'inherits attributes from a node after with override gravity', () => {
-				setData( model, '<p><$text>Foo Bar.</$text>[]<imageInline bold="true"></imageInline></p>' );
+				_setModelData( model, '<p><$text>Foo Bar.</$text>[]<imageInline bold="true"></imageInline></p>' );
 
 				const overrideGravityUid = selection._overrideGravity();
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( true );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( true );
 
 				selection._restoreGravity( overrideGravityUid );
 			} );
 
 			it( 'inherits attributes from <imageInline>, even without any text before it', () => {
-				setData( model, '<p><imageInline bold="true"></imageInline>[]</p>' );
+				_setModelData( model, '<p><imageInline bold="true"></imageInline>[]</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( true );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( true );
 			} );
 
 			it( 'ignores attributes from a node before (copyFromObject === false)', () => {
 				model.schema.setAttributeProperties( 'bold', { copyFromObject: false } );
-				setData( model, '<p><$text bold="true">Foo Bar.</$text><imageInline bold="true"></imageInline>[]</p>' );
+				_setModelData( model, '<p><$text bold="true">Foo Bar.</$text><imageInline bold="true"></imageInline>[]</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 
 			it( 'ignores attributes from a node after with override gravity (copyFromObject === false)', () => {
 				model.schema.setAttributeProperties( 'bold', { copyFromObject: false } );
-				setData( model, '<p><$text>Foo Bar.</$text>[]<imageInline bold="true"></imageInline></p>' );
+				_setModelData( model, '<p><$text>Foo Bar.</$text>[]<imageInline bold="true"></imageInline></p>' );
 
 				const overrideGravityUid = selection._overrideGravity();
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 
 				selection._restoreGravity( overrideGravityUid );
 			} );
 
 			it( 'ignores attributes from <imageInline>, even without any text before it (copyFromObject === false)', () => {
 				model.schema.setAttributeProperties( 'bold', { copyFromObject: false } );
-				setData( model, '<p><imageInline bold="true"></imageInline>[]</p>' );
+				_setModelData( model, '<p><imageInline bold="true"></imageInline>[]</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 
 			it( 'inherits attributes from a selected node (only those allowed on text)', () => {
-				setData( model, '<p>foo[<imageInline bold="true" src="123"></imageInline>]bar</p>' );
+				_setModelData( model, '<p>foo[<imageInline bold="true" src="123"></imageInline>]bar</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( true );
-				expect( selection.hasAttribute( 'src' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( true );
+				expect( selection.hasAttribute( 'src' ) ).toBe( false );
 			} );
 
 			it( 'ignores attributes from a selected node with copyFromObject flag == false', () => {
 				model.schema.setAttributeProperties( 'bold', { copyFromObject: false } );
-				setData( model, '<p>foo[<imageInline bold="true"></imageInline>]bar</p>' );
+				_setModelData( model, '<p>foo[<imageInline bold="true"></imageInline>]bar</p>' );
 
-				expect( selection.hasAttribute( 'bold' ) ).to.equal( false );
+				expect( selection.hasAttribute( 'bold' ) ).toBe( false );
 			} );
 		} );
 	} );
@@ -1516,65 +1580,65 @@ describe( 'DocumentSelection', () => {
 			const overrideUidA = selection._overrideGravity();
 			const overrideUidB = selection._overrideGravity();
 
-			expect( overrideUidA ).to.be.a( 'string' );
-			expect( overrideUidB ).to.be.a( 'string' );
-			expect( overrideUidA ).to.not.equal( overrideUidB );
+			expect( overrideUidA ).toBeTypeOf( 'string' );
+			expect( overrideUidB ).toBeTypeOf( 'string' );
+			expect( overrideUidA ).not.toBe( overrideUidB );
 		} );
 
 		it( 'should mark gravity as overridden', () => {
-			expect( selection.isGravityOverridden ).to.false;
+			expect( selection.isGravityOverridden ).toBe( false );
 
 			selection._overrideGravity();
 
-			expect( selection.isGravityOverridden ).to.true;
+			expect( selection.isGravityOverridden ).toBe( true );
 		} );
 
 		it( 'should not inherit attributes from node before the caret', () => {
-			setData( model, '<$text bold="true" italic="true">foo[]</$text>' );
+			_setModelData( model, '<$text bold="true" italic="true">foo[]</$text>' );
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [ 'bold', 'italic' ] );
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [ 'bold', 'italic' ] ) );
 
 			selection._overrideGravity();
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.length( 0 );
+			expect( Array.from( selection.getAttributeKeys() ) ).toHaveLength( 0 );
 		} );
 
 		it( 'should inherit attributes from node after the caret', () => {
-			setData( model, '<$text>foo[]</$text><$text bold="true" italic="true">bar</$text>' );
+			_setModelData( model, '<$text>foo[]</$text><$text bold="true" italic="true">bar</$text>' );
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.length( 0 );
+			expect( Array.from( selection.getAttributeKeys() ) ).toHaveLength( 0 );
 
 			selection._overrideGravity();
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [ 'bold', 'italic' ] );
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [ 'bold', 'italic' ] ) );
 		} );
 
 		it( 'should not retain attributes that are set explicitly', () => {
-			setData( model, '<$text italic="true">foo[]</$text>' );
+			_setModelData( model, '<$text italic="true">foo[]</$text>' );
 
 			selection._setAttribute( 'bold', true );
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [ 'bold', 'italic' ] );
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [ 'bold', 'italic' ] ) );
 
 			selection._overrideGravity();
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [] );
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [] ) );
 		} );
 
 		it( 'should retain overridden until selection will not change range by a direct change', () => {
-			setData( model, '<$text bold="true" italic="true">foo[]</$text><$text italic="true">bar</$text>' );
+			_setModelData( model, '<$text bold="true" italic="true">foo[]</$text><$text italic="true">bar</$text>' );
 
 			selection._overrideGravity();
 
 			// Changed range but not directly.
-			model.change( writer => writer.insertText( 'abc', new Position( root, [ 0 ] ) ) );
+			model.change( writer => writer.insertText( 'abc', new ModelPosition( root, [ 0 ] ) ) );
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [ 'italic' ] );
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [ 'italic' ] ) );
 
 			// Changed range directly.
-			model.change( writer => writer.setSelection( new Position( root, [ 5 ] ) ) );
+			model.change( writer => writer.setSelection( new ModelPosition( root, [ 5 ] ) ) );
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [ 'bold', 'italic' ] );
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [ 'bold', 'italic' ] ) );
 		} );
 	} );
 
@@ -1606,34 +1670,34 @@ describe( 'DocumentSelection', () => {
 		} );
 
 		it( 'should revert default gravity when is overridden', () => {
-			setData( model, '<$text bold="true" italic="true">foo[]</$text>' );
+			_setModelData( model, '<$text bold="true" italic="true">foo[]</$text>' );
 
 			const overrideUid = selection._overrideGravity();
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.length( 0 );
-			expect( selection.isGravityOverridden ).to.true;
+			expect( Array.from( selection.getAttributeKeys() ) ).toHaveLength( 0 );
+			expect( selection.isGravityOverridden ).toBe( true );
 
 			selection._restoreGravity( overrideUid );
 
-			expect( Array.from( selection.getAttributeKeys() ) ).to.have.members( [ 'bold', 'italic' ] );
-			expect( selection.isGravityOverridden ).to.false;
+			expect( Array.from( selection.getAttributeKeys() ) ).toEqual( expect.arrayContaining( [ 'bold', 'italic' ] ) );
+			expect( selection.isGravityOverridden ).toBe( false );
 		} );
 
 		it( 'should be called the same number of times as gravity is overridden to restore it', () => {
-			setData( model, '<$text bold="true" italic="true">foo[]</$text>' );
+			_setModelData( model, '<$text bold="true" italic="true">foo[]</$text>' );
 
 			const overrideUidA = selection._overrideGravity();
 			const overrideUidB = selection._overrideGravity();
 
-			expect( selection.isGravityOverridden ).to.true;
+			expect( selection.isGravityOverridden ).toBe( true );
 
 			selection._restoreGravity( overrideUidA );
 
-			expect( selection.isGravityOverridden ).to.true;
+			expect( selection.isGravityOverridden ).toBe( true );
 
 			selection._restoreGravity( overrideUidB );
 
-			expect( selection.isGravityOverridden ).to.false;
+			expect( selection.isGravityOverridden ).toBe( false );
 		} );
 	} );
 
@@ -1647,8 +1711,8 @@ describe( 'DocumentSelection', () => {
 			selection.observeMarkers( 'marker' );
 
 			doc.registerPostFixer( () => {
-				expect( model.document.selection.getAttribute( 'foo' ) ).to.equal( 'bar' );
-				expect( Array.from( model.document.selection.markers, m => m.name ) ).to.deep.equal( [ 'marker:1' ] );
+				expect( model.document.selection.getAttribute( 'foo' ) ).toBe( 'bar' );
+				expect( Array.from( model.document.selection.markers, m => m.name ) ).toEqual( [ 'marker:1' ] );
 			} );
 
 			model.change( writer => {
@@ -1686,8 +1750,8 @@ describe( 'DocumentSelection', () => {
 			} );
 
 			doc.registerPostFixer( () => {
-				expect( model.document.selection.getAttribute( 'foo' ) ).to.equal( 'biz' );
-				expect( Array.from( model.document.selection.markers, m => m.name ) ).to.deep.equal( [ 'marker:2' ] );
+				expect( model.document.selection.getAttribute( 'foo' ) ).toBe( 'biz' );
+				expect( Array.from( model.document.selection.markers, m => m.name ) ).toEqual( [ 'marker:2' ] );
 			} );
 
 			model.change( writer => {
@@ -1705,48 +1769,50 @@ describe( 'DocumentSelection', () => {
 			} );
 		} );
 
-		it( 'should be up to date after post fixers (on `change` event)', done => {
-			model.schema.extend( '$text', { allowAttributes: 'foo' } );
+		it( 'should be up to date after post fixers (on `change` event)', () => {
+			return new Promise( resolve => {
+				model.schema.extend( '$text', { allowAttributes: 'foo' } );
 
-			const p = doc.getRoot().getChild( 0 );
+				const p = doc.getRoot().getChild( 0 );
 
-			selection.observeMarkers( 'marker' );
+				selection.observeMarkers( 'marker' );
 
-			doc.on( 'change', () => {
-				expect( model.document.selection.getAttribute( 'foo' ) ).to.equal( 'biz' );
-				expect( Array.from( model.document.selection.markers, m => m.name ) ).to.deep.equal( [ 'marker:2' ] );
-				done();
-			} );
-
-			doc.registerPostFixer( writer => {
-				writer.setAttribute( 'foo', 'biz', p.getChild( 0 ) );
-				writer.removeMarker( 'marker:1' );
-				writer.addMarker( 'marker:2', {
-					range: writer.createRange(
-						writer.createPositionFromPath( p, [ 1 ] ),
-						writer.createPositionFromPath( p, [ 5 ] )
-					),
-					usingOperation: false
-				} );
-			} );
-
-			model.change( writer => {
-				writer.insertText( 'abcdef', { foo: 'bar' }, p );
-
-				writer.addMarker( 'marker:1', {
-					range: writer.createRange(
-						writer.createPositionFromPath( p, [ 1 ] ),
-						writer.createPositionFromPath( p, [ 5 ] )
-					),
-					usingOperation: false
+				doc.on( 'change', () => {
+					expect( model.document.selection.getAttribute( 'foo' ) ).toBe( 'biz' );
+					expect( Array.from( model.document.selection.markers, m => m.name ) ).toEqual( [ 'marker:2' ] );
+					resolve();
 				} );
 
-				writer.setSelection( writer.createPositionFromPath( p, [ 3 ] ) );
+				doc.registerPostFixer( writer => {
+					writer.setAttribute( 'foo', 'biz', p.getChild( 0 ) );
+					writer.removeMarker( 'marker:1' );
+					writer.addMarker( 'marker:2', {
+						range: writer.createRange(
+							writer.createPositionFromPath( p, [ 1 ] ),
+							writer.createPositionFromPath( p, [ 5 ] )
+						),
+						usingOperation: false
+					} );
+				} );
+
+				model.change( writer => {
+					writer.insertText( 'abcdef', { foo: 'bar' }, p );
+
+					writer.addMarker( 'marker:1', {
+						range: writer.createRange(
+							writer.createPositionFromPath( p, [ 1 ] ),
+							writer.createPositionFromPath( p, [ 5 ] )
+						),
+						usingOperation: false
+					} );
+
+					writer.setSelection( writer.createPositionFromPath( p, [ 3 ] ) );
+				} );
 			} );
 		} );
 	} );
 
-	// DocumentSelection uses LiveRanges so here are only simple test to see if integration is
+	// ModelDocumentSelection uses ModelLiveRanges so here are only simple test to see if integration is
 	// working well, without getting into complicated corner cases.
 	describe( 'after applying an operation should get updated and fire events', () => {
 		let spyRange;
@@ -1754,26 +1820,26 @@ describe( 'DocumentSelection', () => {
 		beforeEach( () => {
 			root._removeChildren( 0, root.childCount );
 			root._insertChild( 0, [
-				new Element( 'p', [], new Text( 'abcdef' ) ),
-				new Element( 'p', [], new Text( 'foobar' ) ),
-				new Text( 'xyz' )
+				new ModelElement( 'p', [], new ModelText( 'abcdef' ) ),
+				new ModelElement( 'p', [], new ModelText( 'foobar' ) ),
+				new ModelText( 'xyz' )
 			] );
 
-			selection._setTo( new Range( new Position( root, [ 0, 2 ] ), new Position( root, [ 1, 4 ] ) ) );
+			selection._setTo( new ModelRange( new ModelPosition( root, [ 0, 2 ] ), new ModelPosition( root, [ 1, 4 ] ) ) );
 
-			spyRange = sinon.spy();
+			spyRange = vi.fn();
 			selection.on( 'change:range', spyRange );
 		} );
 
 		describe( 'InsertOperation', () => {
 			it( 'before selection', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				model.applyOperation(
 					new InsertOperation(
-						new Position( root, [ 0, 1 ] ),
+						new ModelPosition( root, [ 0, 1 ] ),
 						'xyz',
 						doc.version
 					)
@@ -1781,19 +1847,19 @@ describe( 'DocumentSelection', () => {
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 5 ] );
-				expect( range.end.path ).to.deep.equal( [ 1, 4 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 5 ] );
+				expect( range.end.path ).toEqual( [ 1, 4 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'inside selection', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				model.applyOperation(
 					new InsertOperation(
-						new Position( root, [ 1, 0 ] ),
+						new ModelPosition( root, [ 1, 0 ] ),
 						'xyz',
 						doc.version
 					)
@@ -1801,104 +1867,104 @@ describe( 'DocumentSelection', () => {
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 2 ] );
-				expect( range.end.path ).to.deep.equal( [ 1, 7 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 2 ] );
+				expect( range.end.path ).toEqual( [ 1, 7 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 		} );
 
 		describe( 'MoveOperation', () => {
 			it( 'move range from before a selection', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 0, 0 ] ),
+						new ModelPosition( root, [ 0, 0 ] ),
 						2,
-						new Position( root, [ 2 ] ),
+						new ModelPosition( root, [ 2 ] ),
 						doc.version
 					)
 				);
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 0 ] );
-				expect( range.end.path ).to.deep.equal( [ 1, 4 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 0 ] );
+				expect( range.end.path ).toEqual( [ 1, 4 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'moved into before a selection', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 2 ] ),
+						new ModelPosition( root, [ 2 ] ),
 						2,
-						new Position( root, [ 0, 0 ] ),
+						new ModelPosition( root, [ 0, 0 ] ),
 						doc.version
 					)
 				);
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 4 ] );
-				expect( range.end.path ).to.deep.equal( [ 1, 4 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 4 ] );
+				expect( range.end.path ).toEqual( [ 1, 4 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'move range from inside of selection', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1, 0 ] ),
+						new ModelPosition( root, [ 1, 0 ] ),
 						2,
-						new Position( root, [ 2 ] ),
+						new ModelPosition( root, [ 2 ] ),
 						doc.version
 					)
 				);
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 2 ] );
-				expect( range.end.path ).to.deep.equal( [ 1, 2 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 2 ] );
+				expect( range.end.path ).toEqual( [ 1, 2 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'moved range intersects with selection', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1, 3 ] ),
+						new ModelPosition( root, [ 1, 3 ] ),
 						2,
-						new Position( root, [ 4 ] ),
+						new ModelPosition( root, [ 4 ] ),
 						doc.version
 					)
 				);
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 2 ] );
-				expect( range.end.path ).to.deep.equal( [ 1, 3 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 2 ] );
+				expect( range.end.path ).toEqual( [ 1, 3 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'split inside selection (do not break selection)', () => {
 				selection.on( 'change:range', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
+					expect( data.directChange ).toBe( false );
 				} );
 
 				const batch = new Batch();
-				const splitPosition = new Position( root, [ 1, 2 ] );
+				const splitPosition = new ModelPosition( root, [ 1, 2 ] );
 				const insertionPosition = SplitOperation.getInsertionPosition( splitPosition );
 
 				const splitOperation = new SplitOperation( splitPosition, 4, insertionPosition, null, 0 );
@@ -1908,25 +1974,25 @@ describe( 'DocumentSelection', () => {
 
 				const range = selection.getFirstRange();
 
-				expect( range.start.path ).to.deep.equal( [ 0, 2 ] );
-				expect( range.end.path ).to.deep.equal( [ 2, 2 ] );
-				expect( spyRange.calledOnce ).to.be.true;
+				expect( range.start.path ).toEqual( [ 0, 2 ] );
+				expect( range.end.path ).toEqual( [ 2, 2 ] );
+				expect( spyRange ).toHaveBeenCalledOnce();
 			} );
 		} );
 
 		describe( 'AttributeOperation', () => {
 			it( 'changed range includes selection anchor', () => {
-				const spyAttribute = sinon.spy();
+				const spyAttribute = vi.fn();
 				selection.on( 'change:attribute', spyAttribute );
 
 				selection.on( 'change:attribute', ( evt, data ) => {
-					expect( data.directChange ).to.be.false;
-					expect( data.attributeKeys ).to.deep.equal( [ 'foo' ] );
+					expect( data.directChange ).toBe( false );
+					expect( data.attributeKeys ).toEqual( [ 'foo' ] );
 				} );
 
 				model.applyOperation(
 					new AttributeOperation(
-						new Range( new Position( root, [ 0, 1 ] ), new Position( root, [ 0, 5 ] ) ),
+						new ModelRange( new ModelPosition( root, [ 0, 1 ] ), new ModelPosition( root, [ 0, 5 ] ) ),
 						'foo',
 						null,
 						'bar',
@@ -1937,19 +2003,19 @@ describe( 'DocumentSelection', () => {
 				// Attributes are auto updated on document change.
 				model.change( () => {} );
 
-				expect( selection.getAttribute( 'foo' ) ).to.equal( 'bar' );
-				expect( spyAttribute.calledOnce ).to.be.true;
+				expect( selection.getAttribute( 'foo' ) ).toBe( 'bar' );
+				expect( spyAttribute ).toHaveBeenCalledOnce();
 			} );
 
 			it( 'should not overwrite previously set attributes', () => {
 				selection._setAttribute( 'foo', 'xyz' );
 
-				const spyAttribute = sinon.spy();
+				const spyAttribute = vi.fn();
 				selection.on( 'change:attribute', spyAttribute );
 
 				model.applyOperation(
 					new AttributeOperation(
-						new Range( new Position( root, [ 0, 1 ] ), new Position( root, [ 0, 5 ] ) ),
+						new ModelRange( new ModelPosition( root, [ 0, 1 ] ), new ModelPosition( root, [ 0, 5 ] ) ),
 						'foo',
 						null,
 						'bar',
@@ -1957,19 +2023,19 @@ describe( 'DocumentSelection', () => {
 					)
 				);
 
-				expect( selection.getAttribute( 'foo' ) ).to.equal( 'xyz' );
-				expect( spyAttribute.called ).to.be.false;
+				expect( selection.getAttribute( 'foo' ) ).toBe( 'xyz' );
+				expect( spyAttribute ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not overwrite previously set attributes with same values', () => {
 				selection._setAttribute( 'foo', 'xyz' );
 
-				const spyAttribute = sinon.spy();
+				const spyAttribute = vi.fn();
 				selection.on( 'change:attribute', spyAttribute );
 
 				model.applyOperation(
 					new AttributeOperation(
-						new Range( new Position( root, [ 0, 1 ] ), new Position( root, [ 0, 5 ] ) ),
+						new ModelRange( new ModelPosition( root, [ 0, 1 ] ), new ModelPosition( root, [ 0, 5 ] ) ),
 						'foo',
 						null,
 						'xyz',
@@ -1977,20 +2043,20 @@ describe( 'DocumentSelection', () => {
 					)
 				);
 
-				expect( selection.getAttribute( 'foo' ) ).to.equal( 'xyz' );
-				expect( spyAttribute.called ).to.be.false;
+				expect( selection.getAttribute( 'foo' ) ).toBe( 'xyz' );
+				expect( spyAttribute ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should not overwrite previously removed attributes', () => {
 				selection._setAttribute( 'foo', 'xyz' );
 				selection._removeAttribute( 'foo' );
 
-				const spyAttribute = sinon.spy();
+				const spyAttribute = vi.fn();
 				selection.on( 'change:attribute', spyAttribute );
 
 				model.applyOperation(
 					new AttributeOperation(
-						new Range( new Position( root, [ 0, 1 ] ), new Position( root, [ 0, 5 ] ) ),
+						new ModelRange( new ModelPosition( root, [ 0, 1 ] ), new ModelPosition( root, [ 0, 5 ] ) ),
 						'foo',
 						null,
 						'bar',
@@ -1998,101 +2064,101 @@ describe( 'DocumentSelection', () => {
 					)
 				);
 
-				expect( selection.hasAttribute( 'foo' ) ).to.be.false;
-				expect( spyAttribute.called ).to.be.false;
+				expect( selection.hasAttribute( 'foo' ) ).toBe( false );
+				expect( spyAttribute ).not.toHaveBeenCalled();
 			} );
 		} );
 
 		describe( 'MoveOperation to graveyard', () => {
 			it( 'fix selection range if it ends up in graveyard - collapsed selection', () => {
-				selection._setTo( new Position( root, [ 1, 3 ] ) );
+				selection._setTo( new ModelPosition( root, [ 1, 3 ] ) );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1, 2 ] ),
+						new ModelPosition( root, [ 1, 2 ] ),
 						2,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 1, 2 ] );
+				expect( selection.getFirstPosition().path ).toEqual( [ 1, 2 ] );
 			} );
 
 			it( 'fix selection range if it ends up in graveyard - text from non-collapsed selection is moved', () => {
-				selection._setTo( [ new Range( new Position( root, [ 1, 2 ] ), new Position( root, [ 1, 4 ] ) ) ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 1, 2 ] ), new ModelPosition( root, [ 1, 4 ] ) ) ] );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1, 2 ] ),
+						new ModelPosition( root, [ 1, 2 ] ),
 						2,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 1, 2 ] );
+				expect( selection.getFirstPosition().path ).toEqual( [ 1, 2 ] );
 			} );
 
 			it( 'fix selection range if it ends up in graveyard - parent of non-collapsed selection is moved', () => {
-				selection._setTo( [ new Range( new Position( root, [ 1, 1 ] ), new Position( root, [ 1, 2 ] ) ) ] );
+				selection._setTo( [ new ModelRange( new ModelPosition( root, [ 1, 1 ] ), new ModelPosition( root, [ 1, 2 ] ) ) ] );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1 ] ),
+						new ModelPosition( root, [ 1 ] ),
 						2,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 0, 6 ] );
+				expect( selection.getFirstPosition().path ).toEqual( [ 0, 6 ] );
 			} );
 
 			it( 'fix selection range if it ends up in graveyard - whole content removed', () => {
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 0 ] ),
+						new ModelPosition( root, [ 0 ] ),
 						3,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 0 ] );
+				expect( selection.getFirstPosition().path ).toEqual( [ 0 ] );
 
 				model.applyOperation(
 					new InsertOperation(
-						new Position( root, [ 0 ] ),
-						new Element( 'p' ),
+						new ModelPosition( root, [ 0 ] ),
+						new ModelElement( 'p' ),
 						doc.version
 					)
 				);
 
 				// Now it's clear that it's the default range.
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 0, 0 ] );
+				expect( selection.getFirstPosition().path ).toEqual( [ 0, 0 ] );
 			} );
 
 			it( 'handles multi-range selection in a text node by merging it into one range (resulting in a collapsed range)', () => {
 				const ranges = [
-					new Range( new Position( root, [ 1, 1 ] ), new Position( root, [ 1, 2 ] ) ),
-					new Range( new Position( root, [ 1, 3 ] ), new Position( root, [ 1, 4 ] ) )
+					new ModelRange( new ModelPosition( root, [ 1, 1 ] ), new ModelPosition( root, [ 1, 2 ] ) ),
+					new ModelRange( new ModelPosition( root, [ 1, 3 ] ), new ModelPosition( root, [ 1, 4 ] ) )
 				];
 
 				selection._setTo( ranges );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1, 0 ] ),
+						new ModelPosition( root, [ 1, 0 ] ),
 						5,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.rangeCount ).to.equal( 1 );
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 1, 0 ] );
-				expect( selection.getLastPosition().path ).to.deep.equal( [ 1, 0 ] );
+				expect( selection.rangeCount ).toBe( 1 );
+				expect( selection.getFirstPosition().path ).toEqual( [ 1, 0 ] );
+				expect( selection.getLastPosition().path ).toEqual( [ 1, 0 ] );
 			} );
 
 			it( 'handles multi-range selection on object nodes by merging it into one range (resulting in a non-collapsed range)', () => {
@@ -2106,79 +2172,91 @@ describe( 'DocumentSelection', () => {
 
 				root._removeChildren( 0, root.childCount );
 				root._insertChild( 0, [
-					new Element( 'outer', [], [ new Element( 'inner' ), new Element( 'inner' ), new Element( 'inner' ) ] )
+					new ModelElement( 'outer', [], [
+						new ModelElement( 'inner' ), new ModelElement( 'inner' ), new ModelElement( 'inner' )
+					] )
 				] );
 
 				const ranges = [
-					new Range( new Position( root, [ 0, 0 ] ), new Position( root, [ 0, 1 ] ) ),
-					new Range( new Position( root, [ 0, 1 ] ), new Position( root, [ 0, 2 ] ) )
+					new ModelRange( new ModelPosition( root, [ 0, 0 ] ), new ModelPosition( root, [ 0, 1 ] ) ),
+					new ModelRange( new ModelPosition( root, [ 0, 1 ] ), new ModelPosition( root, [ 0, 2 ] ) )
 				];
 
 				selection._setTo( ranges );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 0, 0 ] ),
+						new ModelPosition( root, [ 0, 0 ] ),
 						2,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.rangeCount ).to.equal( 1 );
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 0, 0 ] );
-				expect( selection.getLastPosition().path ).to.deep.equal( [ 0, 1 ] );
+				expect( selection.rangeCount ).toBe( 1 );
+				expect( selection.getFirstPosition().path ).toEqual( [ 0, 0 ] );
+				expect( selection.getLastPosition().path ).toEqual( [ 0, 1 ] );
 			} );
 
 			it( 'should not fix the selection if not all ranges were removed', () => {
 				const ranges = [
-					new Range( new Position( root, [ 1, 1 ] ), new Position( root, [ 1, 2 ] ) ),
-					new Range( new Position( root, [ 1, 3 ] ), new Position( root, [ 1, 4 ] ) )
+					new ModelRange( new ModelPosition( root, [ 1, 1 ] ), new ModelPosition( root, [ 1, 2 ] ) ),
+					new ModelRange( new ModelPosition( root, [ 1, 3 ] ), new ModelPosition( root, [ 1, 4 ] ) )
 				];
 
 				selection._setTo( ranges );
 
 				model.applyOperation(
 					new MoveOperation(
-						new Position( root, [ 1, 1 ] ),
+						new ModelPosition( root, [ 1, 1 ] ),
 						1,
-						new Position( doc.graveyard, [ 0 ] ),
+						new ModelPosition( doc.graveyard, [ 0 ] ),
 						doc.version
 					)
 				);
 
-				expect( selection.rangeCount ).to.equal( 1 );
-				expect( selection.getFirstPosition().path ).to.deep.equal( [ 1, 2 ] );
-				expect( selection.getLastPosition().path ).to.deep.equal( [ 1, 3 ] );
+				expect( selection.rangeCount ).toBe( 1 );
+				expect( selection.getFirstPosition().path ).toEqual( [ 1, 2 ] );
+				expect( selection.getLastPosition().path ).toEqual( [ 1, 3 ] );
 			} );
 		} );
 
 		it( '`DocumentSelection#change:range` event should be fire once even if selection contains multi-ranges', () => {
 			root._removeChildren( 0, root.childCount );
 			root._insertChild( 0, [
-				new Element( 'p', [], new Text( 'abcdef' ) ),
-				new Element( 'p', [], new Text( 'foobar' ) ),
-				new Text( 'xyz #2' )
+				new ModelElement( 'p', [], new ModelText( 'abcdef' ) ),
+				new ModelElement( 'p', [], new ModelText( 'foobar' ) ),
+				new ModelText( 'xyz #2' )
 			] );
 
 			selection._setTo( [
-				Range._createIn( root.getNodeByPath( [ 0 ] ) ),
-				Range._createIn( root.getNodeByPath( [ 1 ] ) )
+				ModelRange._createIn( root.getNodeByPath( [ 0 ] ) ),
+				ModelRange._createIn( root.getNodeByPath( [ 1 ] ) )
 			] );
 
-			spyRange = sinon.spy();
+			spyRange = vi.fn();
 			selection.on( 'change:range', spyRange );
 
 			model.applyOperation(
 				new InsertOperation(
-					new Position( root, [ 0 ] ),
+					new ModelPosition( root, [ 0 ] ),
 					'xyz #1',
 					doc.version
 				)
 			);
 
-			expect( spyRange.calledOnce ).to.be.true;
+			expect( spyRange ).toHaveBeenCalledOnce();
 		} );
+	} );
+
+	it( 'should throw if one of ranges has invalid position (position not exisitng in current model tree)', () => {
+		expectToThrowCKEditorError( () => {
+			doc.selection._setTo( new ModelRange( new ModelPosition( root, [ 1, 0 ] ), new ModelPosition( root, [ 2, 22 ] ) ) );
+		}, /document-selection-wrong-position/, model );
+
+		expectToThrowCKEditorError( () => {
+			doc.selection._setTo( new ModelRange( new ModelPosition( root, [ 1, 22 ] ), new ModelPosition( root, [ 2, 0 ] ) ) );
+		}, /document-selection-wrong-position/, model );
 	} );
 
 	it( 'should throw if one of ranges starts or ends inside surrogate pair', () => {
@@ -2186,11 +2264,11 @@ describe( 'DocumentSelection', () => {
 		root._appendChild( '\uD83D\uDCA9' );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 0 ), Position._createAt( root, 1 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 0 ), ModelPosition._createAt( root, 1 ) ) );
 		}, /document-selection-wrong-position/, model );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 1 ), Position._createAt( root, 2 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 1 ), ModelPosition._createAt( root, 2 ) ) );
 		}, /document-selection-wrong-position/, model );
 	} );
 
@@ -2199,27 +2277,164 @@ describe( 'DocumentSelection', () => {
 		root._appendChild( 'foo̻̐ͩbar' );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 3 ), Position._createAt( root, 9 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 3 ), ModelPosition._createAt( root, 9 ) ) );
 		}, /document-selection-wrong-position/, model );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 4 ), Position._createAt( root, 9 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 4 ), ModelPosition._createAt( root, 9 ) ) );
 		}, /document-selection-wrong-position/, model );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 5 ), Position._createAt( root, 9 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 5 ), ModelPosition._createAt( root, 9 ) ) );
 		}, /document-selection-wrong-position/, model );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 1 ), Position._createAt( root, 3 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 1 ), ModelPosition._createAt( root, 3 ) ) );
 		}, /document-selection-wrong-position/, model );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 1 ), Position._createAt( root, 4 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 1 ), ModelPosition._createAt( root, 4 ) ) );
 		}, /document-selection-wrong-position/, model );
 
 		expectToThrowCKEditorError( () => {
-			doc.selection._setTo( new Range( Position._createAt( root, 1 ), Position._createAt( root, 5 ) ) );
+			doc.selection._setTo( new ModelRange( ModelPosition._createAt( root, 1 ), ModelPosition._createAt( root, 5 ) ) );
 		}, /document-selection-wrong-position/, model );
+	} );
+
+	describe( 'toJSON()', () => {
+		it( 'should serialize ranges', () => {
+			selection._setTo( range );
+
+			const json = JSON.stringify( selection );
+			const parsed = JSON.parse( json );
+
+			expect( parsed ).toEqual( {
+				ranges: [
+					{
+						start: {
+							root: 'main',
+							path: [ 2 ],
+							stickiness: 'toNext'
+						},
+						end: {
+							root: 'main',
+							path: [ 2, 2 ],
+							stickiness: 'toPrevious'
+						}
+					}
+				]
+			} );
+		} );
+
+		it( 'should serialize backward selection', () => {
+			selection._setTo( range, { backward: true } );
+
+			const json = JSON.stringify( selection );
+			const parsed = JSON.parse( json );
+
+			expect( parsed ).toEqual( {
+				isBackward: true,
+				ranges: [
+					{
+						start: {
+							root: 'main',
+							path: [ 2 ],
+							stickiness: 'toNext'
+						},
+						end: {
+							root: 'main',
+							path: [ 2, 2 ],
+							stickiness: 'toPrevious'
+						}
+					}
+				]
+			} );
+		} );
+
+		it( 'should serialize selection attributes', () => {
+			selection._setTo( range );
+
+			selection._setAttribute( 'foo', '3' );
+			selection._setAttribute( 'bar', 7 );
+
+			const json = JSON.stringify( selection );
+			const parsed = JSON.parse( json );
+
+			expect( parsed ).toEqual( {
+				attributes: {
+					foo: '3',
+					bar: 7
+				},
+				ranges: [
+					{
+						start: {
+							root: 'main',
+							path: [ 2 ],
+							stickiness: 'toNext'
+						},
+						end: {
+							root: 'main',
+							path: [ 2, 2 ],
+							stickiness: 'toPrevious'
+						}
+					}
+				]
+			} );
+		} );
+
+		it( 'should serialize selection markers', () => {
+			selection.observeMarkers( 'marker' );
+
+			model.change( writer => {
+				writer.addMarker( 'marker:1', {
+					range: writer.createRange(
+						writer.createPositionFromPath( root, [ 0, 0 ] ),
+						writer.createPositionFromPath( root, [ 2, 2 ] )
+					),
+					usingOperation: false
+				} );
+			} );
+
+			selection._setTo( range );
+
+			const json = JSON.stringify( selection );
+			const parsed = JSON.parse( json );
+
+			expect( parsed ).toEqual( {
+				markers: [
+					{
+						name: 'marker:1',
+						affectsData: false,
+						usingOperations: false,
+						range: {
+							start: {
+								path: [ 0, 0 ],
+								root: 'main',
+								stickiness: 'toNext'
+							},
+							end: {
+								path: [ 2, 2 ],
+								root: 'main',
+								stickiness: 'toPrevious'
+							}
+						}
+					}
+				],
+				ranges: [
+					{
+						start: {
+							root: 'main',
+							path: [ 2 ],
+							stickiness: 'toNext'
+						},
+						end: {
+							root: 'main',
+							path: [ 2, 2 ],
+							stickiness: 'toPrevious'
+						}
+					}
+				]
+			} );
+		} );
 	} );
 } );

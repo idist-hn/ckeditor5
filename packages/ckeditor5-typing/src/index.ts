@@ -1,31 +1,41 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module typing
  */
 
-export { default as Typing } from './typing';
-export { default as Input } from './input';
-export { default as Delete } from './delete';
+export { Typing } from './typing.js';
+export { Input } from './input.js';
+export { Delete } from './delete.js';
 
-export { default as TextWatcher } from './textwatcher';
-export { default as TwoStepCaretMovement } from './twostepcaretmovement';
-export { default as TextTransformation } from './texttransformation';
+export { TextWatcher } from './textwatcher.js';
+export { TwoStepCaretMovement } from './twostepcaretmovement.js';
+export { TextTransformation } from './texttransformation.js';
+export type { TextTransformationConfig } from './typingconfig.js';
 
-export { default as inlineHighlight } from './utils/inlinehighlight';
-export { default as findAttributeRange, findAttributeRangeBound } from './utils/findattributerange';
-export { default as getLastTextLine, type LastTextLineData } from './utils/getlasttextline';
+export { inlineHighlight } from './utils/inlinehighlight.js';
+export { findAttributeRange, findAttributeRangeBound } from './utils/findattributerange.js';
+export { getLastTextLine, type LastTextLineData } from './utils/getlasttextline.js';
+export { TypingChangeBuffer } from './utils/changebuffer.js';
 
-export { default as InsertTextCommand, type InsertTextCommandExecuteEvent } from './inserttextcommand';
+export { InsertTextCommand, type InsertTextCommandExecuteEvent, type InsertTextCommandOptions } from './inserttextcommand.js';
+export { DeleteCommand } from './deletecommand.js';
 
-export type { default as DeleteCommand } from './deletecommand';
-export type { TypingConfig } from './typingconfig';
-export type { ViewDocumentDeleteEvent } from './deleteobserver';
-export type { ViewDocumentInsertTextEvent, InsertTextEventData } from './inserttextobserver';
-export type { TextWatcherMatchedEvent } from './textwatcher';
-export type { TextWatcherMatchedDataEvent } from './textwatcher';
+export { DeleteObserver as _DeleteObserver, type DeleteEventData } from './deleteobserver.js';
 
-import './augmentation';
+export type { TypingConfig, TextTypingTransformationDescription } from './typingconfig.js';
+export type { ViewDocumentDeleteEvent } from './deleteobserver.js';
+export { type ViewDocumentInsertTextEvent, type InsertTextEventData, InsertTextObserver } from './inserttextobserver.js';
+export type {
+	TextWatcherMatchedEvent,
+	TextWatcherMatchedDataEvent,
+	TextWatcherMatchedTypingDataEventData,
+	TextWatcherMatchedTypingSelectionEvent,
+	TextWatcherMatchedTypingSelectionEventData,
+	TextWatcherUnmatchedTypingEvent
+} from './textwatcher.js';
+
+import './augmentation.js';

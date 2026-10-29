@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -13,27 +13,39 @@ import {
 	type ViewDocument,
 	type ViewDocumentFragment,
 	type MatcherPattern
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
-import markdown2html from './markdown2html/markdown2html';
-import html2markdown, { turndownService } from './html2markdown/html2markdown';
+import { MarkdownGfmMdToHtml } from './markdown2html/markdown2html.js';
+import { MarkdownGfmHtmlToMd } from './html2markdown/html2markdown.js';
 
 /**
  * This data processor implementation uses GitHub Flavored Markdown as input/output data.
  *
  * See the {@glink features/markdown Markdown output} guide to learn more on how to enable it.
  */
-export default class GFMDataProcessor implements DataProcessor {
+export class MarkdownGfmDataProcessor implements DataProcessor {
 	/**
 	 * HTML data processor used to process HTML produced by the Markdown-to-HTML converter and the other way.
 	 */
 	private _htmlDP: HtmlDataProcessor;
 
 	/**
+	 * Helper for converting Markdown to HTML.
+	 */
+	private _markdown2html: MarkdownGfmMdToHtml;
+
+	/**
+	 * Helper for converting HTML to Markdown.
+	 */
+	private _html2markdown: MarkdownGfmHtmlToMd;
+
+	/**
 	 * Creates a new instance of the Markdown data processor class.
 	 */
 	constructor( document: ViewDocument ) {
 		this._htmlDP = new HtmlDataProcessor( document );
+		this._markdown2html = new MarkdownGfmMdToHtml();
+		this._html2markdown = new MarkdownGfmHtmlToMd();
 	}
 
 	/**
@@ -45,7 +57,7 @@ export default class GFMDataProcessor implements DataProcessor {
 	 * @param element The element name to be kept.
 	 */
 	public keepHtml( element: keyof HTMLElementTagNameMap ): void {
-		turndownService.keep( [ element ] );
+		this._html2markdown.keep( element );
 	}
 
 	/**
@@ -55,19 +67,19 @@ export default class GFMDataProcessor implements DataProcessor {
 	 * @returns The converted view element.
 	 */
 	public toView( data: string ): ViewDocumentFragment {
-		const html = markdown2html( data );
+		const html = this._markdown2html.parse( data );
 		return this._htmlDP.toView( html );
 	}
 
 	/**
-	 * Converts the provided {@link module:engine/view/documentfragment~DocumentFragment} to data format &mdash; in this
+	 * Converts the provided {@link module:engine/view/documentfragment~ViewDocumentFragment} to data format &ndash; in this
 	 * case to a Markdown string.
 	 *
 	 * @returns Markdown string.
 	 */
 	public toData( viewFragment: ViewDocumentFragment ): string {
 		const html = this._htmlDP.toData( viewFragment );
-		return html2markdown( html );
+		return this._html2markdown.parse( html );
 	}
 
 	/**
@@ -75,7 +87,7 @@ export default class GFMDataProcessor implements DataProcessor {
 	 * and not processed during the conversion from Markdown to view elements.
 	 *
 	 * The raw data can be later accessed by a
-	 * {@link module:engine/view/element~Element#getCustomProperty custom property of a view element} called `"$rawContent"`.
+	 * {@link module:engine/view/element~ViewElement#getCustomProperty custom property of a view element} called `"$rawContent"`.
 	 *
 	 * @param pattern The pattern matching all view elements whose content should
 	 * be treated as raw data.

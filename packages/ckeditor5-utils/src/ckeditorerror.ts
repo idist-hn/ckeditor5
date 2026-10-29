@@ -1,13 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/ckeditorerror
  */
-
-/* globals console */
 
 /**
  * URL to the documentation with error codes.
@@ -19,8 +17,8 @@ export const DOCUMENTATION_URL = 'https://ckeditor.com/docs/ckeditor5/latest/sup
  *
  * You should throw `CKEditorError` when:
  *
- * * An unexpected situation occurred and the editor (most probably) will not work properly. Such exception will be handled
- * by the {@link module:watchdog/watchdog~Watchdog watchdog} (if it is integrated),
+ * * An unexpected situation occurred and the editor (most probably) will not work properly. Such exception will be
+ * reported to the callbacks registered with {@link module:core/errorreporter~onEditorError `onEditorError()`},
  * * If the editor is incorrectly integrated or the editor API is used in the wrong way. This way you will give
  * feedback to the developer as soon as possible. Keep in mind that for common integration issues which should not
  * stop editor initialization (like missing upload adapter, wrong name of a toolbar component) we use
@@ -42,9 +40,9 @@ export const DOCUMENTATION_URL = 'https://ckeditor.com/docs/ckeditor5/latest/sup
  * } );
  * ```
  */
-export default class CKEditorError extends Error {
+export class CKEditorError extends Error {
 	/**
-	 * A context of the error by which the Watchdog is able to determine which editor crashed.
+	 * A context of the error by which error reporting works out which editor the error came from.
 	 */
 	public readonly context: object | null | undefined;
 
@@ -58,21 +56,27 @@ export default class CKEditorError extends Error {
 	 *
 	 * @param errorName The error id in an `error-name` format. A link to this error documentation page will be added
 	 * to the thrown error's `message`.
-	 * @param context A context of the error by which the {@link module:watchdog/watchdog~Watchdog watchdog}
-	 * is able to determine which editor crashed. It should be an editor instance or a property connected to it. It can be also
-	 * a `null` value if the editor should not be restarted in case of the error (e.g. during the editor initialization).
-	 * The error context should be checked using the `areConnectedThroughProperties( editor, context )` utility
-	 * to check if the object works as the context.
+	 * @param context A context of the error by which {@link module:core/errorreporter~onEditorError error reporting}
+	 * works out which editor the error came from. Pass the editor, the context, or the plugin or command that throws the error.
+	 * Pass `null` if the error should not be attributed to any editor (e.g. during the editor initialization).
 	 * @param data Additional data describing the error. A stringified version of this object
 	 * will be appended to the error message, so the data are quickly visible in the console. The original
 	 * data object will also be later available under the {@link #data} property.
+	 * @param originalError An optional original error that is being wrapped in the `CKEditorError` instance.
 	 */
-	constructor( errorName: string, context?: object | null, data?: object ) {
-		super( getErrorMessage( errorName, data ) );
+	constructor( errorName: string, context?: object | null, data?: object, originalError?: Error ) {
+		super( getErrorMessage( errorName, data, originalError ) );
 
 		this.name = 'CKEditorError';
 		this.context = context;
 		this.data = data;
+
+		// Wrapping an original error in a CKEditorError instance.
+		if ( originalError ) {
+			// Restore the original stack trace to make the error look like the original one.
+			// See https://github.com/ckeditor/ckeditor5/issues/5595 for more details.
+			this.stack = originalError.stack;
+		}
 	}
 
 	/**
@@ -84,34 +88,29 @@ export default class CKEditorError extends Error {
 
 	/**
 	 * A utility that ensures that the thrown error is a {@link module:utils/ckeditorerror~CKEditorError} one.
-	 * It is useful when combined with the {@link module:watchdog/watchdog~Watchdog} feature, which can restart the editor in case
-	 * of a {@link module:utils/ckeditorerror~CKEditorError} error.
+	 * Only a {@link module:utils/ckeditorerror~CKEditorError} is reported to the callbacks registered with
+	 * {@link module:core/errorreporter~onEditorError `onEditorError()`}, so wrapping an unexpected error in one is what
+	 * makes it reach them.
 	 *
-	 * @param err The error to rethrow.
-	 * @param context An object connected through properties with the editor instance. This context will be used
-	 * by the watchdog to verify which editor should be restarted.
+	 * @param error The error to rethrow.
+	 * @param context An object connected through properties with the editor instance. This context is what error
+	 * reporting uses to work out which editor the error came from.
 	 */
-	public static rethrowUnexpectedError( err: Error, context: object ): never {
-		if ( ( err as any ).is && ( err as any ).is( 'CKEditorError' ) ) {
-			throw err;
+	public static rethrowUnexpectedError( error: Error, context: object ): never {
+		if ( ( error as any ).is && ( error as any ).is( 'CKEditorError' ) ) {
+			throw error;
 		}
 
 		/**
 		 * An unexpected error occurred inside the CKEditor 5 codebase. This error will look like the original one
 		 * to make the debugging easier.
 		 *
-		 * This error is only useful when the editor is initialized using the {@link module:watchdog/watchdog~Watchdog} feature.
-		 * In case of such error (or any {@link module:utils/ckeditorerror~CKEditorError} error) the watchdog should restart the editor.
+		 * Like any {@link module:utils/ckeditorerror~CKEditorError}, it is reported to the callbacks registered with
+		 * {@link module:core/errorreporter~onEditorError `onEditorError()`}, naming the editor it came from.
 		 *
 		 * @error unexpected-error
 		 */
-		const error = new CKEditorError( err.message, context );
-
-		// Restore the original stack trace to make the error look like the original one.
-		// See https://github.com/ckeditor/ckeditor5/issues/5595 for more details.
-		error.stack = err.stack;
-
-		throw error;
+		throw new CKEditorError( 'unexpected-error', context, undefined, error );
 	}
 }
 
@@ -176,7 +175,7 @@ function getLinkToDocumentationMessage( errorName: string ): string {
 /**
  * Returns formatted error message.
  */
-function getErrorMessage( errorName: string, data?: object ): string {
+function getErrorMessage( errorName: string, data?: object, originalError?: Error ): string {
 	const processedObjects = new WeakSet();
 	const circularReferencesReplacer = ( key: string, value: unknown ) => {
 		if ( typeof value === 'object' && value !== null ) {
@@ -192,8 +191,9 @@ function getErrorMessage( errorName: string, data?: object ): string {
 
 	const stringifiedData = data ? ` ${ JSON.stringify( data, circularReferencesReplacer ) }` : '';
 	const documentationLink = getLinkToDocumentationMessage( errorName );
+	const originalErrorMessage = originalError ? `\nOriginal error: ${ originalError.name }: ${ originalError.message }` : '';
 
-	return errorName + stringifiedData + documentationLink;
+	return errorName + stringifiedData + documentationLink + originalErrorMessage;
 }
 
 /**

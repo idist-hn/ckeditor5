@@ -1,25 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
+import { expect } from 'vitest';
 
-import ListEditing from '@ckeditor/ckeditor5-list/src/list/listediting';
-import BoldEditing from '@ckeditor/ckeditor5-basic-styles/src/bold/boldediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Typing from '@ckeditor/ckeditor5-typing/src/typing';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import BlockQuoteEditing from '@ckeditor/ckeditor5-block-quote/src/blockquoteediting';
-import HeadingEditing from '@ckeditor/ckeditor5-heading/src/headingediting';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+
+import { BoldEditing } from '@ckeditor/ckeditor5-basic-styles';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Typing } from '@ckeditor/ckeditor5-typing';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
 import { TableEditing } from '@ckeditor/ckeditor5-table';
-import ImageBlockEditing from '@ckeditor/ckeditor5-image/src/image/imageblockediting';
+import { ImageBlockEditing } from '@ckeditor/ckeditor5-image';
 
-import { getData, parse } from '../../../../src/dev-utils/model';
-import { transformSets } from '../../../../src/model/operation/transform';
-import Position from '../../../../src/model/position';
-import Range from '../../../../src/model/range';
-import OperationFactory from '../../../../src/model/operation/operationfactory';
+import { _getModelData, _parseModel } from '../../../../src/dev-utils/model.js';
+import { transformOperationSets } from '../../../../src/model/operation/transform.js';
+import { ModelPosition } from '../../../../src/model/position.js';
+import { ModelRange } from '../../../../src/model/range.js';
+import { OperationFactory } from '../../../../src/model/operation/operationfactory.js';
 
 const clients = new Set();
 const bufferedOperations = new Set();
@@ -33,15 +34,17 @@ export class Client {
 		this.name = name;
 	}
 
-	init() {
+	init( editorConfig = {} ) {
 		return ModelTestEditor.create( {
 			// Typing is needed for delete command.
 			// UndoEditing is needed for undo command.
 			// Block plugins are needed for proper data serializing.
 			// BoldEditing is needed for bold command.
 			plugins: [
-				Typing, Paragraph, ListEditing, UndoEditing, BlockQuoteEditing, HeadingEditing, BoldEditing, TableEditing, ImageBlockEditing
-			]
+				Typing, Paragraph, UndoEditing, BlockQuoteEditing, HeadingEditing, BoldEditing, TableEditing,
+				ImageBlockEditing
+			],
+			...editorConfig
 		} ).then( editor => {
 			this.editor = editor;
 			this.document = editor.model.document;
@@ -55,7 +58,7 @@ export class Client {
 		const modelRoot = model.document.getRoot();
 
 		// Parse data string to model.
-		const parsedResult = parse( initModelString, model.schema, { context: [ modelRoot.name ] } );
+		const parsedResult = _parseModel( initModelString, model.schema, { context: [ modelRoot.name ] } );
 
 		// Retrieve DocumentFragment and Selection from parsed model.
 		const modelDocumentFragment = parsedResult.model;
@@ -70,10 +73,10 @@ export class Client {
 		const ranges = [];
 
 		for ( const range of selection.getRanges() ) {
-			const start = new Position( modelRoot, range.start.path );
-			const end = new Position( modelRoot, range.end.path );
+			const start = new ModelPosition( modelRoot, range.start.path );
+			const end = new ModelPosition( modelRoot, range.end.path );
 
-			ranges.push( new Range( start, end ) );
+			ranges.push( new ModelRange( start, end ) );
 		}
 
 		model.document.selection._setTo( ranges );
@@ -86,7 +89,7 @@ export class Client {
 		this.syncedVersion = this.document.version;
 	}
 
-	setSelection( start, end ) {
+	setSelection( start, end, { bufferOperations } = {} ) {
 		if ( !end ) {
 			end = start.slice();
 		}
@@ -94,11 +97,15 @@ export class Client {
 		const startPos = this._getPosition( start );
 		const endPos = this._getPosition( end );
 
-		this.editor.model.document.selection._setTo( new Range( startPos, endPos ) );
+		if ( bufferOperations ) {
+			this._processAction( 'setSelection', new ModelRange( startPos, endPos ) );
+		} else {
+			this.editor.model.document.selection._setTo( new ModelRange( startPos, endPos ) );
+		}
 	}
 
 	insert( itemString, path ) {
-		const item = parse( itemString, this.editor.model.schema );
+		const item = _parseModel( itemString, this.editor.model.schema );
 		const position = this._getPosition( path, 'start' );
 
 		this._processAction( 'insert', item, position );
@@ -114,7 +121,7 @@ export class Client {
 		const startPos = this._getPosition( start, 'start' );
 		const endPos = this._getPosition( end, 'end' );
 
-		this._processAction( 'remove', new Range( startPos, endPos ) );
+		this._processAction( 'remove', new ModelRange( startPos, endPos ) );
 	}
 
 	delete() {
@@ -126,7 +133,7 @@ export class Client {
 		const startPos = this._getPosition( start, 'start' );
 		const endPos = this._getPosition( end, 'end' );
 
-		this._processAction( 'move', new Range( startPos, endPos ), targetPos );
+		this._processAction( 'move', new ModelRange( startPos, endPos ), targetPos );
 	}
 
 	rename( newName, path ) {
@@ -140,14 +147,14 @@ export class Client {
 		const startPos = this._getPosition( start, 'start' );
 		const endPos = this._getPosition( end, 'end' );
 
-		this._processAction( 'setAttribute', key, value, new Range( startPos, endPos ) );
+		this._processAction( 'setAttribute', key, value, new ModelRange( startPos, endPos ) );
 	}
 
 	removeAttribute( key, start, end ) {
 		const startPos = this._getPosition( start, 'start' );
 		const endPos = this._getPosition( end, 'end' );
 
-		this._processAction( 'removeAttribute', key, new Range( startPos, endPos ) );
+		this._processAction( 'removeAttribute', key, new ModelRange( startPos, endPos ) );
 	}
 
 	setMarker( name, start, end ) {
@@ -162,7 +169,7 @@ export class Client {
 			actionName = 'addMarker';
 		}
 
-		const range = new Range( startPos, endPos );
+		const range = new ModelRange( startPos, endPos );
 
 		this._processAction( actionName, name, { range, usingOperation: true } );
 	}
@@ -175,7 +182,7 @@ export class Client {
 		const startPos = this._getPosition( start, 'start' );
 		const endPos = this._getPosition( end, 'end' );
 
-		this._processAction( 'wrap', new Range( startPos, endPos ), elementName );
+		this._processAction( 'wrap', new ModelRange( startPos, endPos ), elementName );
 	}
 
 	unwrap( path ) {
@@ -213,6 +220,20 @@ export class Client {
 		this._processExecute( 'redo' );
 	}
 
+	getModelString() {
+		return _getModelData( this.editor.model, { withoutSelection: true, convertMarkers: true } );
+	}
+
+	destroy() {
+		clients.delete( this );
+
+		return this.editor.destroy();
+	}
+
+	insertContent( modelFragment ) {
+		this.editor.model.insertContent( modelFragment );
+	}
+
 	_processExecute( commandName, commandArgs ) {
 		const oldVersion = this.document.version;
 
@@ -228,7 +249,11 @@ export class Client {
 			return this._getPositionFromSelection( type );
 		}
 
-		return new Position( this.document.getRoot(), path );
+		if ( path instanceof ModelPosition ) {
+			return path.clone();
+		}
+
+		return new ModelPosition( this.document.getRoot(), path );
 	}
 
 	_getPositionFromSelection( type ) {
@@ -241,18 +266,8 @@ export class Client {
 			case 'end':
 				return selRange.end.clone();
 			case 'beforeParent':
-				return Position._createBefore( selRange.start.parent );
+				return ModelPosition._createBefore( selRange.start.parent );
 		}
-	}
-
-	getModelString() {
-		return getData( this.editor.model, { withoutSelection: true, convertMarkers: true } );
-	}
-
-	destroy() {
-		clients.delete( this );
-
-		return this.editor.destroy();
 	}
 
 	_processAction( name, ...args ) {
@@ -267,13 +282,13 @@ export class Client {
 		bufferOperations( operations, this );
 	}
 
-	static get( clientName ) {
+	static get( clientName, { editorConfig } = {} ) {
 		const client = new Client( clientName );
 		client.orderNumber = clients.size;
 
 		clients.add( client );
 
-		return client.init();
+		return client.init( editorConfig ?? {} );
 	}
 }
 
@@ -338,9 +353,9 @@ export function syncClients() {
 			};
 
 			if ( localClient.orderNumber < remoteClient.orderNumber ) {
-				remoteOperationsTransformed = transformSets( localOperations, remoteOperations, options ).operationsB;
+				remoteOperationsTransformed = transformOperationSets( localOperations, remoteOperations, options ).operationsB;
 			} else {
-				remoteOperationsTransformed = transformSets( remoteOperations, localOperations, options ).operationsA;
+				remoteOperationsTransformed = transformOperationSets( remoteOperations, localOperations, options ).operationsA;
 			}
 
 			localClient.editor.model.enqueueChange( { isUndoable: false }, writer => {
@@ -359,7 +374,7 @@ export function syncClients() {
 
 export function expectClients( expectedModelString ) {
 	for ( const client of clients ) {
-		expect( client.getModelString(), client.name + ' content' ).to.equal( expectedModelString );
+		expect( client.getModelString(), client.name + ' content' ).toEqual( expectedModelString );
 	}
 
 	let syncedVersion = null;
@@ -370,7 +385,7 @@ export function expectClients( expectedModelString ) {
 			continue;
 		}
 
-		expect( client.syncedVersion, client.name + ' version' ).to.equal( syncedVersion );
+		expect( client.syncedVersion, client.name + ' version' ).toEqual( syncedVersion );
 	}
 }
 

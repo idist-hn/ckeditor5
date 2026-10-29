@@ -1,6 +1,7 @@
 ---
 category: framework-deep-dive-ui
 meta-title: Localization | CKEditor 5 Framework Documentation
+meta-description: Learn how CKEditor 5 handles localization, including translating UI strings and managing multiple languages in the editor.
 order: 70
 ---
 
@@ -13,7 +14,7 @@ All CKEditor&nbsp;5 WYSIWYG editor features support message localization. It mea
 CKEditor&nbsp;5 translation system is open to third-party plugins. Any custom features that you introduce can be localized. The system also provides a way to add missing or overwrite existing translations and supports translating plural forms.
 
 <info-box warning>
-	Make sure to use up-to-date CKEditor&nbsp;5 development tool packages. Versions of the tools older than v19.0.1 do not provide support for features described in this guide.
+	Make sure to use up-to-date CKEditor&nbsp;5 development tool packages. Versions of the tools older than v60.0.0 do not provide support for features described in this guide.
 </info-box>
 
 ### Open translation API
@@ -38,28 +39,31 @@ Before we start, let us explain the meaning of terms that are crucial for the tr
 	When the message supports plural versions, this is the default singular version.
 - *A message plural* &ndash; An optional plural (English) version of the message.
 	The presence of this property indicates that the message should support both singular and plural forms.
-- *A PO file (`.po`)* &ndash; A file containing translations for the language in the [PO format](https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html).
-	All localizable packages of CKEditor&nbsp;5 contain such files in the `lang/translations/` directory.
-- *A POT file (`.pot`)* &ndash; A file containing source messages (English sentences) that will be translated.
+- *A translation source (`.ts`)* &ndash; A generated TypeScript module containing the dictionary for one language.
+	All localizable CKEditor&nbsp;5 packages contain such files in the `lang/translations/` directory.
 - *A translation asset* &ndash; A JavaScript file or a part of the file with generated translations for one language.
 
 ## Writing a localizable UI
 
-All *messages* that need localization should be passed to the special CKEditor&nbsp;5's {@link module:utils/locale~Locale#t `t()` function}. This function can be retrieved either from the editor's {@link module:utils/locale~Locale} instance: `const { t } = editor.locale;` or from any view method: `const t = this.t;`.
+All *messages* that need localization should be passed to the special CKEditor&nbsp;5's {@link module:utils/locale~Locale#t `t()` function}.
+
+In JavaScript files, retrieve it as a standalone function, for example from the editor's {@link module:utils/locale~Locale} instance (`const { t } = editor.locale;`) or from any view method (`const t = this.t;`).
+
+In TypeScript files, the translation tools can also detect direct `Locale#t()` calls based on type information, so `editor.t()`, `editor.locale.t()`, `locale.t()`, and `this.t()` are supported as well.
 
 As the first argument, the `t()` function accepts either a string literal or an object literal containing the `id`, `string` and `plural` (optional) properties. The string literal will serve as both the *message ID* and the *message string*.
 
 As the second argument, the translation function accepts a value or an array of values. These values will be used to fill the placeholders in more advanced translation scenarios. If the `plural` property is specified, the first value will be used as the quantity determining the plural form.
 
 <info-box warning>
-    Due to the fact that a static code analyzer is used in the translation process, you must use a function named exactly `t()`. It should not be called on a `Locale` instance and it cannot have a different name. The code analyzer looks for *localizable messages* only in `t()` function calls.
+	Due to the fact that a static code analyzer is used in the translation process, the supported call patterns depend on the source file type. In JavaScript files, the analyzer looks for a function named exactly `t()`, so it should not be called on a `Locale` instance and it cannot have a different name. In TypeScript files, the analyzer also recognizes direct `Locale#t()` calls based on type information.
 
-    For the same reason, the first argument can only be a string literal or an object literal. Variables cannot be passed.
+	For the same reason, the first argument can only be a string literal or an object literal. Variables cannot be passed.
 </info-box>
 
-When using the `t()` function, you can create your own *localizable messages* or reuse *messages* created in CKEditor&nbsp;5 packages that your project depends on. In case of reusing *messages*, you will not need to worry about translating them as all work will be done by the CKEditor&nbsp;5 team and [Transifex translators](https://www.transifex.com/ckeditor/ckeditor5/). Obviously, {@link framework/contributing/contributing#translating your help in translating} will still be appreciated!
+When using the `t()` function, you can create your own *localizable messages* or reuse *messages* created in CKEditor&nbsp;5 packages that your project depends on. In the case of reusing *messages*, you will not need to worry about translating them as all the work will be done by the CKEditor&nbsp;5 team. Obviously, {@link framework/contributing/contributing#translating your help in translating} will still be appreciated!
 
-For simple *localizable messages*, use the string form for simplicity:
+For a simple *localizable messages*, use the string form for simplicity:
 
 ```js
 const emojiName = 'cat';
@@ -85,7 +89,7 @@ t( { string: '%1 %0 emoji', plural: '%1 %0 emojis', id: 'ACTION_N_EMOJIS' }, [ q
 
 This example shows how to create a localizable user interface of a plugin. Here is how you can create a button that will insert a smiling face emoji. The button will have a localizable tooltip.
 
-```js
+```ts
 // Custom plugin configuration, including necessary imports.
 // The code below should be put into a custom plugin class extending the Plugin class.
 // ...
@@ -93,11 +97,8 @@ This example shows how to create a localizable user interface of a plugin. Here 
 editor.ui.componentFactory.add( 'smilingFaceEmoji', locale => {
 	const buttonView = new ButtonView( locale );
 
-	// The translation function.
-	const { t } = editor.locale;
-
 	// The localized label.
-	const label = t( 'Insert smiling face emoji' );
+	const label = editor.locale.t( 'Insert smiling face emoji' );
 
 	buttonView.set( {
 		label,
@@ -150,8 +151,8 @@ Adding translations to the editor can be done in three ways to satisfy various n
 	This can be done before initiating the CKEditor&nbsp;5 editor instance but it requires importing the CKEditor&nbsp;5 utility function.
 - By [extending the global `window.CKEDITOR_TRANSLATIONS` object](#using-the-windowckeditor_translations-object).
 	This can be done before initiating the CKEditor&nbsp;5 editor instance.
-- By [creating `.po` files with translations](#creating-po-files) in the `lang/translations/` directory of the published package like other CKEditor&nbsp;5 packages do.
-	This option will be useful for third-party plugin creators as it allows bundling translations only for needed languages during the webpack compilation step.
+- By [creating TypeScript translation sources](#creating-translation-files) in the `lang/translations/` directory of the published package like other CKEditor&nbsp;5 packages do.
+	This option will be useful for third-party plugin creators as it allows bundling translations only for needed languages during the build step.
 
 ### Using the `add()` function
 
@@ -219,33 +220,37 @@ Object.assign( window.CKEDITOR_TRANSLATIONS[ 'pl' ].dictionary, {
 
 If you add a new language, remember to set the `getPluralForm()` function which should return a number (or a Boolean for languages with simple plural rules like English) that indicates which form should be used for the given value.
 
-### Creating `.po` files
+### Creating translation files
 
-The third option of adding plugins should fit mostly owners of plugins that contain many localizable messages. Using this option you need to create a `.po` file per each language code in the `lang/translations/` directory containing translations that follow the [PO file format](https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html).
+The third option is intended primarily for plugins that contain many localizable messages. Create one generated TypeScript file per language code in the `lang/translations/` directory. The default export must match the {@link module:utils/locale~Translations `Translations`} type.
 
+```ts
+// lang/translations/es.ts
+import type { Translations } from '@ckeditor/ckeditor5-utils';
+
+const translations: Translations = {
+	es: {
+		dictionary: {
+			// The label of the text alignment toolbar button.
+			'Align left': 'Alinear a la izquierda'
+		}
+	}
+};
+
+export default translations;
 ```
-# lang/translations/es.po
 
-msgid ""
-msgstr ""
-"Language: es\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-
-msgid "Align left"
-msgstr "Alinear a la izquierda"
-```
-
-<info-box warning>
-	Note that by default, the [CKEditor&nbsp;5 translations plugin](https://github.com/ckeditor/ckeditor5-dev/tree/master/packages/ckeditor5-dev-translations) is configured to parse only the CKEditor&nbsp;5 source code when looking for *localizable messages* and generating *translation assets*.
-
-	If you develop your own plugin outside the CKEditor&nbsp;5 ecosystem and localize it by creating *PO files*, you should override both the `sourceFilesPattern` and the `packageNamePattern` options to allow the CKEditor&nbsp;5 webpack plugin to analyze the code and find *messages* with corresponding translations. You should also mention these webpack plugin changes in your package README to make other users build the localized CKEditor&nbsp;5 editor with your plugin correctly. This obstacle may be simplified in the future when the localization feature gets more popular.
+<info-box>
+	If you develop your own plugin outside the CKEditor&nbsp;5 ecosystem, use the {@link framework/development-tools/package-generator/using-package-generator package generator} to create translation sources and assets. Its build setup handles the `lang/` directory, including translation synchronization.
 </info-box>
 
-To build and configure a localized editor, follow the steps from the {@link features/ui-language Setting the UI language guide}.
+Package translation sources contain dictionaries only. Load the matching translation from the `ckeditor5` package together with a package translation so the editor receives the language's plural-form function.
+
+To build and configure a localized editor, follow the steps from the {@link getting-started/setup/ui-language Setting the UI language guide}.
 
 ## Re-using translations from other packages
 
-If you want to re-use a *message* that already exists in another package, you should use the method `t()` on a `Locale` instance with a changed name instead of [using `t()` as a function](#writing-a-localizable-ui). This is because using `t()` as a method on the `Locale` is not processed by a static code analyzer. Therefore, it allows to use *messages* already translated in other packages.
+If you want to re-use a *message* that already exists in another package, you should call the translation function through an alias with a different name instead of [using `t()` as a function](#writing-a-localizable-ui). This prevents the static code analyzer from treating it as a new source message.
 
 We use this approach already in the {@link features/collaboration collaboration features} and the {@link features/slash-commands slash commands feature}. You can find an example from the {@link module:slash-command/slashcommandconfig~SlashCommandConfig#getDefaultCommands list of default commands} that we used in the slash commands feature below. Please note the difference between using `t()` and `translateVariableKey()`. `translateVariableKey( 'Block quote' )` will re-use a translation from another package whilst `t( 'Create a block quote' )` will be processed by a static code analyzer. As a result we make sure that the translation for the `title` is taken from the {@link features/block-quote block quote} feature where the *message* "Block quote" is already translated. But for the `description` we create a new translation.
 
@@ -258,7 +263,7 @@ public getDefaultCommands() {
 		{
 			id: 'blockQuote',
 			commandName: 'blockQuote',
-			icon: icons.quote,
+			icon: IconQuote,
 			title: translateVariableKey( 'Block quote' ),
 			description: t( 'Create a block quote' )
 		},
@@ -271,4 +276,3 @@ public getDefaultCommands() {
 ## Known limitations
 
 - Currently it is impossible to change the chosen editor's language at runtime without destroying the editor.
-- Currently it is impossible to add more than one language to the bundle using the the CKEditor&nbsp;5 webpack plugin. In case where multiple *translation assets* should be added to the application, they should be added using the `<script>` tags or imports to the generated *translation assets*.

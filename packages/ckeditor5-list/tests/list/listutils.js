@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ListUtils from '../../src/list/listutils';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ListUtils } from '../../src/list/listutils.js';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
 
 describe( 'ListUtils', () => {
 	let editor, plugin;
@@ -17,22 +18,36 @@ describe( 'ListUtils', () => {
 	} );
 
 	it( 'should be named', () => {
-		expect( ListUtils.pluginName ).to.equal( 'ListUtils' );
+		expect( ListUtils.pluginName ).toBe( 'ListUtils' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ListUtils.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ListUtils.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'coverage checks', () => {
-		it( 'getListTypeFromListStyleType', () => {
-			const mock = 'mock';
-			expect( plugin.getListTypeFromListStyleType( mock ) ).to.equal( null );
+		it( 'isFirstBlockOfListItem', () => {
+			const mock = { getAttribute: () => false };
+			expect( plugin.isFirstBlockOfListItem( mock ) ).toBe( true );
 		} );
 
-		it( 'getSelectedListItems', () => {
-			expect( plugin.getSelectedListItems( editor.model ) ).to.be.an( 'array' );
+		it( 'expandListBlocksToCompleteList', () => {
+			const mock = [];
+			expect( plugin.expandListBlocksToCompleteList( mock ) ).toBeInstanceOf( Array );
 		} );
 
-		it( 'getSiblingNodes', () => {
-			const position = editor.model.createPositionAt( editor.model.document.getRoot(), 0 );
-			expect( plugin.getSiblingNodes( position, 'forward' ) ).to.be.an( 'array' );
+		it( 'isListItemBlock', () => {
+			const mock = false;
+			expect( plugin.isListItemBlock( mock ) ).toBe( false );
+		} );
+
+		it( 'expandListBlocksToCompleteItems', () => {
+			const mock = [];
+			expect( plugin.expandListBlocksToCompleteItems( mock ) ).toBeInstanceOf( Array );
 		} );
 	} );
 } );

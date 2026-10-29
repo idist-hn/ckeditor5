@@ -1,15 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ModelPosition } from '../../src/model/position.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Position from '../../src/model/position';
-
-import { setData as setModelData, getData as getModelData } from '../../src/dev-utils/model';
+import { _setModelData, _getModelData } from '../../src/dev-utils/model.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'Bug ckeditor5-engine#1281', () => {
 	let element, editor, model;
@@ -33,7 +32,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	it( 'loads content that contains multi-range selection', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>Paragraph 1.</paragraph>' +
 			'<paragraph>Paragraph 2.</paragraph>' +
 			'<paragraph>[Paragraph 3.]</paragraph>' +
@@ -45,17 +44,17 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 		const fourthParagraph = root.getNodeByPath( [ 3 ] );
 		const selRanges = Array.from( model.document.selection.getRanges() );
 
-		expect( selRanges.length ).to.equal( 2 );
+		expect( selRanges.length ).toBe( 2 );
 
-		assertPositions( Position._createAt( thirdParagraph, 0 ), selRanges[ 0 ].start );
-		assertPositions( Position._createAt( thirdParagraph, 'end' ), selRanges[ 0 ].end );
+		assertPositions( ModelPosition._createAt( thirdParagraph, 0 ), selRanges[ 0 ].start );
+		assertPositions( ModelPosition._createAt( thirdParagraph, 'end' ), selRanges[ 0 ].end );
 
-		assertPositions( Position._createAt( fourthParagraph, 0 ), selRanges[ 1 ].start );
-		assertPositions( Position._createAt( fourthParagraph, 'end' ), selRanges[ 1 ].end );
+		assertPositions( ModelPosition._createAt( fourthParagraph, 0 ), selRanges[ 1 ].start );
+		assertPositions( ModelPosition._createAt( fourthParagraph, 'end' ), selRanges[ 1 ].end );
 	} );
 
 	it( 'does not throw an error when content before the selection is being removed (last element is selected)', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>Paragraph 1.</paragraph>' +
 			'<paragraph>Paragraph 2.</paragraph>' +
 			'<paragraph>[Paragraph 3.]</paragraph>' +
@@ -68,7 +67,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 
 			expect( () => {
 				writer.remove( firstParagraph );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
 			assertOutput(
 				'<paragraph>Paragraph 2.</paragraph>' +
@@ -79,7 +78,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	it( 'does not throw an error when content before the selection is being removed (last element is not selected)', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>Paragraph 1.</paragraph>' +
 			'<paragraph>Paragraph 2.</paragraph>' +
 			'<paragraph>[Paragraph 3.]</paragraph>' +
@@ -93,7 +92,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 
 			expect( () => {
 				writer.remove( firstParagraph );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
 			assertOutput(
 				'<paragraph>Paragraph 2.</paragraph>' +
@@ -105,7 +104,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	it( 'does not throw an error when content after the selection is being removed (first element is selected)', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>[Paragraph 1.]</paragraph>' +
 			'<paragraph>Paragraph 2.</paragraph>' +
 			'<paragraph>Paragraph 3.</paragraph>' +
@@ -119,7 +118,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 
 			expect( () => {
 				writer.remove( lastParagraph );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
 			assertOutput(
 				'<paragraph>[Paragraph 1.]</paragraph>' +
@@ -131,7 +130,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	it( 'does not throw an error when content after the selection is being removed (first element is not selected)', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>Paragraph 1.</paragraph>' +
 			'<paragraph>Paragraph 2.</paragraph>' +
 			'<paragraph>[Paragraph 3.]</paragraph>' +
@@ -145,7 +144,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 
 			expect( () => {
 				writer.remove( lastParagraph );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
 			assertOutput(
 				'<paragraph>Paragraph 1.</paragraph>' +
@@ -157,7 +156,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	it( 'does not throw an error when content between the selection\'s ranges is being removed (last element is selected)', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>Paragraph 1.</paragraph>' +
 			'<paragraph>[Paragraph 2.]</paragraph>' +
 			'<paragraph>Paragraph 3.</paragraph>' +
@@ -170,7 +169,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 
 			expect( () => {
 				writer.remove( thirdParagraph );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
 			assertOutput(
 				'<paragraph>Paragraph 1.</paragraph>' +
@@ -181,7 +180,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	it( 'does not throw an error when content between the selection\'s ranges is being removed (last element is not selected)', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>Paragraph 1.</paragraph>' +
 			'<paragraph>[Paragraph 2.]</paragraph>' +
 			'<paragraph>Paragraph 3.</paragraph>' +
@@ -195,7 +194,7 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 
 			expect( () => {
 				writer.remove( thirdParagraph );
-			} ).to.not.throw();
+			} ).not.toThrow();
 
 			assertOutput(
 				'<paragraph>Paragraph 1.</paragraph>' +
@@ -207,10 +206,10 @@ describe( 'Bug ckeditor5-engine#1281', () => {
 	} );
 
 	function assertPositions( firstPosition, secondPosition ) {
-		expect( firstPosition.isEqual( secondPosition ) ).to.be.true;
+		expect( firstPosition.isEqual( secondPosition ) ).toBe( true );
 	}
 
 	function assertOutput( output ) {
-		expect( getModelData( model ) ).to.equal( output );
+		expect( _getModelData( model ) ).toBe( output );
 	}
 } );

@@ -1,34 +1,33 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, DragEvent, DataTransfer */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import DragDropTarget from '../src/dragdroptarget';
-import DragDrop from '../src/dragdrop';
-import PastePlainText from '../src/pasteplaintext';
-import DragDropBlockToolbar from '../src/dragdropblocktoolbar';
+import { DragDropTarget } from '../src/dragdroptarget.js';
+import { DragDrop } from '../src/dragdrop.js';
+import { PastePlainText } from '../src/pasteplaintext.js';
+import { DragDropBlockToolbar } from '../src/dragdropblocktoolbar.js';
+import { ClipboardObserver } from '../src/clipboardobserver.js';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Table from '@ckeditor/ckeditor5-table/src/table';
-import HorizontalLine from '@ckeditor/ckeditor5-horizontal-line/src/horizontalline';
-import ShiftEnter from '@ckeditor/ckeditor5-enter/src/shiftenter';
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import BlockToolbar from '@ckeditor/ckeditor5-ui/src/toolbar/block/blocktoolbar';
-import Bold from '@ckeditor/ckeditor5-basic-styles/src/bold';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Table } from '@ckeditor/ckeditor5-table';
+import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
+import { ShiftEnter } from '@ckeditor/ckeditor5-enter';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { BlockToolbar } from '@ckeditor/ckeditor5-ui';
+import { Bold } from '@ckeditor/ckeditor5-basic-styles';
 import { Image, ImageCaption } from '@ckeditor/ckeditor5-image';
-import env from '@ckeditor/ckeditor5-utils/src/env';
+import { env } from '@ckeditor/ckeditor5-utils';
 
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Drag and Drop Block Toolbar', () => {
 	let editorElement, editor, model, view, viewDocument, root, mapper, domConverter, dragDropBlockToolbar,
 		blockToolbar, blockToolbarButton;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = document.createElement( 'div' );
@@ -72,17 +71,25 @@ describe( 'Drag and Drop Block Toolbar', () => {
 		editorElement.remove();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( DragDropBlockToolbar.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( DragDropBlockToolbar.isPremiumPlugin ).toBe( false );
+	} );
+
 	describe( 'init', () => {
 		it( 'should toggle read only mode', () => {
-			expect( dragDropBlockToolbar.isEnabled ).to.be.true;
+			expect( dragDropBlockToolbar.isEnabled ).toBe( true );
 
 			editor.enableReadOnlyMode( 'test' );
 
-			expect( dragDropBlockToolbar.isEnabled ).to.be.false;
+			expect( dragDropBlockToolbar.isEnabled ).toBe( false );
 
 			editor.disableReadOnlyMode( 'test' );
 
-			expect( dragDropBlockToolbar.isEnabled ).to.be.true;
+			expect( dragDropBlockToolbar.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be disabled on android', async () => {
@@ -92,31 +99,61 @@ describe( 'Drag and Drop Block Toolbar', () => {
 				plugins: [ DragDrop, DragDropBlockToolbar ]
 			} );
 
-			expect( editor.plugins.get( DragDropBlockToolbar ).isEnabled ).to.be.false;
+			expect( editor.plugins.get( DragDropBlockToolbar ).isEnabled ).toBe( false );
 
 			await editor.destroy();
 
 			env.isAndroid = false;
 		} );
 
-		it( 'should display block toolbar button', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+		it( 'should not set draggable="true" on BlockToolbar button when disabled on Android init', async () => {
+			env.isAndroid = true;
 
-			expect( blockToolbarButton ).not.to.be.null;
-			expect( blockToolbarButton.className.includes( 'ck-hidden' ) ).to.be.false;
+			const localElement = document.createElement( 'div' );
+			document.body.appendChild( localElement );
+
+			const localEditor = await ClassicTestEditor.create( localElement, {
+				plugins: [
+					DragDrop,
+					DragDropBlockToolbar,
+					DragDropTarget,
+					PastePlainText,
+					Paragraph,
+					BlockToolbar,
+					Bold
+				],
+				blockToolbar: [ 'bold' ]
+			} );
+
+			const localBlockToolbar = localEditor.plugins.get( BlockToolbar );
+			const buttonElement = localBlockToolbar.buttonView.element;
+
+			expect( buttonElement.getAttribute( 'draggable' ) ).not.toBe( 'true' );
+
+			await localEditor.destroy();
+			localElement.remove();
+
+			env.isAndroid = false;
+		} );
+
+		it( 'should display block toolbar button', () => {
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+
+			expect( blockToolbarButton ).not.toBeNull();
+			expect( blockToolbarButton.className.includes( 'ck-hidden' ) ).toBe( false );
 		} );
 	} );
 
 	describe( 'dragging', () => {
 		it( 'should set selection on drag block toolbar button', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
-			sinon.spy( editor.editing.view, 'focus' );
+			const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
 			const dragEvent = new DragEvent( 'dragstart' );
 
 			viewDocument.on( 'dragstart', ( evt, data ) => {
-				expect( data.domEvent ).to.equal( dragEvent );
+				expect( data.domEvent ).toBe( dragEvent );
 				evt.stop();
 			}, 'highest' );
 
@@ -125,14 +162,14 @@ describe( 'Drag and Drop Block Toolbar', () => {
 			const modelSelection = model.document.selection;
 			const { focus, anchor } = modelSelection;
 
-			expect( focus.path ).to.deep.equal( [ 0, 6 ] );
-			expect( anchor.path ).to.deep.equal( [ 0, 0 ] );
-			expect( dragDropBlockToolbar._isBlockDragging ).to.be.true;
-			expect( editor.editing.view.focus.calledOnce ).to.be.true;
+			expect( focus.path ).toEqual( [ 0, 6 ] );
+			expect( anchor.path ).toEqual( [ 0, 0 ] );
+			expect( dragDropBlockToolbar._isBlockDragging ).toBe( true );
+			expect( focusSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should not set selection if plugin is disabled', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			editor.enableReadOnlyMode( 'test' );
 
@@ -143,12 +180,12 @@ describe( 'Drag and Drop Block Toolbar', () => {
 			const modelSelection = model.document.selection;
 			const { focus, anchor } = modelSelection;
 
-			expect( focus.path ).to.deep.equal( [ 0, 3 ] );
-			expect( anchor.path ).to.deep.equal( [ 0, 0 ] );
+			expect( focus.path ).toEqual( [ 0, 3 ] );
+			expect( anchor.path ).toEqual( [ 0, 0 ] );
 		} );
 
 		it( 'should display dragging marker', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			const dragStartEvent = new DragEvent( 'dragstart', {
 				dataTransfer: new DataTransfer()
@@ -172,7 +209,7 @@ describe( 'Drag and Drop Block Toolbar', () => {
 		} );
 
 		it( 'should display dragging marker (RTL)', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			editor.locale.contentLanguageDirection = 'rtl';
 
@@ -198,7 +235,7 @@ describe( 'Drag and Drop Block Toolbar', () => {
 		} );
 
 		it( 'should not drag if block toolbar is disabled', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			editor.enableReadOnlyMode( 'test' );
 
@@ -221,11 +258,11 @@ describe( 'Drag and Drop Block Toolbar', () => {
 
 			document.dispatchEvent( dragOverEvent );
 
-			expect( model.markers.has( 'drop-target' ) ).to.be.false;
+			expect( model.markers.has( 'drop-target' ) ).toBe( false );
 		} );
 
 		it( 'should not display dragging marker', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			const dragStartEvent = new DragEvent( 'dragstart', {
 				dataTransfer: new DataTransfer()
@@ -241,16 +278,16 @@ describe( 'Drag and Drop Block Toolbar', () => {
 
 			document.dispatchEvent( dragOverEvent );
 
-			expect( model.markers.has( 'drop-target' ) ).to.be.false;
+			expect( model.markers.has( 'drop-target' ) ).toBe( false );
 		} );
 
 		it( 'should drop element', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			const modelParagraph = root.getNodeByPath( [ 0 ] );
 			const viewParagraph = mapper.toViewElement( modelParagraph );
 			const domNode = domConverter.mapViewToDom( viewParagraph );
-			const spyClipboardInput = sinon.spy();
+			const spyClipboardInput = vi.fn();
 
 			const { x: clientX, y: clientY } = domNode.getBoundingClientRect();
 			const dragStartEvent = new DragEvent( 'dragstart', {
@@ -281,17 +318,17 @@ describe( 'Drag and Drop Block Toolbar', () => {
 
 			document.dispatchEvent( dropEvent );
 
-			expect( spyClipboardInput.called ).to.be.true;
-			expect( spyClipboardInput.firstCall.firstArg.method ).to.equal( 'drop' );
+			expect( spyClipboardInput ).toHaveBeenCalled();
+			expect( spyClipboardInput.mock.calls[ 0 ][ 0 ].method ).toBe( 'drop' );
 		} );
 
 		it( 'should end drag and drop', () => {
-			setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
 
 			const modelParagraph = root.getNodeByPath( [ 0 ] );
 			const viewParagraph = mapper.toViewElement( modelParagraph );
 			const domNode = domConverter.mapViewToDom( viewParagraph );
-			const spyClipboardInput = sinon.spy();
+			const spyClipboardInput = vi.fn();
 
 			const { x: clientX, y: clientY } = domNode.getBoundingClientRect();
 			const dragStartEvent = new DragEvent( 'dragstart', {
@@ -318,18 +355,270 @@ describe( 'Drag and Drop Block Toolbar', () => {
 
 			document.dispatchEvent( dragEndEvent );
 
-			expect( dragDropBlockToolbar._isBlockDragging ).to.be.false;
+			expect( dragDropBlockToolbar._isBlockDragging ).toBe( false );
+		} );
+
+		it( 'should show preview with white background on iOS', () => {
+			const originalEnviOs = env.isiOS;
+
+			env.isiOS = true;
+
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+
+			const dataTransfer = new DataTransfer();
+			const spy = vi.spyOn( dataTransfer, 'setDragImage' );
+
+			const dragStartEvent = new DragEvent( 'dragstart', {
+				dataTransfer
+			} );
+
+			blockToolbarButton.dispatchEvent( dragStartEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+
+			const [ previewElement, offsetX, offsetY ] = spy.mock.calls[ 0 ];
+
+			expect( previewElement.style.backgroundColor ).toBe( 'var(--ck-color-base-background)' );
+			expect( previewElement.style.width ).toMatch( /^[\d.]+px$/ );
+			expect( previewElement.className ).toBe( 'ck ck-content ck-clipboard-preview' );
+			expect( previewElement.firstChild.tagName ).toBe( 'P' );
+			expect( previewElement.firstChild.innerHTML ).toBe( 'foobar' );
+			expect( offsetX ).toBe( 0 );
+			expect( offsetY ).toBe( 0 );
+
+			env.isiOS = originalEnviOs;
+		} );
+
+		it( 'should show preview without white background if not iOS', () => {
+			const originalEnviOs = env.isiOS;
+
+			env.isiOS = false;
+
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+
+			const dataTransfer = new DataTransfer();
+			const spy = vi.spyOn( dataTransfer, 'setDragImage' );
+
+			const dragStartEvent = new DragEvent( 'dragstart', {
+				dataTransfer
+			} );
+
+			blockToolbarButton.dispatchEvent( dragStartEvent );
+
+			expect( spy ).toHaveBeenCalledOnce();
+
+			const [ previewElement, offsetX, offsetY ] = spy.mock.calls[ 0 ];
+
+			expect( previewElement.style.backgroundColor ).toBe( '' );
+			expect( previewElement.style.width ).toMatch( /^[\d.]+px$/ );
+			expect( previewElement.className ).toBe( 'ck ck-content ck-clipboard-preview' );
+			expect( previewElement.firstChild.tagName ).toBe( 'P' );
+			expect( previewElement.firstChild.innerHTML ).toBe( 'foobar' );
+			expect( offsetX ).toBe( 0 );
+			expect( offsetY ).toBe( 0 );
+
+			env.isiOS = originalEnviOs;
 		} );
 	} );
 
+	describe( 'dragging with an editable inside a shadow root', () => {
+		// `document.elementFromPoint()` retargets to the shadow host for a point inside a shadow root, so
+		// resolving the drop target against the top-level document reports the host instead of the element
+		// actually under the pointer, and the drag is silently dropped. The point has to be resolved against
+		// the root the editable itself lives in.
+		let host, shadowRoot, shadowEditor;
+
+		afterEach( async () => {
+			if ( shadowEditor ) {
+				await shadowEditor.destroy();
+				shadowEditor = null;
+			}
+
+			if ( host ) {
+				host.remove();
+				host = null;
+			}
+		} );
+
+		it( 'should resolve the drop target in an open shadow root', async () => {
+			await createEditorInShadowRoot( 'open' );
+
+			startDragging();
+			dragOverEditable();
+
+			expect( shadowEditor.model.markers.has( 'drop-target' ) ).toBe( true );
+		} );
+
+		it( 'should resolve the drop target in a closed shadow root', async () => {
+			// A closed root is not reachable through `host.shadowRoot`, so it can only work if the root is
+			// derived from a node the plugin already holds rather than discovered from the hit-tested element.
+			await createEditorInShadowRoot( 'closed' );
+
+			startDragging();
+			dragOverEditable();
+
+			expect( shadowEditor.model.markers.has( 'drop-target' ) ).toBe( true );
+		} );
+
+		it( 'should not resolve a drop target for a point outside the editable', async () => {
+			await createEditorInShadowRoot( 'open' );
+
+			startDragging();
+
+			document.dispatchEvent( new DragEvent( 'dragover', {
+				clientX: -99999,
+				clientY: -99999,
+				dataTransfer: new DataTransfer()
+			} ) );
+
+			expect( shadowEditor.model.markers.has( 'drop-target' ) ).toBe( false );
+		} );
+
+		it( 'should forward the element from inside the shadow root, not the retargeted host', async () => {
+			// `Document#elementFromPoint()` retargets a point inside a shadow tree to that tree's host, and
+			// the host is not a node of the editable's own tree — neither the `.ck-editor__editable` lookup
+			// nor the range resolution downstream can work with it.
+			await createEditorInShadowRoot( 'open' );
+
+			const onDomEventSpy = vi.spyOn( shadowEditor.editing.view.getObserver( ClipboardObserver ), 'onDomEvent' );
+
+			startDragging();
+
+			// `dragstart` is forwarded to the observer as well.
+			onDomEventSpy.mockClear();
+
+			dragOverEditable();
+
+			expect( onDomEventSpy ).toHaveBeenCalledOnce();
+
+			const target = onDomEventSpy.mock.calls[ 0 ][ 0 ].target;
+
+			expect( target ).not.toBe( host );
+			expect( target.getRootNode() ).toBe( shadowRoot );
+		} );
+
+		async function createEditorInShadowRoot( mode ) {
+			host = document.createElement( 'div' );
+			document.body.appendChild( host );
+
+			shadowRoot = host.attachShadow( { mode } );
+
+			const shadowEditorElement = document.createElement( 'div' );
+
+			shadowRoot.appendChild( shadowEditorElement );
+
+			shadowEditor = await ClassicTestEditor.create( shadowEditorElement, {
+				plugins: [
+					DragDrop,
+					DragDropBlockToolbar,
+					DragDropTarget,
+					PastePlainText,
+					Paragraph,
+					BlockToolbar,
+					Bold
+				],
+				blockToolbar: [ 'bold' ]
+			} );
+
+			shadowEditor.ui.focusTracker.isFocused = true;
+
+			_setModelData( shadowEditor.model, '<paragraph>[foo]bar</paragraph>' );
+		}
+
+		function startDragging() {
+			// The block toolbar button is mounted in the body collection, i.e. in the light DOM, even though
+			// the editable it belongs to is not.
+			const buttonElement = shadowEditor.plugins.get( BlockToolbar ).buttonView.element;
+
+			buttonElement.dispatchEvent( new DragEvent( 'dragstart', {
+				dataTransfer: new DataTransfer()
+			} ) );
+		}
+
+		function dragOverEditable() {
+			const { x: clientX, y: clientY } = shadowEditor.editing.view.getDomRoot().getBoundingClientRect();
+
+			document.dispatchEvent( new DragEvent( 'dragover', {
+				clientX: clientX - 50,
+				clientY,
+				dataTransfer: new DataTransfer()
+			} ) );
+		}
+	} );
+
+	describe( 'resolving the drop target', () => {
+		beforeEach( () => {
+			_setModelData( model, '<paragraph>[foo]bar</paragraph>' );
+		} );
+
+		it( 'should use the hit-tested element as the target', () => {
+			const domParagraph = getDomParagraph();
+
+			startDragging();
+
+			const onDomEventSpy = vi.spyOn( view.getObserver( ClipboardObserver ), 'onDomEvent' );
+
+			stubFirstElementFromPoint( domParagraph );
+			dispatchDragOverParagraph();
+
+			expect( onDomEventSpy ).toHaveBeenCalledOnce();
+			expect( onDomEventSpy.mock.calls[ 0 ][ 0 ].target ).toBe( domParagraph );
+		} );
+
+		it( 'should not resolve a target when the point lands outside an editable', () => {
+			startDragging();
+
+			const onDomEventSpy = vi.spyOn( view.getObserver( ClipboardObserver ), 'onDomEvent' );
+
+			// Resolvable, but not inside any editable.
+			stubFirstElementFromPoint( document.body );
+			dispatchDragOverParagraph();
+
+			expect( onDomEventSpy ).not.toHaveBeenCalled();
+		} );
+
+		/**
+		 * Hijacks only the plugin's own lookup. The very same API is used again further down the drop
+		 * handling, and feeding it an element of the test's choosing there would resolve a target outside
+		 * the editing view.
+		 */
+		function stubFirstElementFromPoint( element ) {
+			const originalElementFromPoint = document.elementFromPoint;
+
+			vi.spyOn( document, 'elementFromPoint' )
+				.mockImplementationOnce( () => element )
+				.mockImplementation( ( ...args ) => originalElementFromPoint.apply( document, args ) );
+		}
+
+		function startDragging() {
+			blockToolbarButton.dispatchEvent( new DragEvent( 'dragstart', {
+				dataTransfer: new DataTransfer()
+			} ) );
+		}
+
+		function dispatchDragOverParagraph() {
+			const { x: clientX, y: clientY } = getDomParagraph().getBoundingClientRect();
+
+			document.dispatchEvent( new DragEvent( 'dragover', {
+				clientX,
+				clientY,
+				dataTransfer: new DataTransfer()
+			} ) );
+		}
+
+		function getDomParagraph() {
+			return domConverter.mapViewToDom( mapper.toViewElement( root.getNodeByPath( [ 0 ] ) ) );
+		}
+	} );
+
 	function expectDraggingMarker( targetPositionOrRange ) {
-		expect( model.markers.has( 'drop-target' ) ).to.be.true;
+		expect( model.markers.has( 'drop-target' ) ).toBe( true );
 
 		if ( targetPositionOrRange.is( 'position' ) ) {
-			expect( model.markers.get( 'drop-target' ).getRange().isCollapsed ).to.be.true;
-			expect( model.markers.get( 'drop-target' ).getRange().start.isEqual( targetPositionOrRange ) ).to.be.true;
+			expect( model.markers.get( 'drop-target' ).getRange().isCollapsed ).toBe( true );
+			expect( model.markers.get( 'drop-target' ).getRange().start.isEqual( targetPositionOrRange ) ).toBe( true );
 		} else {
-			expect( model.markers.get( 'drop-target' ).getRange().isEqual( targetPositionOrRange ) ).to.be.true;
+			expect( model.markers.get( 'drop-target' ).getRange().isEqual( targetPositionOrRange ) ).toBe( true );
 		}
 	}
 } );

@@ -1,29 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module horizontal-line/horizontallineediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { toWidget } from 'ckeditor5/src/widget';
-import type { DowncastWriter, ViewElement } from 'ckeditor5/src/engine';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { toWidget } from '@ckeditor/ckeditor5-widget';
+import type { ViewDowncastWriter, ViewElement } from '@ckeditor/ckeditor5-engine';
 
-import HorizontalLineCommand from './horizontallinecommand';
-
-import '../theme/horizontalline.css';
+import { HorizontalLineCommand } from './horizontallinecommand.js';
 
 /**
  * The horizontal line editing feature.
  */
-export default class HorizontalLineEditing extends Plugin {
+export class HorizontalLineEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'HorizontalLineEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -69,14 +74,14 @@ export default class HorizontalLineEditing extends Plugin {
 }
 
 /**
- * Converts a given {@link module:engine/view/element~Element} to a horizontal line widget:
- * * Adds a {@link module:engine/view/element~Element#_setCustomProperty custom property} allowing to
+ * Converts a given {@link module:engine/view/element~ViewElement} to a horizontal line widget:
+ * * Adds a {@link module:engine/view/element~ViewElement#_setCustomProperty custom property} allowing to
  *   recognize the horizontal line widget element.
  * * Calls the {@link module:widget/utils~toWidget} function with the proper element's label creator.
  *
  * @param writer An instance of the view writer.
  */
-function toHorizontalLineWidget( viewElement: ViewElement, writer: DowncastWriter, label: string ): ViewElement {
+function toHorizontalLineWidget( viewElement: ViewElement, writer: ViewDowncastWriter, label: string ): ViewElement {
 	writer.setCustomProperty( 'horizontalLine', true, viewElement );
 
 	return toWidget( viewElement, writer, { label } );

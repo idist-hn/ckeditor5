@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/font
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import FontFamily from './fontfamily';
-import FontSize from './fontsize';
-import FontColor from './fontcolor';
-import FontBackgroundColor from './fontbackgroundcolor';
+import { FontFamily } from './fontfamily.js';
+import { FontSize } from './fontsize.js';
+import { FontColor } from './fontcolor.js';
+import { FontBackgroundColor } from './fontbackgroundcolor.js';
 
 /**
  * A plugin that enables a set of text styling features:
@@ -25,12 +25,12 @@ import FontBackgroundColor from './fontbackgroundcolor';
  * For a detailed overview, check the {@glink features/font Font feature} documentation
  * and the {@glink api/font package page}.
  */
-export default class Font extends Plugin {
+export class Font extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ FontFamily, FontSize, FontColor, FontBackgroundColor ] as const;
+	public static get requires(): PluginDependenciesOf<[ FontFamily, FontSize, FontColor, FontBackgroundColor ]> {
+		return [ FontFamily, FontSize, FontColor, FontBackgroundColor ];
 	}
 
 	/**
@@ -38,5 +38,12 @@ export default class Font extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Font' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagecaption/imagecaptionui
  */
 
-import { Plugin, icons } from 'ckeditor5/src/core';
-import { ButtonView } from 'ckeditor5/src/ui';
-import ImageCaptionUtils from './imagecaptionutils';
-import type ToggleImageCaptionCommand from './toggleimagecaptioncommand';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ButtonView } from '@ckeditor/ckeditor5-ui';
+import { IconCaption } from '@ckeditor/ckeditor5-icons';
+import { ImageCaptionUtils } from './imagecaptionutils.js';
+import { type ToggleImageCaptionCommand } from './toggleimagecaptioncommand.js';
 
 /**
  * The image caption UI plugin. It introduces the `'toggleImageCaption'` UI button.
  */
-export default class ImageCaptionUI extends Plugin {
+export class ImageCaptionUI extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageCaptionUtils ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageCaptionUtils ]> {
+		return [ ImageCaptionUtils ];
 	}
 
 	/**
@@ -28,6 +29,13 @@ export default class ImageCaptionUI extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'ImageCaptionUI' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -44,7 +52,7 @@ export default class ImageCaptionUI extends Plugin {
 			const view = new ButtonView( locale );
 
 			view.set( {
-				icon: icons.caption,
+				icon: IconCaption,
 				tooltip: true,
 				isToggleable: true
 			} );

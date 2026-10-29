@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/highlightedtext/highlightedtextview
  */
 
-import View from '../view';
-import { escape } from 'lodash-es';
+import { trustedHtml } from '@ckeditor/ckeditor5-utils';
 
-import '../../theme/components/highlightedtext/highlightedtext.css';
+import { View } from '../view.js';
+import { escape } from 'es-toolkit/compat';
 
 /**
  * A class representing a view that displays a text which subset can be highlighted using the
  * {@link #highlightText} method.
  */
-export default class HighlightedTextView extends View {
+export class HighlightedTextView extends View {
 	/**
 	 * The text that can be highlighted using the {@link #highlightText} method.
 	 *
@@ -45,10 +45,10 @@ export default class HighlightedTextView extends View {
 			// Classic setTemplate binding for #text will not work because highlightText() replaces the
 			// pre-rendered DOM text node new a new one (and <mark> elements).
 			this.on( 'change:text', () => {
-				this._updateInnerHTML( this.text );
+				this._updateInnerHTML( escape( this.text || '' ) );
 			} );
 
-			this._updateInnerHTML( this.text );
+			this._updateInnerHTML( escape( this.text || '' ) );
 		} );
 	}
 
@@ -66,7 +66,7 @@ export default class HighlightedTextView extends View {
 	 * Updates element's `innerHTML` with the passed content.
 	 */
 	private _updateInnerHTML( newInnerHTML: string | undefined ) {
-		this.element!.innerHTML = newInnerHTML || '';
+		this.element!.innerHTML = trustedHtml( newInnerHTML || '' );
 	}
 }
 

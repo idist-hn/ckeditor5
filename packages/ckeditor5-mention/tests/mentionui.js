@@ -1,29 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global window, document, setTimeout, Event, console */
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import { keyCodes } from '@ckeditor/ckeditor5-utils/src/keyboard';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import EventInfo from '@ckeditor/ckeditor5-utils/src/eventinfo';
-import ContextualBalloon from '@ckeditor/ckeditor5-ui/src/panel/balloon/contextualballoon';
-import env from '@ckeditor/ckeditor5-utils/src/env';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { keyCodes, global, EventInfo, env } from '@ckeditor/ckeditor5-utils';
+import { _setModelData, ViewDocumentDomEventData } from '@ckeditor/ckeditor5-engine';
+import { ContextualBalloon, ListItemButtonView } from '@ckeditor/ckeditor5-ui';
 
-import MentionUI, { createRegExp } from '../src/mentionui';
-import MentionEditing from '../src/mentionediting';
-import MentionsView from '../src/ui/mentionsview';
-import { assertCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
+
+import { MentionUI, createRegExp } from '../src/mentionui.js';
+import { MentionEditing } from '../src/mentionediting.js';
+import { MentionsView } from '../src/ui/mentionsview.js';
+import { assertCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 describe( 'MentionUI', () => {
-	let editor, model, doc, editingView, mentionUI, editorElement, mentionsView, panelView, clock;
+	let editor, model, doc, editingView, mentionUI, editorElement, mentionsView, panelView;
 
 	const staticConfig = {
 		feeds: [
@@ -34,17 +31,14 @@ describe( 'MentionUI', () => {
 		]
 	};
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( () => {
-		clock = sinon.useFakeTimers( { now: Date.now() } );
+		vi.useFakeTimers( { now: Date.now() } );
 		editorElement = document.createElement( 'div' );
 		document.body.appendChild( editorElement );
 	} );
 
 	afterEach( () => {
-		sinon.restore();
-		clock.restore();
+		vi.useRealTimers();
 		editorElement.remove();
 
 		if ( editor ) {
@@ -52,16 +46,24 @@ describe( 'MentionUI', () => {
 		}
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( MentionUI.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( MentionUI.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should create a plugin instance', () => {
 		return createClassicTestEditor().then( () => {
-			expect( mentionUI ).to.instanceOf( Plugin );
-			expect( mentionUI ).to.instanceOf( MentionUI );
+			expect( mentionUI ).toBeInstanceOf( Plugin );
+			expect( mentionUI ).toBeInstanceOf( MentionUI );
 		} );
 	} );
 
 	it( 'should load ContextualBalloon plugin', () => {
 		return createClassicTestEditor().then( () => {
-			expect( editor.plugins.get( ContextualBalloon ) ).to.be.instanceOf( ContextualBalloon );
+			expect( editor.plugins.get( ContextualBalloon ) ).toBeInstanceOf( ContextualBalloon );
 		} );
 	} );
 
@@ -78,17 +80,22 @@ describe( 'MentionUI', () => {
 			} );
 		} );
 
-		it( 'should throw if marker is longer then 1 character', () => {
-			return createClassicTestEditor( { feeds: [ { marker: '$$', feed: [ 'a' ] } ] } ).catch( error => {
-				assertCKEditorError( error, /mentionconfig-incorrect-marker/, null, { marker: '$$' } );
-			} );
+		it( 'should not throw if marker is longer then 1 character', () => {
+			return expect( ClassicTestEditor
+				.create( editorElement, {
+					plugins: [ Paragraph, MentionEditing, MentionUI ],
+					mention: { feeds: [ { marker: '$$', feed: [ 'a' ] } ] }
+				} ).then( tempEditor => {
+					return tempEditor.destroy();
+				} )
+			).resolves.toBeUndefined();
 		} );
 	} );
 
 	describe( 'pluginName', () => {
 		it( 'should return plugin by its name', () => {
 			return createClassicTestEditor().then( () => {
-				expect( editor.plugins.get( 'MentionUI' ) ).to.equal( mentionUI );
+				expect( editor.plugins.get( 'MentionUI' ) ).toEqual( mentionUI );
 			} );
 		} );
 	} );
@@ -99,10 +106,10 @@ describe( 'MentionUI', () => {
 		beforeEach( () => {
 			return createClassicTestEditor( staticConfig )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 					const contextualBalloon = editor.plugins.get( ContextualBalloon );
 
-					balloonAddSpy = sinon.spy( contextualBalloon, 'add' );
+					balloonAddSpy = vi.spyOn( contextualBalloon, 'add' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -112,22 +119,28 @@ describe( 'MentionUI', () => {
 		} );
 
 		it( 'should disable arrow', () => {
-			sinon.assert.calledOnce( balloonAddSpy );
-			sinon.assert.calledWithExactly( balloonAddSpy, sinon.match( data => data.singleViewMode ) );
-			expect( panelView.isVisible ).to.be.true;
-			expect( panelView.withArrow ).to.be.false;
+			expect( balloonAddSpy ).toHaveBeenCalledOnce();
+			expect( balloonAddSpy ).toHaveBeenCalledWith( expect.objectContaining( { singleViewMode: expect.anything() } ) );
+			expect( panelView.isVisible ).toBe( true );
+			expect( panelView.withArrow ).toBe( false );
 		} );
 
 		it( 'should add MentionView to a panel', () => {
-			expect( editor.plugins.get( ContextualBalloon ).visibleView ).to.be.instanceof( MentionsView );
+			expect( editor.plugins.get( ContextualBalloon ).visibleView ).toBeInstanceOf( MentionsView );
 		} );
 
 		it( 'should hide the contextual balloon when editor turns into a readonly mode', () => {
-			expect( panelView.isVisible ).to.be.true;
+			expect( panelView.isVisible ).toBe( true );
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			expect( panelView.isVisible ).to.be.false;
+			expect( panelView.isVisible ).toBe( false );
+		} );
+
+		// See https://github.com/ckeditor/ckeditor5/issues/17964
+		it( 'should have the ck-mention-balloon class to make sure z-index does not conflict with the dialog system', () => {
+			expect( balloonAddSpy.mock.calls.length ).toEqual( 1 );
+			expect( balloonAddSpy.mock.calls[ 0 ][ 0 ].balloonClassName ).toEqual( 'ck-mention-balloon' );
 		} );
 	} );
 
@@ -135,11 +148,11 @@ describe( 'MentionUI', () => {
 		let pinSpy;
 
 		const caretRect = {
-			bottom: 118,
+			bottom: 28,
 			height: 18,
 			left: 500,
 			right: 501,
-			top: 100,
+			top: 10,
 			width: 1
 		};
 
@@ -152,19 +165,28 @@ describe( 'MentionUI', () => {
 			width: 200
 		};
 
+		const viewportRect = {
+			bottom: 1000,
+			height: 1000,
+			left: 0,
+			right: 1000,
+			top: 0,
+			width: 1000
+		};
+
 		beforeEach( () => {
 			return createClassicTestEditor( staticConfig ).then( () => {
-				pinSpy = sinon.spy( panelView, 'pin' );
+				pinSpy = vi.spyOn( panelView, 'pin' );
 			} );
 		} );
 
 		it( 'should properly calculate position data', () => {
 			const editableElement = editingView.document.selection.editableElement;
 
-			setData( model, '<paragraph>foo []</paragraph>' );
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
 			stubSelectionRects( [ caretRect ] );
 
-			expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+			expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -172,68 +194,68 @@ describe( 'MentionUI', () => {
 
 			return waitForDebounce()
 				.then( () => {
-					const pinArgument = pinSpy.firstCall.args[ 0 ];
+					const pinArgument = pinSpy.mock.calls[ 0 ][ 0 ];
 					const { target, positions, limiter, fitInViewport } = pinArgument;
 
-					expect( positions ).to.have.length( 4 );
+					expect( positions ).toHaveLength( 4 );
 
 					// Mention UI should set limiter to the editable area.
-					expect( limiter() ).to.equal( editingView.domConverter.mapViewToDom( editableElement ) );
-					expect( fitInViewport ).to.be.undefined;
+					expect( limiter() ).toEqual( editingView.domConverter.mapViewToDom( editableElement ) );
+					expect( fitInViewport ).toBeUndefined();
 
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 					const mentionMarker = editor.model.markers.get( 'mention' );
 					const focus = doc.selection.focus;
 					const expectedRange = editor.model.createRange( focus.getShiftedBy( -1 ), focus );
 
 					// It should create a model marker for matcher marker character ('@').
-					expect( expectedRange.isEqual( mentionMarker.getRange() ) ).to.be.true;
+					expect( expectedRange.isEqual( mentionMarker.getRange() ) ).toBe( true );
 
-					const toViewRangeSpy = sinon.spy( editor.editing.mapper, 'toViewRange' );
+					const toViewRangeSpy = vi.spyOn( editor.editing.mapper, 'toViewRange' );
 
-					expect( target() ).to.deep.equal( caretRect );
+					expect( target() ).toEqual( caretRect );
 
-					sinon.assert.calledOnce( toViewRangeSpy );
-					const range = toViewRangeSpy.firstCall.args[ 0 ];
+					expect( toViewRangeSpy ).toHaveBeenCalledOnce();
+					const range = toViewRangeSpy.mock.calls[ 0 ][ 0 ];
 
-					expect( mentionMarker.getRange().isEqual( range ), 'Should position to mention marker.' );
+					expect( mentionMarker.getRange().isEqual( range ), 'Should position to mention marker.' ).toBe( true );
 
 					const caretSouthEast = positions[ 0 ];
 					const caretSouthWest = positions[ 1 ];
 					const caretNorthEast = positions[ 2 ];
 					const caretNorthWest = positions[ 3 ];
 
-					expect( caretSouthEast( caretRect, balloonRect ) ).to.deep.equal( {
+					expect( caretSouthEast( caretRect, balloonRect, viewportRect ) ).toEqual( {
 						left: 501,
 						name: 'caret_se',
-						top: 121,
+						top: 31,
 						config: {
 							withArrow: false
 						}
 					} );
 
-					expect( caretSouthWest( caretRect, balloonRect ) ).to.deep.equal( {
+					expect( caretSouthWest( caretRect, balloonRect, viewportRect ) ).toEqual( {
 						left: 301,
 						name: 'caret_sw',
-						top: 121,
+						top: 31,
 						config: {
 							withArrow: false
 						}
 					} );
 
-					expect( caretNorthEast( caretRect, balloonRect ) ).to.deep.equal( {
+					expect( caretNorthEast( caretRect, balloonRect, viewportRect ) ).toEqual( {
 						left: 501,
 						name: 'caret_ne',
-						top: -53,
+						top: -143,
 						config: {
 							withArrow: false
 						}
 					} );
 
-					expect( caretNorthWest( caretRect, balloonRect ) ).to.deep.equal( {
+					expect( caretNorthWest( caretRect, balloonRect, viewportRect ) ).toEqual( {
 						left: 301,
 						name: 'caret_nw',
-						top: -53,
+						top: -143,
 						config: {
 							withArrow: false
 						}
@@ -241,8 +263,47 @@ describe( 'MentionUI', () => {
 				} );
 		} );
 
+		it( 'should keep the panel inside the viewport horizontally on narrow screens', async () => {
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
+			stubSelectionRects( [ caretRect ] );
+
+			model.change( writer => {
+				writer.insertText( '@', doc.selection.getFirstPosition() );
+			} );
+
+			await waitForDebounce();
+
+			const { positions } = pinSpy.mock.calls[ 0 ][ 0 ];
+
+			const caretSouthEast = positions[ 0 ];
+			const caretSouthWest = positions[ 1 ];
+
+			const narrowViewportRect = {
+				bottom: 800,
+				height: 800,
+				left: 0,
+				right: 390,
+				top: 0,
+				width: 390
+			};
+
+			// The caret is close to the right edge of the screen.
+			const caretNearRightEdge = { ...caretRect, left: 350, right: 351 };
+
+			// The panel would stick out beyond the right edge of the viewport (351 + 200 > 390),
+			// so it is moved left to stay fully visible.
+			expect( caretSouthEast( caretNearRightEdge, balloonRect, narrowViewportRect ).left ).toBe( 190 );
+
+			// The caret is close to the left edge of the screen.
+			const caretNearLeftEdge = { ...caretRect, left: 9, right: 10 };
+
+			// The panel would stick out beyond the left edge of the viewport (10 - 200 < 0),
+			// so it is moved right to stay fully visible.
+			expect( caretSouthWest( caretNearLeftEdge, balloonRect, narrowViewportRect ).left ).toBe( 0 );
+		} );
+
 		it( 'should re-calculate position on typing and stay on selected position', () => {
-			setData( model, '<paragraph>foo []</paragraph>' );
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
 			stubSelectionRects( [ caretRect ] );
 
 			model.change( writer => {
@@ -253,12 +314,12 @@ describe( 'MentionUI', () => {
 
 			return waitForDebounce()
 				.then( () => {
-					sinon.assert.calledOnce( pinSpy );
+					expect( pinSpy ).toHaveBeenCalledOnce();
 
-					const pinArgument = pinSpy.firstCall.args[ 0 ];
+					const pinArgument = pinSpy.mock.calls[ 0 ][ 0 ];
 					const { positions } = pinArgument;
 
-					expect( positions ).to.have.length( 4 );
+					expect( positions ).toHaveLength( 4 );
 
 					positionAfterFirstShow = mentionsView.position;
 
@@ -268,21 +329,21 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					sinon.assert.calledTwice( pinSpy );
+					expect( pinSpy ).toHaveBeenCalledTimes( 2 );
 
-					const pinArgument = pinSpy.secondCall.args[ 0 ];
+					const pinArgument = pinSpy.mock.calls[ 1 ][ 0 ];
 					const { positions } = pinArgument;
 
-					expect( positions, 'should reuse first matched position' ).to.have.length( 1 );
-					expect( positions[ 0 ].name ).to.equal( positionAfterFirstShow );
+					expect( positions, 'should reuse first matched position' ).toHaveLength( 1 );
+					expect( positions[ 0 ].name ).toEqual( positionAfterFirstShow );
 				} );
 		} );
 
 		it( 'does not fail if selection has no #editableElement', () => {
-			setData( model, '<paragraph>foo []</paragraph>' );
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
 			stubSelectionRects( [ caretRect ] );
 
-			expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+			expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -290,13 +351,13 @@ describe( 'MentionUI', () => {
 
 			return waitForDebounce()
 				.then( () => {
-					const pinArgument = pinSpy.firstCall.args[ 0 ];
+					const pinArgument = pinSpy.mock.calls[ 0 ][ 0 ];
 					const { limiter } = pinArgument;
 
-					sinon.stub( editingView.document.selection, 'editableElement' ).value( null );
+					vi.spyOn( editingView.document.selection, 'editableElement', 'get' ).mockReturnValue( null );
 
 					// Should not break;
-					expect( limiter() ).to.be.null;
+					expect( limiter() ).toBeNull();
 				} );
 		} );
 
@@ -310,9 +371,9 @@ describe( 'MentionUI', () => {
 					return createClassicTestEditor( { ...staticConfig } )
 						.then( () => {
 							const contextualBalloon = editor.plugins.get( ContextualBalloon );
-							setData( model, '<paragraph>foo []</paragraph>' );
+							_setModelData( model, '<paragraph>foo []</paragraph>' );
 							editor.locale.uiLanguageDirection = 'rtl';
-							contextualBaloonSpy = sinon.spy( contextualBalloon, 'add' );
+							contextualBaloonSpy = vi.spyOn( contextualBalloon, 'add' );
 
 							model.change( writer => {
 								writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -322,9 +383,9 @@ describe( 'MentionUI', () => {
 				} );
 
 				it( 'should prefer the west position first (to the left of the caret)', () => {
-					const positionNames = contextualBaloonSpy.firstCall.firstArg.position.positions.map( ( { name } ) => name );
+					const positionNames = contextualBaloonSpy.mock.calls[ 0 ][ 0 ].position.positions.map( ( { name } ) => name );
 
-					expect( positionNames ).to.have.ordered.members( [
+					expect( positionNames ).toEqual( [
 						'caret_sw',
 						'caret_se',
 						'caret_nw',
@@ -342,8 +403,8 @@ describe( 'MentionUI', () => {
 					return createClassicTestEditor( { ...staticConfig } )
 						.then( () => {
 							const contextualBalloon = editor.plugins.get( ContextualBalloon );
-							setData( model, '<paragraph>foo []</paragraph>' );
-							contextualBaloonSpy = sinon.spy( contextualBalloon, 'add' );
+							_setModelData( model, '<paragraph>foo []</paragraph>' );
+							contextualBaloonSpy = vi.spyOn( contextualBalloon, 'add' );
 
 							model.change( writer => {
 								writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -353,9 +414,9 @@ describe( 'MentionUI', () => {
 				} );
 
 				it( 'should prefer the east position first (to the right of the caret)', () => {
-					const positionNames = contextualBaloonSpy.firstCall.firstArg.position.positions.map( ( { name } ) => name );
+					const positionNames = contextualBaloonSpy.mock.calls[ 0 ][ 0 ].position.positions.map( ( { name } ) => name );
 
-					expect( positionNames ).to.have.ordered.members( [
+					expect( positionNames ).toEqual( [
 						'caret_se',
 						'caret_sw',
 						'caret_ne',
@@ -366,11 +427,75 @@ describe( 'MentionUI', () => {
 		} );
 	} );
 
+	describe( 'createRegExp()', () => {
+		let regExpStub;
+
+		// Cache the original value to restore it after the tests.
+		const originalGroupSupport = env.features.isRegExpUnicodePropertySupported;
+
+		beforeAll( () => {
+			env.features.isRegExpUnicodePropertySupported = false;
+		} );
+
+		beforeEach( () => {
+			return createClassicTestEditor( staticConfig )
+				.then( editor => {
+					const OriginalRegExp = RegExp;
+
+					regExpStub = vi.spyOn( window, 'RegExp' ).mockImplementation( function( pattern, flags ) {
+						// Call the real implementation using saved reference to avoid infinite recursion.
+						return new OriginalRegExp( pattern, flags );
+					} );
+
+					return editor;
+				} );
+		} );
+
+		afterAll( () => {
+			env.features.isRegExpUnicodePropertySupported = originalGroupSupport;
+		} );
+
+		it( 'returns a simplified RegExp for browsers not supporting Unicode punctuation groups', () => {
+			env.features.isRegExpUnicodePropertySupported = false;
+			createRegExp( '@', 2 );
+			expect( regExpStub ).toHaveBeenCalledOnce();
+			expect( regExpStub ).toHaveBeenCalledWith( '(?:^|[ \\(\\[{"\'])(@)(.{2,})$', 'u' );
+		} );
+
+		it( 'returns a ES2018 RegExp for browsers supporting Unicode punctuation groups', () => {
+			env.features.isRegExpUnicodePropertySupported = true;
+			createRegExp( '@', 2 );
+			expect( regExpStub ).toHaveBeenCalledOnce();
+			expect( regExpStub ).toHaveBeenCalledWith( '(?:^|[ \\p{Ps}\\p{Pi}"\'])(@)(.{2,})$', 'u' );
+		} );
+
+		it( 'returns a proper regexp for markers longer than 1 character', () => {
+			env.features.isRegExpUnicodePropertySupported = true;
+			createRegExp( '@@', 2 );
+			expect( regExpStub ).toHaveBeenCalledOnce();
+			expect( regExpStub ).toHaveBeenCalledWith( '(?:^|[ \\p{Ps}\\p{Pi}"\'])(@@)(.{2,})$', 'u' );
+		} );
+
+		it( 'correctly escapes passed marker #1', () => {
+			env.features.isRegExpUnicodePropertySupported = true;
+			createRegExp( ']', 2 );
+			expect( regExpStub ).toHaveBeenCalledOnce();
+			expect( regExpStub ).toHaveBeenCalledWith( '(?:^|[ \\p{Ps}\\p{Pi}"\'])(\\])(.{2,})$', 'u' );
+		} );
+
+		it( 'correctly escapes passed marker #2', () => {
+			env.features.isRegExpUnicodePropertySupported = true;
+			createRegExp( '\\', 2 );
+			expect( regExpStub ).toHaveBeenCalledOnce();
+			expect( regExpStub ).toHaveBeenCalledWith( '(?:^|[ \\p{Ps}\\p{Pi}"\'])(\\\\)(.{2,})$', 'u' );
+		} );
+	} );
+
 	describe( 'typing integration', () => {
 		it( 'should show panel for matched marker after typing minimum characters', () => {
 			return createClassicTestEditor( { feeds: [ Object.assign( { minimumCharacters: 2 }, staticConfig.feeds[ 0 ] ) ] } )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -383,8 +508,8 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.false;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 				} )
 				.then( waitForDebounce )
 				.then( () => {
@@ -394,9 +519,9 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-					expect( mentionsView.items ).to.have.length( 1 );
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+					expect( mentionsView.items ).toHaveLength( 1 );
 
 					model.change( writer => {
 						writer.insertText( 'r', doc.selection.getFirstPosition() );
@@ -404,18 +529,18 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-					expect( mentionsView.items ).to.have.length( 1 );
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+					expect( mentionsView.items ).toHaveLength( 1 );
 				} );
 		} );
 
-		it( 'should update the marker if the selection was moved from one valid position to another', () => {
-			const spy = sinon.spy();
-
-			return createClassicTestEditor( staticConfig )
+		it( 'should show panel after the whole marker is matched', () => {
+			return createClassicTestEditor( {
+				feeds: [ { marker: '@@', feed: [ '@Barney', '@Lily', '@Marshall', '@Robin', '@Ted' ] } ]
+			} )
 				.then( () => {
-					setData( model, '<paragraph>foo @ bar []</paragraph>' );
+					_setModelData( editor.model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -423,8 +548,47 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( panelView.isVisible ).toBe( false );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
+				} )
+				.then( () => {
+					model.change( writer => {
+						writer.insertText( '@', doc.selection.getFirstPosition() );
+					} );
+				} )
+				.then( waitForDebounce )
+				.then( () => {
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+					expect( mentionsView.items ).toHaveLength( 5 );
+
+					model.change( writer => {
+						writer.insertText( 't', doc.selection.getFirstPosition() );
+					} );
+				} )
+				.then( waitForDebounce )
+				.then( () => {
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+					expect( mentionsView.items ).toHaveLength( 1 );
+				} );
+		} );
+
+		it( 'should update the marker if the selection was moved from one valid position to another', () => {
+			const spy = vi.fn();
+
+			return createClassicTestEditor( staticConfig )
+				.then( () => {
+					_setModelData( model, '<paragraph>foo @ bar []</paragraph>' );
+
+					model.change( writer => {
+						writer.insertText( '@', doc.selection.getFirstPosition() );
+					} );
+				} )
+				.then( waitForDebounce )
+				.then( () => {
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 				} )
 				.then( () => {
 					editor.model.markers.on( 'update', spy );
@@ -433,15 +597,15 @@ describe( 'MentionUI', () => {
 						writer.setSelection( doc.getRoot().getChild( 0 ), 5 );
 					} );
 
-					sinon.assert.calledOnce( spy );
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( spy ).toHaveBeenCalledOnce();
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 				} );
 		} );
 
 		it( 'should not show panel when command is disabled', () => {
 			return createClassicTestEditor( staticConfig )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					const mentionCommand = editor.commands.get( 'mention' );
 					mentionCommand.forceDisabled( 'mentionCommandDisableTest' );
@@ -452,8 +616,8 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.false;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 				} );
 		} );
 
@@ -470,7 +634,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel with no more then 10 items for default static feed', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -478,13 +642,13 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 10 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 10 );
 					} );
 			} );
 
 			it( 'should scroll mention panel to the selected item', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -492,14 +656,14 @@ describe( 'MentionUI', () => {
 
 				const arrowDownEvtData = {
 					keyCode: keyCodes.arrowdown,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				const arrowUpEvtData = {
 					keyCode: keyCodes.arrowup,
-					preventDefault: sinon.spy(),
-					stopPropagation: sinon.spy()
+					preventDefault: vi.fn(),
+					stopPropagation: vi.fn()
 				};
 
 				return waitForDebounce()
@@ -509,14 +673,19 @@ describe( 'MentionUI', () => {
 						// To make this test repeatable across different environments it enforces mentions view size to 100px...
 						const reset = 'padding:0px;margin:0px;border:0 none;line-height: 1em;';
 
-						const mentionElementSpy = testUtils.sinon.spy( mentionsView.element, 'scrollTop', [ 'set' ] );
+						const mentionElementSpy = vi.spyOn( Object.getOwnPropertyDescriptor( mentionsView.element.__proto__, 'scrollTop' ) ?
+							mentionsView.element.__proto__ : mentionsView.element,
+						'scrollTop', 'set' );
 						mentionsView.element.style = `min-height:100px;height:100px;max-height:100px;${ reset };`;
 
 						// ...and each list view item size to 25px...
 						Array.from( mentionsView.items ).forEach( item => {
-							const listItemElement = item.children.get( 0 ).element;
+							const itemStyle = `min-height:unset;height:25px;max-height:25px;${ reset };min-width:12em;`;
 
-							listItemElement.style = `min-height:unset;height:25px;max-height:25px;${ reset };min-width:12em;`;
+							// Pin both the list item (`<li>`, which carries the theme's outer padding) and its
+							// button to 25px, so each row is exactly 25px regardless of the loaded theme.
+							item.element.style = itemStyle;
+							item.children.get( 0 ).element.style = itemStyle;
 						} );
 
 						// ...so after those changes it is safe to assume that:
@@ -524,80 +693,44 @@ describe( 'MentionUI', () => {
 						// - only 4 items are visible at once
 						// - if scrolled to the last element scrollTop will be set to 150px. The 150px is the offset of the 7th item in the
 						//   list as last four (7, 8, 9 & 10) will be visible.
-						expect( panelView.isVisible ).to.be.true;
+						expect( panelView.isVisible ).toBe( true );
 						expectChildViewsIsOnState( [ true, false, false, false, false, false, false, false, false, false ] );
 
-						sinon.assert.callCount( mentionElementSpy.set, 0 );
+						expect( mentionElementSpy ).toHaveBeenCalledTimes( 0 );
 
 						fireKeyDownEvent( arrowDownEvtData );
 
 						expectChildViewsIsOnState( [ false, true, false, false, false, false, false, false, false, false ] );
-						expect( mentionsView.element.scrollTop ).to.equal( 0 );
-						sinon.assert.callCount( mentionElementSpy.set, 0 );
+						expect( mentionsView.element.scrollTop ).toEqual( 0 );
+						expect( mentionElementSpy ).toHaveBeenCalledTimes( 0 );
 
 						fireKeyDownEvent( arrowUpEvtData );
 
 						expectChildViewsIsOnState( [ true, false, false, false, false, false, false, false, false, false ] );
-						expect( mentionsView.element.scrollTop ).to.equal( 0 );
+						expect( mentionsView.element.scrollTop ).toEqual( 0 );
 
-						sinon.assert.callCount( mentionElementSpy.set, 0 );
+						expect( mentionElementSpy ).toHaveBeenCalledTimes( 0 );
 
 						fireKeyDownEvent( arrowUpEvtData );
 
 						expectChildViewsIsOnState( [ false, false, false, false, false, false, false, false, false, true ] );
 
 						// We want 150, but sometimes we get e.g. 151.
-						expect( mentionsView.element.scrollTop ).to.be.within( 140, 160, 'last item highlighted' );
+						expect( mentionsView.element.scrollTop ).toBeGreaterThanOrEqual( 140 );
+						expect( mentionsView.element.scrollTop ).toBeLessThanOrEqual( 160 );
 
-						sinon.assert.callCount( mentionElementSpy.set, 1 );
+						expect( mentionElementSpy ).toHaveBeenCalledTimes( 1 );
 
 						fireKeyDownEvent( arrowDownEvtData );
 
 						expectChildViewsIsOnState( [ true, false, false, false, false, false, false, false, false, false ] );
 
 						// We want 0, but sometimes we get e.g. 1. (Firefox)
-						expect( mentionsView.element.scrollTop ).to.be.within( 0, 10 );
+						expect( mentionsView.element.scrollTop ).toBeGreaterThanOrEqual( 0 );
+						expect( mentionsView.element.scrollTop ).toBeLessThanOrEqual( 10 );
 
-						sinon.assert.callCount( mentionElementSpy.set, 2 );
+						expect( mentionElementSpy ).toHaveBeenCalledTimes( 2 );
 					} );
-			} );
-		} );
-
-		describe( 'ES2018 RegExp Unicode property escapes fallback', () => {
-			let regExpStub;
-
-			// Cache the original value to restore it after the tests.
-			const originalGroupSupport = env.features.isRegExpUnicodePropertySupported;
-
-			before( () => {
-				env.features.isRegExpUnicodePropertySupported = false;
-			} );
-
-			beforeEach( () => {
-				return createClassicTestEditor( staticConfig )
-					.then( editor => {
-						regExpStub = sinon.stub( window, 'RegExp' );
-
-						return editor;
-					} );
-			} );
-
-			after( () => {
-				env.features.isRegExpUnicodePropertySupported = originalGroupSupport;
-			} );
-
-			it( 'returns a simplified RegExp for browsers not supporting Unicode punctuation groups', () => {
-				env.features.isRegExpUnicodePropertySupported = false;
-				createRegExp( '@', 2 );
-				sinon.assert.calledOnce( regExpStub );
-				sinon.assert.calledWithExactly( regExpStub, '(?:^|[ \\(\\[{"\'])([@])(.{2,})$', 'u' );
-			} );
-
-			it( 'returns a ES2018 RegExp for browsers supporting Unicode punctuation groups', () => {
-				env.features.isRegExpUnicodePropertySupported = true;
-				createRegExp( '@', 2 );
-				sinon.assert.calledOnce( regExpStub );
-				sinon.assert.calledWithExactly( regExpStub, '(?:^|[ \\p{Ps}\\p{Pi}"\'])([@])(.{2,})$', 'u' );
 			} );
 		} );
 
@@ -607,9 +740,9 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
-				expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+				expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -617,14 +750,88 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 
+			it( 'should not show panel for matched marker inside a code block', async () => {
+				const editorElement = document.createElement( 'div' );
+				document.body.appendChild( editorElement );
+
+				const editor = await ClassicTestEditor.create( editorElement, {
+					plugins: [ Paragraph, CodeBlock, MentionEditing, MentionUI ],
+					mention: staticConfig
+				} );
+
+				const model = editor.model;
+				const panelView = editor.plugins.get( ContextualBalloon ).view;
+
+				_setModelData( model, '<codeBlock language="plaintext">foo []</codeBlock>' );
+
+				model.change( writer => {
+					writer.insertText( '@Ba', model.document.selection.getFirstPosition() );
+				} );
+
+				await waitForDebounce();
+
+				expect( panelView.isVisible ).toBe( false );
+				expect( model.markers.has( 'mention' ) ).toBe( false );
+
+				await editor.destroy();
+				editorElement.remove();
+			} );
+
+			it( 'should not show panel when feed response arrives after mention command was disabled', async () => {
+				let feedResolve;
+
+				const editorElement = document.createElement( 'div' );
+				document.body.appendChild( editorElement );
+
+				const editor = await ClassicTestEditor.create( editorElement, {
+					plugins: [ Paragraph, CodeBlock, MentionEditing, MentionUI ],
+					mention: {
+						feeds: [ {
+							marker: '@',
+							feed: () => new Promise( resolve => {
+								feedResolve = resolve;
+							} )
+						} ]
+					}
+				} );
+
+				const model = editor.model;
+				const panelView = editor.plugins.get( ContextualBalloon ).view;
+				const mentionCommand = editor.commands.get( 'mention' );
+
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
+
+				// Type '@' in the paragraph — triggers an async feed request.
+				model.change( writer => {
+					writer.insertText( '@', model.document.selection.getFirstPosition() );
+				} );
+
+				await waitForDebounce();
+
+				// Disable the mention command while the feed is still pending.
+				mentionCommand.forceDisabled( 'test' );
+
+				// Resolve the feed — the command is disabled, so the panel should not appear.
+				feedResolve( [ '@Barney', '@Lily' ] );
+
+				await waitForDebounce();
+
+				expect( panelView.isVisible ).toBe( false );
+
+				mentionCommand.clearForceDisabled( 'test' );
+
+				await editor.destroy();
+				editorElement.remove();
+			} );
+
 			it( 'should show panel for matched marker at the beginning of paragraph', () => {
-				setData( model, '<paragraph>[] foo</paragraph>' );
+				_setModelData( model, '<paragraph>[] foo</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -632,9 +839,9 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 
@@ -656,7 +863,7 @@ describe( 'MentionUI', () => {
 						view: ( modelElement, { writer } ) => writer.createEmptyElement( 'br' )
 					} );
 
-				setData( model, '<paragraph>abc<softBreak></softBreak>[] foo</paragraph>' );
+				_setModelData( model, '<paragraph>abc<softBreak></softBreak>[] foo</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -664,9 +871,9 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 
@@ -686,7 +893,7 @@ describe( 'MentionUI', () => {
 			}
 
 			it( 'should not show panel for marker in the middle of other word', () => {
-				setData( model, '<paragraph>foo[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -694,13 +901,13 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 
 			it( 'should not show panel when selection is inside a mention', () => {
-				setData( model, '<paragraph>foo @Lily bar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo @Lily bar[]</paragraph>' );
 
 				model.change( writer => {
 					const range = writer.createRange(
@@ -717,20 +924,20 @@ describe( 'MentionUI', () => {
 							writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
 						} );
 
-						expect( panelView.isVisible ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
 
 						model.change( writer => {
 							writer.setSelection( doc.getRoot().getChild( 0 ), 7 );
 						} );
 					} )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 
 			it( 'should not show panel when selection is at the end of a mention', () => {
-				setData( model, '<paragraph>foo @Lily bar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo @Lily bar[]</paragraph>' );
 
 				model.change( writer => {
 					const range = writer.createRange(
@@ -748,13 +955,13 @@ describe( 'MentionUI', () => {
 						} );
 					} )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 
 			it( 'should not show panel when selection is not collapsed', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -762,8 +969,8 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 						model.change( () => {
 							model.modifySelection( doc.selection, { direction: 'backward', unit: 'character' } );
@@ -771,13 +978,13 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 
 			it( 'should not show panel when selection is changing (non-collapsed)', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -785,8 +992,8 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 						model.change( () => {
 							model.modifySelection( doc.selection, { direction: 'backward', unit: 'character' } );
@@ -794,8 +1001,8 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} )
 					.then( () => {
 						model.change( () => {
@@ -804,20 +1011,20 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 
 			it( 'should not show panel when selection is after existing mention', () => {
-				setData( model, '<paragraph>foo [@Lily] bar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo [@Lily] bar[]</paragraph>' );
 				model.change( writer => {
 					writer.setAttribute( 'mention', { id: '@Lily', uid: 1234 }, doc.selection.getFirstRange() );
 				} );
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
 
 						model.change( writer => {
 							writer.setSelection( doc.getRoot().getChild( 0 ), 8 );
@@ -825,12 +1032,12 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
 					} );
 			} );
 
 			it( 'should not show panel when selection moves inside existing mention', () => {
-				setData( model, '<paragraph>foo @Lily bar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo @Lily bar[]</paragraph>' );
 
 				model.change( writer => {
 					const range = writer.createRange(
@@ -848,7 +1055,7 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
 
 						model.change( writer => {
 							writer.setSelection( doc.getRoot().getChild( 0 ), 8 );
@@ -856,12 +1063,12 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
 					} );
 			} );
 
 			it( 'should show filtered results for matched text', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -873,14 +1080,32 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 
-			it( 'should focus the first item in panel', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+			it( 'should highlight the first item in panel', () => {
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
+
+				model.change( writer => {
+					writer.insertText( '@', doc.selection.getFirstPosition() );
+				} );
+
+				return waitForDebounce()
+					.then( () => {
+						const item = mentionsView.items.get( 0 );
+
+						// The selected item is indicated with a focus-style ring, not the "on" state.
+						expect( item.isHighlighted ).toBe( true );
+						expect( item.element.classList.contains( 'ck-mentions__item_focused' ) ).toBe( true );
+						expect( item.children.get( 0 ).isOn ).toBe( false );
+					} );
+			} );
+
+			it( 'should render text items as list item buttons, matching toolbar dropdown lists', () => {
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -890,19 +1115,20 @@ describe( 'MentionUI', () => {
 					.then( () => {
 						const button = mentionsView.items.get( 0 ).children.get( 0 );
 
-						expect( button.isOn ).to.be.true;
+						expect( button ).toBeInstanceOf( ListItemButtonView );
+						expect( button.element.classList.contains( 'ck-list-item-button' ) ).toBe( true );
 					} );
 			} );
 
 			it( 'should hide panel if no matched items', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
 				} );
 
 				return waitForDebounce()
-					.then( () => expect( panelView.isVisible ).to.be.true )
+					.then( () => expect( panelView.isVisible ).toBe( true ) )
 					.then( () => {
 						model.change( writer => {
 							writer.insertText( 'x', doc.selection.getFirstPosition() );
@@ -910,21 +1136,21 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
-						expect( mentionsView.items ).to.have.length( 0 );
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
+						expect( mentionsView.items ).toHaveLength( 0 );
 					} );
 			} );
 
 			it( 'should hide panel when text was unmatched', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
 				} );
 
 				return waitForDebounce()
-					.then( () => expect( panelView.isVisible ).to.be.true )
+					.then( () => expect( panelView.isVisible ).toBe( true ) )
 					.then( () => {
 						model.change( writer => {
 							const end = doc.selection.getFirstPosition();
@@ -934,7 +1160,7 @@ describe( 'MentionUI', () => {
 						} );
 					} )
 					.then( waitForDebounce )
-					.then( () => expect( panelView.isVisible ).to.be.false );
+					.then( () => expect( panelView.isVisible ).toBe( false ) );
 			} );
 		} );
 
@@ -959,7 +1185,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should not show panel when the selection is at the whitespace after an existing mention', async () => {
-				setData( model, '<paragraph>foo @marry bar[]</paragraph>' );
+				_setModelData( model, '<paragraph>foo @marry bar[]</paragraph>' );
 
 				model.change( writer => {
 					const range = writer.createRange(
@@ -977,7 +1203,7 @@ describe( 'MentionUI', () => {
 					writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
 				} );
 
-				expect( panelView.isVisible ).to.be.false;
+				expect( panelView.isVisible ).toBe( false );
 
 				model.change( writer => {
 					// <paragraph>foo @marry []bar</paragraph>
@@ -985,19 +1211,19 @@ describe( 'MentionUI', () => {
 					writer.setSelection( doc.getRoot().getChild( 0 ), 11 );
 				} );
 
-				expect( panelView.isVisible ).to.be.false;
-				expect( model.markers.has( 'mention' ) ).to.be.false;
+				expect( panelView.isVisible ).toBe( false );
+				expect( model.markers.has( 'mention' ) ).toBe( false );
 			} );
 
 			it( 'should show the panel when the selection is at the whitespace after a matching marker and text', async () => {
 				// This should match all "Marry *" because there's no marker for @marry yet.
-				setData( model, '<paragraph>foo @marry []bar</paragraph>' );
+				_setModelData( model, '<paragraph>foo @marry []bar</paragraph>' );
 
 				await waitForDebounce();
 
-				expect( panelView.isVisible ).to.be.true;
-				expect( model.markers.has( 'mention' ) ).to.be.true;
-				expect( mentionsView.items ).to.have.length( 3 );
+				expect( panelView.isVisible ).toBe( true );
+				expect( model.markers.has( 'mention' ) ).toBe( true );
+				expect( mentionsView.items ).toHaveLength( 3 );
 			} );
 		} );
 
@@ -1014,12 +1240,13 @@ describe( 'MentionUI', () => {
 				} );
 			} );
 
-			it( 'should open panel for unicode character ב', function() {
+			it( 'should open panel for unicode character ב', ( { skip } ) => {
 				if ( !env.features.isRegExpUnicodePropertySupported ) {
-					this.skip();
+					skip();
+					return;
 				}
 
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@ס', doc.selection.getFirstPosition() );
@@ -1027,30 +1254,33 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible, 'panel is visible' ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible, 'panel is visible' ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 		} );
 
 		describe( 'callback function using data from editor', () => {
+			function assertFeedContext() {
+				expect( this ).toEqual( editor );
+
+				return Promise.resolve( [ 'foo', 'bar' ] );
+			}
+
 			beforeEach( () => {
 				return createClassicTestEditor( {
 					feeds: [
 						{
 							marker: '#',
-							feed() {
-								expect( this ).to.equal( editor );
-								return Promise.resolve( [ 'foo', 'bar' ] );
-							}
+							feed: assertFeedContext
 						}
 					]
 				} );
 			} );
 
 			it( 'should bind the instance panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
@@ -1058,9 +1288,9 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 2 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 2 );
 					} );
 			} );
 		} );
@@ -1083,7 +1313,7 @@ describe( 'MentionUI', () => {
 					} );
 				}
 
-				feedCallbackStub = testUtils.sinon.stub().callsFake( feedCallback );
+				feedCallbackStub = vi.fn().mockImplementation( feedCallback );
 
 				return createClassicTestEditor( {
 					feeds: [
@@ -1096,7 +1326,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
@@ -1104,15 +1334,15 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 4 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 4 );
 					} );
 			} );
 
 			it( 'should fire requestFeed:response when request feed return a response', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
-				const eventSpy = sinon.spy();
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
+				const eventSpy = vi.fn();
 				mentionUI.on( 'requestFeed:response', eventSpy );
 
 				model.change( writer => {
@@ -1121,24 +1351,23 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						sinon.assert.calledOnce( eventSpy );
-						sinon.assert.calledWithExactly(
-							eventSpy,
-							sinon.match.any,
+						expect( eventSpy ).toHaveBeenCalledOnce();
+						expect( eventSpy ).toHaveBeenCalledWith(
+							expect.anything(),
 							{
 								feed: issuesNumbers,
 								marker: '#',
 								feedText: ''
 							}
 						);
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 4 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 4 );
 					} );
 			} );
 
 			it( 'should show filtered results for matched text', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
@@ -1150,21 +1379,21 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 
 			it( 'should hide panel if no matched items', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
 				return waitForDebounce()
-					.then( () => expect( panelView.isVisible ).to.be.true )
+					.then( () => expect( panelView.isVisible ).toBe( true ) )
 					.then( () => {
 						model.change( writer => {
 							writer.insertText( 'x', doc.selection.getFirstPosition() );
@@ -1172,21 +1401,21 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
-						expect( mentionsView.items ).to.have.length( 0 );
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
+						expect( mentionsView.items ).toHaveLength( 0 );
 					} );
 			} );
 
 			it( 'should hide panel when text was unmatched', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
 				return waitForDebounce()
-					.then( () => expect( panelView.isVisible ).to.be.true )
+					.then( () => expect( panelView.isVisible ).toBe( true ) )
 					.then( () => {
 						model.change( writer => {
 							const end = doc.selection.getFirstPosition();
@@ -1196,22 +1425,22 @@ describe( 'MentionUI', () => {
 						} );
 					} )
 					.then( waitForDebounce )
-					.then( () => expect( panelView.isVisible ).to.be.false );
+					.then( () => expect( panelView.isVisible ).toBe( false ) );
 			} );
 
 			it( 'should show panel debounced', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.notCalled( feedCallbackStub );
+				expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 				return Promise.resolve()
 					.then( wait( 20 ) )
 					.then( () => {
-						sinon.assert.notCalled( feedCallbackStub );
+						expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 						model.change( writer => {
 							writer.insertText( '1', doc.selection.getFirstPosition() );
@@ -1219,7 +1448,7 @@ describe( 'MentionUI', () => {
 					} )
 					.then( wait( 20 ) )
 					.then( () => {
-						sinon.assert.notCalled( feedCallbackStub );
+						expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 						model.change( writer => {
 							writer.insertText( '0', doc.selection.getFirstPosition() );
@@ -1227,27 +1456,27 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						sinon.assert.calledOnce( feedCallbackStub );
+						expect( feedCallbackStub ).toHaveBeenCalledOnce();
 
 						// Should be called with all typed letters before debounce.
-						sinon.assert.calledWithExactly( feedCallbackStub, '10' );
+						expect( feedCallbackStub ).toHaveBeenCalledWith( '10' );
 
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 4 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 4 );
 					} );
 			} );
 
 			it( 'should discard requested feed if they came out of order', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.notCalled( feedCallbackStub );
+				expect( feedCallbackStub ).not.toHaveBeenCalled();
 
-				const panelShowSpy = sinon.spy( panelView, 'show' );
+				const panelShowSpy = vi.spyOn( panelView, 'show' );
 
 				// Increase the response time to extend the debounce time out.
 				feedCallbackTimeout = 300;
@@ -1255,7 +1484,7 @@ describe( 'MentionUI', () => {
 				return Promise.resolve()
 					.then( wait( 20 ) )
 					.then( () => {
-						sinon.assert.notCalled( feedCallbackStub );
+						expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 						model.change( writer => {
 							writer.insertText( '1', doc.selection.getFirstPosition() );
@@ -1263,11 +1492,11 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						sinon.assert.calledOnce( feedCallbackStub );
-						sinon.assert.calledWithExactly( feedCallbackStub, '1' );
+						expect( feedCallbackStub ).toHaveBeenCalledOnce();
+						expect( feedCallbackStub ).toHaveBeenCalledWith( '1' );
 
-						expect( panelView.isVisible, 'panel is hidden' ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).to.be.true;
+						expect( panelView.isVisible, 'panel is hidden' ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).toBe( true );
 
 						// Make second callback resolve before first.
 						feedCallbackTimeout = 50;
@@ -1278,28 +1507,28 @@ describe( 'MentionUI', () => {
 					} )
 					.then( wait( 300 ) ) // Wait longer so the longer callback will be resolved.
 					.then( () => {
-						sinon.assert.calledTwice( feedCallbackStub );
-						sinon.assert.calledWithExactly( feedCallbackStub.getCall( 1 ), '10' );
-						sinon.assert.calledOnce( panelShowSpy );
-						expect( feedCallbackCallTimes ).to.equal( 2 );
+						expect( feedCallbackStub ).toHaveBeenCalledTimes( 2 );
+						expect( feedCallbackStub.mock.calls[ 1 ][ 0 ] ).toEqual( '10' );
+						expect( panelShowSpy ).toHaveBeenCalledOnce();
+						expect( feedCallbackCallTimes ).toEqual( 2 );
 
-						expect( panelView.isVisible, 'panel is visible' ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 4 );
+						expect( panelView.isVisible, 'panel is visible' ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 4 );
 					} );
 			} );
 
 			it( 'should fire requestFeed:discarded event when requested feed came out of order', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.notCalled( feedCallbackStub );
+				expect( feedCallbackStub ).not.toHaveBeenCalled();
 
-				const panelShowSpy = sinon.spy( panelView, 'show' );
-				const eventSpy = sinon.spy();
+				const panelShowSpy = vi.spyOn( panelView, 'show' );
+				const eventSpy = vi.fn();
 				mentionUI.on( 'requestFeed:discarded', eventSpy );
 
 				// Increase the response time to extend the debounce time out.
@@ -1308,7 +1537,7 @@ describe( 'MentionUI', () => {
 				return Promise.resolve()
 					.then( wait( 20 ) )
 					.then( () => {
-						sinon.assert.notCalled( feedCallbackStub );
+						expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 						model.change( writer => {
 							writer.insertText( '1', doc.selection.getFirstPosition() );
@@ -1316,11 +1545,11 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						sinon.assert.calledOnce( feedCallbackStub );
-						sinon.assert.calledWithExactly( feedCallbackStub, '1' );
+						expect( feedCallbackStub ).toHaveBeenCalledOnce();
+						expect( feedCallbackStub ).toHaveBeenCalledWith( '1' );
 
-						expect( panelView.isVisible, 'panel is hidden' ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).to.be.true;
+						expect( panelView.isVisible, 'panel is hidden' ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).toBe( true );
 
 						// Make second callback resolve before first.
 						feedCallbackTimeout = 50;
@@ -1331,44 +1560,43 @@ describe( 'MentionUI', () => {
 					} )
 					.then( wait( 300 ) ) // Wait longer so the longer callback will be resolved.
 					.then( () => {
-						sinon.assert.calledTwice( feedCallbackStub );
-						sinon.assert.calledWithExactly( feedCallbackStub.getCall( 1 ), '10' );
-						sinon.assert.calledOnce( panelShowSpy );
-						sinon.assert.calledOnce( eventSpy );
-						sinon.assert.calledWithExactly(
-							eventSpy,
-							sinon.match.any,
+						expect( feedCallbackStub ).toHaveBeenCalledTimes( 2 );
+						expect( feedCallbackStub.mock.calls[ 1 ][ 0 ] ).toEqual( '10' );
+						expect( panelShowSpy ).toHaveBeenCalledOnce();
+						expect( eventSpy ).toHaveBeenCalledOnce();
+						expect( eventSpy ).toHaveBeenCalledWith(
+							expect.anything(),
 							{
 								feed: issuesNumbers,
 								marker: '#',
 								feedText: '1'
 							}
 						);
-						expect( feedCallbackCallTimes ).to.equal( 2 );
+						expect( feedCallbackCallTimes ).toEqual( 2 );
 
-						expect( panelView.isVisible, 'panel is visible' ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 4 );
+						expect( panelView.isVisible, 'panel is visible' ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 4 );
 					} );
 			} );
 
 			it( 'should discard requested feed if mention UI is hidden', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.notCalled( feedCallbackStub );
+				expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 				feedCallbackTimeout = 200;
 
 				return Promise.resolve()
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false; // Should be still hidden;
+						expect( panelView.isVisible ).toBe( false ); // Should be still hidden;
 						// Should be called with empty string.
-						sinon.assert.calledWithExactly( feedCallbackStub, '' );
+						expect( feedCallbackStub ).toHaveBeenCalledWith( '' );
 
 						model.change( writer => {
 							writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
@@ -1376,18 +1604,18 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 
 			it( 'should fire requestFeed:error and log warning if requested feed failed', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
-				feedCallbackStub.returns( Promise.reject( 'Request timeout' ) );
+				feedCallbackStub.mockReturnValue( Promise.reject( 'Request timeout' ) );
 
-				const warnSpy = sinon.stub( console, 'warn' );
-				const eventSpy = sinon.spy();
+				const warnSpy = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+				const eventSpy = vi.fn();
 				mentionUI.on( 'requestFeed:error', eventSpy );
 
 				model.change( writer => {
@@ -1396,28 +1624,27 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible, 'panel is hidden' ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ), 'there is no marker' ).to.be.false;
+						expect( panelView.isVisible, 'panel is hidden' ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ), 'there is no marker' ).toBe( false );
 
-						sinon.assert.calledWithExactly(
-							warnSpy,
-							sinon.match( /^mention-feed-callback-error/ ),
-							sinon.match( { marker: '#' } ),
-							sinon.match.string // Link to the documentation
+						expect( warnSpy ).toHaveBeenCalledWith(
+							expect.stringMatching( /^mention-feed-callback-error/ ),
+							expect.objectContaining( { marker: '#' } ),
+							expect.any( String ) // Link to the documentation
 						);
-						sinon.assert.calledOnce( eventSpy );
+						expect( eventSpy ).toHaveBeenCalledOnce();
 					} );
 			} );
 
 			it( 'should not fail if marker was removed', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
-				const selectFirstMentionSpy = sinon.spy( mentionsView, 'selectFirst' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
+				const selectFirstMentionSpy = vi.spyOn( mentionsView, 'selectFirst' );
 
 				model.change( writer => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.notCalled( feedCallbackStub );
+				expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 				// Increase the response time to extend the debounce time out.
 				feedCallbackTimeout = 500;
@@ -1439,15 +1666,15 @@ describe( 'MentionUI', () => {
 					} )
 					.then( wait( 500 ) )
 					.then( () => {
-						expect( panelView.isVisible, 'panel is visible' ).to.be.true;
+						expect( panelView.isVisible, 'panel is visible' ).toBe( true );
 						// If there were any errors this will not get called.
 						// The errors might come from unhandled promise rejections errors.
-						sinon.assert.calledOnce( selectFirstMentionSpy );
+						expect( selectFirstMentionSpy ).toHaveBeenCalledOnce();
 					} );
 			} );
 
 			it( 'should not show panel if selection was moved during fetching a feed', () => {
-				setData( model, '<paragraph>foo [#101] bar</paragraph><paragraph></paragraph>' );
+				_setModelData( model, '<paragraph>foo [#101] bar</paragraph><paragraph></paragraph>' );
 
 				model.change( writer => {
 					writer.setAttribute( 'mention', { id: '#101', uid: 1234 }, doc.selection.getFirstRange() );
@@ -1461,35 +1688,36 @@ describe( 'MentionUI', () => {
 					writer.insertText( '#', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.notCalled( feedCallbackStub );
+				expect( feedCallbackStub ).not.toHaveBeenCalled();
 
 				return Promise.resolve()
 					.then( waitForDebounce )
 					.then( () => {
-						sinon.assert.calledOnce( feedCallbackStub );
+						expect( feedCallbackStub ).toHaveBeenCalledOnce();
 
 						model.change( writer => {
 							writer.setSelection( doc.getRoot().getChild( 0 ), 6 );
 						} );
 
-						expect( panelView.isVisible ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
 					} )
 					.then( waitForDebounce )
 					.then( wait( 20 ) )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 		} );
 
-		function testOpeningPunctuationCharacter( character, skip = false ) {
-			it( `should show panel for matched marker after a "${ character }" character`, function() {
-				if ( skip ) {
-					this.skip();
+		function testOpeningPunctuationCharacter( character, skipTest = false ) {
+			it( `should show panel for matched marker after a "${ character }" character`, ( { skip } ) => {
+				if ( skipTest ) {
+					skip();
+					return;
 				}
 
-				setData( model, '<paragraph>[] foo</paragraph>' );
+				_setModelData( model, '<paragraph>[] foo</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( character, doc.selection.getFirstPosition() );
@@ -1501,9 +1729,9 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible, 'panel is visible' ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible, 'panel is visible' ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ), 'marker is inserted' ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 		}
@@ -1513,7 +1741,7 @@ describe( 'MentionUI', () => {
 		it( 'should close the opened panel on esc', () => {
 			return createClassicTestEditor( staticConfig )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1521,24 +1749,24 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 					fireKeyDownEvent( {
 						keyCode: keyCodes.esc,
-						preventDefault: sinon.spy(),
-						stopPropagation: sinon.spy()
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
 					} );
 
-					expect( panelView.isVisible ).to.be.false;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 				} );
 		} );
 
 		it( 'should close the opened panel when click outside the panel', () => {
 			return createClassicTestEditor( staticConfig )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1546,20 +1774,20 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 					document.body.dispatchEvent( new Event( 'mousedown', { bubbles: true } ) );
 
-					expect( panelView.isVisible ).to.be.false;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 				} );
 		} );
 
 		it( 'should hide the panel on selection change', () => {
 			return createClassicTestEditor( staticConfig )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1567,24 +1795,24 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 					model.change( writer => {
 						// Place position at the beginning of a paragraph.
 						writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
 					} );
 
-					expect( panelView.isVisible ).to.be.false;
-					expect( mentionsView.position ).to.be.undefined;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
+					expect( mentionsView.position ).toBeUndefined();
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 				} );
 		} );
 
 		it( 'should hide the panel on selection change triggered by mouse click', () => {
 			return createClassicTestEditor( staticConfig )
 				.then( () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1592,8 +1820,8 @@ describe( 'MentionUI', () => {
 				} )
 				.then( waitForDebounce )
 				.then( () => {
-					expect( panelView.isVisible ).to.be.true;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+					expect( panelView.isVisible ).toBe( true );
+					expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 					// This happens when user clicks outside the panel view and selection is changed.
 					// Two panel closing mechanisms are run:
@@ -1606,9 +1834,9 @@ describe( 'MentionUI', () => {
 						writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
 					} );
 
-					expect( panelView.isVisible ).to.be.false;
-					expect( mentionsView.position ).to.be.undefined;
-					expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+					expect( panelView.isVisible ).toBe( false );
+					expect( mentionsView.position ).toBeUndefined();
+					expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 				} );
 		} );
 
@@ -1622,7 +1850,7 @@ describe( 'MentionUI', () => {
 
 			describe( 'on arrows', () => {
 				it( 'should cycle down on arrow down', () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1634,8 +1862,8 @@ describe( 'MentionUI', () => {
 
 							const keyEvtData = {
 								keyCode: keyCodes.arrowdown,
-								preventDefault: sinon.spy(),
-								stopPropagation: sinon.spy()
+								preventDefault: vi.fn(),
+								stopPropagation: vi.fn()
 							};
 
 							fireKeyDownEvent( keyEvtData );
@@ -1656,7 +1884,7 @@ describe( 'MentionUI', () => {
 				} );
 
 				it( 'should cycle up on arrow up', () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1668,8 +1896,8 @@ describe( 'MentionUI', () => {
 
 							const keyEvtData = {
 								keyCode: keyCodes.arrowup,
-								preventDefault: sinon.spy(),
-								stopPropagation: sinon.spy()
+								preventDefault: vi.fn(),
+								stopPropagation: vi.fn()
 							};
 
 							fireKeyDownEvent( keyEvtData );
@@ -1690,18 +1918,18 @@ describe( 'MentionUI', () => {
 				} );
 
 				it( 'should not cycle with only one item in the list', () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					const keyDownEvtData = {
 						keyCode: keyCodes.arrowdown,
-						preventDefault: sinon.spy(),
-						stopPropagation: sinon.spy()
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
 					};
 
 					const keyUpEvtData = {
 						keyCode: keyCodes.arrowup,
-						preventDefault: sinon.spy(),
-						stopPropagation: sinon.spy()
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
 					};
 
 					model.change( writer => {
@@ -1731,25 +1959,25 @@ describe( 'MentionUI', () => {
 
 			describe( 'on other keys', () => {
 				it( 'should do nothing on space', async () => {
-					setData( model, '<paragraph>foo []</paragraph>' );
+					_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 					model.change( writer => {
 						writer.insertText( '@', doc.selection.getFirstPosition() );
 					} );
 
 					const command = editor.commands.get( 'mention' );
-					const spy = testUtils.sinon.spy( command, 'execute' );
+					const spy = vi.spyOn( command, 'execute' );
 
 					await waitForDebounce();
 					expectChildViewsIsOnState( [ true, false, false, false, false ] );
 
 					fireKeyDownEvent( {
 						keyCodes: keyCodes.space,
-						preventDefault: sinon.spy(),
-						stopPropagation: sinon.spy()
+						preventDefault: vi.fn(),
+						stopPropagation: vi.fn()
 					} );
 
-					sinon.assert.notCalled( spy );
+					expect( spy ).not.toHaveBeenCalled();
 				} );
 			} );
 		} );
@@ -1775,7 +2003,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1783,9 +2011,9 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 		} );
@@ -1812,7 +2040,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1820,16 +2048,16 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 
 			describe( 'keys', () => {
 				describe( 'on arrows', () => {
 					it( 'should cycle down on arrow down', () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1841,8 +2069,8 @@ describe( 'MentionUI', () => {
 
 								const keyEvtData = {
 									keyCode: keyCodes.arrowdown,
-									preventDefault: sinon.spy(),
-									stopPropagation: sinon.spy()
+									preventDefault: vi.fn(),
+									stopPropagation: vi.fn()
 								};
 
 								fireKeyDownEvent( keyEvtData );
@@ -1863,7 +2091,7 @@ describe( 'MentionUI', () => {
 					} );
 
 					it( 'should cycle up on arrow up', () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1875,8 +2103,8 @@ describe( 'MentionUI', () => {
 
 								const keyEvtData = {
 									keyCode: keyCodes.arrowup,
-									preventDefault: sinon.spy(),
-									stopPropagation: sinon.spy()
+									preventDefault: vi.fn(),
+									stopPropagation: vi.fn()
 								};
 
 								fireKeyDownEvent( keyEvtData );
@@ -1935,7 +2163,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1943,16 +2171,16 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 
 			describe( 'keys', () => {
 				describe( 'on arrows', () => {
 					it( 'should cycle down on arrow down', () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1964,8 +2192,8 @@ describe( 'MentionUI', () => {
 
 								const keyEvtData = {
 									keyCode: keyCodes.arrowdown,
-									preventDefault: sinon.spy(),
-									stopPropagation: sinon.spy()
+									preventDefault: vi.fn(),
+									stopPropagation: vi.fn()
 								};
 
 								fireKeyDownEvent( keyEvtData );
@@ -1986,7 +2214,7 @@ describe( 'MentionUI', () => {
 					} );
 
 					it( 'should cycle up on arrow up', () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -1998,8 +2226,8 @@ describe( 'MentionUI', () => {
 
 								const keyEvtData = {
 									keyCode: keyCodes.arrowup,
-									preventDefault: sinon.spy(),
-									stopPropagation: sinon.spy()
+									preventDefault: vi.fn(),
+									stopPropagation: vi.fn()
 								};
 
 								fireKeyDownEvent( keyEvtData );
@@ -2028,14 +2256,14 @@ describe( 'MentionUI', () => {
 
 				describe( 'mouse', () => {
 					it( 'should execute selected button on mouse click', () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
 						} );
 
 						const command = editor.commands.get( 'mention' );
-						const spy = testUtils.sinon.spy( command, 'execute' );
+						const spy = vi.spyOn( command, 'execute' );
 
 						return waitForDebounce()
 							.then( () => {
@@ -2044,20 +2272,21 @@ describe( 'MentionUI', () => {
 								const element = panelView.element.querySelector( '#issue-1004' );
 								element.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 
-								sinon.assert.calledOnce( spy );
+								expect( spy ).toHaveBeenCalledOnce();
 
-								const commandOptions = spy.getCall( 0 ).args[ 0 ];
+								const commandOptions = spy.mock.calls[ 0 ][ 0 ];
 
 								const item = issues[ 2 ];
 
-								expect( commandOptions ).to.have.property( 'mention' ).that.deep.equal( item );
-								expect( commandOptions ).to.have.property( 'marker', '@' );
-								expect( commandOptions ).to.have.property( 'range' );
+								expect( commandOptions ).toHaveProperty( 'mention' );
+								expect( commandOptions.mention ).toEqual( item );
+								expect( commandOptions ).toHaveProperty( 'marker', '@' );
+								expect( commandOptions ).toHaveProperty( 'range' );
 
 								const start = model.createPositionAt( doc.getRoot().getChild( 0 ), 4 );
 								const expectedRange = model.createRange( start, start.getShiftedBy( 1 ) );
 
-								expect( commandOptions.range.isEqual( expectedRange ) ).to.be.true;
+								expect( commandOptions.range.isEqual( expectedRange ) ).toBe( true );
 							} );
 					} );
 				} );
@@ -2076,7 +2305,8 @@ describe( 'MentionUI', () => {
 							marker: '$',
 							feed: [
 								'$a1', '$a2', '$a3', '$a4',
-								// A case of mention with a marker character from other feed. See #6398.
+								// A case of mention with a marker character from other feed.
+								// See https://github.com/ckeditor/ckeditor5/issues/6398.
 								'$a@'
 							]
 						}
@@ -2085,7 +2315,7 @@ describe( 'MentionUI', () => {
 			} );
 
 			it( 'should show panel for matched marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2093,16 +2323,16 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 6 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 6 );
 
 						mentionsView.items.get( 0 ).children.get( 0 ).fire( 'execute' );
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 						model.change( writer => {
 							writer.insertText( '$', doc.selection.getFirstPosition() );
@@ -2110,16 +2340,16 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 
 						mentionsView.items.get( 0 ).children.get( 0 ).fire( 'execute' );
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2127,15 +2357,15 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
-						expect( mentionsView.items ).to.have.length( 6 );
+						expect( mentionsView.items ).toHaveLength( 6 );
 					} );
 			} );
 
 			it( 'should show panel for matched marker if it contains the other configured marker', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2143,16 +2373,16 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 6 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 6 );
 
 						mentionsView.items.get( 0 ).children.get( 0 ).fire( 'execute' );
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 						model.change( writer => {
 							writer.insertText( '$a', doc.selection.getFirstPosition() );
@@ -2166,13 +2396,13 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 					} );
 			} );
 
 			it( 'should match a feed', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@a3', doc.selection.getFirstPosition() );
@@ -2180,14 +2410,14 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 
 			it( 'should match a feed with space', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@a4 xyz', doc.selection.getFirstPosition() );
@@ -2195,14 +2425,14 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 
 			it( 'should match a feed with multiple spaces', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@a5 x y z', doc.selection.getFirstPosition() );
@@ -2210,14 +2440,14 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 
 			it( 'should match a feed with spaces and other mention character', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@a6 x$z', doc.selection.getFirstPosition() );
@@ -2225,23 +2455,23 @@ describe( 'MentionUI', () => {
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 1 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 1 );
 					} );
 			} );
 		} );
 
 		function testExecuteKey( name, keyCode, feedItems ) {
 			it( 'should execute selected button on ' + name, () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
 				} );
 
 				const command = editor.commands.get( 'mention' );
-				const spy = testUtils.sinon.spy( command, 'execute' );
+				const spy = vi.spyOn( command, 'execute' );
 
 				return waitForDebounce()
 					.then( () => {
@@ -2249,63 +2479,63 @@ describe( 'MentionUI', () => {
 
 						fireKeyDownEvent( {
 							keyCode: keyCodes.arrowup,
-							preventDefault: sinon.spy(),
-							stopPropagation: sinon.spy()
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
 						} );
 
 						expectChildViewsIsOnState( [ false, false, false, false, true ] );
 
 						fireKeyDownEvent( {
 							keyCode,
-							preventDefault: sinon.spy(),
-							stopPropagation: sinon.spy()
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
 						} );
 
-						sinon.assert.calledOnce( spy );
+						expect( spy ).toHaveBeenCalledOnce();
 
-						assertCommandOptions( spy.getCall( 0 ).args[ 0 ], '@', feedItems[ 4 ] );
+						assertCommandOptions( spy.mock.calls[ 0 ][ 0 ], '@', feedItems[ 4 ] );
 
 						const start = model.createPositionAt( doc.getRoot().getChild( 0 ), 4 );
 						const expectedRange = model.createRange( start, start.getShiftedBy( 1 ) );
 
-						expect( spy.getCall( 0 ).args[ 0 ].range.isEqual( expectedRange ) ).to.be.true;
+						expect( spy.mock.calls[ 0 ][ 0 ].range.isEqual( expectedRange ) ).toBe( true );
 					} );
 			} );
 
 			it( 'should do nothing if panel is not visible on ' + name, () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
 				} );
 
 				const command = editor.commands.get( 'mention' );
-				const spy = testUtils.sinon.spy( command, 'execute' );
+				const spy = vi.spyOn( command, 'execute' );
 
 				return waitForDebounce()
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.true;
+						expect( panelView.isVisible ).toBe( true );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( true );
 
 						fireKeyDownEvent( {
 							keyCode: keyCodes.esc,
-							preventDefault: sinon.spy(),
-							stopPropagation: sinon.spy()
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
 						} );
 
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 
 						fireKeyDownEvent( {
 							keyCode,
-							preventDefault: sinon.spy(),
-							stopPropagation: sinon.spy()
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
 						} );
 
-						sinon.assert.notCalled( spy );
+						expect( spy ).not.toHaveBeenCalled();
 
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 			} );
 		}
@@ -2335,7 +2565,7 @@ describe( 'MentionUI', () => {
 			testExecuteKey( 'a', keyCodes.a, issues );
 
 			it( 'should no longer commit on enter (default)', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2344,20 +2574,20 @@ describe( 'MentionUI', () => {
 				return waitForDebounce()
 					.then( () => {
 						const command = editor.commands.get( 'mention' );
-						const executeSpy = testUtils.sinon.spy( command, 'execute' );
+						const executeSpy = vi.spyOn( command, 'execute' );
 
 						fireKeyDownEvent( {
 							keyCode: keyCodes.enter,
-							preventDefault: sinon.spy(),
-							stopPropagation: sinon.spy()
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
 						} );
 
-						sinon.assert.notCalled( executeSpy );
+						expect( executeSpy ).not.toHaveBeenCalled();
 					} );
 			} );
 
 			it( 'should no longer commit on tab (default)', () => {
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2366,15 +2596,15 @@ describe( 'MentionUI', () => {
 				return waitForDebounce()
 					.then( () => {
 						const command = editor.commands.get( 'mention' );
-						const executeSpy = testUtils.sinon.spy( command, 'execute' );
+						const executeSpy = vi.spyOn( command, 'execute' );
 
 						fireKeyDownEvent( {
 							keyCode: keyCodes.tab,
-							preventDefault: sinon.spy(),
-							stopPropagation: sinon.spy()
+							preventDefault: vi.fn(),
+							stopPropagation: vi.fn()
 						} );
 
-						sinon.assert.notCalled( executeSpy );
+						expect( executeSpy ).not.toHaveBeenCalled();
 					} );
 			} );
 		} );
@@ -2411,7 +2641,7 @@ describe( 'MentionUI', () => {
 					dropdownLimit: mentionsLimit,
 					feeds: [ customFunctionFeed ] } )
 					.then( () => {
-						setData( editor.model, '<paragraph>foo []</paragraph>' );
+						_setModelData( editor.model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2419,8 +2649,8 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( mentionsView.items ).to.have.length( mentionsLimit );
+						expect( panelView.isVisible ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( mentionsLimit );
 					} );
 			} );
 
@@ -2429,7 +2659,7 @@ describe( 'MentionUI', () => {
 					dropdownLimit: 25,
 					feeds: [ simpleArrayFeed ] } )
 					.then( () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2437,8 +2667,8 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 25 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 25 );
 					} );
 			} );
 
@@ -2447,7 +2677,7 @@ describe( 'MentionUI', () => {
 					dropdownLimit: Infinity,
 					feeds: [ simpleArrayFeed ] } )
 					.then( () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2455,8 +2685,8 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( mentionsView.items ).to.have.length( simpleArrayFeed.feed.length );
+						expect( panelView.isVisible ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( simpleArrayFeed.feed.length );
 					} );
 			} );
 
@@ -2465,7 +2695,7 @@ describe( 'MentionUI', () => {
 					dropdownLimit: 25,
 					feeds: [ limitedArrayFeed ] } )
 					.then( () => {
-						setData( model, '<paragraph>foo []</paragraph>' );
+						_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 						model.change( writer => {
 							writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2473,8 +2703,8 @@ describe( 'MentionUI', () => {
 					} )
 					.then( waitForDebounce )
 					.then( () => {
-						expect( panelView.isVisible ).to.be.true;
-						expect( mentionsView.items ).to.have.length( 5 );
+						expect( panelView.isVisible ).toBe( true );
+						expect( mentionsView.items ).toHaveLength( 5 );
 					} );
 			} );
 		} );
@@ -2484,34 +2714,34 @@ describe( 'MentionUI', () => {
 		beforeEach( () => createClassicTestEditor( staticConfig ) );
 
 		it( 'should call the mention command with proper options', () => {
-			setData( model, '<paragraph>foo []</paragraph>' );
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
 			const command = editor.commands.get( 'mention' );
-			const spy = testUtils.sinon.spy( command, 'execute' );
+			const spy = vi.spyOn( command, 'execute' );
 
 			return waitForDebounce()
 				.then( () => {
 					mentionsView.items.get( 0 ).children.get( 0 ).fire( 'execute' );
 
-					sinon.assert.calledOnce( spy );
+					expect( spy ).toHaveBeenCalledOnce();
 
-					const commandOptions = spy.getCall( 0 ).args[ 0 ];
+					const commandOptions = spy.mock.calls[ 0 ][ 0 ];
 
 					assertCommandOptions( commandOptions, '@', { id: '@Barney', text: '@Barney' } );
 
 					const start = model.createPositionAt( doc.getRoot().getChild( 0 ), 4 );
 					const expectedRange = model.createRange( start, start.getShiftedBy( 1 ) );
 
-					expect( commandOptions.range.isEqual( expectedRange ) ).to.be.true;
+					expect( commandOptions.range.isEqual( expectedRange ) ).toBe( true );
 				} );
 		} );
 
 		it( 'should hide panel on execute', () => {
-			setData( model, '<paragraph>foo []</paragraph>' );
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2521,16 +2751,16 @@ describe( 'MentionUI', () => {
 				.then( () => {
 					mentionsView.items.get( 0 ).children.get( 0 ).fire( 'execute' );
 					return waitForDebounce().then( () => {
-						expect( panelView.isVisible ).to.be.false;
-						expect( editor.model.markers.has( 'mention' ) ).to.be.false;
+						expect( panelView.isVisible ).toBe( false );
+						expect( editor.model.markers.has( 'mention' ) ).toBe( false );
 					} );
 				} );
 		} );
 
 		it( 'should focus view after command execution', () => {
-			const focusSpy = testUtils.sinon.spy( editor.editing.view, 'focus' );
+			const focusSpy = vi.spyOn( editor.editing.view, 'focus' );
 
-			setData( model, '<paragraph>foo []</paragraph>' );
+			_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -2540,7 +2770,7 @@ describe( 'MentionUI', () => {
 				.then( () => {
 					mentionsView.items.get( 0 ).children.get( 0 ).fire( 'execute' );
 
-					sinon.assert.calledOnce( focusSpy );
+					expect( focusSpy ).toHaveBeenCalledOnce();
 				} );
 		} );
 	} );
@@ -2564,7 +2794,7 @@ describe( 'MentionUI', () => {
 
 	function wait( timeout ) {
 		return () => new Promise( resolve => {
-			clock.tick( timeout );
+			vi.advanceTimersByTime( timeout );
 			resolve();
 		} );
 	}
@@ -2575,7 +2805,7 @@ describe( 'MentionUI', () => {
 
 	function fireKeyDownEvent( options ) {
 		const eventInfo = new EventInfo( editingView.document, 'keydown' );
-		const eventData = new DomEventData( editingView.document, {
+		const eventData = new ViewDocumentDomEventData( editingView.document, {
 			target: document.body
 		}, options );
 
@@ -2586,31 +2816,30 @@ describe( 'MentionUI', () => {
 		const originalViewRangeToDom = editingView.domConverter.viewRangeToDom;
 
 		// Mock selection rect.
-		sinon.stub( editingView.domConverter, 'viewRangeToDom' ).callsFake( ( ...args ) => {
+		vi.spyOn( editingView.domConverter, 'viewRangeToDom' ).mockImplementation( ( ...args ) => {
 			const domRange = originalViewRangeToDom.apply( editingView.domConverter, args );
 
-			sinon.stub( domRange, 'getClientRects' )
-				.returns( rects );
+			vi.spyOn( domRange, 'getClientRects' )
+				.mockReturnValue( rects );
 
 			return domRange;
 		} );
 	}
 
 	function expectChildViewsIsOnState( expectedState ) {
-		const childViews = [ ...mentionsView.items ].map( item => item.children.get( 0 ) );
-
-		expect( childViews.map( child => child.isOn ) ).to.deep.equal( expectedState );
+		// The selected item is marked with `isHighlighted` (a focus-style ring), not the child button's `isOn`.
+		expect( [ ...mentionsView.items ].map( item => item.isHighlighted ) ).toEqual( expectedState );
 	}
 
 	function assertCommandOptions( commandOptions, marker, item ) {
-		expect( commandOptions ).to.have.property( 'marker', marker );
-		expect( commandOptions ).to.have.property( 'range' );
-		expect( commandOptions ).to.have.property( 'mention' );
+		expect( commandOptions ).toHaveProperty( 'marker', marker );
+		expect( commandOptions ).toHaveProperty( 'range' );
+		expect( commandOptions ).toHaveProperty( 'mention' );
 
 		const mentionForCommand = commandOptions.mention;
 
 		for ( const key of Object.keys( item ) ) {
-			expect( mentionForCommand[ key ] ).to.equal( item[ key ] );
+			expect( mentionForCommand[ key ] ).toEqual( item[ key ] );
 		}
 	}
 } );

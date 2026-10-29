@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module find-and-replace/replaceallcommand
  */
 
-import { Collection } from 'ckeditor5/src/utils';
-import type { ResultType } from './findandreplace';
-import type FindAndReplaceUtils from './findandreplaceutils';
-import { ReplaceCommandBase } from './replacecommandbase';
+import { Collection } from '@ckeditor/ckeditor5-utils';
+import type { FindResultType } from './findandreplace.js';
+import { type FindAndReplaceUtils } from './findandreplaceutils.js';
+import { FindReplaceCommandBase } from './replacecommandbase.js';
 
 /**
  * The replace all command. It is used by the {@link module:find-and-replace/findandreplace~FindAndReplace find and replace feature}.
  */
-export default class ReplaceAllCommand extends ReplaceCommandBase {
+export class ReplaceAllCommand extends FindReplaceCommandBase {
 	/**
 	 * Replaces all the occurrences of `textToReplace` with a given `newText` string.
 	 *
@@ -35,19 +35,19 @@ export default class ReplaceAllCommand extends ReplaceCommandBase {
 	 *
 	 * @fires module:core/command~Command#event:execute
 	 */
-	public override execute( newText: string, textToReplace: string | Collection<ResultType> ): void {
+	public override execute( newText: string, textToReplace: string | Collection<FindResultType> ): void {
 		const { editor } = this;
 		const { model } = editor;
 		const findAndReplaceUtils: FindAndReplaceUtils = editor.plugins.get( 'FindAndReplaceUtils' );
 
 		const results = textToReplace instanceof Collection ?
 			textToReplace : model.document.getRootNames()
-				.reduce( ( ( currentResults: Collection<ResultType> | null, rootName ) => findAndReplaceUtils.updateFindResultFromRange(
+				.reduce( ( ( currentResults: Collection<FindResultType> | null, rootName ) => findAndReplaceUtils.updateFindResultFromRange(
 					model.createRangeIn( model.document.getRoot( rootName )! ),
 					model,
 					findAndReplaceUtils.findByTextCallback( textToReplace, this._state ),
 					currentResults
-				) ), null as Collection<ResultType> | null )!;
+				) ), null as Collection<FindResultType> | null )!;
 
 		if ( results.length ) {
 			// Wrapped in single change will batch it into one transaction.

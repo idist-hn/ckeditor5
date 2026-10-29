@@ -1,28 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document, console */
-
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import LinkImage from '@ckeditor/ckeditor5-link/src/linkimage';
-import ImageToolbar from '../src/imagetoolbar';
-import ImageCaption from '../src/imagecaption';
-import Image from '../src/image';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import ImageStyle from '../src/imagestyle';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { LinkImage } from '@ckeditor/ckeditor5-link';
+import { ImageToolbar } from '../src/imagetoolbar.js';
+import { ImageCaption } from '../src/imagecaption.js';
+import { Image } from '../src/image.js';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { ButtonView, View } from '@ckeditor/ckeditor5-ui';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { ImageStyle } from '../src/imagestyle.js';
 
 describe( 'ImageToolbar', () => {
 	let editor, model, doc, toolbar, balloon, widgetToolbarRepository, editorElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = global.document.createElement( 'div' );
@@ -59,12 +54,20 @@ describe( 'ImageToolbar', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageToolbar.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageToolbar.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( ImageToolbar ) ).to.be.instanceOf( ImageToolbar );
+		expect( editor.plugins.get( ImageToolbar ) ).toBeInstanceOf( ImageToolbar );
 	} );
 
 	it( 'should not initialize if there is no configuration', () => {
-		const consoleWarnStub = sinon.stub( console, 'warn' );
+		const consoleWarnStub = vi.spyOn( console, 'warn' );
 		const editorElement = global.document.createElement( 'div' );
 		global.document.body.appendChild( editorElement );
 
@@ -72,9 +75,9 @@ describe( 'ImageToolbar', () => {
 			plugins: [ ImageToolbar ]
 		} )
 			.then( editor => {
-				expect( editor.plugins.get( ImageToolbar )._toolbar ).to.be.undefined;
-				expect( consoleWarnStub.calledOnce ).to.equal( true );
-				expect( consoleWarnStub.firstCall.args[ 0 ] ).to.match( /widget-toolbar-no-items/ );
+				expect( editor.plugins.get( ImageToolbar )._toolbar ).toBeUndefined();
+				expect( consoleWarnStub ).toHaveBeenCalledOnce();
+				expect( consoleWarnStub.mock.calls[ 0 ][ 0 ] ).toMatch( /widget-toolbar-no-items/ );
 
 				editorElement.remove();
 				return editor.destroy();
@@ -84,44 +87,47 @@ describe( 'ImageToolbar', () => {
 	describe( 'toolbar', () => {
 		it( 'should use the config.image.toolbar to create items', () => {
 			// Make sure that toolbar is empty before first show.
-			expect( toolbar.items.length ).to.equal( 0 );
+			expect( toolbar.items.length ).toBe( 0 );
 
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
-			expect( toolbar.items ).to.have.length( 2 );
-			expect( toolbar.items.get( 0 ).label ).to.equal( 'fake button' );
+			expect( toolbar.items ).toHaveLength( 2 );
+			expect( toolbar.items.get( 0 ).label ).toBe( 'fake button' );
 		} );
 
 		it( 'should convert the declarative dropdown definition to the component factory item name', () => {
 			// Make sure that toolbar is empty before first show.
-			expect( toolbar.items.length ).to.equal( 0 );
+			expect( toolbar.items.length ).toBe( 0 );
 
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
-			expect( toolbar.items.get( 1 ).buttonView.label ).to.equal( 'Fake dropdown: Centered image' );
-			expect( toolbar.items.get( 1 ).buttonView.arrowView.label ).to.equal( 'Fake dropdown' );
+			expect( toolbar.items.get( 1 ).buttonView.label ).toBe( 'Fake dropdown: Centered image' );
+			expect( toolbar.items.get( 1 ).buttonView.arrowView.label ).toBe( 'Fake dropdown' );
 		} );
 
 		it( 'should set proper CSS classes', () => {
-			const spy = sinon.spy( balloon, 'add' );
+			const spy = vi.spyOn( balloon, 'add' );
 
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
-			sinon.assert.calledWithMatch( spy, sinon.match( ( { balloonClassName, view } ) => {
-				return view === toolbar && balloonClassName === 'ck-toolbar-container';
-			} ) );
+			expect( spy ).toHaveBeenCalledWith(
+				expect.objectContaining( {
+					view: toolbar,
+					balloonClassName: 'ck-toolbar-container'
+				} )
+			);
 		} );
 
 		it( 'should set aria-label attribute', () => {
 			toolbar.render();
 
-			expect( toolbar.element.getAttribute( 'aria-label' ) ).to.equal( 'Image toolbar' );
+			expect( toolbar.element.getAttribute( 'aria-label' ) ).toBe( 'Image toolbar' );
 
 			toolbar.destroy();
 		} );
@@ -131,49 +137,49 @@ describe( 'ImageToolbar', () => {
 		it( 'should show the toolbar when the editor gains focus and the image is selected', () => {
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
 			editor.ui.focusTracker.isFocused = false;
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			editor.ui.focusTracker.isFocused = true;
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should hide the toolbar when the editor loses focus and the image is selected', () => {
 			editor.ui.focusTracker.isFocused = false;
 
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
 			editor.ui.focusTracker.isFocused = true;
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			editor.ui.focusTracker.isFocused = false;
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 		} );
 
 		it( 'should show the toolbar when the editor gains focus and the selection is in a caption', () => {
 			editor.ui.focusTracker.isFocused = true;
 
-			setData( model, '<imageBlock src=""><caption>[foo]</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src=""><caption>[foo]</caption></imageBlock>' );
 
 			editor.ui.focusTracker.isFocused = false;
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			editor.ui.focusTracker.isFocused = true;
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should hide the toolbar when the editor loses focus and the selection is in a caption', () => {
 			editor.ui.focusTracker.isFocused = false;
 
-			setData( model, '<imageBlock src=""><caption>[]foo</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src=""><caption>[]foo</caption></imageBlock>' );
 
 			editor.ui.focusTracker.isFocused = true;
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			editor.ui.focusTracker.isFocused = false;
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 		} );
 	} );
 
@@ -183,13 +189,13 @@ describe( 'ImageToolbar', () => {
 		} );
 
 		it( 'should show the toolbar on ui#update when the image is selected', () => {
-			setData( model, '<paragraph>[foo]</paragraph><imageBlock src=""></imageBlock>' );
+			_setModelData( model, '<paragraph>[foo]</paragraph><imageBlock src=""></imageBlock>' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			editor.ui.fire( 'update' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			model.change( writer => {
 				// Select the [<imageBlock></imageBlock>]
@@ -198,22 +204,22 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to insert the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should show the toolbar on ui#update when the inline image is selected', () => {
-			setData( model, '<paragraph>[foo]<imageInline src=""></imageInline></paragraph>' );
+			_setModelData( model, '<paragraph>[foo]<imageInline src=""></imageInline></paragraph>' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			editor.ui.fire( 'update' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			model.change( writer => {
 				// Select the [<imageInline src=""></imageInline>]
@@ -222,22 +228,22 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to insert the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should show the toolbar on ui#update when the linked inline image is selected', () => {
-			setData( model, '<paragraph>[foo]<imageInline linkHref="https://ckeditor.com" src=""></imageInline></paragraph>' );
+			_setModelData( model, '<paragraph>[foo]<imageInline linkHref="https://ckeditor.com" src=""></imageInline></paragraph>' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			editor.ui.fire( 'update' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			model.change( writer => {
 				// Select the [<a href="https://ckeditor.com"><imageInline src=""></imageInline></a>]
@@ -246,22 +252,22 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to insert the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should show the toolbar on ui#update when the selection is in a caption', () => {
-			setData( model, '<paragraph>[foo]</paragraph><imageBlock src=""><caption>bar</caption></imageBlock>' );
+			_setModelData( model, '<paragraph>[foo]</paragraph><imageBlock src=""><caption>bar</caption></imageBlock>' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			editor.ui.fire( 'update' );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			model.change( writer => {
 				// Select the <imageBlock><caption>[bar]</caption></imageBlock>
@@ -270,18 +276,18 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to insert the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should not engage when the toolbar is in the balloon yet invisible', () => {
-			setData( model, '[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""></imageBlock>]' );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			const lastView = new View();
 			lastView.element = document.createElement( 'div' );
@@ -293,17 +299,17 @@ describe( 'ImageToolbar', () => {
 				}
 			} );
 
-			expect( balloon.visibleView ).to.equal( lastView );
+			expect( balloon.visibleView ).toBe( lastView );
 
 			editor.ui.fire( 'update' );
 
-			expect( balloon.visibleView ).to.equal( lastView );
+			expect( balloon.visibleView ).toBe( lastView );
 		} );
 
 		it( 'should hide the toolbar on ui#update if the image is de–selected', () => {
-			setData( model, '<paragraph>foo</paragraph>[<imageBlock src=""></imageBlock>]' );
+			_setModelData( model, '<paragraph>foo</paragraph>[<imageBlock src=""></imageBlock>]' );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			model.change( writer => {
 				// Select the <paragraph>[...]</paragraph>
@@ -312,18 +318,18 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to remove the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 		} );
 
 		it( 'should hide the toolbar on ui#update if the selection is being moved outside of a caption', () => {
-			setData( model, '<paragraph>foo</paragraph><imageBlock src=""><caption>[]</caption></imageBlock>' );
+			_setModelData( model, '<paragraph>foo</paragraph><imageBlock src=""><caption>[]</caption></imageBlock>' );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			model.change( writer => {
 				// Select the <paragraph>[...]</paragraph>
@@ -332,18 +338,18 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to remove the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.be.null;
+			expect( balloon.visibleView ).toBeNull();
 		} );
 
 		it( 'should not hide the toolbar on ui#update if the selection is being moved from an image to a caption', () => {
-			setData( model, '[<imageBlock src=""><caption>bar</caption></imageBlock>]' );
+			_setModelData( model, '[<imageBlock src=""><caption>bar</caption></imageBlock>]' );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			model.change( writer => {
 				// Select the <imageBlock><caption>[bar]</caption></imageBlock>
@@ -352,18 +358,18 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to insert the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 
 		it( 'should not hide the toolbar on ui#update if the selection is being moved from a caption to an image', () => {
-			setData( model, '<imageBlock src=""><caption>[b]ar</caption></imageBlock>' );
+			_setModelData( model, '<imageBlock src=""><caption>[b]ar</caption></imageBlock>' );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			model.change( writer => {
 				// Select the <imageBlock><caption>[bar]</caption></imageBlock>
@@ -372,12 +378,12 @@ describe( 'ImageToolbar', () => {
 				);
 			} );
 
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 
 			// Make sure successive change does not throw, e.g. attempting
 			// to insert the toolbar twice.
 			editor.ui.fire( 'update' );
-			expect( balloon.visibleView ).to.equal( toolbar );
+			expect( balloon.visibleView ).toBe( toolbar );
 		} );
 	} );
 

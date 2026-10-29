@@ -1,21 +1,38 @@
 Software License Agreement
 ==========================
 
-**CKEditor&nbsp;5 GitHub Flavored Markdown support** – https://github.com/ckeditor/ckeditor5-markdown-gfm <br>
-Copyright (c) 2003-2023, [CKSource Holding sp. z o.o.](https://cksource.com) All rights reserved.
+**CKEditor&nbsp;5 GitHub Flavored Markdown support** (https://github.com/ckeditor/ckeditor5)<br>
+Copyright (c) 2003–2026, [CKSource Holding sp. z o.o.](https://cksource.com) All rights reserved.
 
-Licensed under the terms of [GNU General Public License Version 2 or later](http://www.gnu.org/licenses/gpl.html).
+Licensed under a dual-license model, this software is available under:
 
-Sources of Intellectual Property Included in CKEditor
------------------------------------------------------
+* the [GNU General Public License Version 2 or later](https://www.gnu.org/licenses/gpl.html),
+* or commercial license terms from CKSource Holding sp. z o.o.
 
-Where not otherwise indicated, all CKEditor content is authored by CKSource engineers and consists of CKSource-owned intellectual property. In some specific instances, CKEditor will incorporate work done by developers outside of CKSource with their express permission.
+For more information, see: [https://ckeditor.com/legal/ckeditor-licensing-options](https://ckeditor.com/legal/ckeditor-licensing-options).
 
-The following libraries are included in CKEditor under the [MIT license](https://opensource.org/licenses/MIT):
+Sources of Intellectual Property Included in CKEditor&nbsp;5
+------------------------------------------------------------
 
-* Marked - Copyright (c) Christopher Jeffrey (https://github.com/chjj/).
-* Turndown - Copyright (c) Dom Christie.
-* Turndown-plugin-gfm - Copyright (c) Dom Christie.
+Where not otherwise indicated, all CKEditor&nbsp;5 content is authored by CKSource engineers and consists of CKSource-owned intellectual property. In some specific instances, CKEditor&nbsp;5 will incorporate work done by developers outside of CKSource with their express permission.
+
+The following libraries are included in CKEditor&nbsp;5 under the [ISC license](https://opensource.org/licenses/ISC):
+
+* hast-util-from-dom - Copyright (c) Keith McKnight <keith@mcknig.ht>.
+* rehype-dom-stringify - Copyright (c) 2018 Keith McKnight <keith@mcknig.ht>.
+
+The following libraries are included in CKEditor&nbsp;5 under the [MIT license](https://opensource.org/licenses/MIT):
+
+* hast-util-to-html - Copyright (c) Titus Wormer <tituswormer@gmail.com>.
+* hastscript - Copyright (c) Titus Wormer <tituswormer@gmail.com>.
+* rehype-remark - Copyright (c) Titus Wormer <tituswormer@gmail.com>.
+* remark-breaks - Copyright (c) 2017 Titus Wormer <tituswormer@gmail.com>.
+* remark-gfm - Copyright (c) Titus Wormer <tituswormer@gmail.com>.
+* remark-parse - Copyright (c) 2014 Titus Wormer <tituswormer@gmail.com>.
+* remark-rehype - Copyright (c) Titus Wormer <tituswormer@gmail.com>.
+* remark-stringify - Copyright (c) 2014 Titus Wormer <tituswormer@gmail.com>.
+* unified - Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>.
+* unist-util-visit - Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>.
 
 Trademarks
 ----------

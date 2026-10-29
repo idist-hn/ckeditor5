@@ -1,22 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module code-block/codeblockcommand
  */
 
-import type { Element, Writer } from 'ckeditor5/src/engine';
-import { Command, type Editor } from 'ckeditor5/src/core';
-import { first } from 'ckeditor5/src/utils';
+import type { ModelElement, ModelWriter } from '@ckeditor/ckeditor5-engine';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { first } from '@ckeditor/ckeditor5-utils';
 
-import { getNormalizedAndLocalizedLanguageDefinitions, canBeCodeBlock } from './utils';
+import { getNormalizedAndLocalizedLanguageDefinitions, canBeCodeBlock } from './utils.js';
 
 /**
  * The code block command plugin.
  */
-export default class CodeBlockCommand extends Command {
+export class CodeBlockCommand extends Command {
 	/**
 	 * Contains the last used language.
 	 */
@@ -91,7 +91,7 @@ export default class CodeBlockCommand extends Command {
 	private _getValue(): string | false {
 		const selection = this.editor.model.document.selection;
 		const firstBlock = first( selection.getSelectedBlocks() );
-		const isCodeBlock = !!( firstBlock && firstBlock.is( 'element', 'codeBlock' ) );
+		const isCodeBlock = !!firstBlock?.is( 'element', 'codeBlock' );
 
 		return isCodeBlock ? firstBlock.getAttribute( 'language' ) as string : false;
 	}
@@ -118,7 +118,7 @@ export default class CodeBlockCommand extends Command {
 		return canBeCodeBlock( schema, firstBlock );
 	}
 
-	private _applyCodeBlock( writer: Writer, blocks: Array<Element>, language: string ): void {
+	private _applyCodeBlock( writer: ModelWriter, blocks: Array<ModelElement>, language: string ): void {
 		this._lastLanguage = language;
 
 		const schema = this.editor.model.schema;
@@ -129,7 +129,7 @@ export default class CodeBlockCommand extends Command {
 			writer.setAttribute( 'language', language, block );
 			schema.removeDisallowedAttributes( [ block ], writer );
 
-			// Remove children of the  `codeBlock` element that are not allowed. See #9567.
+			// Remove children of the  `codeBlock` element that are not allowed. See https://github.com/ckeditor/ckeditor5/issues/9567.
 			Array.from( block.getChildren() )
 				.filter( child => !schema.checkChild( block, child ) )
 				.forEach( child => writer.remove( child ) );
@@ -145,7 +145,7 @@ export default class CodeBlockCommand extends Command {
 		} );
 	}
 
-	private _removeCodeBlock( writer: Writer, blocks: Array<Element> ): void {
+	private _removeCodeBlock( writer: ModelWriter, blocks: Array<ModelElement> ): void {
 		const codeBlocks = blocks.filter( block => block.is( 'element', 'codeBlock' ) );
 
 		for ( const block of codeBlocks ) {
@@ -154,7 +154,7 @@ export default class CodeBlockCommand extends Command {
 			for ( const item of Array.from( range.getItems() ).reverse() ) {
 				if ( item.is( 'element', 'softBreak' ) && item.parent!.is( 'element', 'codeBlock' ) ) {
 					const { position } = writer.split( writer.createPositionBefore( item ) );
-					const elementAfter = position.nodeAfter as Element;
+					const elementAfter = position.nodeAfter as ModelElement;
 
 					writer.rename( elementAfter, 'paragraph' );
 					writer.removeAttribute( 'language', elementAfter );

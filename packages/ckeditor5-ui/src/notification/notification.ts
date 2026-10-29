@@ -1,13 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/notification/notification
  */
-
-/* globals window */
 
 import { ContextPlugin } from '@ckeditor/ckeditor5-core';
 
@@ -21,12 +19,19 @@ import { ContextPlugin } from '@ckeditor/ckeditor5-core';
  * Note that every unhandled and not stopped `warning` notification will be displayed as a system alert.
  * See {@link module:ui/notification/notification~Notification#showWarning}.
  */
-export default class Notification extends ContextPlugin {
+export class Notification extends ContextPlugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'Notification' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**

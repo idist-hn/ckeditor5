@@ -1,17 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type Node from './node';
-import type TextProxy from './textproxy';
 
 /**
  * @module engine/model/item
  */
 
+import { type ModelNode } from './node.js';
+import { type ModelTextProxy } from './textproxy.js';
+
 /**
- * Item is a {@link module:engine/model/node~Node} or {@link module:engine/model/textproxy~TextProxy}.
+ * Item is a {@link module:engine/model/node~ModelNode} or {@link module:engine/model/textproxy~ModelTextProxy}.
  */
-type Item = Node | TextProxy;
-export default Item;
+export type ModelItem = ModelNode | ModelTextProxy;

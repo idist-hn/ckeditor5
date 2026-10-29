@@ -1,13 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module word-count
  */
 
-export { default as WordCount, type WordCountUpdateEvent } from './wordcount';
-export { WordCountConfig } from './wordcountconfig';
+export { WordCount, type WordCountUpdateEvent } from './wordcount.js';
+export type { WordCountConfig } from './wordcountconfig.js';
 
-import './augmentation';
+export { modelElementToPlainText as _modelElementToPlainText } from './utils.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

@@ -1,0 +1,517 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Editor } from '@ckeditor/ckeditor5-core';
+import { Model, _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+import { LegacyListCommand } from '../../src/legacylist/legacylistcommand.js';
+
+describe( 'LegacyListCommand', () => {
+	let editor, command, model, doc, root;
+
+	beforeEach( () => {
+		editor = new Editor();
+		editor.model = new Model();
+
+		model = editor.model;
+		doc = model.document;
+		root = doc.createRoot();
+
+		command = new LegacyListCommand( editor, 'bulleted' );
+
+		model.schema.register( 'listItem', {
+			inheritAllFrom: '$block',
+			allowAttributes: [ 'listType', 'listIndent' ]
+		} );
+		model.schema.register( 'paragraph', {
+			inheritAllFrom: '$block',
+			allowIn: 'widget'
+		} );
+		model.schema.register( 'widget', { inheritAllFrom: '$block' } );
+
+		model.schema.addChildCheck( ( ctx, childDef ) => {
+			if ( ctx.endsWith( 'widget' ) && childDef.name == 'listItem' ) {
+				return false;
+			}
+		} );
+
+		_setModelData(
+			model,
+			'<paragraph>foo</paragraph>' +
+			'<listItem listType="bulleted" listIndent="0">bulleted</listItem>' +
+			'<listItem listType="numbered" listIndent="0">numbered</listItem>' +
+			'<paragraph>bar</paragraph>' +
+			'<widget>' +
+				'<paragraph>xyz</paragraph>' +
+			'</widget>'
+		);
+
+		model.change( writer => {
+			writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
+		} );
+	} );
+
+	afterEach( () => {
+		command.destroy();
+	} );
+
+	describe( 'ListCommand', () => {
+		describe( 'constructor()', () => {
+			it( 'should create list command with given type and value set to false', () => {
+				expect( command.type ).toBe( 'bulleted' );
+				expect( command.value ).toBe( false );
+
+				const numberedList = new LegacyListCommand( editor, 'numbered' );
+				expect( numberedList.type ).toBe( 'numbered' );
+			} );
+		} );
+
+		describe( 'value', () => {
+			it( 'should be false if first position in selection is not in a list item', () => {
+				model.change( writer => {
+					writer.setSelection( doc.getRoot().getChild( 3 ), 0 );
+				} );
+
+				expect( command.value ).toBe( false );
+			} );
+
+			it( 'should be false if first position in selection is in a list item of different type', () => {
+				model.change( writer => {
+					writer.setSelection( doc.getRoot().getChild( 2 ), 0 );
+				} );
+
+				expect( command.value ).toBe( false );
+			} );
+
+			it( 'should be true if first position in selection is in a list item of same type', () => {
+				model.change( writer => {
+					writer.setSelection( doc.getRoot().getChild( 1 ), 0 );
+				} );
+
+				expect( command.value ).toBe( true );
+			} );
+		} );
+
+		describe( 'isEnabled', () => {
+			it( 'should be true if entire selection is in a list', () => {
+				_setModelData( model, '<listItem listType="bulleted" listIndent="0">[a]</listItem>' );
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true if entire selection is in a block which can be turned into a list', () => {
+				_setModelData( model, '<paragraph>[a]</paragraph>' );
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true if selection first position is in a block which can be turned into a list', () => {
+				_setModelData( model, '<paragraph>[a</paragraph><widget>b]</widget>' );
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be false if selection first position is in an element which cannot be converted to a list item', () => {
+				_setModelData( model, '<widget><paragraph>[a</paragraph></widget><paragraph>b]</paragraph>' );
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false in a root which does not allow blocks at all', () => {
+				doc.createRoot( 'paragraph', 'inlineOnlyRoot' );
+				_setModelData( model, 'a[]b', { rootName: 'inlineOnlyRoot' } );
+				expect( command.isEnabled ).toBe( false );
+			} );
+		} );
+
+		describe( 'execute()', () => {
+			it( 'should use parent batch', () => {
+				model.change( writer => {
+					expect( writer.batch.operations.length ).toBe( 0 );
+
+					command.execute();
+
+					expect( writer.batch.operations.length ).toBeGreaterThan( 0 );
+				} );
+			} );
+
+			describe( 'options.forceValue', () => {
+				it( 'should force converting into the list if the `options.forceValue` is set to `true`', () => {
+					_setModelData( model, '<paragraph>fo[]o</paragraph>' );
+
+					command.execute( { forceValue: true } );
+
+					expect( _getModelData( model ) ).toBe( '<listItem listIndent="0" listType="bulleted">fo[]o</listItem>' );
+
+					command.execute( { forceValue: true } );
+
+					expect( _getModelData( model ) ).toBe( '<listItem listIndent="0" listType="bulleted">fo[]o</listItem>' );
+				} );
+
+				it( 'should force converting into the paragraph if the `options.forceValue` is set to `false`', () => {
+					_setModelData( model, '<listItem listIndent="0" listType="bulleted">fo[]o</listItem>' );
+
+					command.execute( { forceValue: false } );
+
+					// Attributes will be removed by post fixer.
+					expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listType="bulleted">fo[]o</paragraph>' );
+
+					command.execute( { forceValue: false } );
+
+					expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listType="bulleted">fo[]o</paragraph>' );
+				} );
+			} );
+
+			describe( 'collapsed selection', () => {
+				it( 'should rename closest block to listItem and set correct attributes', () => {
+					_setModelData( model, '<paragraph>fo[]o</paragraph>' );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toBe( '<listItem listIndent="0" listType="bulleted">fo[]o</listItem>' );
+				} );
+
+				it( 'should rename closest listItem to paragraph', () => {
+					_setModelData( model, '<listItem listIndent="0" listType="bulleted">fo[]o</listItem>' );
+
+					command.execute();
+
+					// Attributes will be removed by post fixer.
+					expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listType="bulleted">fo[]o</paragraph>' );
+				} );
+
+				it( 'should change closest listItem\' type', () => {
+					_setModelData( model, '<listItem listIndent="0" listType="numbered">fo[]o</listItem>' );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toBe( '<listItem listIndent="0" listType="bulleted">fo[]o</listItem>' );
+				} );
+
+				it( 'should handle outdenting sub-items when list item is turned off', () => {
+					/* eslint-disable @stylistic/max-len */
+					// Taken from docs.
+					//
+					// 1  * --------
+					// 2     * --------
+					// 3        * -------- <- this is turned off.
+					// 4           * -------- <- this has to become indent = 0, because it will be first item on a new list.
+					// 5              * -------- <- this should be still be a child of item above, so indent = 1.
+					// 6        * -------- <- this also has to become indent = 0, because it shouldn't end up as a child of any of items above.
+					// 7           * -------- <- this should be still be a child of item above, so indent = 1.
+					// 8     * -------- <- this has to become indent = 0.
+					// 9        * -------- <- this should still be a child of item above, so indent = 1.
+					// 10          * -------- <- this should still be a child of item above, so indent = 2.
+					// 11          * -------- <- this should still be at the same level as item above, so indent = 2.
+					// 12 * -------- <- this and all below are left unchanged.
+					// 13    * --------
+					// 14       * --------
+					//
+					// After turning off "3", the list becomes:
+					//
+					// 1  * --------
+					// 2     * --------
+					//
+					// 3  --------
+					//
+					// 4  * --------
+					// 5     * --------
+					// 6  * --------
+					// 7     * --------
+					// 8  * --------
+					// 9     * --------
+					// 10       * --------
+					// 11       * --------
+					// 12 * --------
+					// 13    * --------
+					// 14       * --------
+					/* eslint-enable @stylistic/max-len */
+
+					_setModelData(
+						model,
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">[]---</listItem>' +
+						'<listItem listIndent="3" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="4" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="3" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="3" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="3" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>'
+					);
+
+					command.execute();
+
+					const expectedData =
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<paragraph listIndent="2" listType="bulleted">[]---</paragraph>' + // Attributes will be removed by post fixer.
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>';
+
+					expect( _getModelData( model ) ).toBe( expectedData );
+				} );
+			} );
+
+			describe( 'non-collapsed selection', () => {
+				beforeEach( () => {
+					_setModelData(
+						model,
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<paragraph>---</paragraph>' +
+						'<paragraph>---</paragraph>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>'
+					);
+				} );
+
+				// https://github.com/ckeditor/ckeditor5-list/issues/62
+				it( 'should not rename blocks which cannot become listItems (list item is not allowed in their parent)', () => {
+					model.schema.register( 'restricted' );
+					model.schema.extend( 'restricted', { allowIn: '$root' } );
+
+					model.schema.register( 'fooBlock', { inheritAllFrom: '$block' } );
+					model.schema.extend( 'fooBlock', { allowIn: 'restricted' } );
+
+					_setModelData(
+						model,
+						'<paragraph>a[bc</paragraph>' +
+						'<restricted><fooBlock></fooBlock></restricted>' +
+						'<paragraph>de]f</paragraph>'
+					);
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toBe(
+						'<listItem listIndent="0" listType="bulleted">a[bc</listItem>' +
+						'<restricted><fooBlock></fooBlock></restricted>' +
+						'<listItem listIndent="0" listType="bulleted">de]f</listItem>'
+					);
+				} );
+
+				it( 'should not rename blocks which cannot become listItems (block is an object)', () => {
+					model.schema.register( 'imageBlock', {
+						isBlock: true,
+						isObject: true,
+						allowIn: '$root'
+					} );
+
+					_setModelData(
+						model,
+						'<paragraph>a[bc</paragraph>' +
+						'<imageBlock></imageBlock>' +
+						'<paragraph>de]f</paragraph>'
+					);
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toBe(
+						'<listItem listIndent="0" listType="bulleted">a[bc</listItem>' +
+						'<imageBlock></imageBlock>' +
+						'<listItem listIndent="0" listType="bulleted">de]f</listItem>'
+					);
+				} );
+
+				it( 'should rename closest block to listItem and set correct attributes', () => {
+					// From first paragraph to second paragraph.
+					// Command value=false, we are turning on list items.
+					model.change( writer => {
+						writer.setSelection( writer.createRange(
+							writer.createPositionAt( root.getChild( 2 ), 0 ),
+							writer.createPositionAt( root.getChild( 3 ), 'end' )
+						) );
+					} );
+
+					command.execute();
+
+					const expectedData =
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">[---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---]</listItem>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>';
+
+					expect( _getModelData( model ) ).toBe( expectedData );
+				} );
+
+				it( 'should rename closest listItem to paragraph', () => {
+					// From second bullet list item to first numbered list item.
+					// Command value=true, we are turning off list items.
+					model.change( writer => {
+						writer.setSelection( writer.createRange(
+							writer.createPositionAt( root.getChild( 1 ), 0 ),
+							writer.createPositionAt( root.getChild( 4 ), 'end' )
+						) );
+					} );
+
+					// Convert paragraphs, leave numbered list items.
+					command.execute();
+
+					const expectedData =
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<paragraph listIndent="0" listType="bulleted">[---</paragraph>' + // Attributes will be removed by post fixer.
+						'<paragraph>---</paragraph>' +
+						'<paragraph>---</paragraph>' +
+						'<paragraph listIndent="0" listType="numbered">---]</paragraph>' + // Attributes will be removed by post fixer.
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>';
+
+					expect( _getModelData( model ) ).toBe( expectedData );
+				} );
+
+				it( 'should change closest listItem\'s type', () => {
+					// From first numbered lsit item to third bulleted list item.
+					model.change( writer => {
+						writer.setSelection( writer.createRange(
+							writer.createPositionAt( root.getChild( 4 ), 0 ),
+							writer.createPositionAt( root.getChild( 6 ), 0 )
+						) );
+					} );
+
+					// Convert paragraphs, leave numbered list items.
+					command.execute();
+
+					const expectedData =
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<paragraph>---</paragraph>' +
+						'<paragraph>---</paragraph>' +
+						'<listItem listIndent="0" listType="bulleted">[---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">]---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>';
+
+					expect( _getModelData( model ) ).toBe( expectedData );
+				} );
+
+				it( 'should handle outdenting sub-items when list item is turned off', () => {
+					// From first numbered list item to third bulleted list item.
+					model.change( writer => {
+						writer.setSelection( writer.createRange(
+							writer.createPositionAt( root.getChild( 1 ), 0 ),
+							writer.createPositionAt( root.getChild( 5 ), 'end' )
+						) );
+					} );
+
+					// Convert paragraphs, leave numbered list items.
+					command.execute();
+
+					const expectedData =
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<paragraph listIndent="0" listType="bulleted">[---</paragraph>' + // Attributes will be removed by post fixer.
+						'<paragraph>---</paragraph>' +
+						'<paragraph>---</paragraph>' +
+						'<paragraph listIndent="0" listType="numbered">---</paragraph>' + // Attributes will be removed by post fixer.
+						'<paragraph listIndent="0" listType="numbered">---]</paragraph>' + // Attributes will be removed by post fixer.
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>';
+
+					expect( _getModelData( model ) ).toBe( expectedData );
+				} );
+
+				// Example from docs.
+				it( 'should change type of all items in nested list if one of items changed', () => {
+					_setModelData(
+						model,
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="numbered">---</listItem>' +
+						'<listItem listIndent="2" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="numbered">---</listItem>' +
+						'<listItem listIndent="2" listType="numbered">---</listItem>' +
+						'<listItem listIndent="2" listType="numbered">-[-</listItem>' +
+						'<listItem listIndent="1" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="numbered">---</listItem>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="numbered">-]-</listItem>' +
+						'<listItem listIndent="1" listType="numbered">---</listItem>' +
+						'<listItem listIndent="2" listType="numbered">---</listItem>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>'
+					);
+
+					// * ------				<-- do not fix, top level item
+					//   * ------			<-- fix, because latter list item of this item's list is changed
+					//      * ------		<-- do not fix, item is not affected (different list)
+					//   * ------			<-- fix, because latter list item of this item's list is changed
+					//      * ------		<-- fix, because latter list item of this item's list is changed
+					//      * ---[--		<-- already in selection
+					//   * ------			<-- already in selection
+					//   * ------			<-- already in selection
+					// * ------				<-- already in selection, but does not cause other list items to change because is top-level
+					//   * ---]--			<-- already in selection
+					//   * ------			<-- fix, because preceding list item of this item's list is changed
+					//      * ------		<-- do not fix, item is not affected (different list)
+					// * ------				<-- do not fix, top level item
+
+					command.execute();
+
+					const expectedData =
+						'<listItem listIndent="0" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="numbered">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="bulleted">-[-</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="0" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">-]-</listItem>' +
+						'<listItem listIndent="1" listType="bulleted">---</listItem>' +
+						'<listItem listIndent="2" listType="numbered">---</listItem>' +
+						'<listItem listIndent="0" listType="numbered">---</listItem>';
+
+					expect( _getModelData( model ) ).toBe( expectedData );
+				} );
+			} );
+
+			it( 'should fire "_executeCleanup" event after finish all operations with all changed items', () => {
+				_setModelData( model,
+					'<paragraph>Foo 1.</paragraph>' +
+					'<paragraph>[Foo 2.</paragraph>' +
+					'<paragraph>Foo 3.]</paragraph>' +
+					'<paragraph>Foo 4.</paragraph>'
+				);
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toBe(
+					'<paragraph>Foo 1.</paragraph>' +
+					'<listItem listIndent="0" listType="bulleted">[Foo 2.</listItem>' +
+					'<listItem listIndent="0" listType="bulleted">Foo 3.]</listItem>' +
+					'<paragraph>Foo 4.</paragraph>'
+				);
+
+				return new Promise( resolve => {
+					command.on( '_executeCleanup', ( evt, data ) => {
+						expect( data ).toEqual( [
+							root.getChild( 2 ),
+							root.getChild( 1 )
+						] );
+
+						resolve();
+					} );
+
+					command.execute();
+				} );
+			} );
+		} );
+	} );
+} );

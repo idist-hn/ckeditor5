@@ -1,21 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Essentials from '@ckeditor/ckeditor5-essentials/src/essentials';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Essentials } from '@ckeditor/ckeditor5-essentials';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
 import { global } from '@ckeditor/ckeditor5-utils';
 
-import ShowBlocks from '../src/showblocks';
-import ShowBlocksEditing from '../src/showblocksediting';
-import ShowBlocksUI from '../src/showblocksui';
+import { ShowBlocks } from '../src/showblocks.js';
+import { ShowBlocksEditing } from '../src/showblocksediting.js';
+import { ShowBlocksUI } from '../src/showblocksui.js';
 
 describe( 'ShowBlocks', () => {
 	it( 'should be correctly named', () => {
-		expect( ShowBlocks.pluginName ).to.equal( 'ShowBlocks' );
+		expect( ShowBlocks.pluginName ).toBe( 'ShowBlocks' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ShowBlocks.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ShowBlocks.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'init()', () => {
@@ -43,22 +52,22 @@ describe( 'ShowBlocks', () => {
 		it( 'should load ShowBlocks plugin', () => {
 			const ShowBlocksPlugin = editor.plugins.get( 'ShowBlocks' );
 
-			expect( ShowBlocksPlugin ).to.be.an.instanceof( ShowBlocks );
+			expect( ShowBlocksPlugin ).toBeInstanceOf( ShowBlocks );
 		} );
 
 		it( 'should have proper "requires" value', () => {
-			expect( ShowBlocks.requires ).to.deep.equal( [
+			expect( ShowBlocks.requires ).toEqual( [
 				ShowBlocksEditing,
 				ShowBlocksUI
 			] );
 		} );
 
 		it( 'should load ShowBlocksEditing plugin', () => {
-			expect( editor.plugins.get( ShowBlocksEditing ) ).to.instanceOf( ShowBlocksEditing );
+			expect( editor.plugins.get( ShowBlocksEditing ) ).toBeInstanceOf( ShowBlocksEditing );
 		} );
 
 		it( 'should load ShowBlocksUI plugin', () => {
-			expect( editor.plugins.get( ShowBlocksUI ) ).to.instanceOf( ShowBlocksUI );
+			expect( editor.plugins.get( ShowBlocksUI ) ).toBeInstanceOf( ShowBlocksUI );
 		} );
 	} );
 } );

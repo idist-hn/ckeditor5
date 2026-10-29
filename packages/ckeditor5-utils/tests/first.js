@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import first from '../src/first';
+import { describe, expect, it } from 'vitest';
+import { first } from '../src/first.js';
 
 describe( 'utils', () => {
 	describe( 'first', () => {
@@ -11,14 +12,14 @@ describe( 'utils', () => {
 			const collection = [ 11, 22 ];
 			const iterator = collection[ Symbol.iterator ]();
 
-			expect( first( iterator ) ).to.equal( 11 );
+			expect( first( iterator ) ).toEqual( 11 );
 		} );
 
 		it( 'should return null if iterator is empty', () => {
 			const collection = [];
 			const iterator = collection[ Symbol.iterator ]();
 
-			expect( first( iterator ) ).to.be.null;
+			expect( first( iterator ) ).toBeNull();
 		} );
 
 		it( 'should consume the iterating item', () => {
@@ -27,7 +28,7 @@ describe( 'utils', () => {
 
 			first( iterator );
 
-			expect( iterator.next().value ).to.equal( 22 );
+			expect( iterator.next().value ).toEqual( 22 );
 		} );
 	} );
 } );

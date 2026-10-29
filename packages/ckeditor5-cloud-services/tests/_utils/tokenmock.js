@@ -1,11 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Token from '../../src/token/token';
+import { Token } from '../../src/token/token.js';
 
-export default class TokenMock extends Token {
+export class TokenMock extends Token {
 	/**
 	 * Overrides request and set the next token
 	 *

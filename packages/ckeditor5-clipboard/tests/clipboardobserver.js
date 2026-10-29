@@ -1,27 +1,22 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import ClipboardObserver from '../src/clipboardobserver';
+import { ClipboardObserver } from '../src/clipboardobserver.js';
 
-import View from '@ckeditor/ckeditor5-engine/src/view/view';
-import DataTransfer from '@ckeditor/ckeditor5-engine/src/view/datatransfer';
-import DowncastWriter from '@ckeditor/ckeditor5-engine/src/view/downcastwriter';
-import createViewRoot from '@ckeditor/ckeditor5-engine/tests/view/_utils/createroot';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { EditingView, ViewDataTransfer, ViewDowncastWriter } from '@ckeditor/ckeditor5-engine';
+import { createViewRoot } from '@ckeditor/ckeditor5-engine/tests/view/_utils/createroot.js';
 
 describe( 'ClipboardObserver', () => {
 	let view, doc, writer, observer, root, el, range, eventSpy, preventDefaultSpy, stopPropagationSpy, mockedDomDataTransferFilesSpy;
 
-	testUtils.createSinonSandbox();
-
 	beforeEach( () => {
-		view = new View();
+		view = new EditingView();
 		doc = view.document;
-		writer = new DowncastWriter( doc );
+		writer = new ViewDowncastWriter( doc );
 		root = createViewRoot( doc );
 
 		// Create view and DOM structures.
@@ -32,17 +27,18 @@ describe( 'ClipboardObserver', () => {
 		doc.selection._setTo( el, 0 );
 		range = writer.createRange( writer.createPositionAt( root, 1 ) );
 		// Just making sure that the following tests will check anything.
-		expect( range.isEqual( doc.selection.getFirstRange() ) ).to.be.false;
+		// eslint-disable-next-line vitest/no-standalone-expect
+		expect( range.isEqual( doc.selection.getFirstRange() ) ).toBe( false );
 
 		observer = view.addObserver( ClipboardObserver );
 
-		eventSpy = sinon.spy();
-		preventDefaultSpy = sinon.spy();
-		stopPropagationSpy = sinon.spy();
+		eventSpy = vi.fn();
+		preventDefaultSpy = vi.fn();
+		stopPropagationSpy = vi.fn();
 	} );
 
 	it( 'should define domEventType', () => {
-		expect( observer.domEventType ).to.deep.equal(
+		expect( observer.domEventType ).toEqual(
 			[ 'paste', 'copy', 'cut', 'drop', 'dragover', 'dragstart', 'dragend', 'dragenter', 'dragleave' ]
 		);
 	} );
@@ -61,17 +57,17 @@ describe( 'ClipboardObserver', () => {
 				preventDefault: preventDefaultSpy
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.domTarget ).to.equal( targetElement );
+			expect( data.domTarget ).toBe( targetElement );
 
-			expect( data.dataTransfer ).to.be.instanceOf( DataTransfer );
-			expect( data.dataTransfer.getData( 'x/y' ) ).to.equal( 'foo:x/y' );
+			expect( data.dataTransfer ).toBeInstanceOf( ViewDataTransfer );
+			expect( data.dataTransfer.getData( 'x/y' ) ).toBe( 'foo:x/y' );
 
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
-			expect( mockedDomDataTransferFilesSpy.calledOnce ).to.be.true;
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+			expect( mockedDomDataTransferFilesSpy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
@@ -89,19 +85,19 @@ describe( 'ClipboardObserver', () => {
 				preventDefault: preventDefaultSpy
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.domTarget ).to.equal( targetElement );
+			expect( data.domTarget ).toBe( targetElement );
 
-			expect( data.dataTransfer ).to.be.instanceOf( DataTransfer );
-			expect( data.dataTransfer.getData( 'x/y' ) ).to.equal( 'foo:x/y' );
+			expect( data.dataTransfer ).toBeInstanceOf( ViewDataTransfer );
+			expect( data.dataTransfer.getData( 'x/y' ) ).toBe( 'foo:x/y' );
 
-			expect( data.dropRange ).to.be.null;
+			expect( data.dropRange ).toBeNull();
 
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
-			expect( mockedDomDataTransferFilesSpy.calledOnce ).to.be.true;
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+			expect( mockedDomDataTransferFilesSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should be fired with the right event data – dropRange (when no info about it in the drop event)', () => {
@@ -117,11 +113,11 @@ describe( 'ClipboardObserver', () => {
 				preventDefault() {}
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.dropRange ).to.be.null;
+			expect( data.dropRange ).toBeNull();
 		} );
 
 		it( 'should be fired with the right event data – dropRange (when document.caretRangeFromPoint present)', () => {
@@ -148,12 +144,12 @@ describe( 'ClipboardObserver', () => {
 				preventDefault() {}
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.dropRange.isEqual( range ) ).to.be.true;
-			expect( caretRangeFromPointCalledWith ).to.deep.equal( [ 10, 20 ] );
+			expect( data.dropRange.isEqual( range ) ).toBe( true );
+			expect( caretRangeFromPointCalledWith ).toEqual( [ 10, 20 ] );
 		} );
 
 		it( 'should be fired with the right event data – dropRange (when evt.rangeParent|Offset present)', () => {
@@ -176,18 +172,18 @@ describe( 'ClipboardObserver', () => {
 				preventDefault() {}
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.dropRange.isEqual( range ) ).to.be.true;
+			expect( data.dropRange.isEqual( range ) ).toBe( true );
 		} );
 	} );
 
 	describe( 'clipboardInput event', () => {
 		it( 'should be fired on paste', () => {
-			const dataTransfer = new DataTransfer( mockDomDataTransfer() );
-			const normalPrioritySpy = sinon.spy();
+			const dataTransfer = new ViewDataTransfer( mockDomDataTransfer() );
+			const normalPrioritySpy = vi.fn();
 
 			doc.on( 'clipboardInput', eventSpy );
 			doc.on( 'paste', normalPrioritySpy );
@@ -197,20 +193,20 @@ describe( 'ClipboardObserver', () => {
 				preventDefault: preventDefaultSpy
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
-			expect( data.dataTransfer ).to.equal( dataTransfer );
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
+			expect( data.dataTransfer ).toBe( dataTransfer );
 
-			expect( data.targetRanges ).to.be.null;
+			expect( data.targetRanges ).toBeNull();
 
-			expect( sinon.assert.callOrder( normalPrioritySpy, eventSpy ) );
+			expect( normalPrioritySpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( eventSpy.mock.invocationCallOrder[ 0 ] );
 		} );
 
 		it( 'should be fired on drop', () => {
-			const dataTransfer = new DataTransfer( mockDomDataTransfer() );
-			const normalPrioritySpy = sinon.spy();
+			const dataTransfer = new ViewDataTransfer( mockDomDataTransfer() );
+			const normalPrioritySpy = vi.fn();
 
 			doc.on( 'clipboardInput', eventSpy );
 			doc.on( 'drop', normalPrioritySpy );
@@ -221,21 +217,21 @@ describe( 'ClipboardObserver', () => {
 				dropRange: range
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
-			expect( data.dataTransfer ).to.equal( dataTransfer );
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
+			expect( data.dataTransfer ).toBe( dataTransfer );
 
-			expect( data.targetRanges ).to.have.length( 1 );
-			expect( data.targetRanges[ 0 ].isEqual( range ) ).to.be.true;
+			expect( data.targetRanges ).toHaveLength( 1 );
+			expect( data.targetRanges[ 0 ].isEqual( range ) ).toBe( true );
 
-			expect( sinon.assert.callOrder( normalPrioritySpy, eventSpy ) );
+			expect( normalPrioritySpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( eventSpy.mock.invocationCallOrder[ 0 ] );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5-upload/issues/92
 		it( 'should stop propagation of the original event if handled by the editor', () => {
-			const dataTransfer = new DataTransfer( mockDomDataTransfer() );
+			const dataTransfer = new ViewDataTransfer( mockDomDataTransfer() );
 
 			doc.fire( 'drop', {
 				dataTransfer,
@@ -244,7 +240,7 @@ describe( 'ClipboardObserver', () => {
 				dropRange: range
 			} );
 
-			sinon.assert.notCalled( stopPropagationSpy );
+			expect( stopPropagationSpy ).not.toHaveBeenCalled();
 
 			doc.on( 'clipboardInput', evt => {
 				// E.g. some feature handled the input.
@@ -258,14 +254,14 @@ describe( 'ClipboardObserver', () => {
 				dropRange: range
 			} );
 
-			sinon.assert.calledOnce( stopPropagationSpy );
+			expect( stopPropagationSpy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
 	describe( 'dragging event', () => {
 		it( 'should be fired on dragover', () => {
-			const dataTransfer = new DataTransfer( mockDomDataTransfer() );
-			const normalPrioritySpy = sinon.spy();
+			const dataTransfer = new ViewDataTransfer( mockDomDataTransfer() );
+			const normalPrioritySpy = vi.fn();
 
 			doc.on( 'dragging', eventSpy );
 			doc.on( 'dragover', normalPrioritySpy );
@@ -276,16 +272,43 @@ describe( 'ClipboardObserver', () => {
 				dropRange: range
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
-			expect( data.dataTransfer ).to.equal( dataTransfer );
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
+			expect( data.dataTransfer ).toBe( dataTransfer );
 
-			expect( data.targetRanges ).to.have.length( 1 );
-			expect( data.targetRanges[ 0 ].isEqual( range ) ).to.be.true;
+			expect( data.targetRanges ).toHaveLength( 1 );
+			expect( data.targetRanges[ 0 ].isEqual( range ) ).toBe( true );
 
-			expect( sinon.assert.callOrder( normalPrioritySpy, eventSpy ) );
+			expect( normalPrioritySpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( eventSpy.mock.invocationCallOrder[ 0 ] );
+		} );
+
+		// https://github.com/ckeditor/ckeditor5/issues/13366
+		it( 'should not fall back to the URI list nor access native DataTransfer files on dragover', () => {
+			const filesSpy = vi.fn();
+			const dataTransfer = {
+				get files() {
+					filesSpy();
+					return [];
+				},
+				getData( type ) {
+					return type == 'text/uri-list' ? 'file:///home/user/document.pdf' : '';
+				}
+			};
+
+			doc.on( 'dragging', eventSpy );
+
+			observer.onDomEvent( {
+				type: 'dragover',
+				target: mockDomTargetElement( {} ),
+				dataTransfer,
+				preventDefault: preventDefaultSpy
+			} );
+
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( eventSpy.mock.calls[ 0 ][ 1 ].content ).toBe( '' );
+			expect( filesSpy ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -304,15 +327,15 @@ describe( 'ClipboardObserver', () => {
 				stopPropagation: stopPropagationSpy
 			} );
 
-			expect( eventSpy.calledOnce ).to.equal( true );
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.document ).to.equal( doc );
-			expect( data.domTarget ).to.equal( targetElement );
-			expect( data.domEvent.type ).to.equal( 'dragover' );
-			expect( data.dataTransfer.files ).to.deep.equal( dataTransfer.files );
+			expect( data.document ).toBe( doc );
+			expect( data.domTarget ).toBe( targetElement );
+			expect( data.domEvent.type ).toBe( 'dragover' );
+			expect( data.dataTransfer.files ).toEqual( dataTransfer.files );
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/13366
@@ -329,19 +352,19 @@ describe( 'ClipboardObserver', () => {
 				preventDefault: preventDefaultSpy
 			} );
 
-			expect( eventSpy.calledOnce ).to.be.true;
+			expect( eventSpy ).toHaveBeenCalledOnce();
 
-			const data = eventSpy.args[ 0 ][ 1 ];
+			const data = eventSpy.mock.calls[ 0 ][ 1 ];
 
-			expect( data.domTarget ).to.equal( targetElement );
+			expect( data.domTarget ).toBe( targetElement );
 
-			expect( data.dataTransfer ).to.be.instanceOf( DataTransfer );
-			expect( data.dataTransfer.getData( 'x/y' ) ).to.equal( 'foo:x/y' );
+			expect( data.dataTransfer ).toBeInstanceOf( ViewDataTransfer );
+			expect( data.dataTransfer.getData( 'x/y' ) ).toBe( 'foo:x/y' );
 
-			expect( data.dropRange ).to.be.null;
+			expect( data.dropRange ).toBeNull();
 
-			expect( preventDefaultSpy.calledOnce ).to.be.true;
-			expect( mockedDomDataTransferFilesSpy.notCalled ).to.be.true;
+			expect( preventDefaultSpy ).toHaveBeenCalledOnce();
+			expect( mockedDomDataTransferFilesSpy ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -353,7 +376,7 @@ describe( 'ClipboardObserver', () => {
 	}
 
 	function mockDomDataTransfer() {
-		mockedDomDataTransferFilesSpy = sinon.spy();
+		mockedDomDataTransferFilesSpy = vi.fn();
 
 		return {
 			get files() {

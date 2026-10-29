@@ -1,14 +1,33 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module minimap
  */
 
-export { default as Minimap } from './minimap';
+export { Minimap } from './minimap.js';
 
-export type { MinimapConfig } from './minimapconfig';
+export type { MinimapConfig } from './minimapconfig.js';
 
-import './augmentation';
+export { MinimapIframeView as _MinimapIframeView } from './minimapiframeview.js';
+export { MinimapPositionTrackerView as _MinimapPositionTrackerView } from './minimappositiontrackerview.js';
+export {
+	type MinimapClickEvent,
+	type MinimapDragEvent,
+	type MinimapViewOptions as _MinimapViewOptions,
+	MinimapView as _MinimapView
+} from './minimapview.js';
+
+export {
+	cloneEditingViewDomRoot as _cloneMinimapEditingViewDomRoot,
+	getPageStyles as _getMinimapPageStyles,
+	getDomElementRect as _getMinimapDomElementRect,
+	getClientHeight as _getMinimapClientHeight,
+	getScrollable as _getMinimapScrollable
+} from './utils.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

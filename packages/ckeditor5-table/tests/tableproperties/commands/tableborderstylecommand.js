@@ -1,16 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
-import { assertTableStyle, modelTable, setTableWithObjectAttributes } from '../../_utils/utils';
-import TablePropertiesEditing from '../../../src/tableproperties/tablepropertiesediting';
-import TableBorderStyleCommand from '../../../src/tableproperties/commands/tableborderstylecommand';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+
+import { assertTableStyle, modelTable, setTableWithObjectAttributes } from '../../_utils/utils.js';
+import { TablePropertiesEditing } from '../../../src/tableproperties/tablepropertiesediting.js';
+import { TableBorderStyleCommand } from '../../../src/tableproperties/commands/tableborderstylecommand.js';
 
 describe( 'table properties', () => {
 	describe( 'commands', () => {
@@ -33,25 +35,30 @@ describe( 'table properties', () => {
 			describe( 'isEnabled', () => {
 				describe( 'collapsed selection', () => {
 					it( 'should be false if selection does not have table', () => {
-						setData( model, '<paragraph>foo[]</paragraph>' );
-						expect( command.isEnabled ).to.be.false;
+						_setModelData( model, '<paragraph>foo[]</paragraph>' );
+						expect( command.isEnabled ).toBe( false );
 					} );
 
 					it( 'should be true is selection has table', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ] ) );
-						expect( command.isEnabled ).to.be.true;
+						_setModelData( model, modelTable( [ [ '[]foo' ] ] ) );
+						expect( command.isEnabled ).toBe( true );
 					} );
 				} );
 
 				describe( 'non-collapsed selection', () => {
 					it( 'should be false if selection does not have table', () => {
-						setData( model, '<paragraph>f[oo]</paragraph>' );
-						expect( command.isEnabled ).to.be.false;
+						_setModelData( model, '<paragraph>f[oo]</paragraph>' );
+						expect( command.isEnabled ).toBe( false );
 					} );
 
-					it( 'should be true is selection has table', () => {
-						setData( model, modelTable( [ [ 'f[o]o' ] ] ) );
-						expect( command.isEnabled ).to.be.true;
+					it( 'should be true if selection is in table', () => {
+						_setModelData( model, modelTable( [ [ 'f[o]o' ] ] ) );
+						expect( command.isEnabled ).toBe( true );
+					} );
+
+					it( 'should be true if selection is over table', () => {
+						_setModelData( model, '[' + modelTable( [ [ 'foo' ] ] ) + ']' );
+						expect( command.isEnabled ).toBe( true );
 					} );
 				} );
 			} );
@@ -59,15 +66,15 @@ describe( 'table properties', () => {
 			describe( 'value', () => {
 				describe( 'collapsed selection', () => {
 					it( 'should be undefined if selected table has no borderStyle property', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ] ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ] ) );
 
-						expect( command.value ).to.be.undefined;
+						expect( command.value ).toBeUndefined();
 					} );
 
 					it( 'should be set if selected table has borderStyle property (single string)', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'ridge' } ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'ridge' } ) );
 
-						expect( command.value ).to.equal( 'ridge' );
+						expect( command.value ).toEqual( 'ridge' );
 					} );
 
 					it( 'should be set if selected table has borderStyle property object with same values', () => {
@@ -79,7 +86,7 @@ describe( 'table properties', () => {
 								left: 'ridge'
 							}
 						}, '[]foo' );
-						expect( command.value ).to.equal( 'ridge' );
+						expect( command.value ).toEqual( 'ridge' );
 					} );
 
 					it( 'should be undefined if selected table has borderStyle property object with different values', () => {
@@ -92,38 +99,44 @@ describe( 'table properties', () => {
 							}
 						}, '[]foo' );
 
-						expect( command.value ).to.be.undefined;
+						expect( command.value ).toBeUndefined();
 					} );
 				} );
 
 				describe( 'non-collapsed selection', () => {
-					it( 'should be false if selection does not have table', () => {
-						setData( model, '<paragraph>f[oo]</paragraph>' );
+					it( 'should be undefined if selection does not have table', () => {
+						_setModelData( model, '<paragraph>f[oo]</paragraph>' );
 
-						expect( command.value ).to.be.undefined;
+						expect( command.value ).toBeUndefined();
 					} );
 
-					it( 'should be true is selection has table', () => {
-						setData( model, modelTable( [ [ 'f[o]o' ] ], { tableBorderStyle: 'ridge' } ) );
+					it( 'should be set if selection is inside table', () => {
+						_setModelData( model, modelTable( [ [ 'f[o]o' ] ], { tableBorderStyle: 'ridge' } ) );
 
-						expect( command.value ).to.equal( 'ridge' );
+						expect( command.value ).toEqual( 'ridge' );
+					} );
+
+					it( 'should be set id selection is over table', () => {
+						_setModelData( model, '[' + modelTable( [ [ 'foo' ] ], { tableBorderStyle: 'ridge' } ) + ']' );
+
+						expect( command.value ).toEqual( 'ridge' );
 					} );
 				} );
 			} );
 
 			describe( 'execute()', () => {
 				it( 'should use provided batch', () => {
-					setData( model, modelTable( [ [ 'foo[]' ] ] ) );
+					_setModelData( model, modelTable( [ [ 'foo[]' ] ] ) );
 					const batch = model.createBatch();
-					const spy = sinon.spy( model, 'enqueueChange' );
+					const spy = vi.spyOn( model, 'enqueueChange' );
 
 					command.execute( { value: 'solid', batch } );
-					sinon.assert.calledWith( spy, batch );
+					expect( spy ).toHaveBeenCalledWith( batch, expect.any( Function ) );
 				} );
 
 				describe( 'collapsed selection', () => {
 					it( 'should set selected table borderStyle to a passed value', () => {
-						setData( model, modelTable( [ [ 'foo[]' ] ] ) );
+						_setModelData( model, modelTable( [ [ 'foo[]' ] ] ) );
 
 						command.execute( { value: 'solid' } );
 
@@ -131,7 +144,7 @@ describe( 'table properties', () => {
 					} );
 
 					it( 'should change selected table borderStyle to a passed value', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'ridge' } ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'ridge' } ) );
 
 						command.execute( { value: 'solid' } );
 
@@ -139,7 +152,7 @@ describe( 'table properties', () => {
 					} );
 
 					it( 'should remove borderStyle from a selected table if no value is passed', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'ridge' } ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'ridge' } ) );
 
 						command.execute();
 
@@ -147,9 +160,9 @@ describe( 'table properties', () => {
 					} );
 				} );
 
-				describe( 'non-collapsed selection', () => {
+				describe( 'non-collapsed selection (inside table)', () => {
 					it( 'should set selected table borderStyle to a passed value', () => {
-						setData( model, modelTable( [ [ '[foo]' ] ] ) );
+						_setModelData( model, modelTable( [ [ '[foo]' ] ] ) );
 
 						command.execute( { value: 'solid' } );
 
@@ -157,7 +170,7 @@ describe( 'table properties', () => {
 					} );
 
 					it( 'should change selected table borderStyle to a passed value', () => {
-						setData( model, modelTable( [ [ '[foo]' ] ] ) );
+						_setModelData( model, modelTable( [ [ '[foo]' ] ] ) );
 
 						command.execute( { value: 'solid' } );
 
@@ -165,7 +178,33 @@ describe( 'table properties', () => {
 					} );
 
 					it( 'should remove borderStyle from a selected table if no value is passed', () => {
-						setData( model, modelTable( [ [ '[foo]' ] ] ) );
+						_setModelData( model, modelTable( [ [ '[foo]' ] ] ) );
+
+						command.execute();
+
+						assertTableStyle( editor, '' );
+					} );
+				} );
+
+				describe( 'non-collapsed selection (over table)', () => {
+					it( 'should set selected table borderStyle to a passed value', () => {
+						_setModelData( model, '[' + modelTable( [ [ 'foo' ] ] ) + ']' );
+
+						command.execute( { value: 'solid' } );
+
+						assertTableStyle( editor, 'border-style:solid;' );
+					} );
+
+					it( 'should change selected table borderStyle to a passed value', () => {
+						_setModelData( model, '[' + modelTable( [ [ 'foo' ] ] ) + ']' );
+
+						command.execute( { value: 'solid' } );
+
+						assertTableStyle( editor, 'border-style:solid;' );
+					} );
+
+					it( 'should remove borderStyle from a selected table if no value is passed', () => {
+						_setModelData( model, '[' + modelTable( [ [ 'foo' ] ] ) + ']' );
 
 						command.execute();
 
@@ -194,29 +233,29 @@ describe( 'table properties', () => {
 			describe( 'value', () => {
 				describe( 'collapsed selection', () => {
 					it( 'should be undefined if selected table has set the default value', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'none' } ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'none' } ) );
 
-						expect( command.value ).to.be.undefined;
+						expect( command.value ).toBeUndefined();
 					} );
 
 					it( 'should be set if selected table has borderStyle property other than the default value', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'solid' } ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'solid' } ) );
 
-						expect( command.value ).to.equal( 'solid' );
+						expect( command.value ).toEqual( 'solid' );
 					} );
 				} );
 
 				describe( 'non-collapsed selection', () => {
 					it( 'should be undefined if selected table has set the default value', () => {
-						setData( model, modelTable( [ [ 'f[o]o' ] ], { tableBorderStyle: 'none' } ) );
+						_setModelData( model, modelTable( [ [ 'f[o]o' ] ], { tableBorderStyle: 'none' } ) );
 
-						expect( command.value ).to.be.undefined;
+						expect( command.value ).toBeUndefined();
 					} );
 
 					it( 'should be set if selected table has borderStyle property other than the default value', () => {
-						setData( model, modelTable( [ [ 'f[o]o' ] ], { tableBorderStyle: 'solid' } ) );
+						_setModelData( model, modelTable( [ [ 'f[o]o' ] ], { tableBorderStyle: 'solid' } ) );
 
-						expect( command.value ).to.equal( 'solid' );
+						expect( command.value ).toEqual( 'solid' );
 					} );
 				} );
 			} );
@@ -224,7 +263,7 @@ describe( 'table properties', () => {
 			describe( 'execute()', () => {
 				describe( 'collapsed selection', () => {
 					it( 'should remove borderStyle from a selected table if passed the default value', () => {
-						setData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'solid' } ) );
+						_setModelData( model, modelTable( [ [ '[]foo' ] ], { tableBorderStyle: 'solid' } ) );
 
 						command.execute( { value: 'none' } );
 
@@ -234,7 +273,7 @@ describe( 'table properties', () => {
 
 				describe( 'non-collapsed selection', () => {
 					it( 'should remove borderStyle from a selected table if passed the default value', () => {
-						setData( model, modelTable( [ [ '[foo]' ] ], { tableBorderStyle: 'solid' } ) );
+						_setModelData( model, modelTable( [ [ '[foo]' ] ], { tableBorderStyle: 'solid' } ) );
 
 						command.execute( { value: 'none' } );
 

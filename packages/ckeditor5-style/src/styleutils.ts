@@ -1,21 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/styleutils
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import type { Element, MatcherObjectPattern, DocumentSelection, Selectable } from 'ckeditor5/src/engine';
-import type { DecoratedMethodEvent } from 'ckeditor5/src/utils';
-import type { TemplateDefinition } from 'ckeditor5/src/ui';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelElement, MatcherObjectPattern, ModelDocumentSelection, ModelSelectable } from '@ckeditor/ckeditor5-engine';
+import type { DecoratedMethodEvent } from '@ckeditor/ckeditor5-utils';
+import type { TemplateDefinition } from '@ckeditor/ckeditor5-ui';
 
-import type { DataFilter, DataSchema, GeneralHtmlSupport, DataSchemaBlockElementDefinition } from '@ckeditor/ckeditor5-html-support';
+import type {
+	DataFilter,
+	DataSchema,
+	GeneralHtmlSupport,
+	HtmlSupportDataSchemaBlockElementDefinition
+} from '@ckeditor/ckeditor5-html-support';
 
-import type { StyleDefinition } from './styleconfig';
-import { isObject } from 'lodash-es';
+import type { StyleDefinition } from './styleconfig.js';
+import { isObject } from 'es-toolkit/compat';
 
 // These are intermediate element names that can't be rendered as style preview because they don't make sense standalone.
 const NON_PREVIEWABLE_ELEMENT_NAMES = [
@@ -23,7 +28,7 @@ const NON_PREVIEWABLE_ELEMENT_NAMES = [
 	'rt', 'summary', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr'
 ];
 
-export default class StyleUtils extends Plugin {
+export class StyleUtils extends Plugin {
 	private _htmlSupport!: GeneralHtmlSupport;
 
 	/**
@@ -31,6 +36,13 @@ export default class StyleUtils extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'StyleUtils' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -99,7 +111,7 @@ export default class StyleUtils extends Plugin {
 					if ( typeof appliesToBlock == 'string' ) {
 						modelElements.push( appliesToBlock );
 					} else if ( ghsDefinition.isBlock ) {
-						const ghsBlockDefinition: DataSchemaBlockElementDefinition = ghsDefinition;
+						const ghsBlockDefinition: HtmlSupportDataSchemaBlockElementDefinition = ghsDefinition;
 
 						modelElements.push( ghsDefinition.model );
 
@@ -140,7 +152,7 @@ export default class StyleUtils extends Plugin {
 	 *
 	 * @internal
 	 */
-	public isStyleEnabledForBlock( definition: BlockStyleDefinition, block: Element ): boolean {
+	public isStyleEnabledForBlock( definition: BlockStyleDefinition, block: ModelElement ): boolean {
 		const model = this.editor.model;
 		const attributeName = this._htmlSupport.getGhsAttributeNameForElement( definition.element );
 
@@ -156,7 +168,7 @@ export default class StyleUtils extends Plugin {
 	 *
 	 * @internal
 	 */
-	public isStyleActiveForBlock( definition: BlockStyleDefinition, block: Element ): boolean {
+	public isStyleActiveForBlock( definition: BlockStyleDefinition, block: ModelElement ): boolean {
 		const attributeName = this._htmlSupport.getGhsAttributeNameForElement( definition.element );
 		const ghsAttributeValue = block.getAttribute( attributeName );
 
@@ -168,7 +180,7 @@ export default class StyleUtils extends Plugin {
 	 *
 	 * @internal
 	 */
-	public getAffectedBlocks( definition: BlockStyleDefinition, block: Element ): Array<Element> | null {
+	public getAffectedBlocks( definition: BlockStyleDefinition, block: ModelElement ): Array<ModelElement> | null {
 		if ( definition.modelElements.includes( block.name ) ) {
 			return [ block ];
 		}
@@ -181,7 +193,7 @@ export default class StyleUtils extends Plugin {
 	 *
 	 * @internal
 	 */
-	public isStyleEnabledForInlineSelection( definition: InlineStyleDefinition, selection: DocumentSelection ): boolean {
+	public isStyleEnabledForInlineSelection( definition: InlineStyleDefinition, selection: ModelDocumentSelection ): boolean {
 		const model = this.editor.model;
 
 		for ( const ghsAttributeName of definition.ghsAttributes ) {
@@ -198,7 +210,7 @@ export default class StyleUtils extends Plugin {
 	 *
 	 * @internal
 	 */
-	public isStyleActiveForInlineSelection( definition: InlineStyleDefinition, selection: DocumentSelection ): boolean {
+	public isStyleActiveForInlineSelection( definition: InlineStyleDefinition, selection: ModelDocumentSelection ): boolean {
 		for ( const ghsAttributeName of definition.ghsAttributes ) {
 			const ghsAttributeValue = this._getValueFromFirstAllowedNode( selection, ghsAttributeName );
 
@@ -215,7 +227,7 @@ export default class StyleUtils extends Plugin {
 	 *
 	 * @internal
 	 */
-	public getAffectedInlineSelectable( definition: InlineStyleDefinition, selection: DocumentSelection ): Selectable {
+	public getAffectedInlineSelectable( definition: InlineStyleDefinition, selection: ModelDocumentSelection ): ModelSelectable {
 		return selection;
 	}
 
@@ -270,7 +282,7 @@ export default class StyleUtils extends Plugin {
 	 * @param attributeName Name of the GHS attribute.
 	 * @returns The attribute value.
 	 */
-	private _getValueFromFirstAllowedNode( selection: DocumentSelection, attributeName: string ): unknown | null {
+	private _getValueFromFirstAllowedNode( selection: ModelDocumentSelection, attributeName: string ): unknown | null {
 		const model = this.editor.model;
 		const schema = model.schema;
 

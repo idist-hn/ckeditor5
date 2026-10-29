@@ -1,105 +1,108 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Autoformat from '../src/autoformat';
+import { Autoformat } from '../src/autoformat.js';
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import ListEditing from '@ckeditor/ckeditor5-list/src/list/listediting';
-import HeadingEditing from '@ckeditor/ckeditor5-heading/src/headingediting';
-import BoldEditing from '@ckeditor/ckeditor5-basic-styles/src/bold/boldediting';
-import CodeEditing from '@ckeditor/ckeditor5-basic-styles/src/code/codeediting';
-import StrikethroughEditing from '@ckeditor/ckeditor5-basic-styles/src/strikethrough/strikethroughediting';
-import ItalicEditing from '@ckeditor/ckeditor5-basic-styles/src/italic/italicediting';
-import BlockQuoteEditing from '@ckeditor/ckeditor5-block-quote/src/blockquoteediting';
-import Enter from '@ckeditor/ckeditor5-enter/src/enter';
-import Delete from '@ckeditor/ckeditor5-typing/src/delete';
-import Undo from '@ckeditor/ckeditor5-undo/src/undoediting';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ListEditing, _ListItemUid as ListItemUid } from '@ckeditor/ckeditor5-list';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
+import { BoldEditing, CodeEditing, StrikethroughEditing, ItalicEditing } from '@ckeditor/ckeditor5-basic-styles';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
+import { Enter } from '@ckeditor/ckeditor5-enter';
+import { Delete } from '@ckeditor/ckeditor5-typing';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
 
-import { setData, getData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { DomEventData } from '@ckeditor/ckeditor5-engine';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+
+import { _setModelData, _getModelData, ViewDocumentDomEventData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Autoformat undo integration', () => {
 	let editor, model, doc;
 
-	testUtils.createSinonSandbox();
+	beforeEach( () => {
+		let uidNum = 0xa00;
 
-	afterEach( () => {
-		return editor.destroy();
+		vi.spyOn( ListItemUid, 'next' ).mockImplementation( () => ( uidNum++ ).toString( 16 ).padStart( 3, '000' ) );
+	} );
+
+	afterEach( async () => {
+		if ( editor ) {
+			await editor.destroy();
+		}
 	} );
 
 	describe( 'inline', () => {
 		beforeEach( createVirtualEditorInstance );
 
 		it( 'should undo replacing "**" with bold', () => {
-			setData( model, '<paragraph>**foobar*[]</paragraph>' );
+			_setModelData( model, '<paragraph>**foobar*[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '*', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>**foobar**[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>**foobar**[]</paragraph>' );
 		} );
 
 		it( 'should undo replacing "__" with bold', () => {
-			setData( model, '<paragraph>__foobar_[]</paragraph>' );
+			_setModelData( model, '<paragraph>__foobar_[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '_', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>__foobar__[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>__foobar__[]</paragraph>' );
 		} );
 
 		it( 'should undo replacing "*" with italic', () => {
-			setData( model, '<paragraph>*foobar[]</paragraph>' );
+			_setModelData( model, '<paragraph>*foobar[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '*', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text italic="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text italic="true">foobar</$text>[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>*foobar*[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>*foobar*[]</paragraph>' );
 		} );
 
 		it( 'should undo replacing "_" with italic', () => {
-			setData( model, '<paragraph>_foobar[]</paragraph>' );
+			_setModelData( model, '<paragraph>_foobar[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '_', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text italic="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text italic="true">foobar</$text>[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>_foobar_[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>_foobar_[]</paragraph>' );
 		} );
 
 		it( 'should undo replacing "`" with code', () => {
-			setData( model, '<paragraph>`foobar[]</paragraph>' );
+			_setModelData( model, '<paragraph>`foobar[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '`', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text code="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text code="true">foobar</$text>[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>`foobar`[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>`foobar`[]</paragraph>' );
 		} );
 
 		it( 'should undo replacing "~~" with strikethrough', () => {
-			setData( model, '<paragraph>~~foobar~[]</paragraph>' );
+			_setModelData( model, '<paragraph>~~foobar~[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '~', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text strikethrough="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text strikethrough="true">foobar</$text>[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>~~foobar~~[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>~~foobar~~[]</paragraph>' );
 		} );
 	} );
 
@@ -107,83 +110,83 @@ describe( 'Autoformat undo integration', () => {
 		beforeEach( createVirtualEditorInstance );
 
 		it( 'should work when replacing asterisk', () => {
-			setData( model, '<paragraph>*[]</paragraph>' );
+			_setModelData( model, '<paragraph>*[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<listItem listIndent="0" listType="bulleted">[]</listItem>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listItemId="a00" listType="bulleted">[]</paragraph>' );
 
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>* []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>* []</paragraph>' );
 		} );
 
 		it( 'should work when replacing minus character', () => {
-			setData( model, '<paragraph>-[]</paragraph>' );
+			_setModelData( model, '<paragraph>-[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<listItem listIndent="0" listType="bulleted">[]</listItem>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listItemId="a00" listType="bulleted">[]</paragraph>' );
 
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>- []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>- []</paragraph>' );
 		} );
 
 		it( 'should work when replacing digit with numbered list item using the dot format', () => {
-			setData( model, '<paragraph>1.[]</paragraph>' );
+			_setModelData( model, '<paragraph>1.[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<listItem listIndent="0" listType="numbered">[]</listItem>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listItemId="a00" listType="numbered">[]</paragraph>' );
 
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>1. []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>1. []</paragraph>' );
 		} );
 
 		it( 'should work when replacing digit with numbered list item using the parenthesis format', () => {
-			setData( model, '<paragraph>1)[]</paragraph>' );
+			_setModelData( model, '<paragraph>1)[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<listItem listIndent="0" listType="numbered">[]</listItem>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listItemId="a00" listType="numbered">[]</paragraph>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>1) []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>1) []</paragraph>' );
 		} );
 
 		it( 'should work when replacing hash character with heading', () => {
-			setData( model, '<paragraph>#[]</paragraph>' );
+			_setModelData( model, '<paragraph>#[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<heading1>[]</heading1>' );
+			expect( _getModelData( model ) ).toBe( '<heading1>[]</heading1>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph># []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph># []</paragraph>' );
 		} );
 
 		it( 'should work when replacing two hash characters with heading level 2', () => {
-			setData( model, '<paragraph>##[]</paragraph>' );
+			_setModelData( model, '<paragraph>##[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<heading2>[]</heading2>' );
+			expect( _getModelData( model ) ).toBe( '<heading2>[]</heading2>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>## []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>## []</paragraph>' );
 		} );
 
 		it( 'should work when replacing greater-than character with block quote', () => {
-			setData( model, '<paragraph>>[]</paragraph>' );
+			_setModelData( model, '<paragraph>>[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<blockQuote><paragraph>[]</paragraph></blockQuote>' );
+			expect( _getModelData( model ) ).toBe( '<blockQuote><paragraph>[]</paragraph></blockQuote>' );
 			editor.execute( 'undo' );
-			expect( getData( model ) ).to.equal( '<paragraph>> []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>> []</paragraph>' );
 		} );
 	} );
 
@@ -199,7 +202,7 @@ describe( 'Autoformat undo integration', () => {
 						BoldEditing,
 						ListEditing,
 						Delete,
-						Undo
+						UndoEditing
 					]
 				} );
 
@@ -207,46 +210,46 @@ describe( 'Autoformat undo integration', () => {
 			model = editor.model;
 			doc = model.document;
 			viewDocument = editor.editing.view.document;
-			deleteEvent = new DomEventData(
+			deleteEvent = new ViewDocumentDomEventData(
 				viewDocument,
-				{ preventDefault: sinon.spy() },
+				{ preventDefault: vi.fn() },
 				{ direction: 'backward', unit: 'codePoint', sequence: 1 }
 			);
 		} );
 
 		it( 'should undo after inline autoformat', () => {
-			setData( model, '<paragraph>**foobar*[]</paragraph>' );
+			_setModelData( model, '<paragraph>**foobar*[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '*', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
 
 			viewDocument.fire( 'delete', deleteEvent );
 
-			expect( getData( model ) ).to.equal( '<paragraph>**foobar**[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>**foobar**[]</paragraph>' );
 		} );
 
 		it( 'should undo after block autoformat', () => {
-			setData( model, '<paragraph>-[]</paragraph>' );
+			_setModelData( model, '<paragraph>-[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( ' ', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<listItem listIndent="0" listType="bulleted">[]</listItem>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph listIndent="0" listItemId="a00" listType="bulleted">[]</paragraph>' );
 
 			viewDocument.fire( 'delete', deleteEvent );
 
-			expect( getData( model ) ).to.equal( '<paragraph>- []</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph>- []</paragraph>' );
 		} );
 
 		it( 'should not undo after selection has changed', () => {
-			setData( model, '<paragraph>**foobar*[]</paragraph>' );
+			_setModelData( model, '<paragraph>**foobar*[]</paragraph>' );
 			model.change( writer => {
 				writer.insertText( '*', doc.selection.getFirstPosition() );
 			} );
 
-			expect( getData( model ) ).to.equal( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
+			expect( _getModelData( model ) ).toBe( '<paragraph><$text bold="true">foobar</$text>[]</paragraph>' );
 
 			model.change( writer => {
 				const selection = model.createSelection();
@@ -255,8 +258,8 @@ describe( 'Autoformat undo integration', () => {
 
 			viewDocument.fire( 'delete', deleteEvent );
 
-			expect( getData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text bold="true">foobar</$text></paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toBe( '<paragraph><$text bold="true">foobar</$text></paragraph>' );
 		} );
 	} );
 
@@ -265,7 +268,7 @@ describe( 'Autoformat undo integration', () => {
 			.create( {
 				plugins: [
 					Enter,
-					Undo,
+					UndoEditing,
 					Paragraph,
 					Autoformat,
 					ListEditing,

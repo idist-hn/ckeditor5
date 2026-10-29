@@ -1,27 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/htmlcomment
  */
 
-import type { Marker, Position, Range, Element } from 'ckeditor5/src/engine';
-import { Plugin } from 'ckeditor5/src/core';
-import { uid } from 'ckeditor5/src/utils';
+import type { Marker, ModelPosition, ModelRange, ModelElement } from '@ckeditor/ckeditor5-engine';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { uid } from '@ckeditor/ckeditor5-utils';
 
 /**
  * The HTML comment feature. It preserves the HTML comments (`<!-- -->`) in the editor data.
  *
  * For a detailed overview, check the {@glink features/html/html-comments HTML comment feature documentation}.
  */
-export default class HtmlComment extends Plugin {
+export class HtmlComment extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'HtmlComment' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -33,9 +40,15 @@ export default class HtmlComment extends Plugin {
 
 		editor.data.processor.skipComments = false;
 
-		// Allow storing comment's content as the $root attribute with the name `$comment:<unique id>`.
+		// Declare the `$comment` attribute on `$root`. Custom roots that opt into the `$root`
+		// attribute chain via `allowAttributesOf: '$root'` get comment support automatically.
+		editor.model.schema.extend( '$root', { allowAttributes: '$comment' } );
+
+		// Allow storing comment's content as a root attribute with the name `$comment:<unique id>`.
+		// Gate the per-comment attribute on the root already allowing the generic `$comment` attribute
+		// so the rule works for any root name.
 		editor.model.schema.addAttributeCheck( ( context, attributeName ) => {
-			if ( context.endsWith( '$root' ) && attributeName.startsWith( '$comment' ) ) {
+			if ( attributeName.startsWith( '$comment:' ) && editor.model.schema.checkAttribute( context, '$comment' ) ) {
 				return true;
 			}
 		} );
@@ -95,7 +108,7 @@ export default class HtmlComment extends Plugin {
 				if ( oldRange ) {
 					// The comment marker was moved from one root to another (most probably to the graveyard).
 					// Remove the related attribute from the previous root.
-					const oldRoot = oldRange.root as Element;
+					const oldRoot = oldRange.root as ModelElement;
 
 					if ( oldRoot.hasAttribute( marker.name ) ) {
 						writer.removeAttribute( marker.name, oldRoot );
@@ -105,7 +118,7 @@ export default class HtmlComment extends Plugin {
 				}
 
 				if ( newRange ) {
-					const newRoot = newRange.root as Element;
+					const newRoot = newRange.root as ModelElement;
 
 					if ( newRoot.rootName == '$graveyard' ) {
 						// Comment marker was moved to the graveyard -- remove it entirely.
@@ -166,7 +179,7 @@ export default class HtmlComment extends Plugin {
 	 *
 	 * @returns Comment ID. This ID can be later used to e.g. remove the comment from the content.
 	 */
-	public createHtmlComment( position: Position, content: string ): string {
+	public createHtmlComment( position: ModelPosition, content: string ): string {
 		const id = uid();
 		const editor = this.editor;
 		const model = editor.model;
@@ -248,11 +261,12 @@ export default class HtmlComment extends Plugin {
 	 *
 	 * By default, it includes comments at the range boundaries.
 	 *
-	 * @param range
+	 * @param range The range to search for HTML comments.
+	 * @param options Additional options.
 	 * @param options.skipBoundaries When set to `true` the range boundaries will be skipped.
 	 * @returns HTML comment IDs
 	 */
-	public getHtmlCommentsInRange( range: Range, { skipBoundaries = false } = {} ): Array<string> {
+	public getHtmlCommentsInRange( range: ModelRange, { skipBoundaries = false }: { skipBoundaries?: boolean } = {} ): Array<string> {
 		const includeBoundaries = !skipBoundaries;
 
 		// Unfortunately, MarkerCollection#getMarkersAtPosition() filters out collapsed markers.
@@ -260,7 +274,7 @@ export default class HtmlComment extends Plugin {
 			.filter( marker => isCommentMarkerInRange( marker, range ) )
 			.map( marker => marker.name );
 
-		function isCommentMarkerInRange( commentMarker: Marker, range: Range ) {
+		function isCommentMarkerInRange( commentMarker: Marker, range: ModelRange ) {
 			const position = commentMarker.getRange().start;
 
 			return (
@@ -274,9 +288,9 @@ export default class HtmlComment extends Plugin {
 /**
  * An interface for the HTML comments data.
  *
- * It consists of the {@link module:engine/model/position~Position `position`} and `content`.
+ * It consists of the {@link module:engine/model/position~ModelPosition `position`} and `content`.
  */
 export interface HtmlCommentData {
-	position: Position;
+	position: ModelPosition;
 	content: string;
 }

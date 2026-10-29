@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module upload/adapters/simpleuploadadapter
  */
 
-/* globals XMLHttpRequest, FormData */
-
-import { Plugin } from '@ckeditor/ckeditor5-core';
-import FileRepository, { type UploadResponse, type FileLoader, type UploadAdapter } from '../filerepository';
-import type { SimpleUploadConfig } from '../uploadconfig';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { FileRepository, type UploadResponse, type FileLoader, type UploadAdapter } from '../filerepository.js';
+import type { SimpleUploadConfig } from '../uploadconfig.js';
 import { logWarning } from '@ckeditor/ckeditor5-utils';
 
 /**
@@ -21,7 +19,7 @@ import { logWarning } from '@ckeditor/ckeditor5-utils';
  *
  * ```ts
  * ClassicEditor
- * 	.create( document.querySelector( '#editor' ), {
+ * 	.create( {
  * 		simpleUpload: {
  * 			uploadUrl: 'http://example.com',
  * 			headers: {
@@ -39,12 +37,12 @@ import { logWarning } from '@ckeditor/ckeditor5-utils';
  * Check out the {@glink features/images/image-upload/image-upload comprehensive "Image upload overview"} to learn about
  * other ways to upload images into CKEditor 5.
  */
-export default class SimpleUploadAdapter extends Plugin {
+export class SimpleUploadAdapter extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ FileRepository ] as const;
+	public static get requires(): PluginDependenciesOf<[ FileRepository ]> {
+		return [ FileRepository ];
 	}
 
 	/**
@@ -52,6 +50,28 @@ export default class SimpleUploadAdapter extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'SimpleUploadAdapter' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @internal
+	 */
+	public static get licenseFeatureCode(): string {
+		return 'SUA';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isPremiumPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -180,9 +200,10 @@ class Adapter implements UploadAdapter {
 		} );
 
 		// Upload progress when it is supported.
-		/* istanbul ignore else -- @preserve */
+		/* v8 ignore else -- @preserve */
 		if ( xhr.upload ) {
 			xhr.upload.addEventListener( 'progress', evt => {
+				/* v8 ignore else -- @preserve */
 				if ( evt.lengthComputable ) {
 					loader.uploadTotal = evt.total;
 					loader.uploaded = evt.loaded;
@@ -198,7 +219,11 @@ class Adapter implements UploadAdapter {
 	 */
 	private _sendRequest( file: File ): void {
 		// Set headers if specified.
-		const headers = this.options.headers || {};
+		let headers = this.options.headers || {};
+
+		if ( typeof headers === 'function' ) {
+			headers = headers( file );
+		}
 
 		// Use the withCredentials flag if specified.
 		const withCredentials = this.options.withCredentials || false;

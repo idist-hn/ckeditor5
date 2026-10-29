@@ -1,20 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module paste-from-office/filters/removeboldwrapper
  */
 
-import type { UpcastWriter, ViewDocumentFragment } from 'ckeditor5/src/engine';
+import type { ViewUpcastWriter, ViewDocumentFragment } from '@ckeditor/ckeditor5-engine';
 
 /**
  * Removes the `<b>` tag wrapper added by Google Docs to a copied content.
  *
  * @param documentFragment element `data.content` obtained from clipboard
+ * @internal
  */
-export default function removeBoldWrapper( documentFragment: ViewDocumentFragment, writer: UpcastWriter ): void {
+export function removeBoldWrapper( documentFragment: ViewDocumentFragment, writer: ViewUpcastWriter ): void {
 	for ( const child of documentFragment.getChildren() ) {
 		if ( child.is( 'element', 'b' ) && child.getStyle( 'font-weight' ) === 'normal' ) {
 			const childIndex = documentFragment.getChildIndex( child );

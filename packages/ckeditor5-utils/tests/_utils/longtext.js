@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 import longtext from './longtext.txt';
@@ -13,7 +13,7 @@ import longtext from './longtext.txt';
  * @param {Boolean} reversed Whether given text should be reversed.
  * @returns {String} Text of a given length.
  */
-export default function getLongText( length, fromStart = true, reversed = false ) {
+export function getLongText( length, fromStart = true, reversed = false ) {
 	const baseText = longtext.repeat( Math.ceil( length / longtext.length ) );
 	const text = fromStart ? baseText.substring( 0, length ) : baseText.substring( longtext.length - length );
 	return reversed ? text.split( '' ).reverse().join( '' ) : text;

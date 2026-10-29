@@ -1,9 +1,23 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+:root,
+:host {
+	/* Size */
+	/* Backward compatibility: falls back to legacy --ck-font-size-normal if overridden. */
+	--ck-block-toolbar-button-size: var(--ck-font-size-normal, var(--ck-font-size-base));
+}
+
 .ck.ck-block-toolbar-button {
+	/* Fallback to `--ck-color-block-toolbar-button` for backward compatibility. Set as the button's fallback color
+	   (read by `.ck.ck-button` after `--ck-button-default-text-color`), so a `:root` override of the button text
+	   tokens still wins and the hover and active states fall back to it as well. */
+	--_ck-button-fallback-text-color: var(--ck-color-block-toolbar-button, var(--ck-color-text));
+	/* Fallback to `--ck-block-toolbar-size` for backward compatibility. */
+	font-size: var(--ck-block-toolbar-size, var(--ck-block-toolbar-button-size));
 	position: absolute;
-	z-index: var(--ck-z-default);
+	/* Backward compatibility: falls back to legacy --ck-z-default if overridden. */
+	z-index: var(--ck-z-default, var(--ck-z-base));
 }

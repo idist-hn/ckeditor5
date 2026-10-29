@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -11,13 +11,14 @@
  * @module engine/dev-utils/utils
  */
 
-/* globals console */
+// @if CK_DEBUG_TYPING // import { debounce } from 'es-toolkit/compat';
 
 /**
  * Helper function, converts a map to the 'key1="value1" key2="value1"' format.
  *
  * @param map Map to convert.
  * @returns Converted map.
+ * @internal
  */
 export function convertMapToTags( map: Iterable<[ string, unknown ]> ): string {
 	let string = '';
@@ -34,6 +35,7 @@ export function convertMapToTags( map: Iterable<[ string, unknown ]> ): string {
  *
  * @param map Map to convert.
  * @returns Converted map.
+ * @internal
  */
 export function convertMapToStringifiedObject( map: Iterable<[ string, unknown ]> ): string {
 	const obj: any = {};
@@ -50,6 +52,8 @@ const maxTreeDumpLength = 20;
 
 /**
  * Helper function that stores the `document` state for a given `version`.
+ *
+ * @internal
  */
 export function dumpTrees( document: any, version: any ): void {
 	console.log( document, version );
@@ -71,6 +75,8 @@ export function dumpTrees( document: any, version: any ): void {
 
 /**
  * Helper function that initializes document dumping.
+ *
+ * @internal
  */
 export function initDocumentDumping( document: any ): void {
 	document[ treeDump ] = [];
@@ -78,6 +84,8 @@ export function initDocumentDumping( document: any ): void {
 
 /**
  * Helper function that logs document for the given version.
+ *
+ * @internal
  */
 export function logDocument( document: any, version: any ): void {
 	console.log( '--------------------' );
@@ -88,3 +96,48 @@ export function logDocument( document: any, version: any ): void {
 		console.log( 'Tree log unavailable for given version: ' + version );
 	}
 }
+
+// @if CK_DEBUG_TYPING // export const _debouncedLine = debounce( () => {
+// @if CK_DEBUG_TYPING // 	console.log(
+// @if CK_DEBUG_TYPING // 		'%c───────────────────────────────────────────────────────────────────────────────────────────────────────',
+// @if CK_DEBUG_TYPING // 		'font-weight: bold; color: red'
+// @if CK_DEBUG_TYPING // 	);
+// @if CK_DEBUG_TYPING // }, 300 );
+
+// @if CK_DEBUG_TYPING // export function _buildLogMessage( context, className, message = '', ...rest ) {
+// @if CK_DEBUG_TYPING // 	const editor = _findAllEditorInstances().find( editor => (
+// @if CK_DEBUG_TYPING // 		_getLogNodes( editor ).includes( context )
+// @if CK_DEBUG_TYPING // 	) );
+// @if CK_DEBUG_TYPING // 	const editorName = editor && Object.getPrototypeOf( editor ).constructor.name;
+// @if CK_DEBUG_TYPING // 	const editorPrefix = editor ? `${ editorName }-${ editor.id.slice( -4 ) } ` : 'UNKNOWN ';
+// @if CK_DEBUG_TYPING // 	return [
+// @if CK_DEBUG_TYPING // 		`%c${ editorPrefix }%c[${ className }]%c ${ message }`,
+// @if CK_DEBUG_TYPING //		'font-weight: normal;',
+// @if CK_DEBUG_TYPING //		'font-weight: bold; color: green',
+// @if CK_DEBUG_TYPING //		'',
+// @if CK_DEBUG_TYPING // 		...rest
+// @if CK_DEBUG_TYPING // 	];
+// @if CK_DEBUG_TYPING // }
+
+// @if CK_DEBUG_TYPING // function _findAllEditorInstances() {
+// @if CK_DEBUG_TYPING // 	const editors = new Set();
+// @if CK_DEBUG_TYPING // 	for ( const domEditable of document.querySelectorAll( '.ck.ck-content.ck-editor__editable' ) ) {
+// @if CK_DEBUG_TYPING // 		if ( domEditable.ckeditorInstance ) {
+// @if CK_DEBUG_TYPING // 			editors.add( domEditable.ckeditorInstance );
+// @if CK_DEBUG_TYPING // 		}
+// @if CK_DEBUG_TYPING // 	}
+// @if CK_DEBUG_TYPING // 	return Array.from( editors );
+// @if CK_DEBUG_TYPING // }
+
+// @if CK_DEBUG_TYPING // function _getLogNodes( editor ) {
+// @if CK_DEBUG_TYPING // 	return [
+// @if CK_DEBUG_TYPING // 		editor.editing.view._renderer,
+// @if CK_DEBUG_TYPING // 		editor.editing.view.domConverter,
+// @if CK_DEBUG_TYPING // 		...editor.editing.view._observers.values(),
+// @if CK_DEBUG_TYPING // 		editor.plugins.get( 'Input' ),
+// @if CK_DEBUG_TYPING // 		editor.plugins.get( 'Input' )._typingQueue,
+// @if CK_DEBUG_TYPING // 		editor.plugins.get( 'WidgetTypeAround' ),
+// @if CK_DEBUG_TYPING // 		editor.commands.get( 'delete' ),
+// @if CK_DEBUG_TYPING // 		editor.commands.get( 'deleteForward' )
+// @if CK_DEBUG_TYPING // 	];
+// @if CK_DEBUG_TYPING // }

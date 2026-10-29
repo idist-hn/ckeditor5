@@ -1,33 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/linkimageediting
  */
 
-import {
-	Plugin,
-	type Editor
-} from 'ckeditor5/src/core';
+import { Plugin, type Editor, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 import {
 	Matcher,
 	type UpcastElementEvent,
-	type Node,
-	type Element,
+	type ModelNode,
+	type ModelElement,
 	type DowncastAttributeEvent,
 	type ViewElement,
 	type DowncastDispatcher,
 	type UpcastDispatcher
-} from 'ckeditor5/src/engine';
-import { toMap } from 'ckeditor5/src/utils';
+} from '@ckeditor/ckeditor5-engine';
+import { type GetCallback, priorities, toMap } from '@ckeditor/ckeditor5-utils';
 
-import LinkEditing from './linkediting';
-import type ManualDecorator from './utils/manualdecorator';
-import type LinkCommand from './linkcommand';
+import { LinkEditing } from './linkediting.js';
+import { type LinkManualDecorator } from './utils/manualdecorator.js';
+import { type LinkCommand } from './linkcommand.js';
 
-import type { ImageUtils } from '@ckeditor/ckeditor5-image';
+import { ImageEditing, ImageUtils } from '@ckeditor/ckeditor5-image';
 
 /**
  * The link image engine feature.
@@ -35,12 +32,12 @@ import type { ImageUtils } from '@ckeditor/ckeditor5-image';
  * It accepts the `linkHref="url"` attribute in the model for the {@link module:image/image~Image `<imageBlock>`} element
  * which allows linking images.
  */
-export default class LinkImageEditing extends Plugin {
+export class LinkImageEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ 'ImageEditing', 'ImageUtils', LinkEditing ] as const;
+	public static get requires(): PluginDependenciesOf<[ ImageEditing, ImageUtils, LinkEditing ]> {
+		return [ ImageEditing, ImageUtils, LinkEditing ];
 	}
 
 	/**
@@ -53,7 +50,14 @@ export default class LinkImageEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public init(): void {
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public afterInit(): void {
 		const editor = this.editor;
 		const schema = editor.model.schema;
 
@@ -84,7 +88,7 @@ export default class LinkImageEditing extends Plugin {
 	}
 
 	/**
-	 * Processes transformed {@link module:link/utils/manualdecorator~ManualDecorator} instances and attaches proper converters
+	 * Processes transformed {@link module:link/utils/manualdecorator~LinkManualDecorator} instances and attaches proper converters
 	 * that will work when linking an image.
 	 */
 	private _enableManualDecorators(): void {
@@ -144,38 +148,21 @@ function upcastLink( editor: Editor ): ( dispatcher: UpcastDispatcher ) => void 
 			const consumableAttributes = { attributes: [ 'href' ] };
 
 			// Consume the `href` attribute so the default one will not convert it to $text attribute.
-			if ( !conversionApi.consumable.consume( viewLink, consumableAttributes ) ) {
+			if ( !conversionApi.consumable.test( viewLink, consumableAttributes ) ) {
 				// Might be consumed by something else - i.e. other converter with priority=highest - a standard check.
 				return;
 			}
 
 			const linkHref = viewLink.getAttribute( 'href' );
 
-			// Missing the 'href' attribute.
-			if ( !linkHref ) {
-				return;
-			}
-
 			// A full definition of the image feature.
 			// figure > a > img: parent of the view link element is an image element (figure).
-			let modelElement: Node | null = data.modelCursor.parent as Node;
+			const modelElement = data.modelCursor.parent as ModelNode;
 
-			if ( !modelElement.is( 'element', 'imageBlock' ) ) {
-				// a > img: parent of the view link is not the image (figure) element. We need to convert it manually.
-				const conversionResult = conversionApi.convertItem( imageInLink, data.modelCursor );
-
-				// Set image range as conversion result.
-				data.modelRange = conversionResult.modelRange;
-
-				// Continue conversion where image conversion ends.
-				data.modelCursor = conversionResult.modelCursor;
-
-				modelElement = data.modelCursor.nodeBefore as Node;
-			}
-
-			if ( modelElement && modelElement.is( 'element', 'imageBlock' ) ) {
+			if ( modelElement.is( 'element', 'imageBlock' ) ) {
 				// Set the linkHref attribute from link element on model image element.
 				conversionApi.writer.setAttribute( 'linkHref', linkHref, modelElement );
+				conversionApi.consumable.consume( viewLink, consumableAttributes );
 			}
 		}, { priority: 'high' } );
 		// Using the same priority that `upcastImageLinkManualDecorator()` converter guarantees
@@ -190,7 +177,7 @@ function downcastImageLink( editor: Editor ): ( dispatcher: DowncastDispatcher )
 	const imageUtils: ImageUtils = editor.plugins.get( 'ImageUtils' );
 
 	return dispatcher => {
-		dispatcher.on<DowncastAttributeEvent<Element>>( 'attribute:linkHref:imageBlock', ( evt, data, conversionApi ) => {
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( 'attribute:linkHref:imageBlock', ( evt, data, conversionApi ) => {
 			if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
 				return;
 			}
@@ -232,31 +219,60 @@ function downcastImageLink( editor: Editor ): ( dispatcher: DowncastDispatcher )
 /**
  * Returns a converter that decorates the `<a>` element when the image is the link label.
  */
-function downcastImageLinkManualDecorator( decorator: ManualDecorator ): ( dispatcher: DowncastDispatcher ) => void {
+function downcastImageLinkManualDecorator( decorator: LinkManualDecorator ): ( dispatcher: DowncastDispatcher ) => void {
 	return dispatcher => {
-		dispatcher.on<DowncastAttributeEvent<Element>>( `attribute:${ decorator.id }:imageBlock`, ( evt, data, conversionApi ) => {
-			const viewFigure = conversionApi.mapper.toViewElement( data.item )!;
-			const linkInImage = Array.from( viewFigure.getChildren() )
-				.find( ( child ): child is ViewElement => child.is( 'element', 'a' ) );
+		const createConverter = ( isApplyingConverter: boolean ): GetCallback<DowncastAttributeEvent<ModelElement>> => {
+			return ( evt, data, conversionApi ) => {
+				const viewFigure = conversionApi.mapper.toViewElement( data.item )!;
+				const linkInImage = Array.from( viewFigure.getChildren() )
+					.find( ( child ): child is ViewElement => child.is( 'element', 'a' ) );
 
-			// The <a> element was removed by the time this converter is executed.
-			// It may happen when the base `linkHref` and decorator attributes are removed
-			// at the same time (see #8401).
-			if ( !linkInImage ) {
-				return;
-			}
+				// The <a> element was removed by the time this converter is executed.
+				// It may happen when the base `linkHref` and decorator attributes are removed
+				// at the same time (see https://github.com/ckeditor/ckeditor5/issues/8401).
+				if ( !linkInImage ) {
+					return;
+				}
 
-			for ( const [ key, val ] of toMap( decorator.attributes ) ) {
-				conversionApi.writer.setAttribute( key, val, linkInImage );
-			}
+				// Handle deactivated manual decorator.
+				if ( !isApplyingConverter && data.attributeOldValue ) {
+					for ( const [ key, val ] of toMap( decorator.attributes ) ) {
+						conversionApi.writer.removeAttribute( key, val, linkInImage );
+					}
 
-			if ( decorator.classes ) {
-				conversionApi.writer.addClass( decorator.classes, linkInImage );
-			}
+					if ( decorator.classes ) {
+						conversionApi.writer.removeClass( decorator.classes, linkInImage );
+					}
 
-			for ( const key in decorator.styles ) {
-				conversionApi.writer.setStyle( key, decorator.styles[ key ], linkInImage );
-			}
+					for ( const key in decorator.styles ) {
+						conversionApi.writer.removeStyle( key, linkInImage );
+					}
+				}
+
+				// Handle activated manual decorator.
+				if ( isApplyingConverter && data.attributeNewValue ) {
+					for ( const [ key, val ] of toMap( decorator.attributes ) ) {
+						conversionApi.writer.setAttribute( key, val, false, linkInImage );
+					}
+
+					if ( decorator.classes ) {
+						conversionApi.writer.addClass( decorator.classes, linkInImage );
+					}
+
+					for ( const key in decorator.styles ) {
+						conversionApi.writer.setStyle( key, decorator.styles[ key ], linkInImage );
+					}
+				}
+			};
+		};
+
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( `attribute:${ decorator.id }:imageBlock`, createConverter( false ), {
+			priority: priorities.high - 1
+		} );
+		// Apply decorators after all automatic and manual decorators are removed so removing one decorator
+		// won't strip part of the other decorator's attributes, classes or styles.
+		dispatcher.on<DowncastAttributeEvent<ModelElement>>( `attribute:${ decorator.id }:imageBlock`, createConverter( true ), {
+			priority: priorities.high - 2
 		} );
 	};
 }
@@ -264,7 +280,7 @@ function downcastImageLinkManualDecorator( decorator: ManualDecorator ): ( dispa
 /**
  * Returns a converter that checks whether manual decorators should be applied to the link.
  */
-function upcastImageLinkManualDecorator( editor: Editor, decorator: ManualDecorator ): ( dispatcher: UpcastDispatcher ) => void {
+function upcastImageLinkManualDecorator( editor: Editor, decorator: LinkManualDecorator ): ( dispatcher: UpcastDispatcher ) => void {
 	const isImageInlinePluginLoaded = editor.plugins.has( 'ImageInlineEditing' );
 	const imageUtils: ImageUtils = editor.plugins.get( 'ImageUtils' );
 
@@ -274,7 +290,7 @@ function upcastImageLinkManualDecorator( editor: Editor, decorator: ManualDecora
 			const imageInLink = imageUtils.findViewImgElement( viewLink );
 
 			// We need to check whether an image is inside a link because the converter handles
-			// only manual decorators for linked images. See #7975.
+			// only manual decorators for linked images. See https://github.com/ckeditor/ckeditor5/issues/7975.
 			if ( !imageInLink ) {
 				return;
 			}
@@ -294,17 +310,17 @@ function upcastImageLinkManualDecorator( editor: Editor, decorator: ManualDecora
 			}
 
 			// Check whether we can consume those attributes.
-			if ( !conversionApi.consumable.consume( viewLink, result.match ) ) {
+			if ( !conversionApi.consumable.test( viewLink, result.match ) ) {
 				return;
 			}
 
-			// At this stage we can assume that we have the `<imageBlock>` element.
-			// `nodeBefore` comes after conversion: `<a><img></a>`.
-			// `parent` comes with full image definition: `<figure><a><img></a></figure>.
-			// See the body of the `upcastLink()` function.
-			const modelElement = data.modelCursor.nodeBefore as Element || data.modelCursor.parent;
+			// At this stage we can assume that we have the `<imageBlock>` elements in model cursor or range.
+			const modelElement = data.modelCursor.parent;
 
-			conversionApi.writer.setAttribute( decorator.id, true, modelElement );
+			if ( modelElement?.is( 'element', 'imageBlock' ) ) {
+				conversionApi.writer.setAttribute( decorator.id, true, modelElement );
+				conversionApi.consumable.consume( viewLink, result.match );
+			}
 		}, { priority: 'high' } );
 		// Using the same priority that `upcastLink()` converter guarantees that the linked image was properly converted.
 	};

@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/operation/markeroperation
  */
 
-import Operation from './operation';
-import Range from '../range';
+import { Operation } from './operation.js';
+import { ModelRange } from '../range.js';
 
-import type Document from '../document';
-import type MarkerCollection from '../markercollection';
-import type { Selectable } from '../selection';
+import { type ModelDocument } from '../document.js';
+import { type MarkerCollection } from '../markercollection.js';
+import type { ModelSelectable } from '../selection.js';
 
-export default class MarkerOperation extends Operation {
+export class MarkerOperation extends Operation {
 	/**
 	 * Marker name.
 	 *
@@ -27,14 +27,14 @@ export default class MarkerOperation extends Operation {
 	 *
 	 * @readonly
 	 */
-	public oldRange: Range | null;
+	public oldRange: ModelRange | null;
 
 	/**
 	 * Marker range after the change.
 	 *
 	 * @readonly
 	 */
-	public newRange: Range | null;
+	public newRange: ModelRange | null;
 
 	/**
 	 * Specifies whether the marker operation affects the data produced by the data pipeline
@@ -56,13 +56,13 @@ export default class MarkerOperation extends Operation {
 	 * @param markers Marker collection on which change should be executed.
 	 * @param affectsData Specifies whether the marker operation affects the data produced by the data pipeline
 	 * (is persisted in the editor's data).
-	 * @param baseVersion Document {@link module:engine/model/document~Document#version} on which operation
+	 * @param baseVersion Document {@link module:engine/model/document~ModelDocument#version} on which operation
 	 * can be applied or `null` if the operation operates on detached (non-document) tree.
 	 */
 	constructor(
 		name: string,
-		oldRange: Range | null,
-		newRange: Range | null,
+		oldRange: ModelRange | null,
+		newRange: ModelRange | null,
 		markers: MarkerCollection,
 		affectsData: boolean,
 		baseVersion: number | null
@@ -87,7 +87,7 @@ export default class MarkerOperation extends Operation {
 	/**
 	 * @inheritDoc
 	 */
-	public get affectedSelectable(): Selectable {
+	public get affectedSelectable(): ModelSelectable {
 		const ranges = [];
 
 		if ( this.oldRange ) {
@@ -164,11 +164,11 @@ export default class MarkerOperation extends Operation {
 	 * @param json Deserialized JSON object.
 	 * @param document Document on which this operation will be applied.
 	 */
-	public static override fromJSON( json: any, document: Document ): MarkerOperation {
+	public static override fromJSON( json: any, document: ModelDocument ): MarkerOperation {
 		return new MarkerOperation(
 			json.name,
-			json.oldRange ? Range.fromJSON( json.oldRange, document ) : null,
-			json.newRange ? Range.fromJSON( json.newRange, document ) : null,
+			json.oldRange ? ModelRange.fromJSON( json.oldRange, document ) : null,
+			json.newRange ? ModelRange.fromJSON( json.newRange, document ) : null,
 			document.model.markers,
 			json.affectsData,
 			json.baseVersion

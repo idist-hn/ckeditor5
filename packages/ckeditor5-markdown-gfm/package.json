@@ -1,39 +1,9 @@
 {
   "name": "@ckeditor/ckeditor5-markdown-gfm",
-  "version": "39.0.2",
+  "version": "49.0.1",
   "description": "GitHub Flavored Markdown data processor for CKEditor 5.",
-  "keywords": [
-    "ckeditor",
-    "ckeditor5",
-    "ckeditor 5",
-    "ckeditor5-feature",
-    "ckeditor5-plugin",
-    "ckeditor5-dll"
-  ],
-  "main": "src/index.ts",
-  "dependencies": {
-    "ckeditor5": "39.0.2",
-    "marked": "4.0.12",
-    "turndown": "6.0.0",
-    "turndown-plugin-gfm": "1.0.2"
-  },
-  "devDependencies": {
-    "@ckeditor/ckeditor5-basic-styles": "39.0.2",
-    "@ckeditor/ckeditor5-code-block": "39.0.2",
-    "@ckeditor/ckeditor5-core": "39.0.2",
-    "@ckeditor/ckeditor5-dev-utils": "^39.0.0",
-    "@ckeditor/ckeditor5-editor-classic": "39.0.2",
-    "@ckeditor/ckeditor5-engine": "39.0.2",
-    "@ckeditor/ckeditor5-list": "39.0.2",
-    "@ckeditor/ckeditor5-table": "39.0.2",
-    "@ckeditor/ckeditor5-theme-lark": "39.0.2",
-    "@types/marked": "^4.0.8",
-    "typescript": "^4.8.4",
-    "webpack": "^5.58.1",
-    "webpack-cli": "^4.9.0"
-  },
+  "license": "SEE LICENSE IN LICENSE.md",
   "author": "CKSource (http://cksource.com/)",
-  "license": "GPL-2.0-or-later",
   "homepage": "https://ckeditor.com/ckeditor-5",
   "bugs": "https://github.com/ckeditor/ckeditor5/issues",
   "repository": {
@@ -41,23 +11,86 @@
     "url": "https://github.com/ckeditor/ckeditor5.git",
     "directory": "packages/ckeditor5-markdown-gfm"
   },
+  "keywords": [
+    "ckeditor",
+    "ckeditor5",
+    "ckeditor 5",
+    "ckeditor5-feature",
+    "ckeditor5-plugin"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./dist/*": "./src/*",
+    "./*": "./*"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": "./dist/index.js",
+      "./dist/*": "./dist/*",
+      "./package.json": "./package.json"
+    }
+  },
+  "sideEffects": [
+    "*.css",
+    "src/index.ts",
+    "dist/translations/*.umd.js"
+  ],
+  "dependencies": {
+    "@ckeditor/ckeditor5-clipboard": "workspace:*",
+    "@ckeditor/ckeditor5-core": "workspace:*",
+    "@ckeditor/ckeditor5-engine": "workspace:*",
+    "@ckeditor/ckeditor5-utils": "workspace:*",
+    "hast-util-from-dom": "5.0.1",
+    "hast-util-to-html": "9.0.5",
+    "hastscript": "9.0.1",
+    "rehype-dom-stringify": "4.0.2",
+    "rehype-remark": "10.0.1",
+    "remark-breaks": "4.0.0",
+    "remark-gfm": "4.0.1",
+    "remark-parse": "11.0.0",
+    "remark-rehype": "11.1.2",
+    "remark-stringify": "11.0.0",
+    "unified": "11.0.5",
+    "unist-util-visit": "5.0.0"
+  },
+  "devDependencies": {
+    "@ckeditor/ckeditor5-autoformat": "workspace:*",
+    "@ckeditor/ckeditor5-basic-styles": "workspace:*",
+    "@ckeditor/ckeditor5-block-quote": "workspace:*",
+    "@ckeditor/ckeditor5-code-block": "workspace:*",
+    "@ckeditor/ckeditor5-editor-classic": "workspace:*",
+    "@ckeditor/ckeditor5-essentials": "workspace:*",
+    "@ckeditor/ckeditor5-font": "workspace:*",
+    "@ckeditor/ckeditor5-heading": "workspace:*",
+    "@ckeditor/ckeditor5-horizontal-line": "workspace:*",
+    "@ckeditor/ckeditor5-image": "workspace:*",
+    "@ckeditor/ckeditor5-indent": "workspace:*",
+    "@ckeditor/ckeditor5-link": "workspace:*",
+    "@ckeditor/ckeditor5-list": "workspace:*",
+    "@ckeditor/ckeditor5-media-embed": "workspace:*",
+    "@ckeditor/ckeditor5-paragraph": "workspace:*",
+    "@ckeditor/ckeditor5-table": "workspace:*",
+    "@ckeditor/ckeditor5-undo": "workspace:*",
+    "@types/hast": "3.0.4",
+    "@vitest/browser-playwright": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "hast-util-to-mdast": "10.1.2",
+    "vitest": "catalog:"
+  },
+  "scripts": {
+    "build": "node ../../scripts/nim/build-package.mjs",
+    "coverage": "pnpm run test --coverage",
+    "test": "vitest run",
+    "test:debug": "vitest --browser.headless=false",
+    "test:browser": "vitest run --browser.headless=false"
+  },
   "files": [
-    "lang",
-    "src/**/*.js",
-    "src/**/*.d.ts",
-    "theme",
-    "build",
+    "dist",
     "ckeditor5-metadata.json",
     "CHANGELOG.md"
-  ],
-  "depcheckIgnore": [
-    "collapse-whitespace",
-    "jsdom",
-    "void-elements",
-    "block-elements"
-  ],
-  "scripts": {
-    "build": "tsc -p ./tsconfig.json",
-    "dll:build": "webpack"
-  }
+  ]
 }

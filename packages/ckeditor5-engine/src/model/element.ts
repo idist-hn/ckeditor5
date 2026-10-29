@@ -1,30 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/element
  */
 
-import Node, { type NodeAttributes } from './node';
-import NodeList from './nodelist';
-import Text from './text';
-import TextProxy from './textproxy';
+import { ModelNode, type ModelNodeAttributes } from './node.js';
+import { ModelNodeList } from './nodelist.js';
+import { ModelText } from './text.js';
+import { ModelTextProxy } from './textproxy.js';
 
-import type Item from './item';
+import { type ModelItem } from './item.js';
 
 import { isIterable } from '@ckeditor/ckeditor5-utils';
 
-// @if CK_DEBUG_ENGINE // const { stringifyMap, convertMapToStringifiedObject, convertMapToTags } = require( '../dev-utils/utils' );
+// @if CK_DEBUG_ENGINE // import { convertMapToStringifiedObject, convertMapToTags } from '../dev-utils/utils.js';
 
 /**
- * Model element. Type of {@link module:engine/model/node~Node node} that has a {@link module:engine/model/element~Element#name name} and
- * {@link module:engine/model/element~Element#getChildren child nodes}.
+ * Model element. Type of {@link module:engine/model/node~ModelNode node} that has a
+ * {@link module:engine/model/element~ModelElement#name name} and {@link module:engine/model/element~ModelElement#getChildren child nodes}.
  *
- * **Important**: see {@link module:engine/model/node~Node} to read about restrictions using `Element` and `Node` API.
+ * **Important**: see {@link module:engine/model/node~ModelNode} to read about restrictions using `Element` and `Node` API.
  */
-export default class Element extends Node {
+export class ModelElement extends ModelNode {
 	/**
 	 * Element name.
 	 */
@@ -33,13 +33,13 @@ export default class Element extends Node {
 	/**
 	 * List of children nodes.
 	 */
-	private readonly _children: NodeList = new NodeList();
+	private readonly _children: ModelNodeList = new ModelNodeList();
 
 	/**
 	 * Creates a model element.
 	 *
 	 * **Note:** Constructor of this class shouldn't be used directly in the code.
-	 * Use the {@link module:engine/model/writer~Writer#createElement} method instead.
+	 * Use the {@link module:engine/model/writer~ModelWriter#createElement} method instead.
 	 *
 	 * @internal
 	 * @param name Element's name.
@@ -48,8 +48,8 @@ export default class Element extends Node {
 	 */
 	constructor(
 		name: string,
-		attrs?: NodeAttributes,
-		children?: string | Item | Iterable<string | Item>
+		attrs?: ModelNodeAttributes,
+		children?: string | ModelItem | Iterable<string | ModelItem>
 	) {
 		super( attrs );
 
@@ -68,7 +68,7 @@ export default class Element extends Node {
 	}
 
 	/**
-	 * Sum of {@link module:engine/model/node~Node#offsetSize offset sizes} of all of this element's children.
+	 * Sum of {@link module:engine/model/node~ModelNode#offsetSize offset sizes} of all of this element's children.
 	 */
 	public get maxOffset(): number {
 		return this._children.maxOffset;
@@ -82,16 +82,29 @@ export default class Element extends Node {
 	}
 
 	/**
-	 * Gets the child at the given index.
+	 * Gets the child at the given index. Returns `null` if incorrect index was passed.
+	 *
+	 * @param index Index in this element.
+	 * @returns Child node.
 	 */
-	public getChild( index: number ): Node | null {
+	public getChild( index: number ): ModelNode | null {
 		return this._children.getNode( index );
+	}
+
+	/**
+	 * Gets the child at the given offset. Returns `null` if incorrect index was passed.
+	 *
+	 * @param offset Offset in this element.
+	 * @returns Child node.
+	 */
+	public getChildAtOffset( offset: number ): ModelNode | null {
+		return this._children.getNodeAtOffset( offset );
 	}
 
 	/**
 	 * Returns an iterator that iterates over all of this element's children.
 	 */
-	public getChildren(): IterableIterator<Node> {
+	public getChildren(): IterableIterator<ModelNode> {
 		return this._children[ Symbol.iterator ]();
 	}
 
@@ -101,25 +114,25 @@ export default class Element extends Node {
 	 * @param node Child node to look for.
 	 * @returns Child node's index in this element.
 	 */
-	public getChildIndex( node: Node ): number | null {
+	public getChildIndex( node: ModelNode ): number | null {
 		return this._children.getNodeIndex( node );
 	}
 
 	/**
 	 * Returns the starting offset of given child. Starting offset is equal to the sum of
-	 * {@link module:engine/model/node~Node#offsetSize offset sizes} of all node's siblings that are before it. Returns `null` if
+	 * {@link module:engine/model/node~ModelNode#offsetSize offset sizes} of all node's siblings that are before it. Returns `null` if
 	 * given node is not a child of this element.
 	 *
 	 * @param node Child node to look for.
 	 * @returns Child node's starting offset.
 	 */
-	public getChildStartOffset( node: Node ): number | null {
+	public getChildStartOffset( node: ModelNode ): number | null {
 		return this._children.getNodeStartOffset( node );
 	}
 
 	/**
 	 * Returns index of a node that occupies given offset. If given offset is too low, returns `0`. If given offset is
-	 * too high, returns {@link module:engine/model/element~Element#getChildIndex index after last child}.
+	 * too high, returns {@link module:engine/model/element~ModelElement#getChildIndex index after last child}.
 	 *
 	 * ```ts
 	 * const textNode = new Text( 'foo' );
@@ -149,12 +162,12 @@ export default class Element extends Node {
 	 *
 	 * @param relativePath Path of the node to find, relative to this element.
 	 */
-	public getNodeByPath( relativePath: Array<number> ): Node {
+	public getNodeByPath( relativePath: Array<number> ): ModelNode {
 		// eslint-disable-next-line @typescript-eslint/no-this-alias, consistent-this
-		let node: Node = this;
+		let node: ModelNode = this;
 
-		for ( const index of relativePath ) {
-			node = ( node as Element ).getChild( ( node as Element ).offsetToIndex( index ) )!;
+		for ( const offset of relativePath ) {
+			node = ( node as ModelElement ).getChildAtOffset( offset )!;
 		}
 
 		return node;
@@ -167,7 +180,7 @@ export default class Element extends Node {
 	 * @param options Options object.
 	 * @param options.includeSelf When set to `true` this node will be also included while searching.
 	 */
-	public findAncestor( parentName: string, options: { includeSelf?: boolean } = {} ): Element | null {
+	public findAncestor( parentName: string, options: { includeSelf?: boolean } = {} ): ModelElement | null {
 		let parent = options.includeSelf ? this : this.parent;
 
 		while ( parent ) {
@@ -210,33 +223,33 @@ export default class Element extends Node {
 	 * @param deep If set to `true` clones element and all its children recursively. When set to `false`,
 	 * element will be cloned without any child.
 	 */
-	public override _clone( deep = false ): Element {
-		const children = deep ? Array.from( this._children ).map( node => node._clone( true ) ) : undefined;
+	public override _clone( deep = false ): ModelElement {
+		const children = deep ? cloneNodes( this._children ) : undefined;
 
-		return new Element( this.name, this.getAttributes(), children );
+		return new ModelElement( this.name, this.getAttributes(), children );
 	}
 
 	/**
-	 * {@link module:engine/model/element~Element#_insertChild Inserts} one or more nodes at the end of this element.
+	 * {@link module:engine/model/element~ModelElement#_insertChild Inserts} one or more nodes at the end of this element.
 	 *
-	 * @see module:engine/model/writer~Writer#append
+	 * @see module:engine/model/writer~ModelWriter#append
 	 * @internal
 	 * @param nodes Nodes to be inserted.
 	 */
-	public _appendChild( nodes: string | Item | Iterable<string | Item> ): void {
+	public _appendChild( nodes: string | ModelItem | Iterable<string | ModelItem> ): void {
 		this._insertChild( this.childCount, nodes );
 	}
 
 	/**
-	 * Inserts one or more nodes at the given index and sets {@link module:engine/model/node~Node#parent parent} of these nodes
+	 * Inserts one or more nodes at the given index and sets {@link module:engine/model/node~ModelNode#parent parent} of these nodes
 	 * to this element.
 	 *
-	 * @see module:engine/model/writer~Writer#insert
+	 * @see module:engine/model/writer~ModelWriter#insert
 	 * @internal
 	 * @param index Index at which nodes should be inserted.
 	 * @param items Items to be inserted.
 	 */
-	public _insertChild( index: number, items: string | Item | Iterable<string | Item> ): void {
+	public _insertChild( index: number, items: string | ModelItem | Iterable<string | ModelItem> ): void {
 		const nodes = normalize( items );
 
 		for ( const node of nodes ) {
@@ -253,15 +266,15 @@ export default class Element extends Node {
 
 	/**
 	 * Removes one or more nodes starting at the given index and sets
-	 * {@link module:engine/model/node~Node#parent parent} of these nodes to `null`.
+	 * {@link module:engine/model/node~ModelNode#parent parent} of these nodes to `null`.
 	 *
-	 * @see module:engine/model/writer~Writer#remove
+	 * @see module:engine/model/writer~ModelWriter#remove
 	 * @internal
 	 * @param index Index of the first node to remove.
 	 * @param howMany Number of nodes to remove.
 	 * @returns Array containing removed nodes.
 	 */
-	public _removeChildren( index: number, howMany: number = 1 ): Array<Node> {
+	public _removeChildren( index: number, howMany: number = 1 ): Array<ModelNode> {
 		const nodes = this._children._removeNodes( index, howMany );
 
 		for ( const node of nodes ) {
@@ -272,14 +285,33 @@ export default class Element extends Node {
 	}
 
 	/**
+	 * Removes children nodes provided as an array and sets
+	 * the {@link module:engine/model/node~ModelNode#parent parent} of these nodes to `null`.
+	 *
+	 * These nodes do not need to be direct siblings.
+	 *
+	 * This method is faster than removing nodes one by one, as it recalculates offsets only once.
+	 *
+	 * @internal
+	 * @param nodes Array of nodes.
+	 */
+	public _removeChildrenArray( nodes: Array<ModelNode> ): void {
+		this._children._removeNodesArray( nodes );
+
+		for ( const node of nodes ) {
+			( node as any ).parent = null;
+		}
+	}
+
+	/**
 	 * Creates an `Element` instance from given plain object (i.e. parsed JSON string).
 	 * Converts `Element` children to proper nodes.
 	 *
 	 * @param json Plain object to be converted to `Element`.
 	 * @returns `Element` instance created using given plain object.
 	 */
-	public static fromJSON( json: any ): Element {
-		let children: Array<Node> | undefined;
+	public static fromJSON( json: any ): ModelElement {
+		let children: Array<ModelNode> | undefined;
 
 		if ( json.children ) {
 			children = [];
@@ -287,15 +319,15 @@ export default class Element extends Node {
 			for ( const child of json.children ) {
 				if ( child.name ) {
 					// If child has name property, it is an Element.
-					children.push( Element.fromJSON( child ) );
+					children.push( ModelElement.fromJSON( child ) );
 				} else {
 					// Otherwise, it is a Text node.
-					children.push( Text.fromJSON( child ) );
+					children.push( ModelText.fromJSON( child ) );
 				}
 			}
 		}
 
-		return new Element( json.name, json.attributes, children );
+		return new ModelElement( json.name, json.attributes, children );
 	}
 
 	// @if CK_DEBUG_ENGINE // public override toString(): string {
@@ -362,40 +394,50 @@ export default class Element extends Node {
 
 // The magic of type inference using `is` method is centralized in `TypeCheckable` class.
 // Proper overload would interfere with that.
-Element.prototype.is = function( type: string, name?: string ): boolean {
+ModelElement.prototype.is = function( this: ModelElement, type: string, name?: string ): boolean {
 	if ( !name ) {
 		return type === 'element' || type === 'model:element' ||
-			// From super.is(). This is highly utilised method and cannot call super. See ckeditor/ckeditor5#6529.
+			// From super.is(). This is highly utilised method and cannot call super. See https://github.com/ckeditor/ckeditor5/issues/6529.
 			type === 'node' || type === 'model:node';
 	}
 
 	return name === this.name && ( type === 'element' || type === 'model:element' );
-};
+} as any;
 
 /**
  * Converts strings to Text and non-iterables to arrays.
  */
-function normalize( nodes: string | Item | Iterable<string | Item> ): Iterable<Node> {
+function normalize( nodes: string | ModelItem | Iterable<string | ModelItem> ): Array<ModelNode> {
 	// Separate condition because string is iterable.
 	if ( typeof nodes == 'string' ) {
-		return [ new Text( nodes ) ];
+		return [ new ModelText( nodes ) ];
 	}
 
 	if ( !isIterable( nodes ) ) {
 		nodes = [ nodes ];
 	}
 
-	// Array.from to enable .map() on non-arrays.
-	return Array.from( nodes )
-		.map( node => {
-			if ( typeof node == 'string' ) {
-				return new Text( node );
-			}
+	const normalizedNodes: Array<ModelNode> = [];
 
-			if ( node instanceof TextProxy ) {
-				return new Text( node.data, node.getAttributes() );
-			}
+	for ( const node of nodes ) {
+		if ( typeof node == 'string' ) {
+			normalizedNodes.push( new ModelText( node ) );
+		} else if ( node instanceof ModelTextProxy ) {
+			normalizedNodes.push( new ModelText( node.data, node.getAttributes() ) );
+		} else {
+			normalizedNodes.push( node );
+		}
+	}
 
-			return node;
-		} );
+	return normalizedNodes;
+}
+
+function cloneNodes( nodes: ModelNodeList ): Array<ModelNode> {
+	const clonedNodes: Array<ModelNode> = [];
+
+	for ( const node of nodes ) {
+		clonedNodes.push( node._clone( true ) );
+	}
+
+	return clonedNodes;
 }

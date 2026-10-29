@@ -1,23 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/image/imageloadobserver
  */
 
-import { Observer } from 'ckeditor5/src/engine';
+import { Observer } from '@ckeditor/ckeditor5-engine';
 
 /**
- * Observes all new images added to the {@link module:engine/view/document~Document},
- * fires {@link module:engine/view/document~Document#event:imageLoaded} and
- * {@link module:engine/view/document~Document#event:layoutChanged} event every time when the new image
+ * Observes all new images added to the {@link module:engine/view/document~ViewDocument},
+ * fires {@link module:engine/view/document~ViewDocument#event:imageLoaded} and
+ * {@link module:engine/view/document~ViewDocument#event:layoutChanged} event every time when the new image
  * has been loaded.
  *
  * **Note:** This event is not fired for images that has been added to the document and rendered as `complete` (already loaded).
  */
-export default class ImageLoadObserver extends Observer {
+export class ImageLoadObserver extends Observer {
 	/**
 	 * @inheritDoc
 	 */
@@ -32,7 +32,7 @@ export default class ImageLoadObserver extends Observer {
 			if ( domElement.tagName == 'IMG' ) {
 				this._fireEvents( domEvent );
 			}
-			// Use capture phase for better performance (#4504).
+			// Use capture phase for better performance (https://github.com/ckeditor/ckeditor5/issues/4504).
 		}, { useCapture: true } );
 	}
 
@@ -44,8 +44,8 @@ export default class ImageLoadObserver extends Observer {
 	}
 
 	/**
-	 * Fires {@link module:engine/view/document~Document#event:layoutChanged} and
-	 * {@link module:engine/view/document~Document#event:imageLoaded}
+	 * Fires {@link module:engine/view/document~ViewDocument#event:layoutChanged} and
+	 * {@link module:engine/view/document~ViewDocument#event:imageLoaded}
 	 * if observer {@link #isEnabled is enabled}.
 	 *
 	 * @param domEvent The DOM event.
@@ -65,7 +65,7 @@ export default class ImageLoadObserver extends Observer {
  *
  * @see module:image/image/imageloadobserver~ImageLoadObserver
  *
- * @eventName module:engine/view/document~Document#imageLoaded
+ * @eventName module:engine/view/document~ViewDocument#imageLoaded
  * @param data Event data.
  */
 export type ImageLoadedEvent = {

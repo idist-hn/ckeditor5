@@ -1,18 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import MultiCommand from '@ckeditor/ckeditor5-core/src/multicommand';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { MultiCommand } from '@ckeditor/ckeditor5-core';
 
-import IndentEditing from '../src/indentediting';
+import { IndentEditing } from '../src/indentediting.js';
 
 describe( 'IndentEditing', () => {
 	let editor;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return VirtualTestEditor
@@ -29,7 +27,15 @@ describe( 'IndentEditing', () => {
 	} );
 
 	it( 'should be named', () => {
-		expect( IndentEditing.pluginName ).to.equal( 'IndentEditing' );
+		expect( IndentEditing.pluginName ).toEqual( 'IndentEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( IndentEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( IndentEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should be loaded', () => {

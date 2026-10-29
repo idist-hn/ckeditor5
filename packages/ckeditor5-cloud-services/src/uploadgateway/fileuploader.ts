@@ -1,24 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module cloud-services/uploadgateway/fileuploader
  */
 
-/* globals XMLHttpRequest, FormData, Blob, atob */
-
-import type { UploadResponse } from 'ckeditor5/src/upload';
-import { EmitterMixin, CKEditorError } from 'ckeditor5/src/utils';
-import type { InitializedToken } from '../token/token';
+import type { UploadResponse } from '@ckeditor/ckeditor5-upload';
+import { EmitterMixin, CKEditorError, type EmitterMixinConstructor } from '@ckeditor/ckeditor5-utils';
+import type { InitializedToken } from '../token/token.js';
 
 const BASE64_HEADER_REG_EXP = /^data:(\S*?);base64,/;
+
+const FileUploaderBase: EmitterMixinConstructor = /* #__PURE__ */ EmitterMixin();
 
 /**
  * FileUploader class used to upload single file.
  */
-export default class FileUploader extends EmitterMixin() {
+export class FileUploader extends FileUploaderBase {
 	/**
 	 * A file that is being uploaded.
 	 */
@@ -87,7 +87,7 @@ export default class FileUploader extends EmitterMixin() {
 	 * Registers callback on `progress` event.
 	 */
 	public onProgress( callback: ( status: { total: number; uploaded: number } ) => void ): this {
-		this.on<FileUploaderProgressErrorEvent>( 'progress', ( event, data ) => callback( data ) );
+		this.on<CloudServicesFileUploaderProgressErrorEvent>( 'progress', ( event, data ) => callback( data ) );
 
 		return this;
 	}
@@ -96,7 +96,7 @@ export default class FileUploader extends EmitterMixin() {
 	 * Registers callback on `error` event. Event is called once when error occurs.
 	 */
 	public onError( callback: ( error: string ) => void ): this {
-		this.once<FileUploaderErrorEvent>( 'error', ( event, data ) => callback( data ) );
+		this.once<CloudServicesFileUploaderErrorEvent>( 'error', ( event, data ) => callback( data ) );
 
 		return this;
 	}
@@ -138,17 +138,17 @@ export default class FileUploader extends EmitterMixin() {
 		const xhr = this.xhr!;
 
 		const onError = ( message: string ) => {
-			return () => this.fire<FileUploaderErrorEvent>( 'error', message );
+			return () => this.fire<CloudServicesFileUploaderErrorEvent>( 'error', message );
 		};
 
 		xhr.addEventListener( 'error', onError( 'Network Error' ) );
 		xhr.addEventListener( 'abort', onError( 'Abort' ) );
 
-		/* istanbul ignore else -- @preserve */
+		/* v8 ignore else -- @preserve */
 		if ( xhr.upload ) {
 			xhr.upload.addEventListener( 'progress', event => {
 				if ( event.lengthComputable ) {
-					this.fire<FileUploaderProgressErrorEvent>( 'progress', {
+					this.fire<CloudServicesFileUploaderProgressErrorEvent>( 'progress', {
 						total: event.total,
 						uploaded: event.loaded
 					} );
@@ -161,7 +161,7 @@ export default class FileUploader extends EmitterMixin() {
 			const xhrResponse = xhr.response;
 
 			if ( statusCode < 200 || statusCode > 299 ) {
-				return this.fire<FileUploaderErrorEvent>( 'error', xhrResponse.message || xhrResponse.error );
+				return this.fire<CloudServicesFileUploaderErrorEvent>( 'error', xhrResponse.message || xhrResponse.error );
 			}
 		} );
 	}
@@ -214,7 +214,7 @@ export default class FileUploader extends EmitterMixin() {
  * @eventName ~FileUploader#error
  * @param error Error message
  */
-export type FileUploaderErrorEvent = {
+export type CloudServicesFileUploaderErrorEvent = {
 	name: 'error';
 	args: [ error: string ];
 };
@@ -225,7 +225,7 @@ export type FileUploaderErrorEvent = {
  * @eventName ~FileUploader#progress
  * @param status Total and uploaded status
  */
-export type FileUploaderProgressErrorEvent = {
+export type CloudServicesFileUploaderProgressErrorEvent = {
 	name: 'progress';
 	args: [ status: { total: number; uploaded: number } ];
 };
@@ -254,7 +254,7 @@ function _base64ToBlob( base64: string, sliceSize = 512 ) {
 		}
 
 		return new Blob( byteArrays, { type: contentType } );
-	} catch ( error ) {
+	} catch {
 		/**
 		 * Problem with decoding Base64 image data.
 		 *
@@ -272,6 +272,5 @@ function _isBase64( string: string | Blob ): string is string {
 		return false;
 	}
 
-	const match = string.match( BASE64_HEADER_REG_EXP );
-	return !!( match && match.length );
+	return !!string.match( BASE64_HEADER_REG_EXP )?.length;
 }

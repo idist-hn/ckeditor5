@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/integrations/link
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { Selectable, DocumentSelection, Range, Position, Model } from 'ckeditor5/src/engine';
-import { findAttributeRange, findAttributeRangeBound } from 'ckeditor5/src/typing';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ModelSelectable, ModelDocumentSelection, ModelRange, ModelPosition, Model } from '@ckeditor/ckeditor5-engine';
+import { findAttributeRange, findAttributeRangeBound } from '@ckeditor/ckeditor5-typing';
 
-import type { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
+import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
 
-import StyleUtils, {
+import {
+	StyleUtils,
 	type InlineStyleDefinition,
 	type StyleUtilsGetAffectedInlineSelectableEvent,
 	type StyleUtilsIsStyleEnabledForInlineSelectionEvent,
 	type StyleUtilsIsStyleActiveForInlineSelectionEvent
-} from '../styleutils';
+} from '../styleutils.js';
 
-export default class LinkStyleSupport extends Plugin {
+export class LinkStyleSupport extends Plugin {
 	private _styleUtils!: StyleUtils;
 	private _htmlSupport!: GeneralHtmlSupport;
 
@@ -34,8 +35,15 @@ export default class LinkStyleSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ StyleUtils, 'GeneralHtmlSupport' ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ StyleUtils, GeneralHtmlSupport ]> {
+		return [ StyleUtils, GeneralHtmlSupport ];
 	}
 
 	/**
@@ -49,7 +57,7 @@ export default class LinkStyleSupport extends Plugin {
 		}
 
 		this._styleUtils = editor.plugins.get( StyleUtils );
-		this._htmlSupport = this.editor.plugins.get( 'GeneralHtmlSupport' );
+		this._htmlSupport = this.editor.plugins.get( GeneralHtmlSupport );
 
 		this.listenTo<StyleUtilsIsStyleEnabledForInlineSelectionEvent>(
 			this._styleUtils,
@@ -85,6 +93,7 @@ export default class LinkStyleSupport extends Plugin {
 
 				const selectable = this._getAffectedSelectable( definition, selection );
 
+				/* v8 ignore else -- @preserve */
 				if ( selectable ) {
 					evt.return = selectable;
 					evt.stop();
@@ -97,7 +106,7 @@ export default class LinkStyleSupport extends Plugin {
 	/**
 	 * Verifies if the given style is applicable to the provided document selection.
 	 */
-	private _isStyleEnabled( definition: InlineStyleDefinition, selection: DocumentSelection ): boolean {
+	private _isStyleEnabled( definition: InlineStyleDefinition, selection: ModelDocumentSelection ): boolean {
 		const model = this.editor.model;
 
 		// Handle collapsed selection.
@@ -120,7 +129,7 @@ export default class LinkStyleSupport extends Plugin {
 	/**
 	 * Returns true if the given style is applied to the specified document selection.
 	 */
-	private _isStyleActive( definition: InlineStyleDefinition, selection: DocumentSelection ): boolean {
+	private _isStyleActive( definition: InlineStyleDefinition, selection: ModelDocumentSelection ): boolean {
 		const model = this.editor.model;
 		const attributeName = this._htmlSupport.getGhsAttributeNameForElement( definition.element );
 
@@ -154,7 +163,7 @@ export default class LinkStyleSupport extends Plugin {
 	/**
 	 * Returns a selectable that given style should be applied to.
 	 */
-	private _getAffectedSelectable( definition: InlineStyleDefinition, selection: DocumentSelection ): Selectable {
+	private _getAffectedSelectable( definition: InlineStyleDefinition, selection: ModelDocumentSelection ): ModelSelectable {
 		const model = this.editor.model;
 
 		// Handle collapsed selection.
@@ -165,7 +174,7 @@ export default class LinkStyleSupport extends Plugin {
 		}
 
 		// Non-collapsed selection.
-		const ranges: Array<Range> = [];
+		const ranges: Array<ModelRange> = [];
 
 		for ( const range of selection.getRanges() ) {
 			// First expand range to include the whole link.
@@ -192,7 +201,7 @@ export default class LinkStyleSupport extends Plugin {
  * Walks forward or backward (depends on the `lookBack` flag), node by node, as long as they have the same attribute value
  * and returns a position just before or after (depends on the `lookBack` flag) the last matched node.
  */
-function expandAttributePosition( position: Position, attributeName: string, lookBack: boolean, model: Model ): Position {
+function expandAttributePosition( position: ModelPosition, attributeName: string, lookBack: boolean, model: Model ): ModelPosition {
 	const referenceNode = position.textNode || ( lookBack ? position.nodeAfter : position.nodeBefore );
 
 	if ( !referenceNode || !referenceNode.hasAttribute( attributeName ) ) {
@@ -209,7 +218,7 @@ function expandAttributePosition( position: Position, attributeName: string, loo
  *
  * Note: It assumes that ranges are sorted.
  */
-function normalizeRanges( ranges: Array<Range> ): Array<Range> {
+function normalizeRanges( ranges: Array<ModelRange> ): Array<ModelRange> {
 	for ( let i = 1; i < ranges.length; i++ ) {
 		const joinedRange = ranges[ i - 1 ].getJoined( ranges[ i ] );
 

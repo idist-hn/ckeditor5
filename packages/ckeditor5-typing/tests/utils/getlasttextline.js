@@ -1,11 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '@ckeditor/ckeditor5-engine/src/model/model';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import getText from '../../src/utils/getlasttextline';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { getLastTextLine } from '../../src/utils/getlasttextline.js';
 
 describe( 'utils', () => {
 	let model, doc, root;
@@ -20,9 +20,9 @@ describe( 'utils', () => {
 		model.schema.extend( '$text', { allowAttributes: [ 'bold', 'italic' ] } );
 	} );
 
-	describe( 'getText()', () => {
+	describe( 'getLastTextLine()', () => {
 		it( 'should return all text from passed range', () => {
-			setModelData( model, '<paragraph>foobar[]baz</paragraph>' );
+			_setModelData( model, '<paragraph>foobar[]baz</paragraph>' );
 
 			testOutput(
 				model.createRangeIn( root.getChild( 0 ) ),
@@ -32,7 +32,7 @@ describe( 'utils', () => {
 		} );
 
 		it( 'should limit the output text to the given range', () => {
-			setModelData( model, '<paragraph>foobar[]baz</paragraph>' );
+			_setModelData( model, '<paragraph>foobar[]baz</paragraph>' );
 
 			const testRange = model.createRange(
 				model.createPositionAt( root.getChild( 0 ), 1 ),
@@ -47,7 +47,7 @@ describe( 'utils', () => {
 		} );
 
 		it( 'should limit the output to the last inline element text constrain in given range', () => {
-			setModelData( model, '<paragraph>foo<softBreak></softBreak>bar<softBreak></softBreak>baz[]</paragraph>' );
+			_setModelData( model, '<paragraph>foo<softBreak></softBreak>bar<softBreak></softBreak>baz[]</paragraph>' );
 
 			const testRange = model.createRange(
 				model.createPositionAt( root.getChild( 0 ), 0 ),
@@ -62,7 +62,7 @@ describe( 'utils', () => {
 		} );
 
 		it( 'should return text from text nodes with attributes', () => {
-			setModelData( model,
+			_setModelData( model,
 				'<paragraph>' +
 				'<$text bold="true">foo</$text>' +
 				'<$text bold="true" italic="true">bar</$text>' +
@@ -78,7 +78,7 @@ describe( 'utils', () => {
 		} );
 
 		it( 'should return empty string if the range is `on` the element', () => {
-			setModelData( model, '<paragraph>foobarbaz[]</paragraph>' );
+			_setModelData( model, '<paragraph>foobarbaz[]</paragraph>' );
 
 			testOutput(
 				model.createRangeOn( root.getChild( 0 ) ),
@@ -89,10 +89,10 @@ describe( 'utils', () => {
 	} );
 
 	function testOutput( range1, expectedText, startPath, endPath ) {
-		const { text, range } = getText( range1, model );
+		const { text, range } = getLastTextLine( range1, model );
 
-		expect( text ).to.equal( expectedText );
-		expect( range.start.path ).to.deep.equal( startPath );
-		expect( range.end.path ).to.deep.equal( endPath );
+		expect( text ).toEqual( expectedText );
+		expect( range.start.path ).toEqual( startPath );
+		expect( range.end.path ).toEqual( endPath );
 	}
 } );

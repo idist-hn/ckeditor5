@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/observer/domeventobserver
  */
 
-import Observer from './observer';
-import DomEventData from './domeventdata';
+import { Observer } from './observer.js';
+import { ViewDocumentDomEventData } from './domeventdata.js';
 
 import type { EventInfo } from '@ckeditor/ckeditor5-utils';
 
@@ -40,7 +40,7 @@ import type { EventInfo } from '@ckeditor/ckeditor5-utils';
  * @typeParam AdditionalData Additional data passed along with the event.
  */
 
-export default abstract class DomEventObserver<
+export abstract class DomEventObserver<
 	EventType extends keyof HTMLElementEventMap,
 	AdditionalData extends object = object
 > extends Observer {
@@ -55,6 +55,12 @@ export default abstract class DomEventObserver<
 	 * Default value is `false`.
 	 */
 	public useCapture: boolean = false;
+
+	/**
+	 * If set to `true`, indicates that the function specified by listener will never call `preventDefault()`.
+	 * Default value is `false`.
+	 */
+	public usePassive: boolean = false;
 
 	/**
 	 * Callback which should be called when the DOM event occurred. Note that the callback will not be called if
@@ -75,7 +81,7 @@ export default abstract class DomEventObserver<
 				if ( this.isEnabled && !this.checkShouldIgnoreEventFromTarget( domEvent.target as any ) ) {
 					this.onDomEvent( domEvent );
 				}
-			}, { useCapture: this.useCapture } );
+			}, { useCapture: this.useCapture, usePassive: this.usePassive } );
 		} );
 	}
 
@@ -93,11 +99,11 @@ export default abstract class DomEventObserver<
 	 * @param eventType The event type (name).
 	 * @param domEvent The DOM event.
 	 * @param additionalData The additional data which should extend the
-	 * {@link module:engine/view/observer/domeventdata~DomEventData event data} object.
+	 * {@link module:engine/view/observer/domeventdata~ViewDocumentDomEventData event data} object.
 	 */
 	public override fire( eventType: string | EventInfo, domEvent: Event, additionalData?: AdditionalData ): void {
 		if ( this.isEnabled ) {
-			this.document.fire( eventType, new DomEventData( this.view, domEvent, additionalData ) );
+			this.document.fire( eventType, new ViewDocumentDomEventData( this.view, domEvent, additionalData ) );
 		}
 	}
 }

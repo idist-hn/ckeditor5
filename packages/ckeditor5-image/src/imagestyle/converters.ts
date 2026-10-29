@@ -1,21 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { DowncastAttributeEvent, Element, UpcastElementEvent } from 'ckeditor5/src/engine';
-import { first, type GetCallback } from 'ckeditor5/src/utils';
-import type { ImageStyleOptionDefinition } from '../imageconfig';
 
 /**
  * @module image/imagestyle/converters
  */
+
+import { isEqual } from 'es-toolkit/compat';
+import type {
+	DowncastAttributeEvent,
+	ModelElement,
+	ModelItem,
+	UpcastConversionApi,
+	UpcastElementEvent,
+	ViewElement
+} from '@ckeditor/ckeditor5-engine';
+import { first, type GetCallback } from '@ckeditor/ckeditor5-utils';
+import type { ImageStyleOptionDefinition } from '../imageconfig.js';
+import { DEFAULT_OPTIONS, getStyleDefinitionByName } from './utils.js';
 
 /**
  * Returns a converter for the `imageStyle` attribute. It can be used for adding, changing and removing the attribute.
  *
  * @param styles An array containing available image style options.
  * @returns A model-to-view attribute converter.
+ * @internal
  */
 export function modelToViewStyleAttribute( styles: Array<ImageStyleOptionDefinition> ): GetCallback<DowncastAttributeEvent> {
 	return ( evt, data, conversionApi ) => {
@@ -27,7 +37,7 @@ export function modelToViewStyleAttribute( styles: Array<ImageStyleOptionDefinit
 		const newStyle = getStyleDefinitionByName( data.attributeNewValue as string, styles );
 		const oldStyle = getStyleDefinitionByName( data.attributeOldValue as string, styles );
 
-		const viewElement = conversionApi.mapper.toViewElement( data.item as Element )!;
+		const viewElement = conversionApi.mapper.toViewElement( data.item as ModelElement )!;
 		const viewWriter = conversionApi.writer;
 
 		if ( oldStyle ) {
@@ -45,6 +55,7 @@ export function modelToViewStyleAttribute( styles: Array<ImageStyleOptionDefinit
  *
  * @param styles Image style options for which the converter is created.
  * @returns A view-to-model converter.
+ * @internal
  */
 export function viewToModelStyleAttribute( styles: Array<ImageStyleOptionDefinition> ): GetCallback<UpcastElementEvent> {
 	// Convert only non–default styles.
@@ -73,23 +84,63 @@ export function viewToModelStyleAttribute( styles: Array<ImageStyleOptionDefinit
 		}
 
 		// Convert styles one by one.
-		for ( const style of nonDefaultStyles[ ( modelImageElement as Element ).name ] ) {
+		for ( const style of nonDefaultStyles[ ( modelImageElement as ModelElement ).name ] ) {
 			// Try to consume class corresponding with the style.
 			if ( conversionApi.consumable.consume( viewElement, { classes: style.className } ) ) {
 				// And convert this style to model attribute.
 				conversionApi.writer.setAttribute( 'imageStyle', style.name, modelImageElement );
 			}
 		}
+
+		// Normalize float styles (alignLeft, alignRight).
+		normalizeFloatToDefinitionStyle( conversionApi, viewElement, modelImageElement, styles );
 	};
 }
 
 /**
- * Returns the style with a given `name` from an array of styles.
+ * A helper function that attempts to convert the `float` CSS style into a corresponding `imageStyle` attribute.
+ *
+ * It maps `float: left` and `float: right` to standard alignment styles (e.g. `'alignLeft'`, `'alignRight'`),
+ * but only if the target style definition matches one of the {@link module:image/image/utils~DEFAULT_OPTIONS default options}.
  */
-function getStyleDefinitionByName( name: string, styles: Array<ImageStyleOptionDefinition> ): ImageStyleOptionDefinition | undefined {
-	for ( const style of styles ) {
-		if ( style.name === name ) {
-			return style;
-		}
+function normalizeFloatToDefinitionStyle(
+	conversionApi: UpcastConversionApi,
+	viewElement: ViewElement,
+	modelElement: ModelItem,
+	styles: Array<ImageStyleOptionDefinition>
+) {
+	if ( !conversionApi.consumable.test( viewElement, { styles: [ 'float' ] } ) ) {
+		return;
 	}
+
+	let floatStyleName: string | null = null;
+
+	switch ( viewElement.getStyle( 'float' ) ) {
+		case 'left':
+			floatStyleName = 'alignLeft';
+			break;
+
+		case 'right':
+			floatStyleName = 'alignRight';
+			break;
+	}
+
+	if ( !floatStyleName ) {
+		return;
+	}
+
+	const definition = getStyleDefinitionByName( floatStyleName, styles );
+
+	if ( !definition ) {
+		return;
+	}
+
+	const builtinDefinition = DEFAULT_OPTIONS[ definition.name ];
+
+	if ( !isEqual( definition, builtinDefinition ) ) {
+		return;
+	}
+
+	conversionApi.writer.setAttribute( 'imageStyle', floatStyleName, modelElement );
+	conversionApi.consumable.consume( viewElement, { styles: [ 'float' ] } );
 }

@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,19 +8,17 @@
 */
 
 import { getOptimalPosition, type PositioningFunction, type Locale, global, toUnit, Rect } from '@ckeditor/ckeditor5-utils';
-import SearchTextView, { type SearchTextViewConfig } from '../search/text/searchtextview';
-import type SearchResultsView from '../search/searchresultsview';
-import type InputBase from '../input/inputbase';
-import type { FilteredViewExecuteEvent } from '../search/filteredview';
-
-import '../../theme/components/autocomplete/autocomplete.css';
+import { SearchTextView, type SearchTextViewConfig } from '../search/text/searchtextview.js';
+import { type SearchResultsView } from '../search/searchresultsview.js';
+import { type InputBase } from '../input/inputbase.js';
+import type { FilteredViewExecuteEvent } from '../search/filteredview.js';
 
 /**
  * The autocomplete component's view class. It extends the {@link module:ui/search/text/searchtextview~SearchTextView} class
  * with a floating {@link #resultsView} that shows up when the user starts typing and hides when they blur
  * the component.
  */
-export default class AutocompleteView<
+export class AutocompleteView<
 	TQueryFieldView extends InputBase<HTMLInputElement | HTMLTextAreaElement>
 > extends SearchTextView<TQueryFieldView> {
 	/**
@@ -87,6 +85,14 @@ export default class AutocompleteView<
 
 		// Hide the results view when the user presses the ESC key.
 		this.keystrokes.set( 'esc', ( evt, cancel ) => {
+			// Let the DOM event pass through if the focus is in the query view.
+			if ( !this.resultsView.isVisible ) {
+				return;
+			}
+
+			// Focus the query view first and only then close the results view. Otherwise, if the focus
+			// was in the results view, it will get lost.
+			this.queryView.focus();
 			this.resultsView.isVisible = false;
 			cancel();
 		} );

@@ -1,0 +1,62 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { global } from '@ckeditor/ckeditor5-utils';
+
+import { ImageInline } from '../src/imageinline.js';
+import { ImageInlineEditing } from '../src/image/imageinlineediting.js';
+import { Widget } from '@ckeditor/ckeditor5-widget';
+import { ImageTextAlternative } from '../src/imagetextalternative.js';
+import { ImageInsertUI } from '../src/imageinsert/imageinsertui.js';
+
+describe( 'ImageInline', () => {
+	let editorElement, editor;
+
+	beforeEach( async () => {
+		editorElement = global.document.createElement( 'div' );
+		global.document.body.appendChild( editorElement );
+
+		editor = await ClassicTestEditor.create( editorElement, {
+			plugins: [ ImageInline, Paragraph ]
+		} );
+	} );
+
+	afterEach( async () => {
+		editorElement.remove();
+		await editor.destroy();
+	} );
+
+	it( 'should be loaded', () => {
+		expect( editor.plugins.get( ImageInline ) ).toBeInstanceOf( ImageInline );
+		expect( editor.plugins.get( 'ImageInline' ) ).toBeInstanceOf( ImageInline );
+	} );
+
+	it( 'should load ImageInlineEditing plugin', () => {
+		expect( editor.plugins.get( ImageInlineEditing ) ).toBeInstanceOf( ImageInlineEditing );
+	} );
+
+	it( 'should load Widget plugin', () => {
+		expect( editor.plugins.get( Widget ) ).toBeInstanceOf( Widget );
+	} );
+
+	it( 'should load ImageTextAlternative plugin', () => {
+		expect( editor.plugins.get( ImageTextAlternative ) ).toBeInstanceOf( ImageTextAlternative );
+	} );
+
+	it( 'should load ImageInsertUI plugin', () => {
+		expect( editor.plugins.get( ImageInsertUI ) ).toBeInstanceOf( ImageInsertUI );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( ImageInline.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( ImageInline.isPremiumPlugin ).toBe( false );
+	} );
+} );

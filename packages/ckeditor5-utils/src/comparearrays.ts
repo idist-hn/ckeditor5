@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -25,7 +25,7 @@
  * @param b Array to compare with.
  * @returns How array `a` is related to `b`.
  */
-export default function compareArrays( a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown> ): ArrayRelation | number {
+export function compareArrays( a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown> ): ArrayRelation | number {
 	const minLen = Math.min( a.length, b.length );
 
 	for ( let i = 0; i < minLen; i++ ) {

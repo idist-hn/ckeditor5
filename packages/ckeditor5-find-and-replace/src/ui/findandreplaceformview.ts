@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -10,46 +10,41 @@
 import {
 	View,
 	ButtonView,
-	FormHeaderView,
 	LabeledFieldView,
 
-	Model,
 	FocusCycler,
 	createLabeledInputText,
 	submitHandler,
 	ViewCollection,
 
-	createDropdown,
-	addListToDropdown,
-	type DropdownView,
 	type Template,
-	type InputView
-} from 'ckeditor5/src/ui';
+	type InputView,
+	type FocusableView,
+	SwitchButtonView,
+	CollapsibleView
+} from '@ckeditor/ckeditor5-ui';
 
 import {
 	FocusTracker,
 	KeystrokeHandler,
-	Collection,
 	Rect,
 	isVisible,
 	type Locale
-} from 'ckeditor5/src/utils';
+} from '@ckeditor/ckeditor5-utils';
 
-// See: #8833.
-// eslint-disable-next-line ckeditor5-rules/ckeditor-imports
-import '@ckeditor/ckeditor5-ui/theme/components/responsive-form/responsiveform.css';
-import '../../theme/findandreplaceform.css';
-
-// eslint-disable-next-line ckeditor5-rules/ckeditor-imports
-import previousArrow from '@ckeditor/ckeditor5-ui/theme/icons/previous-arrow.svg';
-import { icons } from 'ckeditor5/src/core';
+import { IconPreviousArrow } from '@ckeditor/ckeditor5-icons';
 
 /**
  * The find and replace form view class.
  *
  * See {@link module:find-and-replace/ui/findandreplaceformview~FindAndReplaceFormView}.
  */
-export default class FindAndReplaceFormView extends View {
+export class FindAndReplaceFormView extends View {
+	/**
+	 * A collection of child views.
+	 */
+	public children: ViewCollection;
+
 	/**
 	 * Stores the number of matched search results.
 	 *
@@ -163,9 +158,19 @@ export default class FindAndReplaceFormView extends View {
 	private readonly _findNextButtonView: ButtonView;
 
 	/**
-	 * The find options dropdown.
+	 * A collapsible view aggregating the advanced search options.
 	 */
-	private readonly _optionsDropdown: DropdownView;
+	private readonly _advancedOptionsCollapsibleView: CollapsibleView;
+
+	/**
+	 * A switch button view controlling the "Match case" option.
+	 */
+	private readonly _matchCaseSwitchView: SwitchButtonView;
+
+	/**
+	 * A switch button view controlling the "Whole words only" option.
+	 */
+	private readonly _wholeWordsOnlySwitchView: SwitchButtonView;
 
 	/**
 	 * The replace button view.
@@ -178,14 +183,14 @@ export default class FindAndReplaceFormView extends View {
 	private readonly _replaceAllButtonView: ButtonView;
 
 	/**
-	 * The fieldset aggregating the find UI.
+	 * The `div` aggregating the inputs.
 	 */
-	private readonly _findFieldsetView: View;
+	private readonly _inputsDivView: View;
 
 	/**
-	 * The fieldset aggregating the replace UI.
+	 * The `div` aggregating the action buttons.
 	 */
-	private readonly _replaceFieldsetView: View;
+	private readonly _actionButtonsDivView: View;
 
 	/**
 	 * Tracks information about the DOM focus in the form.
@@ -200,12 +205,12 @@ export default class FindAndReplaceFormView extends View {
 	/**
 	 * A collection of views that can be focused in the form.
 	 */
-	private readonly _focusables: ViewCollection;
+	private readonly _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * Helps cycling over {@link #_focusables} in the form.
 	 */
-	private readonly _focusCycler: FocusCycler;
+	public readonly focusCycler: FocusCycler;
 
 	public declare locale: Locale;
 
@@ -218,6 +223,8 @@ export default class FindAndReplaceFormView extends View {
 		super( locale );
 
 		const t = locale.t;
+
+		this.children = this.createCollection();
 
 		this.set( 'matchCount', 0 );
 
@@ -243,18 +250,10 @@ export default class FindAndReplaceFormView extends View {
 
 		this._findInputView = this._createInputField( t( 'Find in text…' ) );
 
-		this._replaceInputView = this._createInputField( t( 'Replace with…' ) );
-
-		this._findButtonView = this._createButton( {
-			label: t( 'Find' ),
-			class: 'ck-button-find ck-button-action',
-			withText: true
-		} );
-
 		this._findPrevButtonView = this._createButton( {
 			label: t( 'Previous result' ),
 			class: 'ck-button-prev',
-			icon: previousArrow,
+			icon: IconPreviousArrow,
 			keystroke: 'Shift+F3',
 			tooltip: true
 		} );
@@ -262,28 +261,39 @@ export default class FindAndReplaceFormView extends View {
 		this._findNextButtonView = this._createButton( {
 			label: t( 'Next result' ),
 			class: 'ck-button-next',
-			icon: previousArrow,
+			icon: IconPreviousArrow,
 			keystroke: 'F3',
 			tooltip: true
 		} );
 
-		this._optionsDropdown = this._createOptionsDropdown();
+		this._replaceInputView = this._createInputField( t( 'Replace with…' ), 'ck-labeled-field-replace' );
 
-		this._replaceButtonView = this._createButton( {
-			label: t( 'Replace' ),
-			class: 'ck-button-replace',
-			withText: true
-		} );
+		this._inputsDivView = this._createInputsDiv();
+
+		this._matchCaseSwitchView = this._createMatchCaseSwitch();
+		this._wholeWordsOnlySwitchView = this._createWholeWordsOnlySwitch();
+
+		this._advancedOptionsCollapsibleView = this._createAdvancedOptionsCollapsible();
 
 		this._replaceAllButtonView = this._createButton( {
 			label: t( 'Replace all' ),
-			class: 'ck-button-replaceall',
+			class: 'ck-button-replaceall ck-button_standard',
 			withText: true
 		} );
 
-		this._findFieldsetView = this._createFindFieldset();
+		this._replaceButtonView = this._createButton( {
+			label: t( 'Replace' ),
+			class: 'ck-button-replace ck-button_standard',
+			withText: true
+		} );
 
-		this._replaceFieldsetView = this._createReplaceFieldset();
+		this._findButtonView = this._createButton( {
+			label: t( 'Find' ),
+			class: 'ck-button-find ck-button-action ck-button_standard',
+			withText: true
+		} );
+
+		this._actionButtonsDivView = this._createActionButtonsDiv();
 
 		this._focusTracker = new FocusTracker();
 
@@ -291,7 +301,7 @@ export default class FindAndReplaceFormView extends View {
 
 		this._focusables = new ViewCollection();
 
-		this._focusCycler = new FocusCycler( {
+		this.focusCycler = new FocusCycler( {
 			focusables: this._focusables,
 			focusTracker: this._focusTracker,
 			keystrokeHandler: this._keystrokes,
@@ -304,6 +314,12 @@ export default class FindAndReplaceFormView extends View {
 			}
 		} );
 
+		this.children.addMany( [
+			this._inputsDivView,
+			this._advancedOptionsCollapsibleView,
+			this._actionButtonsDivView
+		] );
+
 		this.setTemplate( {
 			tag: 'form',
 			attributes: {
@@ -314,13 +330,7 @@ export default class FindAndReplaceFormView extends View {
 
 				tabindex: '-1'
 			},
-			children: [
-				new FormHeaderView( locale, {
-					label: t( 'Find and replace' )
-				} ),
-				this._findFieldsetView,
-				this._replaceFieldsetView
-			]
+			children: this.children
 		} );
 	}
 
@@ -347,10 +357,14 @@ export default class FindAndReplaceFormView extends View {
 	}
 
 	/**
-	 * Focuses the fist {@link #_focusables} in the form.
+	 * @inheritDoc
 	 */
-	public focus(): void {
-		this._focusCycler.focusFirst();
+	public focus( direction?: 1 | -1 ): void {
+		if ( direction === -1 ) {
+			this.focusCycler.focusLast();
+		} else {
+			this.focusCycler.focusFirst();
+		}
 	}
 
 	/**
@@ -383,18 +397,17 @@ export default class FindAndReplaceFormView extends View {
 	}
 
 	/**
-	 * Configures and returns the `<fieldset>` aggregating all find controls.
+	 * Configures and returns the `<div>` aggregating all form inputs.
 	 */
-	private _createFindFieldset(): View {
+	private _createInputsDiv(): View {
 		const locale = this.locale;
-		const fieldsetView = new View( locale );
+		const t = locale.t;
+		const inputsDivView = new View( locale );
 
 		// Typing in the find field invalidates all previous results (the form is "dirty").
 		this._findInputView.fieldView.on( 'input', () => {
 			this.isDirty = true;
 		} );
-
-		this._findButtonView.on( 'execute', this._onFindButtonExecute.bind( this ) );
 
 		// Pressing prev/next buttons fires related event on the form.
 		this._findPrevButtonView.delegate( 'execute' ).to( this, 'findPrevious' );
@@ -406,20 +419,36 @@ export default class FindAndReplaceFormView extends View {
 
 		this._injectFindResultsCounter();
 
-		fieldsetView.setTemplate( {
-			tag: 'fieldset',
+		this._replaceInputView.bind( 'isEnabled' ).to(
+			this, '_areCommandsEnabled',
+			this, '_searchResultsFound',
+			( { replace }, resultsFound ) => replace && resultsFound );
+
+		this._replaceInputView.bind( 'infoText' ).to(
+			this._replaceInputView, 'isEnabled',
+			this._replaceInputView, 'isFocused',
+			( isEnabled, isFocused ) => {
+				if ( isEnabled || !isFocused ) {
+					return '';
+				}
+
+				return t( 'Tip: Find some text first in order to replace it.' );
+			} );
+
+		inputsDivView.setTemplate( {
+			tag: 'div',
 			attributes: {
-				class: [ 'ck', 'ck-find-and-replace-form__find' ]
+				class: [ 'ck', 'ck-find-and-replace-form__inputs' ]
 			},
 			children: [
 				this._findInputView,
-				this._findButtonView,
 				this._findPrevButtonView,
-				this._findNextButtonView
+				this._findNextButtonView,
+				this._replaceInputView
 			]
 		} );
 
-		return fieldsetView;
+		return inputsDivView;
 	}
 
 	/**
@@ -511,12 +540,28 @@ export default class FindAndReplaceFormView extends View {
 	}
 
 	/**
-	 * Configures and returns the `<fieldset>` aggregating all replace controls.
+	 * Creates the collapsible view aggregating the advanced search options.
 	 */
-	private _createReplaceFieldset(): View {
-		const locale = this.locale;
-		const t = locale.t;
-		const fieldsetView = new View( this.locale );
+	private _createAdvancedOptionsCollapsible(): CollapsibleView {
+		const t = this.locale.t;
+		const collapsible = new CollapsibleView( this.locale, [
+			this._matchCaseSwitchView,
+			this._wholeWordsOnlySwitchView
+		] );
+
+		collapsible.set( {
+			label: t( 'Advanced options' ),
+			isCollapsed: true
+		} );
+
+		return collapsible;
+	}
+
+	/**
+	 * Configures and returns the `<div>` element aggregating all form action buttons.
+	 */
+	private _createActionButtonsDiv(): View {
+		const actionsDivView = new View( this.locale );
 
 		this._replaceButtonView.bind( 'isEnabled' ).to(
 			this, '_areCommandsEnabled',
@@ -527,22 +572,6 @@ export default class FindAndReplaceFormView extends View {
 			this, '_areCommandsEnabled',
 			this, '_searchResultsFound',
 			( { replaceAll }, resultsFound ) => replaceAll && resultsFound );
-
-		this._replaceInputView.bind( 'isEnabled' ).to(
-			this, '_areCommandsEnabled',
-			this, '_searchResultsFound',
-			( { replace }, resultsFound ) => replace && resultsFound );
-
-		this._replaceInputView.bind( 'infoText' ).to(
-			this._replaceInputView, 'isEnabled',
-			this._replaceInputView, 'isFocused',
-			( isEnabled, isFocused ) => {
-				if ( isEnabled || !isFocused ) {
-					return '';
-				}
-
-				return t( 'Tip: Find some text first in order to replace it.' );
-			} );
 
 		this._replaceButtonView.on( 'execute', () => {
 			this.fire( 'replace', {
@@ -560,76 +589,77 @@ export default class FindAndReplaceFormView extends View {
 			this.focus();
 		} );
 
-		fieldsetView.setTemplate( {
-			tag: 'fieldset',
+		this._findButtonView.on( 'execute', this._onFindButtonExecute.bind( this ) );
+
+		actionsDivView.setTemplate( {
+			tag: 'div',
 			attributes: {
-				class: [ 'ck', 'ck-find-and-replace-form__replace' ]
+				class: [ 'ck', 'ck-find-and-replace-form__actions' ]
 			},
 			children: [
-				this._replaceInputView,
-				this._optionsDropdown,
+				this._replaceAllButtonView,
 				this._replaceButtonView,
-				this._replaceAllButtonView
+				this._findButtonView
 			]
 		} );
 
-		return fieldsetView;
+		return actionsDivView;
 	}
 
 	/**
 	 * Creates, configures and returns and instance of a dropdown allowing users to narrow
 	 * the search criteria down. The dropdown has a list with switch buttons for each option.
 	 */
-	private _createOptionsDropdown(): DropdownView {
-		const locale = this.locale;
-		const t = locale.t;
-		const dropdownView = createDropdown( this.locale );
+	private _createMatchCaseSwitch(): SwitchButtonView {
+		const t = this.locale.t;
 
-		dropdownView.class = 'ck-options-dropdown';
+		const matchCaseSwitchButton = new SwitchButtonView( this.locale );
 
-		dropdownView.buttonView.set( {
-			withText: false,
-			label: t( 'Show options' ),
-			icon: icons.cog,
-			tooltip: true
-		} );
-
-		const matchCaseModel = new Model( {
-			withText: true,
+		matchCaseSwitchButton.set( {
 			label: t( 'Match case' ),
-
-			// A dummy read-only prop to make it easy to tell which switch was toggled.
-			_isMatchCaseSwitch: true
+			withText: true
 		} );
 
-		const wholeWordsOnlyModel = new Model( {
-			withText: true,
-			label: t( 'Whole words only' )
-		} );
+		// Let the switch be controlled by form's observable property.
+		matchCaseSwitchButton.bind( 'isOn' ).to( this, '_matchCase' );
 
-		// Let the switches be controlled by form's observable properties.
-		matchCaseModel.bind( 'isOn' ).to( this, '_matchCase' );
-		wholeWordsOnlyModel.bind( 'isOn' ).to( this, '_wholeWordsOnly' );
-
-		// Update the state of the form when a switch is toggled.
-		dropdownView.on( 'execute', evt => {
-			if ( ( evt.source as any )._isMatchCaseSwitch ) {
-				this._matchCase = !this._matchCase;
-			} else {
-				this._wholeWordsOnly = !this._wholeWordsOnly;
-			}
-
+		// // Update the state of the form when a switch is toggled.
+		matchCaseSwitchButton.on( 'execute', () => {
+			this._matchCase = !this._matchCase;
 			// Toggling a switch makes the form dirty because this changes search criteria
 			// just like typing text of the find input.
 			this.isDirty = true;
 		} );
 
-		addListToDropdown( dropdownView, new Collection( [
-			{ type: 'switchbutton', model: matchCaseModel },
-			{ type: 'switchbutton', model: wholeWordsOnlyModel }
-		] ) );
+		return matchCaseSwitchButton;
+	}
 
-		return dropdownView;
+	/**
+	 * Creates, configures and returns and instance of a dropdown allowing users to narrow
+	 * the search criteria down. The dropdown has a list with switch buttons for each option.
+	 */
+	private _createWholeWordsOnlySwitch(): SwitchButtonView {
+		const t = this.locale.t;
+
+		const wholeWordsOnlySwitchButton = new SwitchButtonView( this.locale );
+
+		wholeWordsOnlySwitchButton.set( {
+			label: t( 'Whole words only' ),
+			withText: true
+		} );
+
+		// Let the switch be controlled by form's observable property.
+		wholeWordsOnlySwitchButton.bind( 'isOn' ).to( this, '_wholeWordsOnly' );
+
+		// // Update the state of the form when a switch is toggled.
+		wholeWordsOnlySwitchButton.on( 'execute', () => {
+			this._wholeWordsOnly = !this._wholeWordsOnly;
+			// Toggling a switch makes the form dirty because this changes search criteria
+			// just like typing text of the find input.
+			this.isDirty = true;
+		} );
+
+		return wholeWordsOnlySwitchButton;
 	}
 
 	/**
@@ -639,13 +669,15 @@ export default class FindAndReplaceFormView extends View {
 	private _initFocusCycling() {
 		const childViews = [
 			this._findInputView,
-			this._findButtonView,
 			this._findPrevButtonView,
 			this._findNextButtonView,
 			this._replaceInputView,
-			this._optionsDropdown,
+			this._advancedOptionsCollapsibleView.buttonView,
+			this._matchCaseSwitchView,
+			this._wholeWordsOnlySwitchView,
+			this._replaceAllButtonView,
 			this._replaceButtonView,
-			this._replaceAllButtonView
+			this._findButtonView
 		];
 
 		childViews.forEach( v => {
@@ -747,10 +779,11 @@ export default class FindAndReplaceFormView extends View {
 	 * @param label The input label.
 	 * @returns The labeled input view instance.
 	 */
-	private _createInputField( label: string ): LabeledFieldView<InputView> {
+	private _createInputField( label: string, className?: string ): LabeledFieldView<InputView> {
 		const labeledInput = new LabeledFieldView( this.locale, createLabeledInputText );
 
 		labeledInput.label = label;
+		labeledInput.class = className;
 
 		return labeledInput;
 	}

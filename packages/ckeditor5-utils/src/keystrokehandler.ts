@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/keystrokehandler
  */
 
-import DomEmitterMixin, { type DomEmitter } from './dom/emittermixin';
-import type { Emitter } from './emittermixin';
-import { getCode, parseKeystroke, type KeystrokeInfo } from './keyboard';
-import type { PriorityString } from './priorities';
+import { DomEmitterMixin, type DomEmitter } from './dom/emittermixin.js';
+import type { Emitter } from './emittermixin.js';
+import { getCode, parseKeystroke, type KeystrokeInfo } from './keyboard.js';
+import type { PriorityString } from './priorities.js';
 
 /**
  * Keystroke handler allows registering callbacks for given keystrokes.
@@ -47,7 +47,7 @@ import type { PriorityString } from './priorities';
  * That keystroke handler will listen to `keydown` events fired in this view's main element.
  *
  */
-export default class KeystrokeHandler {
+export class KeystrokeHandler {
 	/**
 	 * Listener used to listen to events for easier keystroke handler destruction.
 	 */
@@ -84,17 +84,14 @@ export default class KeystrokeHandler {
 	 * @param keystroke Keystroke defined in a format accepted by
 	 * the {@link module:utils/keyboard~parseKeystroke} function.
 	 * @param callback A function called with the
-	 * {@link module:engine/view/observer/keyobserver~KeyEventData key event data} object and
+	 * {@link module:engine/view/observer/keyobserver~ViewDocumentKeyEventData key event data} object and
 	 * a helper function to call both `preventDefault()` and `stopPropagation()` on the underlying event.
 	 * @param options Additional options.
-	 * @param options.priority The priority of the keystroke
-	 * callback. The higher the priority value the sooner the callback will be executed. Keystrokes having the same priority
-	 * are called in the order they were added.
 	 */
 	public set(
 		keystroke: string | ReadonlyArray<string | number>,
 		callback: ( ev: KeyboardEvent, cancel: () => void ) => void,
-		options: { readonly priority?: PriorityString } = {}
+		options: KeystrokeHandlerOptions = {}
 	): void {
 		const keyCode = parseKeystroke( keystroke );
 		const priority = options.priority;
@@ -102,6 +99,10 @@ export default class KeystrokeHandler {
 		// Execute the passed callback on KeystrokeHandler#_keydown.
 		// TODO: https://github.com/ckeditor/ckeditor5-utils/issues/144
 		this._listener.listenTo( this._listener, '_keydown:' + keyCode, ( evt, keyEvtData: KeyboardEvent ) => {
+			if ( options.filter && !options.filter( keyEvtData ) ) {
+				return;
+			}
+
 			callback( keyEvtData, () => {
 				// Stop the event in the DOM: no listener in the web page
 				// will be triggered by this event.
@@ -141,4 +142,22 @@ export default class KeystrokeHandler {
 	public destroy(): void {
 		this.stopListening();
 	}
+}
+
+/**
+ * {@link module:utils/keystrokehandler~KeystrokeHandler#set} method options.
+ */
+export interface KeystrokeHandlerOptions {
+
+	/**
+	 * The priority of the keystroke callback. The higher the priority value the sooner the callback will be executed.
+	 * Keystrokes having the same priority are called in the order they were added.
+	 */
+	readonly priority?: PriorityString;
+
+	/**
+	 * An optional callback function allowing for filtering keystrokes based on arbitrary criteria.
+	 * The callback function receives `keydown` DOM event as a parameter.
+	 */
+	readonly filter?: ( keyEvtData: KeyboardEvent ) => boolean;
 }

@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagestyle/imagestylecommand
  */
 
-import type { Element } from 'ckeditor5/src/engine';
-import { Command, type Editor } from 'ckeditor5/src/core';
-import type { ImageStyleOptionDefinition } from '../imageconfig';
-import type ImageUtils from '../imageutils';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import type { ImageStyleOptionDefinition } from '../imageconfig.js';
+import { type ImageUtils } from '../imageutils.js';
 
 /**
  * The image style command. It is used to apply {@link module:image/imageconfig~ImageStyleConfig#options image style option}
@@ -19,7 +19,7 @@ import type ImageUtils from '../imageutils';
  * **Note**: Executing this command may change the image model element if the desired style requires an image of a different
  * type. See {@link module:image/imagestyle/imagestylecommand~ImageStyleCommand#execute} to learn more.
  */
-export default class ImageStyleCommand extends Command {
+export class ImageStyleCommand extends Command {
 	/**
 	 * An object containing names of default style options for the inline and block images.
 	 * If there is no default style option for the given image type in the configuration,
@@ -78,6 +78,39 @@ export default class ImageStyleCommand extends Command {
 	}
 
 	/**
+	 * Returns whether the style with the given name can be applied to the currently selected image.
+	 *
+	 * Applying a style may internally trigger a type conversion (block ↔ inline) when the style
+	 * supports only the opposite type. If that conversion would be rejected by the schema (for
+	 * example, converting an inline image to a block image inside `$inlineRoot`), this style
+	 * cannot be applied even though the command itself is enabled. UI components representing
+	 * individual styles should reflect this per-style state in their `isEnabled`.
+	 */
+	public isStyleEnabled( styleName: string ): boolean {
+		if ( !this.isEnabled ) {
+			return false;
+		}
+
+		const imageUtils: ImageUtils = this.editor.plugins.get( 'ImageUtils' );
+		const element = imageUtils.getClosestSelectedImageElement( this.editor.model.document.selection );
+
+		if ( !element || !this._styles.has( styleName ) ) {
+			return false;
+		}
+
+		if ( !this.shouldConvertImageType( styleName, element ) ) {
+			return true;
+		}
+
+		// Applying this style requires a type conversion. The corresponding type command must be enabled
+		// for the conversion to succeed.
+		const typeCommandName = imageUtils.isBlockImage( element ) ? 'imageTypeInline' : 'imageTypeBlock';
+		const typeCommand = this.editor.commands.get( typeCommandName );
+
+		return !!typeCommand && typeCommand.isEnabled;
+	}
+
+	/**
 	 * Executes the command and applies the style to the currently selected image:
 	 *
 	 * ```ts
@@ -97,6 +130,12 @@ export default class ImageStyleCommand extends Command {
 		const editor = this.editor;
 		const model = editor.model;
 		const imageUtils: ImageUtils = editor.plugins.get( 'ImageUtils' );
+
+		// If the requested style requires a type conversion that the schema does not allow,
+		// skip execution entirely to avoid leaving the image with a style its current type does not support.
+		if ( options.value && !this.isStyleEnabled( options.value ) ) {
+			return;
+		}
 
 		model.change( writer => {
 			const requestedStyle = options.value;
@@ -132,7 +171,7 @@ export default class ImageStyleCommand extends Command {
 	 * @param requestedStyle The name of the style (as configured in {@link module:image/imageconfig~ImageStyleConfig#options}).
 	 * @param imageElement The image model element.
 	 */
-	public shouldConvertImageType( requestedStyle: string, imageElement: Element ): boolean {
+	public shouldConvertImageType( requestedStyle: string, imageElement: ModelElement ): boolean {
 		const supportedTypes = this._styles.get( requestedStyle )!.modelElements;
 
 		return !supportedTypes.includes( imageElement.name );

@@ -1,15 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module horizontal-line
  */
 
-export { default as HorizontalLine } from './horizontalline';
-export { default as HorizontalLineEditing } from './horizontallineediting';
-export { default as HorizontalLineUI } from './horizontallineui';
-export type { default as HorizontalLineCommand } from './horizontallinecommand';
+export { HorizontalLine } from './horizontalline.js';
+export { HorizontalLineEditing } from './horizontallineediting.js';
+export { HorizontalLineUI } from './horizontallineui.js';
+export { HorizontalLineCommand } from './horizontallinecommand.js';
 
-import './augmentation';
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

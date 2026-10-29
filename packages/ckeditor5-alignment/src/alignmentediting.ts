@@ -1,29 +1,37 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module alignment/alignmentediting
  */
 
-import { Plugin, type Editor } from 'ckeditor5/src/core';
-import type { AttributeDescriptor } from 'ckeditor5/src/engine';
+import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import type { DowncastAttributeDescriptor, ModelBlockAlignmentAttributesMapping } from '@ckeditor/ckeditor5-engine';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
 
-import AlignmentCommand from './alignmentcommand';
-import { isDefault, isSupported, normalizeAlignmentOptions, supportedOptions } from './utils';
-import type { AlignmentFormat, SupportedOption } from './alignmentconfig';
+import { AlignmentCommand } from './alignmentcommand.js';
+import { isDefault, isSupported, normalizeAlignmentOptions, supportedOptions } from './utils.js';
+import type { AlignmentFormat, AlignmentSupportedOption } from './alignmentconfig.js';
 
 /**
  * The alignment editing feature. It introduces the {@link module:alignment/alignmentcommand~AlignmentCommand command} and adds
  * the `alignment` attribute for block elements in the {@link module:engine/model/model~Model model}.
  */
-export default class AlignmentEditing extends Plugin {
+export class AlignmentEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'AlignmentEditing' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -57,7 +65,10 @@ export default class AlignmentEditing extends Plugin {
 
 		// Allow alignment attribute on all blocks.
 		schema.extend( '$block', { allowAttributes: 'alignment' } );
-		editor.model.schema.setAttributeProperties( 'alignment', { isFormatting: true } );
+		editor.model.schema.setAttributeProperties( 'alignment', {
+			isFormatting: true,
+			blockAlignment: getBlockAlignmentAttributeProperty( locale )
+		} );
 
 		if ( shouldUseClasses ) {
 			editor.conversion.attributeToAttribute( buildClassDefinition( optionsToConvert ) );
@@ -85,10 +96,28 @@ export default class AlignmentEditing extends Plugin {
 }
 
 /**
+ * Prepare block alignment mapping for all possible alignment options.
+ */
+function getBlockAlignmentAttributeProperty( locale: Locale ) {
+	const blockAlignment: ModelBlockAlignmentAttributesMapping = {
+		left: { value: 'left' },
+		right: { value: 'right' },
+		center: { value: 'center' },
+		justify: { value: 'justify' }
+	} satisfies Record<AlignmentSupportedOption, unknown>;
+
+	const defaultDirection = locale.contentLanguageDirection == 'rtl' ? 'right' : 'left';
+
+	blockAlignment[ defaultDirection ]!.isDefault = true;
+
+	return blockAlignment;
+}
+
+/**
  * Prepare downcast conversion definition for inline alignment styling.
  */
 function buildDowncastInlineDefinition( options: Array<AlignmentFormat> ) {
-	const view: Record<string, { key: 'style'; value: { 'text-align': SupportedOption } }> = {};
+	const view: Record<string, { key: 'style'; value: { 'text-align': AlignmentSupportedOption } }> = {};
 
 	for ( const { name } of options ) {
 		view[ name ] = {
@@ -160,7 +189,7 @@ function buildUpcastCompatibilityDefinitions( options: Array<AlignmentFormat> ) 
  * Prepare conversion definitions for upcast and downcast alignment with classes.
  */
 function buildClassDefinition( options: Array<AlignmentFormat> ) {
-	const view: Record<string, AttributeDescriptor> = {};
+	const view: Record<string, DowncastAttributeDescriptor> = {};
 
 	for ( const option of options ) {
 		view[ option.name ] = {

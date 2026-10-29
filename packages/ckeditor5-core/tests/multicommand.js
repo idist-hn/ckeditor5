@@ -1,18 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import MultiCommand from '../src/multicommand';
-import Command from '../src/command';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import ModelTestEditor from './_utils/modeltesteditor';
-import testUtils from './_utils/utils';
+import { MultiCommand } from '../src/multicommand.js';
+import { Command } from '../src/command.js';
+
+import { ModelTestEditor } from './_utils/modeltesteditor.js';
 
 describe( 'MultiCommand', () => {
 	let editor, multiCommand;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return ModelTestEditor
@@ -30,15 +29,15 @@ describe( 'MultiCommand', () => {
 
 	describe( 'isEnabled', () => {
 		it( 'is always falsy when no child commands are registered', () => {
-			expect( multiCommand.isEnabled ).to.false;
+			expect( multiCommand.isEnabled ).toBeFalsy();
 
 			multiCommand.refresh();
 
-			expect( multiCommand.isEnabled ).to.false;
+			expect( multiCommand.isEnabled ).toBeFalsy();
 		} );
 
 		it( 'is set to true if one of registered commands is true', () => {
-			expect( multiCommand.isEnabled ).to.false;
+			expect( multiCommand.isEnabled ).toBeFalsy();
 
 			const commandA = new Command( editor );
 			const commandB = new Command( editor );
@@ -46,19 +45,19 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandA );
 			multiCommand.registerChildCommand( commandB );
 
-			expect( multiCommand.isEnabled ).to.false;
+			expect( multiCommand.isEnabled ).toBeFalsy();
 
 			commandA.isEnabled = true;
 
-			expect( multiCommand.isEnabled ).to.be.true;
+			expect( multiCommand.isEnabled ).toBe( true );
 
 			commandA.isEnabled = false;
 
-			expect( multiCommand.isEnabled ).to.be.false;
+			expect( multiCommand.isEnabled ).toBe( false );
 
 			commandB.isEnabled = true;
 
-			expect( multiCommand.isEnabled ).to.be.true;
+			expect( multiCommand.isEnabled ).toBe( true );
 		} );
 	} );
 
@@ -70,13 +69,13 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandA );
 			multiCommand.registerChildCommand( commandB );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
 
 			multiCommand.execute();
 
-			sinon.assert.notCalled( spyA );
-			sinon.assert.notCalled( spyB );
+			expect( spyA ).not.toHaveBeenCalled();
+			expect( spyB ).not.toHaveBeenCalled();
 		} );
 
 		it( 'executes enabled command', () => {
@@ -88,23 +87,23 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandB );
 			multiCommand.registerChildCommand( commandC );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
-			const spyC = sinon.spy( commandC, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
+			const spyC = vi.spyOn( commandC, 'execute' );
 
 			commandC.isEnabled = true;
 
 			multiCommand.execute();
 
-			sinon.assert.notCalled( spyA );
-			sinon.assert.notCalled( spyB );
-			sinon.assert.calledOnce( spyC );
+			expect( spyA ).not.toHaveBeenCalled();
+			expect( spyB ).not.toHaveBeenCalled();
+			expect( spyC ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'returns the result of command\'s execute()', () => {
 			const command = new Command( editor );
 			const commandResult = { foo: 'bar' };
-			sinon.stub( command, 'execute' ).returns( commandResult );
+			vi.spyOn( command, 'execute' ).mockReturnValue( commandResult );
 
 			multiCommand.registerChildCommand( command );
 
@@ -112,8 +111,8 @@ describe( 'MultiCommand', () => {
 
 			const multiCommandResult = multiCommand.execute();
 
-			expect( multiCommandResult, 'multiCommand.execute()' ).to.equal( commandResult );
-			expect( multiCommandResult, 'multiCommand.execute()' ).to.deep.equal( { foo: 'bar' } );
+			expect( multiCommandResult, 'multiCommand.execute()' ).toBe( commandResult );
+			expect( multiCommandResult, 'multiCommand.execute()' ).toEqual( { foo: 'bar' } );
 		} );
 
 		it( 'executes first registered command if many are enabled', () => {
@@ -125,18 +124,18 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandB );
 			multiCommand.registerChildCommand( commandC );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
-			const spyC = sinon.spy( commandC, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
+			const spyC = vi.spyOn( commandC, 'execute' );
 
 			commandC.isEnabled = true;
 			commandB.isEnabled = true;
 
 			multiCommand.execute();
 
-			sinon.assert.notCalled( spyA );
-			sinon.assert.calledOnce( spyB );
-			sinon.assert.notCalled( spyC );
+			expect( spyA ).not.toHaveBeenCalled();
+			expect( spyB ).toHaveBeenCalledOnce();
+			expect( spyC ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -148,16 +147,16 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandB, { priority: 'high' } );
 			multiCommand.registerChildCommand( commandA, { priority: 'low' } );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
 
 			commandA.isEnabled = true;
 			commandB.isEnabled = true;
 
 			multiCommand.execute();
 
-			sinon.assert.notCalled( spyA );
-			sinon.assert.calledOnce( spyB );
+			expect( spyA ).not.toHaveBeenCalled();
+			expect( spyB ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should execute command with higher priority even if it was registered after command with lower priority', () => {
@@ -167,16 +166,16 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandA, { priority: 'low' } );
 			multiCommand.registerChildCommand( commandB, { priority: 'high' } );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
 
 			commandA.isEnabled = true;
 			commandB.isEnabled = true;
 
 			multiCommand.execute();
 
-			sinon.assert.notCalled( spyA );
-			sinon.assert.calledOnce( spyB );
+			expect( spyA ).not.toHaveBeenCalled();
+			expect( spyB ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should execute first registered command if all have the same priority', () => {
@@ -188,9 +187,9 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandB, { priority: 'normal' } );
 			multiCommand.registerChildCommand( commandC, { priority: 'normal' } );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
-			const spyC = sinon.spy( commandC, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
+			const spyC = vi.spyOn( commandC, 'execute' );
 
 			commandA.isEnabled = true;
 			commandB.isEnabled = true;
@@ -198,9 +197,9 @@ describe( 'MultiCommand', () => {
 
 			multiCommand.execute();
 
-			sinon.assert.calledOnce( spyA );
-			sinon.assert.notCalled( spyB );
-			sinon.assert.notCalled( spyC );
+			expect( spyA ).toHaveBeenCalledOnce();
+			expect( spyB ).not.toHaveBeenCalled();
+			expect( spyC ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should execute command with lower priority if commands with higher priority are disabled', () => {
@@ -212,17 +211,17 @@ describe( 'MultiCommand', () => {
 			multiCommand.registerChildCommand( commandB, { priority: 'high' } );
 			multiCommand.registerChildCommand( commandC, { priority: 'highest' } );
 
-			const spyA = sinon.spy( commandA, 'execute' );
-			const spyB = sinon.spy( commandB, 'execute' );
-			const spyC = sinon.spy( commandC, 'execute' );
+			const spyA = vi.spyOn( commandA, 'execute' );
+			const spyB = vi.spyOn( commandB, 'execute' );
+			const spyC = vi.spyOn( commandC, 'execute' );
 
 			commandA.isEnabled = true;
 
 			multiCommand.execute();
 
-			sinon.assert.calledOnce( spyA );
-			sinon.assert.notCalled( spyB );
-			sinon.assert.notCalled( spyC );
+			expect( spyA ).toHaveBeenCalledOnce();
+			expect( spyB ).not.toHaveBeenCalled();
+			expect( spyC ).not.toHaveBeenCalled();
 		} );
 	} );
 } );

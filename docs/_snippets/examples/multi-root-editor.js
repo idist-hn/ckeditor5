@@ -1,33 +1,31 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document */
-
-import MultiRootEditor from '@ckeditor/ckeditor5-build-multi-root';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
+import { TOKEN_URL, MultiRootEditor } from '@snippets/index.js';
 
 MultiRootEditor
 	.create(
-		// Define roots / editable areas:
 		{
-			header: document.querySelector( '#header' ),
-			content: document.querySelector( '#content' ),
-			leftSide: document.querySelector( '#left-side' ),
-			rightSide: document.querySelector( '#right-side' )
-		},
-		// Editor configration:
-		{
-			cloudServices: CS_CONFIG,
-			toolbar: {
-				items: [
-					'undo', 'redo',
-					'|', 'heading',
-					'|', 'bold', 'italic',
-					'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
-					'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
-				]
+			ckbox: {
+				tokenUrl: TOKEN_URL,
+				forceDemoLabel: true,
+				allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ]
+			},
+			roots: {
+				header: {
+					element: document.querySelector( '#header' )
+				},
+				content: {
+					element: document.querySelector( '#content' )
+				},
+				leftSide: {
+					element: document.querySelector( '#left-side' )
+				},
+				rightSide: {
+					element: document.querySelector( '#right-side' )
+				}
 			}
 		}
 	)

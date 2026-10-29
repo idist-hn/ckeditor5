@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/list/listview
  */
 
-import View from '../view';
-import FocusCycler from '../focuscycler';
+import { View } from '../view.js';
+import { FocusCycler, type FocusableView } from '../focuscycler.js';
 
-import type ListItemView from './listitemview';
-import ListItemGroupView from './listitemgroupview';
-import type DropdownPanelFocusable from '../dropdown/dropdownpanelfocusable';
-import ViewCollection from '../viewcollection';
+import { ListItemView } from './listitemview.js';
+import { ListItemGroupView } from './listitemgroupview.js';
+import { type ListSeparatorView } from './listseparatorview.js';
+import { type DropdownPanelFocusable } from '../dropdown/dropdownpanelfocusable.js';
+import { ViewCollection } from '../viewcollection.js';
 
 import {
 	FocusTracker,
@@ -23,23 +24,21 @@ import {
 	type CollectionChangeEvent
 } from '@ckeditor/ckeditor5-utils';
 
-import '../../theme/components/list/list.css';
-
 /**
  * The list view class.
  */
-export default class ListView extends View<HTMLUListElement> implements DropdownPanelFocusable {
+export class ListView extends View<HTMLUListElement> implements DropdownPanelFocusable {
 	/**
 	 * The collection of focusable views in the list. It is used to determine accessible navigation
 	 * between the {@link module:ui/list/listitemview~ListItemView list items} and
 	 * {@link module:ui/list/listitemgroupview~ListItemGroupView list groups}.
 	 */
-	public readonly focusables: ViewCollection;
+	public readonly focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * Collection of the child list views.
 	 */
-	public readonly items: ViewCollection<ListItemView | ListItemGroupView>;
+	public readonly items: ViewCollection<ListItemView | ListItemGroupView | ListSeparatorView>;
 
 	/**
 	 * Tracks information about DOM focus in the list.
@@ -141,7 +140,7 @@ export default class ListView extends View<HTMLUListElement> implements Dropdown
 		for ( const item of this.items ) {
 			if ( item instanceof ListItemGroupView ) {
 				this._registerFocusableItemsGroup( item );
-			} else {
+			} else if ( item instanceof ListItemView ) {
 				this._registerFocusableListItem( item );
 			}
 		}
@@ -150,7 +149,7 @@ export default class ListView extends View<HTMLUListElement> implements Dropdown
 			for ( const removed of data.removed ) {
 				if ( removed instanceof ListItemGroupView ) {
 					this._deregisterFocusableItemsGroup( removed );
-				} else {
+				} else if ( removed instanceof ListItemView ) {
 					this._deregisterFocusableListItem( removed );
 				}
 			}

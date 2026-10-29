@@ -1,23 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { KeyObserver, _setModelData } from '@ckeditor/ckeditor5-engine';
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import KeyObserver from '@ckeditor/ckeditor5-engine/src/view/observer/keyobserver';
-
-import { toWidget } from '../src/utils';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
+import { toWidget } from '../src/utils.js';
 
 describe( 'Widget - Events', () => {
 	const EVENT_NAME = 'keyup';
 	let editor, editorElement, eventCallback, buttonIgnored, buttonRegular;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		editorElement = createEditorElement();
@@ -35,13 +29,13 @@ describe( 'Widget - Events', () => {
 	it( 'should not ignore events from child inside parent without the `data-cke-ignore-events` attribute', () => {
 		buttonRegular.dispatchEvent( new Event( EVENT_NAME, { bubbles: true } ) );
 
-		expect( eventCallback.callCount ).to.equal( 1 );
+		expect( eventCallback ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'should ignore events from child inside parent with the `data-cke-ignore-events` attribute', () => {
 		buttonIgnored.dispatchEvent( new Event( EVENT_NAME, { bubbles: true } ) );
 
-		expect( eventCallback.callCount ).to.equal( 0 );
+		expect( eventCallback ).toHaveBeenCalledTimes( 0 );
 	} );
 
 	function createEditorElement() {
@@ -51,7 +45,7 @@ describe( 'Widget - Events', () => {
 	async function createEditor( element ) {
 		const editor = await ClassicEditor.create( element, { plugins: [ simpleWidgetPlugin ] } );
 
-		setModelData( editor.model, '[<simpleWidgetElement></simpleWidgetElement>]' );
+		_setModelData( editor.model, '[<simpleWidgetElement></simpleWidgetElement>]' );
 
 		const container = Array
 			.from( editor.editing.view.document.getRoot().getChildren() )
@@ -123,7 +117,7 @@ describe( 'Widget - Events', () => {
 		}
 
 		function addObserver( editor ) {
-			eventCallback = sinon.fake();
+			eventCallback = vi.fn();
 
 			editor.editing.view.addObserver( KeyObserver );
 			editor.editing.view.document.on( EVENT_NAME, eventCallback );

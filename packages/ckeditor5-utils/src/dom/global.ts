@@ -1,9 +1,7 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-/* globals window, document */
 
 /**
  * @module utils/dom/global
@@ -24,10 +22,10 @@ export interface GlobalType {
  * testing, i.e. stubbing native properties:
  *
  * ```ts
- * import { global } from 'ckeditor5/utils';
+ * import { global } from 'ckeditor5';
  *
  * // This stub will work for any code using global module.
- * testUtils.sinon.stub( global, 'window', {
+ * vi.spyOn( global, 'window', 'get' ).mockReturnValue( {
  * 	innerWidth: 10000
  * } );
  *
@@ -39,15 +37,17 @@ let globalVar: GlobalType; // named globalVar instead of global: https://github.
 // In some environments window and document API might not be available.
 try {
 	globalVar = { window, document };
-} catch ( e ) {
-	// It's not possible to mock a window object to simulate lack of a window object without writing extremely convoluted code.
-	/* istanbul ignore next -- @preserve */
+} catch {
+	/* v8 ignore start -- @preserve */
 
+	// It's not possible to mock a window object to simulate lack of a window object without writing extremely convoluted code.
 	// Let's cast it to not change module's API.
 	// We only handle this so loading editor in environments without window and document doesn't fail.
 	// For better DX we shouldn't introduce mixed types and require developers to check the type manually.
 	// This module should not be used on purpose in any environment outside browser.
 	globalVar = { window: {} as any, document: {} as any };
+
+	/* v8 ignore stop -- @preserve */
 }
 
-export default globalVar;
+export { globalVar as global };

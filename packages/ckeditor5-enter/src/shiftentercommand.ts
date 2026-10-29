@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -8,22 +8,22 @@
  */
 
 import { Command } from '@ckeditor/ckeditor5-core';
-import { getCopyOnEnterAttributes } from './utils';
+import { getCopyOnEnterAttributes } from './utils.js';
 
 import type {
-	DocumentSelection,
+	ModelDocumentSelection,
 	Model,
-	Position,
-	Schema,
-	Element,
-	Writer
+	ModelPosition,
+	ModelSchema,
+	ModelElement,
+	ModelWriter
 } from '@ckeditor/ckeditor5-engine';
 
 /**
  * ShiftEnter command. It is used by the {@link module:enter/shiftenter~ShiftEnter ShiftEnter feature} to handle
  * the <kbd>Shift</kbd>+<kbd>Enter</kbd> keystroke.
  */
-export default class ShiftEnterCommand extends Command {
+export class ShiftEnterCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -55,13 +55,13 @@ export default class ShiftEnterCommand extends Command {
  */
 export type ShiftEnterCommandAfterExecuteEvent = {
 	name: 'afterExecute';
-	args: [ { writer: Writer } ];
+	args: [ { writer: ModelWriter } ];
 };
 
 /**
  * Checks whether the ShiftEnter command should be enabled in the specified selection.
  */
-function isEnabled( schema: Schema, selection: DocumentSelection ): boolean {
+function isEnabled( schema: ModelSchema, selection: ModelDocumentSelection ): boolean {
 	// At this moment it is okay to support single range selections only.
 	// But in the future we may need to change that.
 	if ( selection.rangeCount > 1 ) {
@@ -76,8 +76,8 @@ function isEnabled( schema: Schema, selection: DocumentSelection ): boolean {
 	}
 
 	const range = selection.getFirstRange()!;
-	const startElement = range.start.parent as Element;
-	const endElement = range.end.parent as Element;
+	const startElement = range.start.parent as ModelElement;
+	const endElement = range.end.parent as ModelElement;
 
 	// Do not modify the content if selection is cross-limit elements.
 	if ( ( isInsideLimitElement( startElement, schema ) || isInsideLimitElement( endElement, schema ) ) && startElement !== endElement ) {
@@ -90,20 +90,15 @@ function isEnabled( schema: Schema, selection: DocumentSelection ): boolean {
 /**
  * Creates a break in the way that the <kbd>Shift</kbd>+<kbd>Enter</kbd> keystroke is expected to work.
  */
-function softBreakAction( model: Model, writer: Writer, selection: DocumentSelection ): void {
+function softBreakAction( model: Model, writer: ModelWriter, selection: ModelDocumentSelection ): void {
 	const isSelectionEmpty = selection.isCollapsed;
 	const range = selection.getFirstRange()!;
-	const startElement = range.start.parent as Element;
-	const endElement = range.end.parent as Element;
+	const startElement = range.start.parent as ModelElement;
+	const endElement = range.end.parent as ModelElement;
 	const isContainedWithinOneElement = ( startElement == endElement );
 
 	if ( isSelectionEmpty ) {
-		const attributesToCopy = getCopyOnEnterAttributes( model.schema, selection.getAttributes() );
-
-		insertBreak( model, writer, range.end );
-
-		writer.removeSelectionAttribute( selection.getAttributeKeys() );
-		writer.setSelectionAttribute( attributesToCopy );
+		insertBreak( model, writer, range.end, selection.getAttributes() );
 	} else {
 		const leaveUnmerged = !( range.start.isAtStart && range.end.isAtEnd );
 
@@ -113,7 +108,7 @@ function softBreakAction( model: Model, writer: Writer, selection: DocumentSelec
 		//
 		// <h>x[xx]x</h>		-> <h>x^x</h>			-> <h>x<br>^x</h>
 		if ( isContainedWithinOneElement ) {
-			insertBreak( model, writer, selection.focus! );
+			insertBreak( model, writer, selection.focus!, selection.getAttributes() );
 		}
 		// Selection over multiple elements.
 		//
@@ -134,8 +129,17 @@ function softBreakAction( model: Model, writer: Writer, selection: DocumentSelec
 	}
 }
 
-function insertBreak( model: Model, writer: Writer, position: Position ): void {
-	const breakLineElement = writer.createElement( 'softBreak' );
+/**
+ * Inserts a softBreak with applicable attributes.
+ */
+function insertBreak(
+	model: Model,
+	writer: ModelWriter,
+	position: ModelPosition,
+	selectionAttributes: IterableIterator<[ string, unknown ]>
+): void {
+	const attributes = Array.from( getCopyOnEnterAttributes( model.schema, selectionAttributes ) );
+	const breakLineElement = writer.createElement( 'softBreak', attributes );
 
 	model.insertContent( breakLineElement, position );
 	writer.setSelection( breakLineElement, 'after' );
@@ -148,11 +152,11 @@ function insertBreak( model: Model, writer: Writer, position: Position ): void {
  *   - `<$root><p>Text.</p></$root> => false`
  *   - `<$root><limitElement><p>Text</p></limitElement></$root> => true`
  */
-function isInsideLimitElement( element: Element, schema: Schema ): boolean {
+function isInsideLimitElement( element: ModelElement, schema: ModelSchema ): boolean {
 	// `$root` is a limit element but in this case is an invalid element.
 	if ( element.is( 'rootElement' ) ) {
 		return false;
 	}
 
-	return schema.isLimit( element ) || isInsideLimitElement( element.parent as Element, schema );
+	return schema.isLimit( element ) || isInsideLimitElement( element.parent as ModelElement, schema );
 }

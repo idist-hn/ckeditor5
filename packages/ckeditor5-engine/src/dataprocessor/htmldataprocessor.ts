@@ -1,28 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/dataprocessor/htmldataprocessor
  */
 
-/* globals DOMParser */
+import { trustedHtml } from '@ckeditor/ckeditor5-utils';
 
-import BasicHtmlWriter from './basichtmlwriter';
-import DomConverter from '../view/domconverter';
+import { BasicHtmlWriter } from './basichtmlwriter.js';
+import { ViewDomConverter } from '../view/domconverter.js';
 
-import type DataProcessor from './dataprocessor';
-import type HtmlWriter from './htmlwriter';
-import type ViewDocument from '../view/document';
-import type ViewDocumentFragment from '../view/documentfragment';
-import type { MatcherPattern } from '../view/matcher';
+import { type DataProcessor } from './dataprocessor.js';
+import { type DataProcessorHtmlWriter } from './htmlwriter.js';
+import { type ViewDocument } from '../view/document.js';
+import { type ViewDocumentFragment } from '../view/documentfragment.js';
+import type { MatcherPattern } from '../view/matcher.js';
 
 /**
  * The HTML data processor class.
  * This data processor implementation uses HTML as input and output data.
  */
-export default class HtmlDataProcessor implements DataProcessor {
+export class HtmlDataProcessor implements DataProcessor {
 	/**
 	 * A DOM parser instance used to parse an HTML string to an HTML document.
 	 */
@@ -31,14 +31,27 @@ export default class HtmlDataProcessor implements DataProcessor {
 	/**
 	 * A DOM converter used to convert DOM elements to view elements.
 	 */
-	public domConverter: DomConverter;
+	public domConverter: ViewDomConverter;
 
 	/**
 	 * A basic HTML writer instance used to convert DOM elements to an HTML string.
 	 */
-	public htmlWriter: HtmlWriter;
+	public htmlWriter: DataProcessorHtmlWriter;
 
+	/**
+	 * If `false`, comment nodes will be converted. Otherwise, comment nodes are ignored.
+	 *
+	 * @default true
+	 */
 	public skipComments: boolean = true;
+
+	/**
+	 * If `false`, processing instruction nodes (for example `<?target data?>`) will be converted.
+	 * Otherwise, processing instruction nodes are ignored.
+	 *
+	 * @default true
+	 */
+	public skipProcessingInstructions: boolean = true;
 
 	/**
 	 * Creates a new instance of the HTML data processor class.
@@ -47,19 +60,19 @@ export default class HtmlDataProcessor implements DataProcessor {
 	 */
 	constructor( document: ViewDocument ) {
 		this.domParser = new DOMParser();
-		this.domConverter = new DomConverter( document, { renderingMode: 'data' } );
+		this.domConverter = new ViewDomConverter( document, { renderingMode: 'data' } );
 		this.htmlWriter = new BasicHtmlWriter();
 	}
 
 	/**
-	 * Converts a provided {@link module:engine/view/documentfragment~DocumentFragment document fragment}
-	 * to data format &mdash; in this case to an HTML string.
+	 * Converts a provided {@link module:engine/view/documentfragment~ViewDocumentFragment document fragment}
+	 * to data format &ndash; in this case to an HTML string.
 	 *
 	 * @returns HTML string.
 	 */
 	public toData( viewFragment: ViewDocumentFragment ): string {
 		// Convert view DocumentFragment to DOM DocumentFragment.
-		const domFragment = this.domConverter.viewToDom( viewFragment ) as DocumentFragment;
+		const domFragment = this.domConverter.viewToDom( viewFragment );
 
 		// Convert DOM DocumentFragment to HTML output.
 		return this.htmlWriter.getHtml( domFragment );
@@ -76,7 +89,10 @@ export default class HtmlDataProcessor implements DataProcessor {
 		const domFragment = this._toDom( data );
 
 		// Convert DOM DocumentFragment to view DocumentFragment.
-		return this.domConverter.domToView( domFragment, { skipComments: this.skipComments } ) as ViewDocumentFragment;
+		return this.domConverter.domToView( domFragment, {
+			skipComments: this.skipComments,
+			skipProcessingInstructions: this.skipProcessingInstructions
+		} ) as ViewDocumentFragment;
 	}
 
 	/**
@@ -84,7 +100,7 @@ export default class HtmlDataProcessor implements DataProcessor {
 	 * and not processed during the conversion from the DOM to the view elements.
 	 *
 	 * The raw data can be later accessed by a
-	 * {@link module:engine/view/element~Element#getCustomProperty custom property of a view element} called `"$rawContent"`.
+	 * {@link module:engine/view/element~ViewElement#getCustomProperty custom property of a view element} called `"$rawContent"`.
 	 *
 	 * @param pattern Pattern matching all view elements whose content should be treated as raw data.
 	 */
@@ -115,11 +131,11 @@ export default class HtmlDataProcessor implements DataProcessor {
 		// Wrap data with a <body> tag so leading non-layout nodes (like <script>, <style>, HTML comment)
 		// will be preserved in the body collection.
 		// Do it only for data that is not a full HTML document.
-		if ( !data.match( /<(?:html|body|head|meta)(?:\s[^>]*)?>/i ) ) {
+		if ( !/<(?:html|body|head|meta)(?:\s[^>]*)?>/i.test( data.trim().slice( 0, 10_000 ) ) ) {
 			data = `<body>${ data }</body>`;
 		}
 
-		const document = this.domParser.parseFromString( data, 'text/html' );
+		const document = this.domParser.parseFromString( trustedHtml( data ), 'text/html' );
 		const fragment = document.createDocumentFragment();
 		const bodyChildNodes = document.body.childNodes;
 

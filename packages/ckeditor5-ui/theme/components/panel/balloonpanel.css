@@ -1,52 +1,240 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-:root {
-	/* Make sure the balloon arrow does not float over its children. */
-	--ck-balloon-panel-arrow-z-index: calc(var(--ck-z-default) - 3);
+:root,
+:host {
+	/* Radius */
+	--ck-balloon-panel-border-radius: var(--ck-border-radius-surface);
+
+	/* Border */
+	/* Override-only: the border is composed at the point of use, so a legacy color or a part set on a narrower selector applies. */
+	--ck-balloon-panel-border: initial;
+
+	/* Color */
+	--ck-balloon-panel-background-color: var(--ck-color-surface-container);
+	--ck-balloon-panel-border-color: var(--ck-color-border-container);
+
+	/* State / meta */
+	--ck-balloon-panel-arrow-display: none;
+
+	/* Backward compatibility: these tokens were removed but may be overridden by consumers. */
+	--ck-balloon-arrow-half-width: 8px;
+	--ck-balloon-arrow-height: 10px;
+	--ck-balloon-arrow-offset: 2px;
 }
 
 .ck.ck-balloon-panel {
+	border-radius: var(--ck-balloon-panel-border-radius);
+	/* Backward compatibility: falls back to legacy --ck-drop-shadow if overridden. */
+	box-shadow: var(--ck-drop-shadow, var(--ck-shadow-surface-floating)), 0 0;
+
+	min-height: 15px;
+
+	background: var(--ck-color-panel-background, var(--ck-balloon-panel-background-color));
+	border: var(--ck-balloon-panel-border, var(--ck-balloon-border-width, var(--ck-border-width-surface)) solid var(--ck-color-panel-border, var(--ck-balloon-panel-border-color)));
 	display: none;
 	position: absolute;
 
-	z-index: var(--ck-z-modal);
+	z-index: var(--ck-layer-panel);
 
 	&.ck-balloon-panel_with-arrow {
 		&::before,
 		&::after {
+			display: var(--ck-balloon-panel-arrow-display);
+			width: 0;
+			height: 0;
+			border-style: solid;
 			content: "";
 			position: absolute;
 		}
 
 		&::before {
-			z-index: var(--ck-balloon-panel-arrow-z-index);
+			/* Backward compatibility: falls back to legacy --ck-balloon-panel-arrow-z-index if overridden. */
+			z-index: var(--ck-balloon-panel-arrow-z-index, var(--ck-layer-balloon-arrow-back));
 		}
 
 		&::after {
-			z-index: calc(var(--ck-balloon-panel-arrow-z-index) + 1);
+			z-index: var(--ck-layer-balloon-arrow-front);
 		}
 	}
 
 	&[class*="arrow_n"] {
+		&::before,
+		&::after {
+			border-width: 0 var(--ck-balloon-arrow-half-width) var(--ck-balloon-arrow-height) var(--ck-balloon-arrow-half-width);
+		}
+
 		&::before {
-			z-index: var(--ck-balloon-panel-arrow-z-index);
+			border-color: transparent transparent var(--ck-color-panel-border, var(--ck-balloon-panel-border-color)) transparent;
+			margin-top: calc( -1 * var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+			z-index: var(--ck-layer-balloon-arrow-back);
 		}
 
 		&::after {
-			z-index: calc(var(--ck-balloon-panel-arrow-z-index) + 1);
+			border-color: transparent transparent var(--ck-color-panel-background, var(--ck-balloon-panel-background-color)) transparent;
+			margin-top: calc( var(--ck-balloon-arrow-offset) - var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+			z-index: var(--ck-layer-balloon-arrow-front);
 		}
 	}
 
 	&[class*="arrow_s"] {
+		&::before,
+		&::after {
+			border-width: var(--ck-balloon-arrow-height) var(--ck-balloon-arrow-half-width) 0 var(--ck-balloon-arrow-half-width);
+		}
+
 		&::before {
-			z-index: var(--ck-balloon-panel-arrow-z-index);
+			border-color: var(--ck-color-panel-border, var(--ck-balloon-panel-border-color)) transparent transparent;
+			/* Backward compatibility: falls back to legacy --ck-balloon-arrow-drop-shadow if overridden. */
+			filter: drop-shadow(var(--ck-balloon-arrow-drop-shadow, 0 2px 2px var(--ck-color-shadow-drop)));
+			margin-bottom: calc( -1 * var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+			z-index: var(--ck-layer-balloon-arrow-back);
 		}
 
 		&::after {
-			z-index: calc(var(--ck-balloon-panel-arrow-z-index) + 1);
+			border-color: var(--ck-color-panel-background, var(--ck-balloon-panel-background-color)) transparent transparent transparent;
+			margin-bottom: calc( var(--ck-balloon-arrow-offset) - var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+			z-index: var(--ck-layer-balloon-arrow-front);
+		}
+	}
+
+	&[class*="arrow_e"] {
+		&::before,
+		&::after {
+			border-width: var(--ck-balloon-arrow-half-width) 0 var(--ck-balloon-arrow-half-width) var(--ck-balloon-arrow-height);
+		}
+
+		&::before {
+			border-color: transparent transparent transparent var(--ck-color-panel-border, var(--ck-balloon-panel-border-color));
+			margin-right: calc( -1 * var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+		}
+
+		&::after {
+			border-color: transparent transparent transparent var(--ck-color-panel-background, var(--ck-balloon-panel-background-color));
+			margin-right: calc( var(--ck-balloon-arrow-offset) - var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+		}
+	}
+
+	&[class*="arrow_w"] {
+		&::before,
+		&::after {
+			border-width: var(--ck-balloon-arrow-half-width) var(--ck-balloon-arrow-height) var(--ck-balloon-arrow-half-width) 0;
+		}
+
+		&::before {
+			border-color: transparent var(--ck-color-panel-border, var(--ck-balloon-panel-border-color)) transparent transparent;
+			margin-left: calc( -1 * var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+		}
+
+		&::after {
+			border-color: transparent var(--ck-color-panel-background, var(--ck-balloon-panel-background-color)) transparent transparent;
+			margin-left: calc( var(--ck-balloon-arrow-offset) - var(--ck-balloon-border-width, var(--ck-border-width-surface)) );
+		}
+	}
+
+	&.ck-balloon-panel_arrow_n {
+		&::before,
+		&::after {
+			left: 50%;
+			margin-left: calc(-1 * var(--ck-balloon-arrow-half-width));
+			top: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_nw {
+		&::before,
+		&::after {
+			left: calc(2 * var(--ck-balloon-arrow-half-width));
+			top: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_ne {
+		&::before,
+		&::after {
+			right: calc(2 * var(--ck-balloon-arrow-half-width));
+			top: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_s {
+		&::before,
+		&::after {
+			left: 50%;
+			margin-left: calc(-1 * var(--ck-balloon-arrow-half-width));
+			bottom: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_sw {
+		&::before,
+		&::after {
+			left: calc(2 * var(--ck-balloon-arrow-half-width));
+			bottom: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_se {
+		&::before,
+		&::after {
+			right: calc(2 * var(--ck-balloon-arrow-half-width));
+			bottom: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_sme {
+		&::before,
+		&::after {
+			right: 25%;
+			margin-right: calc(2 * var(--ck-balloon-arrow-half-width));
+			bottom: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_smw {
+		&::before,
+		&::after {
+			left: 25%;
+			margin-left: calc(2 * var(--ck-balloon-arrow-half-width));
+			bottom: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_nme {
+		&::before,
+		&::after {
+			right: 25%;
+			margin-right: calc(2 * var(--ck-balloon-arrow-half-width));
+			top: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_nmw {
+		&::before,
+		&::after {
+			left: 25%;
+			margin-left: calc(2 * var(--ck-balloon-arrow-half-width));
+			top: calc(-1 * var(--ck-balloon-arrow-height));
+		}
+	}
+
+	&.ck-balloon-panel_arrow_e {
+		&::before,
+		&::after {
+			right: calc(-1 * var(--ck-balloon-arrow-height));
+			margin-top: calc(-1 * var(--ck-balloon-arrow-half-width));
+			top: 50%;
+		}
+	}
+
+	&.ck-balloon-panel_arrow_w {
+		&::before,
+		&::after {
+			left: calc(-1 * var(--ck-balloon-arrow-height));
+			margin-top: calc(-1 * var(--ck-balloon-arrow-half-width));
+			top: 50%;
 		}
 	}
 

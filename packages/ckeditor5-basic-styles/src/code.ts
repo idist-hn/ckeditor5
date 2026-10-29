@@ -1,17 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/code
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import CodeEditing from './code/codeediting';
-import CodeUI from './code/codeui';
-
-import '../theme/code.css';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { CodeEditing } from './code/codeediting.js';
+import { CodeUI } from './code/codeui.js';
 
 /**
  * The code feature.
@@ -22,12 +20,12 @@ import '../theme/code.css';
  * This is a "glue" plugin which loads the {@link module:basic-styles/code/codeediting~CodeEditing code editing feature}
  * and {@link module:basic-styles/code/codeui~CodeUI code UI feature}.
  */
-export default class Code extends Plugin {
+export class Code extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ CodeEditing, CodeUI ] as const;
+	public static get requires(): PluginDependenciesOf<[ CodeEditing, CodeUI ]> {
+		return [ CodeEditing, CodeUI ];
 	}
 
 	/**
@@ -35,5 +33,12 @@ export default class Code extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'Code' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 }

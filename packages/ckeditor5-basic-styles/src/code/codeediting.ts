@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module basic-styles/code/codeediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { TwoStepCaretMovement, inlineHighlight } from 'ckeditor5/src/typing';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { TwoStepCaretMovement, inlineHighlight } from '@ckeditor/ckeditor5-typing';
 
-import AttributeCommand from '../attributecommand';
+import { AttributeCommand } from '../attributecommand.js';
 
 const CODE = 'code';
 const HIGHLIGHT_CLASS = 'ck-code_selected';
@@ -21,7 +21,7 @@ const HIGHLIGHT_CLASS = 'ck-code_selected';
  * It registers the `'code'` command and introduces the `code` attribute in the model which renders to the view
  * as a `<code>` element.
  */
-export default class CodeEditing extends Plugin {
+export class CodeEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -32,8 +32,15 @@ export default class CodeEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ TwoStepCaretMovement ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ TwoStepCaretMovement ]> {
+		return [ TwoStepCaretMovement ];
 	}
 
 	/**
@@ -41,6 +48,7 @@ export default class CodeEditing extends Plugin {
 	 */
 	public init(): void {
 		const editor = this.editor;
+		const t = this.editor.t;
 
 		// Allow code attribute on text nodes.
 		editor.model.schema.extend( '$text', { allowAttributes: CODE } );
@@ -51,12 +59,7 @@ export default class CodeEditing extends Plugin {
 
 		editor.conversion.attributeToElement( {
 			model: CODE,
-			view: 'code',
-			upcastAlso: {
-				styles: {
-					'word-wrap': 'break-word'
-				}
-			}
+			view: 'code'
 		} );
 
 		// Create code command.
@@ -67,5 +70,18 @@ export default class CodeEditing extends Plugin {
 
 		// Setup highlight over selected element.
 		inlineHighlight( editor, CODE, 'code', HIGHLIGHT_CLASS );
+
+		// Add the information about the keystroke to the accessibility database.
+		editor.accessibility.addKeystrokeInfos( {
+			keystrokes: [
+				{
+					label: t( 'Move out of an inline code style' ),
+					keystroke: [
+						[ 'arrowleft', 'arrowleft' ],
+						[ 'arrowright', 'arrowright' ]
+					]
+				}
+			]
+		} );
 	}
 }

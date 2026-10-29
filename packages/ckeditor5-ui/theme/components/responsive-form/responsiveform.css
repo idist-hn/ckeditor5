@@ -1,42 +1,116 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-@import "@ckeditor/ckeditor5-ui/theme/mixins/_rwd.css";
+:root,
+:host {
+	/* Spacing */
+	--ck-responsive-form-padding: var(--ck-spacing-padding-comfortable);
 
-.ck-vertical-form .ck-button {
-	&::after {
-		content: "";
-		width: 0;
-		position: absolute;
-		right: -1px;
-		top: -1px;
-		bottom: -1px;
-		z-index: 1;
-	}
-
-	&:focus::after {
-		display: none;
-	}
+	/* Border */
+	--ck-responsive-form-divider-border: var(--ck-border-divider);
 }
 
 .ck.ck-responsive-form {
-	@mixin ck-media-phone {
+	padding: var(--ck-responsive-form-padding);
+
+	&:focus {
+		/* See: https://github.com/ckeditor/ckeditor5/issues/4773 */
+		outline: none;
+	}
+
+	[dir="ltr"] & {
+		& > :not(:first-child) {
+			margin-left: var(--ck-spacing-padding);
+		}
+	}
+
+	[dir="rtl"] & {
+		& > :not(:last-child) {
+			margin-left: var(--ck-spacing-padding);
+		}
+	}
+
+	@media screen and (max-width: 600px) {
+		padding: 0;
+		width: calc(.8 * var(--ck-input-width));
+
+		& .ck-labeled-field-view {
+			margin: var(--ck-spacing-gap-comfortable) var(--ck-spacing-gap-comfortable) 0;
+
+			& .ck-input-text,
+			& .ck-input-number {
+				min-width: 0;
+				width: 100%;
+			}
+
+			/* Let the long error messages wrap in the narrow form. */
+			& .ck-labeled-field-view__error {
+				white-space: normal;
+			}
+		}
+
+		& > .ck-button:nth-last-child(1),
+		& > .ck-button:nth-last-child(2) {
+			padding: var(--ck-spacing-control-padding-inline);
+			margin-top: var(--ck-spacing-gap-comfortable);
+			border-radius: 0;
+
+			&:not(:focus) {
+				border-top: var(--ck-responsive-form-divider-border);
+			}
+
+			[dir="ltr"] & {
+				margin-left: 0;
+			}
+
+			[dir="rtl"] & {
+				margin-left: 0;
+
+				&:last-of-type {
+					border-right: var(--ck-responsive-form-divider-border);
+				}
+			}
+		}
 		& .ck-button {
 			&::after {
 				content: "";
 				width: 0;
 				position: absolute;
-				right: -1px;
-				top: -1px;
-				bottom: -1px;
+				right: calc(-1 * var(--ck-border-width-divider));
+				top: calc(-1 * var(--ck-border-width-divider));
+				bottom: calc(-1 * var(--ck-border-width-divider));
 				z-index: 1;
+			}
+
+			&:nth-last-child(2)::after {
+				border-right: var(--ck-responsive-form-divider-border);
 			}
 
 			&:focus::after {
 				display: none;
 			}
 		}
+	}
+}
+
+.ck-vertical-form > .ck-button:nth-last-child(2)::after {
+	border-right: var(--ck-responsive-form-divider-border);
+}
+
+.ck-vertical-form .ck-button {
+	&::after {
+		content: "";
+		width: 0;
+		position: absolute;
+		right: calc(-1 * var(--ck-border-width-divider));
+		top: calc(-1 * var(--ck-border-width-divider));
+		bottom: calc(-1 * var(--ck-border-width-divider));
+		z-index: 1;
+	}
+
+	&:focus::after {
+		display: none;
 	}
 }

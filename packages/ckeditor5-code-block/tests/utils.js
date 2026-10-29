@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '@ckeditor/ckeditor5-engine/src/model/model';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model, _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
-import { canBeCodeBlock } from '../src/utils';
+import { canBeCodeBlock, getTextNodeAtLineStart } from '../src/utils.js';
 
 describe( 'CodeBlock - utils', () => {
 	describe( 'canBecomeCodeBlock()', () => {
@@ -15,8 +16,8 @@ describe( 'CodeBlock - utils', () => {
 
 			const testResult = canBeCodeBlock( model.schema, root );
 
-			expect( root.is( 'rootElement' ) ).to.be.true;
-			expect( testResult ).to.be.false;
+			expect( root.is( 'rootElement' ) ).toBe( true );
+			expect( testResult ).toBe( false );
 		} );
 
 		it( 'should not allow a limit element to become a code block', () => {
@@ -35,8 +36,8 @@ describe( 'CodeBlock - utils', () => {
 
 			const testResult = canBeCodeBlock( model.schema, limitElement );
 
-			expect( model.schema.isLimit( limitElement ) ).to.be.true;
-			expect( testResult ).to.be.false;
+			expect( model.schema.isLimit( limitElement ) ).toBe( true );
+			expect( testResult ).toBe( false );
 		} );
 
 		it( 'should not allow an element to become a code block if it isnt allowed in parent', () => {
@@ -60,7 +61,7 @@ describe( 'CodeBlock - utils', () => {
 
 			const testResult = canBeCodeBlock( model.schema, fooElement );
 
-			expect( testResult ).to.be.false;
+			expect( testResult ).toBe( false );
 		} );
 
 		it( 'should allow an element to become a code block if it is allowed in parent', () => {
@@ -84,7 +85,136 @@ describe( 'CodeBlock - utils', () => {
 
 			const testResult = canBeCodeBlock( model.schema, fooElement );
 
-			expect( testResult ).to.be.true;
+			expect( testResult ).toBe( true );
 		} );
+	} );
+
+	describe( 'getTextNodeAtLineStart()', () => {
+		let model;
+
+		beforeEach( () => {
+			model = new Model();
+			model.document.createRoot();
+
+			// Simplified schema.
+			model.schema.register( 'codeBlock', { inheritAllFrom: '$block' } );
+			model.schema.register( 'element', { inheritAllFrom: '$inlineObject', allowIn: 'codeBlock' } );
+			model.schema.register( 'softBreak', { inheritAllFrom: '$inlineObject', allowIn: 'codeBlock' } );
+		} );
+
+		// Tests examples taken from `getTextNodeAtLineStart()` API docs.
+		test(
+			'<codeBlock>[]</codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock>[]foobar</codeBlock>',
+			'<codeBlock>[foobar]</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foobar[]</codeBlock>',
+			'<codeBlock>[foobar]</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo[]bar</codeBlock>',
+			'<codeBlock>[foobar]</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo[]<softBreak></softBreak>bar</codeBlock>',
+			'<codeBlock>[foo]<softBreak></softBreak>bar</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak>bar[]</codeBlock>',
+			'<codeBlock>foo<softBreak></softBreak>[bar]</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak>b[]ar</codeBlock>',
+			'<codeBlock>foo<softBreak></softBreak>[bar]</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak>[]bar</codeBlock>',
+			'<codeBlock>foo<softBreak></softBreak>[bar]</codeBlock>'
+		);
+
+		test(
+			'<codeBlock>[]<element></element></codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock><element></element>[]</codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock>foo[]<element></element></codeBlock>',
+			'<codeBlock>[foo]<element></element></codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo<element></element>[]</codeBlock>',
+			'<codeBlock>[foo]<element></element></codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo<element></element>bar[]</codeBlock>',
+			'<codeBlock>[foo]<element></element>bar</codeBlock>'
+		);
+
+		test(
+			'<codeBlock><element></element>bar[]</codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak>[]<softBreak></softBreak></codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak>[]<element></element></codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak><element></element>[]</codeBlock>',
+			null
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak>bar<element></element>[]</codeBlock>',
+			'<codeBlock>foo<softBreak></softBreak>[bar]<element></element></codeBlock>'
+		);
+
+		test(
+			'<codeBlock>foo<softBreak></softBreak><element></element>ba[]r</codeBlock>',
+			null
+		);
+
+		function test( input, output ) {
+			it( `gets the text node at the line start for "${ input }"`, () => {
+				_setModelData( model, input );
+
+				const textNode = getTextNodeAtLineStart( model.document.selection.getFirstPosition(), model );
+
+				if ( textNode ) {
+					model.change( writer => {
+						writer.setSelection( textNode, 'on' );
+					} );
+				}
+
+				// When no output is expected, the test checks that no text node was found instead.
+				const actualResult = output ? _getModelData( model ) : textNode;
+
+				expect( actualResult ).toBe( output || null );
+			} );
+		}
 	} );
 } );

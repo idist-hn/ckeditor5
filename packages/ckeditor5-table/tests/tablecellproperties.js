@@ -1,16 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
-import TableEditing from '../src/tableediting';
-import TableCellProperties from '../src/tablecellproperties';
-import TableCellPropertiesEditing from '../src/tablecellproperties/tablecellpropertiesediting';
-import TableCellPropertiesUI from '../src/tablecellproperties/tablecellpropertiesui';
+import { TableEditing } from '../src/tableediting.js';
+import { TableCellProperties } from '../src/tablecellproperties.js';
+import { TableCellPropertiesEditing } from '../src/tablecellproperties/tablecellpropertiesediting.js';
+import { TableCellPropertiesUI } from '../src/tablecellproperties/tablecellpropertiesui.js';
 
 describe( 'table cell properties', () => {
 	let editor, editorElement;
@@ -31,19 +32,27 @@ describe( 'table cell properties', () => {
 		} );
 
 		it( 'should be loaded', () => {
-			expect( editor.plugins.get( TableCellProperties ) ).to.instanceOf( TableCellProperties );
+			expect( editor.plugins.get( TableCellProperties ) ).toBeInstanceOf( TableCellProperties );
 		} );
 
 		it( 'should load TableCellPropertiesUI plugin', () => {
-			expect( editor.plugins.get( TableCellPropertiesUI ) ).to.instanceOf( TableCellPropertiesUI );
+			expect( editor.plugins.get( TableCellPropertiesUI ) ).toBeInstanceOf( TableCellPropertiesUI );
 		} );
 
 		it( 'should load TableCellPropertiesEditing plugin', () => {
-			expect( editor.plugins.get( TableCellPropertiesEditing ) ).to.instanceOf( TableCellPropertiesEditing );
+			expect( editor.plugins.get( TableCellPropertiesEditing ) ).toBeInstanceOf( TableCellPropertiesEditing );
 		} );
 
 		it( 'should have pluginName', () => {
-			expect( TableCellProperties.pluginName ).to.equal( 'TableCellProperties' );
+			expect( TableCellProperties.pluginName ).toEqual( 'TableCellProperties' );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( TableCellProperties.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( TableCellProperties.isPremiumPlugin ).toBe( false );
 		} );
 	} );
 } );

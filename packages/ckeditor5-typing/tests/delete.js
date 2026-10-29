@@ -1,32 +1,82 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Delete from '../src/delete';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import DomEventData from '@ckeditor/ckeditor5-engine/src/view/observer/domeventdata';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import EventInfo from '@ckeditor/ckeditor5-utils/src/eventinfo';
-import Batch from '@ckeditor/ckeditor5-engine/src/model/batch';
-import env from '@ckeditor/ckeditor5-utils/src/env';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-
-/* globals document */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Delete } from '../src/delete.js';
+import { Typing } from '../src/typing.js';
+import { Widget, toWidget, toWidgetEditable } from '@ckeditor/ckeditor5-widget';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { TodoList, List } from '@ckeditor/ckeditor5-list';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { ViewDocumentDomEventData, _setModelData, _getModelData, Batch } from '@ckeditor/ckeditor5-engine';
+import { EventInfo, env, getCode } from '@ckeditor/ckeditor5-utils';
+import { fireBeforeInputDomEvent } from './_utils/utils.js';
 
 describe( 'Delete feature', () => {
-	let element, editor, viewDocument;
+	let element, editor, model, viewDocument;
 
 	beforeEach( () => {
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
 
 		return ClassicTestEditor
-			.create( element, { plugins: [ Delete ] } )
+			.create( element, { plugins: [ Paragraph, Widget, Delete, Typing, TodoList, List, Heading ] } )
 			.then( newEditor => {
 				editor = newEditor;
+				model = editor.model;
 				viewDocument = editor.editing.view.document;
+
+				model.schema.register( 'widget', {
+					inheritAllFrom: '$blockObject'
+				} );
+
+				model.schema.register( 'nested', {
+					allowIn: 'widget',
+					isLimit: true
+				} );
+
+				model.schema.register( 'nested-description', {
+					isLimit: true,
+					allowIn: 'widget',
+					allowContentOf: '$root'
+				} );
+
+				model.schema.extend( '$text', {
+					allowIn: [ 'nested' ],
+					allowAttributes: [ 'attr', 'bttr' ]
+				} );
+
+				model.schema.extend( 'paragraph', {
+					allowIn: 'nested'
+				} );
+
+				editor.conversion.for( 'downcast' )
+					.elementToElement( {
+						model: 'widget',
+						view: ( modelItem, { writer } ) => {
+							const div = writer.createContainerElement( 'div' );
+
+							return toWidget( div, writer, { label: 'element label' } );
+						}
+					} )
+					.elementToElement( {
+						model: 'nested',
+						view: ( modelItem, { writer } ) =>
+							toWidgetEditable( writer.createEditableElement( 'figcaption', { contenteditable: true } ), writer )
+					} );
+
+				editor.conversion.for( 'editingDowncast' ).elementToElement( {
+					model: 'nested-description',
+					view: ( modelElement, { writer: viewWriter } ) => {
+						const div = viewWriter.createEditableElement( 'div' );
+
+						return toWidgetEditable( div, viewWriter );
+					}
+				} );
 			} );
 	} );
 
@@ -35,81 +85,182 @@ describe( 'Delete feature', () => {
 		return editor.destroy();
 	} );
 
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( Delete.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( Delete.isPremiumPlugin ).toBe( false );
+	} );
+
 	it( 'creates two commands', () => {
 		expect( editor.commands.get( 'delete' ) ).to.have.property( 'direction', 'backward' );
 		expect( editor.commands.get( 'deleteForward' ) ).to.have.property( 'direction', 'forward' );
 	} );
 
 	it( 'should register forwardDelete command as an alias for deleteForward command', () => {
-		expect( editor.commands.get( 'forwardDelete' ) ).to.equal( editor.commands.get( 'deleteForward' ) );
+		expect( editor.commands.get( 'forwardDelete' ) ).toEqual( editor.commands.get( 'deleteForward' ) );
 	} );
 
 	it( 'listens to the editing view document delete event', () => {
-		const spy = editor.execute = sinon.spy();
+		const spy = editor.execute = vi.fn();
 		const viewDocument = editor.editing.view.document;
 		const domEvt = getDomEvent();
 
-		viewDocument.fire( 'delete', new DomEventData( viewDocument, domEvt, {
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, domEvt, {
 			direction: 'forward',
 			unit: 'character',
 			sequence: 1
 		} ) );
 
-		expect( spy.calledOnce ).to.be.true;
-		expect( spy.calledWithMatch( 'deleteForward', { unit: 'character', sequence: 1 } ) ).to.be.true;
+		expect( spy ).toHaveBeenCalledOnce();
+		expect( spy ).toHaveBeenCalledWith( 'deleteForward', expect.objectContaining( { unit: 'character', sequence: 1 } ) );
 
-		viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 			direction: 'backward',
 			unit: 'character',
 			sequence: 5
 		} ) );
 
-		expect( spy.calledTwice ).to.be.true;
-		expect( spy.calledWithMatch( 'delete', { unit: 'character', sequence: 5 } ) ).to.be.true;
+		expect( spy ).toHaveBeenCalledTimes( 2 );
+		expect( spy ).toHaveBeenCalledWith( 'delete', expect.objectContaining( { unit: 'character', sequence: 5 } ) );
+	} );
+
+	// See https://github.com/ckeditor/ckeditor5/issues/17383.
+	it( 'handles the backspace key in a nested editable', () => {
+		_setModelData( model, '<widget><nested>fo[]</nested></widget>' );
+
+		expect( clickBackspace( editor ).preventedKeyDown ).toBe( false );
+
+		expect( _getModelData( model ) ).toEqual( '<widget><nested>f[]</nested></widget>' );
+
+		expect( clickBackspace( editor ).preventedKeyDown ).toBe( false );
+
+		expect( _getModelData( model ) ).toEqual( '<widget><nested>[]</nested></widget>' );
 	} );
 
 	it( 'passes options.selection parameter to delete command if selection to remove was specified and unit is "selection"', () => {
 		editor.setData( '<p>Foobar</p>' );
 
-		const spy = editor.execute = sinon.spy();
+		const spy = editor.execute = vi.fn();
 		const view = editor.editing.view;
 		const viewDocument = view.document;
 		const domEvt = getDomEvent();
 
 		const viewSelection = view.createSelection( view.createRangeIn( viewDocument.getRoot() ) );
 
-		viewDocument.fire( 'delete', new DomEventData( viewDocument, domEvt, {
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, domEvt, {
 			direction: 'backward',
 			unit: 'selection',
 			sequence: 1,
 			selectionToRemove: viewSelection
 		} ) );
 
-		expect( spy.calledOnce ).to.be.true;
+		expect( spy ).toHaveBeenCalledOnce();
 
-		const commandName = spy.args[ 0 ][ 0 ];
-		const options = spy.args[ 0 ][ 1 ];
-		const expectedSelection = editor.model.createSelection( editor.model.createRangeIn( editor.model.document.getRoot() ) );
+		const commandName = spy.mock.calls[ 0 ][ 0 ];
+		const options = spy.mock.calls[ 0 ][ 1 ];
+		const expectedSelection = editor.model.createSelection(
+			editor.model.createRangeIn( editor.model.document.getRoot().getChild( 0 ) )
+		);
 
-		expect( commandName ).to.equal( 'delete' );
-		expect( options.selection.isEqual( expectedSelection ) ).to.be.true;
+		expect( commandName ).toEqual( 'delete' );
+		expect( options.selection.isEqual( expectedSelection ) ).toBe( true );
+	} );
+
+	it( 'should fix options.selection parameter of delete command when it ends in block object (deleteContentBackward)', () => {
+		_setModelData( model,
+			'<paragraph>foo</paragraph>' +
+			'<widget></widget>' +
+			'<paragraph>bar</paragraph>'
+		);
+
+		const spy = vi.spyOn( editor, 'execute' );
+		const view = editor.editing.view;
+		const viewDocument = view.document;
+		const domEvt = getDomEvent();
+
+		const viewSelection = view.createSelection( view.createRange(
+			view.createPositionAt( viewDocument.getRoot().getChild( 1 ), 0 ),
+			view.createPositionAt( viewDocument.getRoot().getChild( 2 ).getChild( 0 ), 0 )
+		) );
+
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, domEvt, {
+			direction: 'backward',
+			unit: 'selection',
+			sequence: 1,
+			selectionToRemove: viewSelection
+		} ) );
+
+		expect( spy ).toHaveBeenCalledOnce();
+
+		const commandName = spy.mock.calls[ 0 ][ 0 ];
+		const options = spy.mock.calls[ 0 ][ 1 ];
+		const expectedSelection = editor.model.createSelection(
+			editor.model.createRange(
+				editor.model.createPositionAt( editor.model.document.getRoot(), 1 ),
+				editor.model.createPositionAt( editor.model.document.getRoot().getChild( 2 ), 0 )
+			)
+		);
+
+		expect( commandName ).toEqual( 'delete' );
+		expect( options.selection.isEqual( expectedSelection ) ).toBe( true );
+	} );
+
+	it( 'should fix options.selection parameter of delete command when it ends in block object (deleteContentForward)', () => {
+		_setModelData( model,
+			'<paragraph>foo</paragraph>' +
+			'<widget></widget>' +
+			'<paragraph>bar</paragraph>'
+		);
+
+		const spy = vi.spyOn( editor, 'execute' );
+		const view = editor.editing.view;
+		const viewDocument = view.document;
+		const domEvt = getDomEvent();
+
+		const viewSelection = view.createSelection( view.createRange(
+			view.createPositionAt( viewDocument.getRoot().getChild( 0 ).getChild( 0 ), 3 ),
+			view.createPositionAt( viewDocument.getRoot().getChild( 1 ), 0 )
+		) );
+
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, domEvt, {
+			direction: 'forward',
+			unit: 'selection',
+			sequence: 1,
+			selectionToRemove: viewSelection
+		} ) );
+
+		expect( spy ).toHaveBeenCalledOnce();
+
+		const commandName = spy.mock.calls[ 0 ][ 0 ];
+		const options = spy.mock.calls[ 0 ][ 1 ];
+		const expectedSelection = editor.model.createSelection(
+			editor.model.createRange(
+				editor.model.createPositionAt( editor.model.document.getRoot().getChild( 0 ), 3 ),
+				editor.model.createPositionAt( editor.model.document.getRoot(), 2 )
+			)
+		);
+
+		expect( commandName ).toEqual( 'deleteForward' );
+		expect( options.selection.isEqual( expectedSelection ) ).toBe( true );
 	} );
 
 	it( 'scrolls the editing document to the selection after executing the command', () => {
-		const scrollSpy = sinon.stub( editor.editing.view, 'scrollToTheSelection' );
-		const executeSpy = editor.execute = sinon.spy();
+		const scrollSpy = vi.spyOn( editor.editing.view, 'scrollToTheSelection' ).mockImplementation( () => {} );
+		const executeSpy = editor.execute = vi.fn();
 
-		viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 			direction: 'backward',
 			unit: 'character'
 		} ) );
 
-		sinon.assert.calledOnce( scrollSpy );
-		sinon.assert.callOrder( executeSpy, scrollSpy );
+		expect( scrollSpy ).toHaveBeenCalledOnce();
+		expect( executeSpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( scrollSpy.mock.invocationCallOrder[ 0 ] );
 	} );
 
 	it( 'should preventDefault() the original beforeinput event if not while composing', () => {
-		const spy = sinon.spy();
+		const spy = vi.fn();
 
 		viewDocument.fire( 'delete', {
 			preventDefault: spy,
@@ -117,11 +268,11 @@ describe( 'Delete feature', () => {
 			unit: 'character'
 		} );
 
-		sinon.assert.calledOnce( spy );
+		expect( spy ).toHaveBeenCalledOnce();
 	} );
 
 	it( 'should not preventDefault() the original beforeinput event if while composing', () => {
-		const spy = sinon.spy();
+		const spy = vi.fn();
 
 		viewDocument.isComposing = true;
 
@@ -131,14 +282,120 @@ describe( 'Delete feature', () => {
 			unit: 'character'
 		} );
 
-		sinon.assert.notCalled( spy );
+		expect( spy ).not.toHaveBeenCalled();
+	} );
+
+	// See:
+	// https://github.com/ckeditor/ckeditor5/issues/17383
+	// https://github.com/ckeditor/ckeditor5/issues/18356
+	describe( 'prevent backspace at the beginning of editables', () => {
+		it( 'handles the backspace key in an empty nested editable', () => {
+			_setModelData( model, '<widget><nested>[]</nested></widget>' );
+
+			expect( clickBackspace( editor ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<widget><nested><paragraph>[]</paragraph></nested></widget>' );
+		} );
+
+		it( 'fires the delete event with the view document as the event source', () => {
+			const sources = [];
+
+			viewDocument.on( 'delete', evt => {
+				sources.push( evt.source );
+			}, { priority: 'highest' } );
+
+			_setModelData( model, '<widget><nested>[]</nested></widget>' );
+
+			clickBackspace( editor );
+
+			expect( sources ).toHaveLength( 1 );
+			expect( sources[ 0 ] ).toBe( viewDocument );
+		} );
+
+		it( 'handles the backspace key + meta key in a nested editable', () => {
+			_setModelData( model, '<widget><nested>[]</nested></widget>' );
+
+			expect( clickBackspace( editor, true ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<widget><nested><paragraph>[]</paragraph></nested></widget>' );
+		} );
+
+		it( 'handles backspace on list items (root editable)', () => {
+			_setModelData( model, '<paragraph listIndent="0" listItemId="e5f06169" listType="todo">[]</paragraph>' );
+
+			expect( clickBackspace( editor ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<paragraph>[]</paragraph>' );
+		} );
+
+		it( 'handles backspace on list items (nested root-like editable)', () => {
+			_setModelData(
+				model,
+				'<widget>' +
+					'<nested-description>' +
+						'<paragraph listIndent="0" listItemId="e5f06162" listType="todo">[]</paragraph>' +
+					'</nested-description>' +
+				'</widget>'
+			);
+
+			expect( clickBackspace( editor ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<widget>' +
+					'<nested-description>' +
+						'<paragraph>[]</paragraph>' +
+					'</nested-description>' +
+				'</widget>' );
+		} );
+
+		it( 'handles backspace on empty headings (root editable)', () => {
+			_setModelData( model, '<heading1>[]</heading1>' );
+
+			expect( clickBackspace( editor ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<paragraph>[]</paragraph>' );
+		} );
+
+		it( 'handles backspace on empty headings (nested root-like editable)', () => {
+			_setModelData(
+				model,
+				'<widget>' +
+					'<nested-description>' +
+						'<heading1>[]</heading1>' +
+					'</nested-description>' +
+				'</widget>'
+			);
+
+			expect( clickBackspace( editor ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<widget>' +
+					'<nested-description>' +
+						'<paragraph>[]</paragraph>' +
+					'</nested-description>' +
+				'</widget>' );
+		} );
+
+		it( 'should handle case where there is no valid selection range available', () => {
+			model.schema.register( 'emptyLimitContainer', {
+				allowIn: '$root',
+				isLimit: true
+			} );
+
+			editor.conversion.for( 'downcast' ).elementToElement( {
+				model: 'emptyLimitContainer',
+				view: ( modelItem, { writer } ) => writer.createContainerElement( 'div' )
+			} );
+
+			_setModelData( model, '<emptyLimitContainer>[]</emptyLimitContainer>' );
+
+			expect( clickBackspace( editor ).preventedKeyDown ).toBe( true );
+
+			expect( _getModelData( model ) ).toEqual( '<emptyLimitContainer>[]</emptyLimitContainer>' );
+		} );
 	} );
 } );
 
 describe( 'Delete using the beforeinput event', () => {
 	let element, editor, view, viewDocument, executeSpy;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( async () => {
 		element = document.createElement( 'div' );
@@ -152,7 +409,7 @@ describe( 'Delete using the beforeinput event', () => {
 		view = editor.editing.view;
 		viewDocument = editor.editing.view.document;
 
-		executeSpy = testUtils.sinon.spy( editor, 'execute' );
+		executeSpy = vi.spyOn( editor, 'execute' );
 	} );
 
 	afterEach( async () => {
@@ -163,85 +420,82 @@ describe( 'Delete using the beforeinput event', () => {
 
 	it( 'should scroll the editing view after delete', () => {
 		const viewFooText = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
-		const scrollSpy = testUtils.sinon.spy( view, 'scrollToTheSelection' );
+		const scrollSpy = vi.spyOn( view, 'scrollToTheSelection' );
 
-		viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 			direction: 'backward',
 			unit: 'word',
 			sequence: 42,
 			selectionToRemove: view.createSelection( viewFooText, 2 )
 		} ) );
 
-		sinon.assert.calledOnce( scrollSpy );
-		sinon.assert.callOrder( executeSpy, scrollSpy );
+		expect( scrollSpy ).toHaveBeenCalledOnce();
+		expect( executeSpy.mock.invocationCallOrder[ 0 ] ).toBeLessThan( scrollSpy.mock.invocationCallOrder[ 0 ] );
 	} );
 
 	describe( 'for "codePoint" and "character" delete units', () => {
 		it( 'should always use the #unit despite #selectionToRemove available next to "codePoint" (non-Android)', () => {
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'backward',
 				unit: 'codePoint',
 				sequence: 3,
 				selectionToRemove: view.createSelection( viewDocument.getRoot(), 'in' )
 			} ) );
 
-			sinon.assert.calledOnce( executeSpy );
-			sinon.assert.calledWithMatch( executeSpy, 'delete', {
-				sequence: 3,
-				unit: 'codePoint',
-				selection: undefined
-			} );
+			expect( executeSpy ).toHaveBeenCalledOnce();
+			expect( executeSpy.mock.calls[ 0 ][ 0 ] ).toEqual( 'delete' );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].sequence ).toEqual( 3 );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].unit ).toEqual( 'codePoint' );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].selection ).toBeUndefined();
 		} );
 
 		it( 'should use the #selectionToRemove for the "codePoint" unit on Android', () => {
-			testUtils.sinon.stub( env, 'isAndroid' ).get( () => true );
+			vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'backward',
 				unit: 'selection',
 				sequence: 3,
 				selectionToRemove: view.createSelection( viewDocument.getRoot(), 'in' )
 			} ) );
 
-			sinon.assert.calledOnce( executeSpy );
-			sinon.assert.calledWithMatch( executeSpy, 'delete', {
+			expect( executeSpy ).toHaveBeenCalledOnce();
+			expect( executeSpy ).toHaveBeenCalledWith( 'delete', expect.objectContaining( {
 				sequence: 3,
-				selection: sinon.match.object
-			} );
+				selection: expect.any( Object )
+			} ) );
 		} );
 
 		it( 'should always use the #unit despite #selectionToRemove available next to "character" (non-Android)', () => {
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'forward',
 				unit: 'character',
 				sequence: 5,
 				selectionToRemove: view.createSelection( viewDocument.getRoot(), 'in' )
 			} ) );
 
-			sinon.assert.calledOnce( executeSpy );
-			sinon.assert.calledWithMatch( executeSpy, 'deleteForward', {
-				sequence: 5,
-				unit: 'character',
-				selection: undefined
-			} );
+			expect( executeSpy ).toHaveBeenCalledOnce();
+			expect( executeSpy.mock.calls[ 0 ][ 0 ] ).toEqual( 'deleteForward' );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].sequence ).toEqual( 5 );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].unit ).toEqual( 'character' );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].selection ).toBeUndefined();
 		} );
 
 		it( 'should always use the #unit despite #selectionToRemove available next to "character" (Android)', () => {
-			testUtils.sinon.stub( env, 'isAndroid' ).get( () => true );
+			vi.spyOn( env, 'isAndroid', 'get' ).mockReturnValue( true );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'forward',
 				unit: 'character',
 				sequence: 5,
 				selectionToRemove: view.createSelection( viewDocument.getRoot(), 'in' )
 			} ) );
 
-			sinon.assert.calledOnce( executeSpy );
-			sinon.assert.calledWithMatch( executeSpy, 'deleteForward', {
-				sequence: 5,
-				unit: 'character',
-				selection: undefined
-			} );
+			expect( executeSpy ).toHaveBeenCalledOnce();
+			expect( executeSpy.mock.calls[ 0 ][ 0 ] ).toEqual( 'deleteForward' );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].sequence ).toEqual( 5 );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].unit ).toEqual( 'character' );
+			expect( executeSpy.mock.calls[ 0 ][ 1 ].selection ).toBeUndefined();
 		} );
 	} );
 
@@ -267,92 +521,92 @@ describe( 'Delete using the beforeinput event', () => {
 				editor.model.createPositionAt( modelParagraph, 1 )
 			);
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'backward',
 				unit: 'word',
 				sequence: 1,
 				selectionToRemove: view.createSelection( viewDocument.getRoot().getChild( 0 ).getChild( 0 ), 2 )
 			} ) );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'forward',
 				unit: 'selection',
 				sequence: 1,
 				selectionToRemove: view.createSelection( viewDocument.getRoot().getChild( 0 ).getChild( 0 ), 1 )
 			} ) );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'forward',
 				sequence: 1,
 				selectionToRemove: view.createSelection( viewDocument.getRoot().getChild( 0 ).getChild( 0 ), 0 )
 			} ) );
 
-			sinon.assert.calledThrice( executeSpy );
-			sinon.assert.calledWithMatch( executeSpy.firstCall, 'delete', {
+			expect( executeSpy ).toHaveBeenCalledTimes( 3 );
+			expect( executeSpy ).toHaveBeenNthCalledWith( 1, 'delete', expect.objectContaining( {
 				sequence: 1,
 				unit: 'selection',
-				selection: sinon.match.object
-			} );
+				selection: expect.any( Object )
+			} ) );
 
-			sinon.assert.calledWithMatch( executeSpy.secondCall, 'deleteForward', {
+			expect( executeSpy ).toHaveBeenNthCalledWith( 2, 'deleteForward', expect.objectContaining( {
 				sequence: 1,
 				unit: 'selection',
-				selection: sinon.match.object
-			} );
+				selection: expect.any( Object )
+			} ) );
 
-			sinon.assert.calledWithMatch( executeSpy.thirdCall, 'deleteForward', {
+			expect( executeSpy ).toHaveBeenNthCalledWith( 3, 'deleteForward', expect.objectContaining( {
 				sequence: 1,
 				unit: 'selection',
-				selection: sinon.match.object
-			} );
+				selection: expect.any( Object )
+			} ) );
 
-			const firstCallModelRange = executeSpy.firstCall.args[ 1 ].selection.getFirstRange();
-			const secondCallModelRange = executeSpy.secondCall.args[ 1 ].selection.getFirstRange();
-			const thirdCallModelRange = executeSpy.secondCall.args[ 1 ].selection.getFirstRange();
+			const firstCallModelRange = executeSpy.mock.calls[ 0 ][ 1 ].selection.getFirstRange();
+			const secondCallModelRange = executeSpy.mock.calls[ 1 ][ 1 ].selection.getFirstRange();
+			const thirdCallModelRange = executeSpy.mock.calls[ 1 ][ 1 ].selection.getFirstRange();
 
-			expect( firstCallModelRange.isEqual( expectedFirstCallDeleteRange ) ).to.be.true;
-			expect( secondCallModelRange.isEqual( expectedSecondCallDeleteRange ) ).to.be.true;
-			expect( thirdCallModelRange.isEqual( expectedThirdCallDeleteRange ) ).to.be.true;
+			expect( firstCallModelRange.isEqual( expectedFirstCallDeleteRange ) ).toBe( true );
+			expect( secondCallModelRange.isEqual( expectedSecondCallDeleteRange ) ).toBe( true );
+			expect( thirdCallModelRange.isEqual( expectedThirdCallDeleteRange ) ).toBe( true );
 		} );
 
 		it( 'should respect the #direction passed from the DeleteObserver observer', () => {
 			const viewFooText = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'forward',
 				selectionToRemove: view.createSelection( viewFooText, 2 )
 			} ) );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'backward',
 				selectionToRemove: view.createSelection( viewFooText, 2 )
 			} ) );
 
-			sinon.assert.calledTwice( executeSpy );
-			sinon.assert.calledWith( executeSpy.firstCall, 'deleteForward' );
-			sinon.assert.calledWith( executeSpy.secondCall, 'delete' );
+			expect( executeSpy ).toHaveBeenCalledTimes( 2 );
+			expect( executeSpy.mock.calls[ 0 ][ 0 ] ).toEqual( 'deleteForward' );
+			expect( executeSpy.mock.calls[ 1 ][ 0 ] ).toEqual( 'delete' );
 		} );
 
 		it( 'should respect the #sequence passed from the DeleteObserver observer', () => {
 			const viewFooText = viewDocument.getRoot().getChild( 0 ).getChild( 0 );
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'backward',
 				unit: 'word',
 				sequence: 42,
 				selectionToRemove: view.createSelection( viewFooText, 2 )
 			} ) );
 
-			sinon.assert.calledOnce( executeSpy );
-			sinon.assert.calledWithMatch( executeSpy, 'delete', {
+			expect( executeSpy ).toHaveBeenCalledOnce();
+			expect( executeSpy ).toHaveBeenCalledWith( 'delete', expect.objectContaining( {
 				sequence: 42
-			} );
+			} ) );
 		} );
 	} );
 
 	function getDomEvent() {
 		return {
-			preventDefault: sinon.spy()
+			preventDefault: vi.fn()
 		};
 	}
 } );
@@ -385,24 +639,24 @@ describe( 'Delete feature - undo by pressing backspace', () => {
 	} );
 
 	it( 'executes `undo` once on pressing backspace after requestUndoOnBackspace()', () => {
-		const spy = editor.execute = sinon.spy();
+		const spy = editor.execute = vi.fn();
 		const domEvt = getDomEvent();
 		const event = new EventInfo( viewDocument, 'delete' );
 
 		plugin.requestUndoOnBackspace();
 
-		viewDocument.fire( event, new DomEventData( viewDocument, domEvt, deleteEventEventData ) );
+		viewDocument.fire( event, new ViewDocumentDomEventData( viewDocument, domEvt, deleteEventEventData ) );
 
-		expect( spy.calledOnce ).to.be.true;
-		expect( spy.calledWithMatch( 'undo' ) ).to.be.true;
+		expect( spy ).toHaveBeenCalledOnce();
+		expect( spy ).toHaveBeenCalledWith( 'undo' );
 
-		expect( event.stop.called ).to.be.true;
-		expect( domEvt.preventDefault.calledOnce ).to.be.true;
+		expect( event.stop.called ).toBe( true );
+		expect( domEvt.preventDefault ).toHaveBeenCalledOnce();
 
-		viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), deleteEventEventData ) );
+		viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), deleteEventEventData ) );
 
-		expect( spy.calledTwice ).to.be.true;
-		expect( spy.calledWithMatch( 'delete', {} ) ).to.be.true;
+		expect( spy ).toHaveBeenCalledTimes( 2 );
+		expect( spy ).toHaveBeenCalledWith( 'delete', expect.objectContaining( {} ) );
 	} );
 
 	describe( 'does not execute `undo` instead of deleting', () => {
@@ -423,28 +677,28 @@ describe( 'Delete feature - undo by pressing backspace', () => {
 
 		testCases.forEach( ( { condition, eventData } ) => {
 			it( 'if ' + condition, () => {
-				const spy = editor.execute = sinon.spy();
+				const spy = editor.execute = vi.fn();
 
 				eventData.selectionToRemove = viewDocument.selection;
 
 				plugin.requestUndoOnBackspace();
 
-				viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), eventData ) );
+				viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), eventData ) );
 
-				expect( spy.calledOnce ).to.be.true;
-				expect( spy.calledWithMatch( 'undo' ) ).to.be.false;
-				expect( spy.calledWithMatch( 'delete', {} ) ).to.be.true;
+				expect( spy ).toHaveBeenCalledOnce();
+				expect( spy ).not.toHaveBeenCalledWith( expect.stringContaining( 'undo' ) );
+				expect( spy ).toHaveBeenCalledWith( expect.stringContaining( 'delete' ), expect.any( Object ) );
 			} );
 		} );
 
 		it( 'if requestUndoOnBackspace() hasn\'t been called', () => {
-			const spy = editor.execute = sinon.spy();
+			const spy = editor.execute = vi.fn();
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), deleteEventEventData ) );
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), deleteEventEventData ) );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( spy.calledWithMatch( 'undo' ) ).to.be.false;
-			expect( spy.calledWithMatch( 'delete', {} ) ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy ).not.toHaveBeenCalledWith( expect.stringContaining( 'undo' ) );
+			expect( spy ).toHaveBeenCalledWith( expect.stringContaining( 'delete' ), expect.any( Object ) );
 		} );
 
 		it( 'if `UndoEditing` plugin is not loaded', async () => {
@@ -454,40 +708,73 @@ describe( 'Delete feature - undo by pressing backspace', () => {
 			viewDocument = editor.editing.view.document;
 			plugin = editor.plugins.get( 'Delete' );
 
-			const spy = editor.execute = sinon.spy();
+			const spy = editor.execute = vi.fn();
 
 			plugin.requestUndoOnBackspace();
 
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), {
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), {
 				direction: 'backward',
 				unit: 'word',
 				sequence: 1,
 				selectionToRemove: viewDocument.selection
 			} ) );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( spy.calledWithMatch( 'undo' ) ).to.be.false;
-			expect( spy.calledWithMatch( 'delete', {} ) ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy ).not.toHaveBeenCalledWith( 'undo' );
+			expect( spy ).toHaveBeenCalledWith( 'delete', expect.objectContaining( {} ) );
 		} );
 
 		it( 'after model has changed', () => {
 			const modelDocument = editor.model.document;
-			const spy = editor.execute = sinon.spy();
+			const spy = editor.execute = vi.fn();
 
 			plugin.requestUndoOnBackspace();
 
 			modelDocument.fire( 'change', new Batch() );
-			viewDocument.fire( 'delete', new DomEventData( viewDocument, getDomEvent(), deleteEventEventData ) );
+			viewDocument.fire( 'delete', new ViewDocumentDomEventData( viewDocument, getDomEvent(), deleteEventEventData ) );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( spy.calledWithMatch( 'undo' ) ).to.be.false;
-			expect( spy.calledWithMatch( 'delete', {} ) ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy ).not.toHaveBeenCalledWith( 'undo' );
+			expect( spy ).toHaveBeenCalledWith( 'delete', expect.objectContaining( {} ) );
 		} );
 	} );
 } );
 
+function clickBackspace( editor, metaKey = false ) {
+	const view = editor.editing.view;
+	const viewDocument = view.document;
+
+	const keyEventData = {
+		keyCode: getCode( 'Backspace' ),
+		preventDefault: vi.fn(),
+		domTarget: view.getDomRoot(),
+		metaKey
+	};
+
+	const viewRange = viewDocument.selection.getFirstRange();
+	const viewRoot = view.domConverter.viewToDom( view.document.getRoot() );
+	const domRange = view.domConverter.viewRangeToDom( viewRange );
+
+	// First fire keydown event.
+	viewDocument.fire( 'keydown', new ViewDocumentDomEventData( viewDocument, keyEventData, keyEventData ) );
+
+	// Then fire beforeinput if it's not suppressed.
+	const preventedKeyDown = keyEventData.preventDefault.mock.calls.length > 0;
+
+	if ( !preventedKeyDown ) {
+		fireBeforeInputDomEvent( viewRoot, {
+			inputType: 'deleteContentBackward',
+			ranges: [ domRange ]
+		} );
+	}
+
+	return {
+		preventedKeyDown
+	};
+}
+
 function getDomEvent() {
 	return {
-		preventDefault: sinon.spy()
+		preventDefault: vi.fn()
 	};
 }

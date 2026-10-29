@@ -1,17 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
 
-import TableEditing from '../../src/tableediting';
-import TableSelection from '../../src/tableselection';
-import { assertSelectedCells, modelTable } from '../_utils/utils';
+import { TableEditing } from '../../src/tableediting.js';
+import { TableSelection } from '../../src/tableselection.js';
+import { assertSelectedCells, modelTable } from '../_utils/utils.js';
 
-import SelectColumnCommand from '../../src/commands/selectcolumncommand';
+import { SelectColumnCommand } from '../../src/commands/selectcolumncommand.js';
 
 describe( 'SelectColumnCommand', () => {
 	let editor, model, modelRoot, command, tableSelection;
@@ -33,22 +34,22 @@ describe( 'SelectColumnCommand', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets public properties', () => {
-			expect( command ).to.have.property( 'affectsData', false );
+			expect( command ).toHaveProperty( 'affectsData', false );
 		} );
 	} );
 
 	describe( 'isEnabled', () => {
 		it( 'should be true if the selection is inside table cell', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01' ],
 				[ '10', '11' ]
 			] ) );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true if the selection contains multiple cells', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ],
 				[ '20', '21' ]
@@ -59,29 +60,29 @@ describe( 'SelectColumnCommand', () => {
 				modelRoot.getNodeByPath( [ 0, 0, 1 ] )
 			);
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true if the selection is inside the table and the editor is read-only', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]' ]
 			] ) );
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if the selection is outside a table', () => {
-			setData( model, '<paragraph>11[]</paragraph>' );
+			_setModelData( model, '<paragraph>11[]</paragraph>' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'should select a column of a table cell with a collapsed selection', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01', '02' ],
 				[ '10', '[]11', '12' ],
 				[ '20', '21', '22' ]
@@ -97,7 +98,7 @@ describe( 'SelectColumnCommand', () => {
 		} );
 
 		it( 'should select a column of table cell with a collapsed selection in first table cell', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01' ],
 				[ '10', '11' ],
 				[ '20', '21' ]
@@ -113,7 +114,7 @@ describe( 'SelectColumnCommand', () => {
 		} );
 
 		it( 'should select a column of table cell with a collapsed selection in last cell in the first column', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ],
 				[ '20[]', '21' ]
@@ -129,7 +130,7 @@ describe( 'SelectColumnCommand', () => {
 		} );
 
 		it( 'should select a column of table cell with collapsed selection in the first cell of the last column', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01[]' ],
 				[ '10', '11' ]
 			] ) );
@@ -155,7 +156,7 @@ describe( 'SelectColumnCommand', () => {
 				// +----+----+----+----+
 				// | 40 | 41 | 42 | 43 |
 				// +----+----+----+----+
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ { colspan: 4, contents: '00' } ],
 					[ { colspan: 3, contents: '10' }, '13' ],
 					[ { colspan: 2, contents: '20' }, '22', '23' ],
@@ -171,7 +172,7 @@ describe( 'SelectColumnCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 1, 0 ] )
 				);
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 1,       0 ],
@@ -179,11 +180,11 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 0,    0 ],
 					[ 0, 0, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 
 				command.execute();
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 1          ],
 					[ 1,       0 ],
@@ -191,7 +192,7 @@ describe( 'SelectColumnCommand', () => {
 					[ 1, 0,    0 ],
 					[ 1, 0, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 			} );
 
 			it( 'should not select col-spanned columns that start in other column', () => {
@@ -201,7 +202,7 @@ describe( 'SelectColumnCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 4, 2 ] )
 				);
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       0 ],
@@ -209,11 +210,11 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 0,    0 ],
 					[ 0, 0, 1, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 
 				command.execute();
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       0 ],
@@ -221,7 +222,7 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 0,    0 ],
 					[ 0, 0, 1, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 			} );
 
 			it( 'should not select col-spanned columns that start in other column but include those that start in selected column', () => {
@@ -231,7 +232,7 @@ describe( 'SelectColumnCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 4, 1 ] )
 				);
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       0 ],
@@ -239,11 +240,11 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 0,    0 ],
 					[ 0, 1, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 
 				command.execute();
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       0 ],
@@ -251,7 +252,7 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 1,    0 ],
 					[ 0, 1, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 			} );
 
 			it( 'should select properly for multiple not spanned cells selected', () => {
@@ -261,7 +262,7 @@ describe( 'SelectColumnCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 4, 1 ] )
 				);
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       0 ],
@@ -269,11 +270,11 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 0,    0 ],
 					[ 1, 1, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 
 				command.execute();
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 1          ],
 					[ 1,       0 ],
@@ -281,7 +282,7 @@ describe( 'SelectColumnCommand', () => {
 					[ 1, 1,    0 ],
 					[ 1, 1, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 			} );
 
 			it( 'should select properly for multiple cells selected including spanned one', () => {
@@ -291,7 +292,7 @@ describe( 'SelectColumnCommand', () => {
 					modelRoot.getNodeByPath( [ 0, 3, 2 ] )
 				);
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       0 ],
@@ -299,11 +300,11 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 1,    1 ],
 					[ 0, 0, 0, 0 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 
 				command.execute();
 
-				/* eslint-disable no-multi-spaces */
+				/* eslint-disable @stylistic/no-multi-spaces */
 				assertSelectedCells( model, [
 					[ 0          ],
 					[ 0,       1 ],
@@ -311,13 +312,13 @@ describe( 'SelectColumnCommand', () => {
 					[ 0, 1,    1 ],
 					[ 0, 1, 1, 1 ]
 				] );
-				/* eslint-enable no-multi-spaces */
+				/* eslint-enable @stylistic/no-multi-spaces */
 			} );
 		} );
 
 		describe( 'with multiple columns selected', () => {
 			beforeEach( () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02', '03' ],
 					[ '10', '11', '12', '13' ],
 					[ '20', '21', '22', '23' ]
@@ -400,7 +401,7 @@ describe( 'SelectColumnCommand', () => {
 			} );
 
 			it( 'should support selecting mixed heading and cell columns', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02', '03' ],
 					[ '10', '11', '12', '13' ],
 					[ '20', '21', '22', '23' ]
@@ -419,11 +420,32 @@ describe( 'SelectColumnCommand', () => {
 					[ 1, 1, 0, 0 ]
 				] );
 			} );
+
+			it( 'should support selecting mixed footer and cell columns', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01', '02', '03' ],
+					[ '10', '11', '12', '13' ],
+					[ '20', '21', '22', '23' ]
+				], { footerRows: 1 } ) );
+
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 0, 1 ] )
+				);
+
+				command.execute();
+
+				assertSelectedCells( model, [
+					[ 1, 1, 0, 0 ],
+					[ 1, 1, 0, 0 ],
+					[ 1, 1, 0, 0 ]
+				] );
+			} );
 		} );
 
 		describe( 'with entire column selected', () => {
 			it( 'should select a column if all its cells are selected', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01', '02' ],
 					[ '10', '11', '12' ],
 					[ '20', '21', '22' ]
@@ -444,7 +466,7 @@ describe( 'SelectColumnCommand', () => {
 			} );
 
 			it( 'should properly select column if reversed selection is made', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ]
 				] ) );

@@ -2,25 +2,27 @@
 category: widget-tutorials
 order: 10
 meta-title: Implementing a block widget tutorial | CKEditor 5 Documentation
+meta-description: Learn how to implement a custom block widget in CKEditor 5, covering schema definition, editing view, conversion, and UI integration.
+modified_at: 2026-01-08
 ---
 
 # Implementing a block widget
 
 In this tutorial, you will learn how to implement a more complex CKEditor&nbsp;5 plugin.
 
-You will build a "Simple box" feature which will allow the user to insert a custom box with a title and body fields into the document. You will use the widget utilities and work with the model-view conversion in order to properly set up the behavior of this feature. Later on, you will create a UI which will allow for inserting new simple boxes into the document with the toolbar button.
+You will build a "Simple box" feature, which will allow the user to insert a custom box with a title and body fields into the document. You will utilize the widget utilities and work with the model-view conversion to program the behavior of this feature properly. Later, you will create a UI that inserts new simple boxes into the document using the toolbar button.
+
+If you want to see the final product of this tutorial before you plunge in, check out the [demo](#demo).
 
 <info-box>
-	If you want to see the final product of this tutorial before you plunge in, check out the [demo](#demo).
+	If you want to use this tutorial with CDN, follow the steps in the [Adapt this tutorial to CDN](#adapt-this-tutorial-to-cdn) section.
 </info-box>
 
 <!-- TODO: and allow controlling simple box properties such as alignment and width. -->
 
 ## Before you start
 
-While it is not strictly necessary to read the {@link framework/quick-start Quick start} guide before going through this tutorial, it may help you to get more comfortable with CKEditor&nbsp;5 Framework before you dive into this tutorial.
-
-The tutorial will also reference various parts of the {@link framework/architecture/intro CKEditor&nbsp;5 architecture} section as you go. While reading them is not necessary to finish this tutorial, it is recommended to read these guides at some point to get a better understanding of the mechanisms used in this tutorial.
+This tutorial will reference various parts of the {@link framework/architecture/intro CKEditor&nbsp;5 architecture} section as you go. While reading them is not necessary to finish this tutorial, it is recommended to read these guides at some point to get a better understanding of the mechanisms used in this tutorial.
 
 <info-box>
 	If you want to use your own event handler for events triggered by your widget, you must wrap it with a container that has a `data-cke-ignore-events` attribute to exclude it from the editor's default handlers. Refer to {@link framework/deep-dive/widget-internals#exclude-dom-events-from-default-handlers Exclude DOM events from default handlers} for more details.
@@ -28,183 +30,43 @@ The tutorial will also reference various parts of the {@link framework/architect
 
 ## Let's start
 
-This guide assumes that you are familiar with npm and your project uses npm already. If not, see the [npm documentation](https://docs.npmjs.com/getting-started/what-is-npm) or call `npm init` in an empty directory and keep your fingers crossed.
-
-First, install packages needed to build and set up a basic CKEditor&nbsp;5 instance.
+The easiest way to get started is to grab the starter project using the commands below.
 
 ```bash
-npm install --save \
-	css-loader@5 \
-	postcss-loader@4 \
-	raw-loader@4 \
-	style-loader@2 \
-	webpack@5 \
-	webpack-cli@4 \
-	@ckeditor/ckeditor5-dev-utils \
-	@ckeditor/ckeditor5-editor-classic \
-	@ckeditor/ckeditor5-essentials \
-	@ckeditor/ckeditor5-paragraph \
-	@ckeditor/ckeditor5-heading \
-	@ckeditor/ckeditor5-list \
-	@ckeditor/ckeditor5-basic-styles \
-	@ckeditor/ckeditor5-theme-lark
+npx -y degit ckeditor/ckeditor5-tutorials-examples/block-widget/starter-files block-widget
+cd block-widget
+
+npm install
+npm run dev
 ```
 
-Create a minimal webpack configuration:
+It will create a new directory called `block-widget` with the necessary files. The `npm install` command will install all dependencies, and `npm run dev` will start the development server.
 
-```js
-// webpack.config.js
+The editor with some basic plugins is created in the `main.js` file.
 
-'use strict';
-
-const path = require( 'path' );
-const { styles } = require( '@ckeditor/ckeditor5-dev-utils' );
-
-module.exports = {
-	entry: './app.js',
-
-	output: {
-		path: path.resolve( __dirname, 'dist' ),
-		filename: 'bundle.js'
-	},
-
-	module: {
-		rules: [
-			{
-				test: /ckeditor5-[^/\\]+[/\\]theme[/\\]icons[/\\][^/\\]+\.svg$/,
-				use: [ 'raw-loader' ]
-			},
-			{
-				test: /ckeditor5-[^/\\]+[/\\]theme[/\\].+\.css$/,
-				use: [
-					{
-						loader: 'style-loader',
-						options: {
-							injectType: 'singletonStyleTag',
-							attributes: {
-								'data-cke': true
-							}
-						}
-					},
-					'css-loader',
-					{
-						loader: 'postcss-loader',
-						options: {
-							postcssOptions: styles.getPostCssConfig( {
-								themeImporter: {
-									themePath: require.resolve( '@ckeditor/ckeditor5-theme-lark' )
-								},
-								minify: true
-							} )
-						}
-					}
-				]
-			}
-		]
-	},
-
-	// Useful for debugging.
-	devtool: 'source-map',
-
-	// By default webpack logs warnings if the bundle is bigger than 200kb.
-	performance: { hints: false }
-};
-```
-
-Create your project's entry point:
-
-```js
-// app.js
-
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { List } from '@ckeditor/ckeditor5-list';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
-
-ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ Essentials, Paragraph, Heading, List, Bold, Italic ],
-		toolbar: [ 'heading', 'bold', 'italic', 'numberedList', 'bulletedList' ]
-	} )
-	.then( editor => {
-		console.log( 'Editor was initialized', editor );
-
-		// Expose for playing in the console.
-		window.editor = editor;
-	} )
-	.catch( error => {
-		console.error( error.stack );
-	} );
-```
-
-And an `index.html` page:
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<title>CKEditor 5 Framework – Implementing a simple widget</title>
-	</head>
-	<body>
-		<div id="editor">
-			<p>Editor content goes here.</p>
-		</div>
-
-		<script src="dist/bundle.js"></script>
-	</body>
-</html>
-```
-
-Finally, build your project:
-
-```bash
-p@m /workspace/creating-a-plugin> ./node_modules/.bin/webpack --mode development
-Hash: a4a7cf092b8d69199848
-Version: webpack 4.28.4
-Time: 5467ms
-Built at: 2019-01-15 10:49:01
-        Asset      Size  Chunks                    Chunk Names
-    bundle.js  3.52 MiB    main  [emitted]  [big]  main
-bundle.js.map   3.2 MiB    main  [emitted]         main
-Entrypoint main [big] = bundle.js bundle.js.map
-[./app.js] 824 bytes {main} [built]
-[./node_modules/webpack/buildin/global.js] (webpack)/buildin/global.js 472 bytes {main} [built]
-[./node_modules/webpack/buildin/harmony-module.js] (webpack)/buildin/harmony-module.js 573 bytes {main} [built]
-    + 904 hidden modules
-```
-
-And now see if everything worked well by opening the index page in your browser. You should see a CKEditor&nbsp;5 instance like this:
+Open the URL displayed in your terminal. If everything went well, you should see a CKEditor&nbsp;5 instance in your browser like this:
 
 {@img assets/img/tutorial-implementing-a-widget-1.png Screenshot of a classic editor initialized from source.}
 
 ## Plugin structure
 
-Once the editor is up and running you can start implementing the plugin. The entire plugin code can be kept in a single file, however, it is recommended to split its "editing" and "UI" layers and create a master plugin which loads both. This way, you ensure better separation of concerns and allow for recomposing the features (e.g. picking the editing part of an existing feature but writing your own UI for it). All official CKEditor&nbsp;5 plugins follow this pattern.
+Once the editor is up and running, you can start implementing the plugin. You can keep the entire plugin code in a single file; however, it is recommended to split its "editing" and "UI" layers and create a master plugin that loads both. This way, you ensure better separation of concerns and allow for recomposing the features (for example, picking the editing part of an existing feature but writing your own UI for it). All official CKEditor 5 plugins follow this pattern.
 
-Additionally, you will split the code of commands, buttons and other "self-contained" components to separate files, too. In order not to mix up these files with your project's `app.js` and `webpack.config.js` files, create this directory structure:
+Additionally, you will split the code of commands, buttons, and other "self-contained" components into separate files, too. In order not to mix up these files with your project's `main.js` file, create this directory structure:
 
-```
-├── app.js
-├── dist
-│   ├── bundle.js
-│   └── bundle.js.map
+```plain
+├── main.js
 ├── index.html
 ├── node_modules
 ├── package.json
 ├── simplebox
-│   ├── simplebox.js
-│   ├── simpleboxediting.js
-│   └── simpleboxui.js
-│
-│   ... the rest of plugin files goes here as well
-│
-└── webpack.config.js
+│   ├── simplebox.js
+│   ├── simpleboxediting.js
+│   └── simpleboxui.js
+└─ ...
 ```
 
-Now define the 3 plugins.
+Now define the three plugins.
 
 First, the master (glue) plugin. Its role is to simply load the "editing" and "UI" parts.
 
@@ -213,7 +75,7 @@ First, the master (glue) plugin. Its role is to simply load the "editing" and "U
 
 import SimpleBoxEditing from './simpleboxediting';
 import SimpleBoxUI from './simpleboxui';
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin } from 'ckeditor5';
 
 export default class SimpleBox extends Plugin {
 	static get requires() {
@@ -227,7 +89,7 @@ Now, the remaining two plugins:
 ```js
 // simplebox/simpleboxui.js
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin } from 'ckeditor5';
 
 export default class SimpleBoxUI extends Plugin {
 	init() {
@@ -239,7 +101,7 @@ export default class SimpleBoxUI extends Plugin {
 ```js
 // simplebox/simpleboxediting.js
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin } from 'ckeditor5';
 
 export default class SimpleBoxEditing extends Plugin {
 	init() {
@@ -248,46 +110,33 @@ export default class SimpleBoxEditing extends Plugin {
 }
 ```
 
-Finally, you need to load the `SimpleBox` plugin in your `app.js` file:
+Finally, you need to load the `SimpleBox` plugin in your `main.js` file:
 
 ```js
-// app.js
-
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { List } from '@ckeditor/ckeditor5-list';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+// main.js
 
 import SimpleBox from './simplebox/simplebox';                                 // ADDED
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
+		licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 		plugins: [
 			Essentials, Paragraph, Heading, List, Bold, Italic,
 			SimpleBox                                                          // ADDED
 		],
 		toolbar: [ 'heading', 'bold', 'italic', 'numberedList', 'bulletedList' ]
-	} )
-	.then( editor => {
-		console.log( 'Editor was initialized', editor );
-
-		// Expose for playing in the console.
-		window.editor = editor;
-	} )
-	.catch( error => {
-		console.error( error.stack );
 	} );
 ```
 
-Rebuild your project, refresh the browser and you should see that the the `SimpleBoxEditing` and `SmpleBoxUI` plugins were loaded:
+Your page will refresh, and you should see that the editor loaded the `SimpleBoxEditing` and `SimpleBoxUI` plugins:
 
 {@img assets/img/tutorial-implementing-a-widget-2.png Screenshot of a classic editor initialized from source with the "SimpleBoxEditing#init() got called" and "SimpleBoxUI#init() got called" messages on the console.}
 
 ## The model and the view layers
 
-CKEditor&nbsp;5 implements an MVC architecture and its custom data model, while still being a tree structure, does not map to the DOM 1:1. You can think about the model as about an even more semantical representation of the editor content, while the DOM is one of its possible representations.
+CKEditor&nbsp;5 implements an MVC architecture and its custom data model, while still being a tree structure, does not map to the DOM 1:1. You can think about the model as an even more semantic representation of the editor content, while the DOM is one of its possible representations.
+
 
 <info-box>
 	Read more about the {@link framework/architecture/editing-engine#overview editing engine architecture}.
@@ -304,7 +153,7 @@ Since your simple box feature is meant to be a box with a title and description 
 
 ### Defining the schema
 
-You need to start with defining the model's schema. You need to define 3 elements and their types as well as allowed parent/children.
+You need to start by defining the model’s schema. You need to describe three elements and their types, as well as the allowed parent and children.
 
 <info-box>
 	Read more about the {@link framework/architecture/editing-engine#schema schema}.
@@ -315,7 +164,7 @@ Update the `SimpleBoxEditing` plugin with this definition.
 ```js
 // simplebox/simpleboxediting.js
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin } from 'ckeditor5';
 
 export default class SimpleBoxEditing extends Plugin {
 	init() {
@@ -356,19 +205,19 @@ export default class SimpleBoxEditing extends Plugin {
 }
 ```
 
-Defining the schema will not have any effect on the editor just yet. It is information which can be used by plugins and the editor engine to understand how actions like pressing the <kbd>Enter</kbd> key, clicking on an element, typing text, inserting an image, etc. should behave.
+Defining the schema will not affect the editor, yet. It is the information used by plugins and the editor engine to understand how actions such as pressing the <kbd>Enter</kbd> key, clicking an element, typing text, inserting an image, etc., should behave.
 
-For the simple box plugin to start doing anything you need to define model-view converters. Do that now!
+For the simple box plugin to start doing anything, you need to define model-view converters. Do that now!
 
 ### Defining converters
 
-Converters tell the editor how to convert the view to the model (e.g. when loading the data to the editor or handling pasted content) and how to render the model to the view (for editing purposes, or when retrieving the editor data).
+Converters inform the editor how to convert the view to the model (for example, when loading data to the editor or handling pasted content) and how to render the model to the view (for editing purposes, or when retrieving the editor data).
 
 <info-box>
 	Read more about the {@link framework/deep-dive/conversion/downcast conversion in the editor}.
 </info-box>
 
-This is the moment when you need to think about how you want to render the `<simpleBox>` element and its children to the DOM (what the user will see) and to the data. CKEditor&nbsp;5 allows converting the model to a different structure for editing purposes and a different one to be stored as "data" or exchanged with other applications when copy-pasting the content. However, for simplicity, use the same representation in both pipelines for now.
+It is the moment when you need to think about how you want to render the `<simpleBox>` element and its children to the DOM (what the user will see) and to the data. CKEditor&nbsp;5 allows converting the model to a different structure for editing purposes and a different one to be stored as "data" or exchanged with other applications when copying and pasting the content. However, for simplicity, use the identical representation in both pipelines for now.
 
 The structure in the view that you want to achieve:
 
@@ -384,15 +233,15 @@ Use the {@link module:engine/conversion/conversion~Conversion#elementToElement `
 <info-box>
 	You can use this high-level two-way converters definition because you define the same converters for the {@link framework/architecture/editing-engine#data-pipeline data} and {@link framework/architecture/editing-engine#editing-pipeline editing} pipelines.
 
-	Later on you will switch to more fine-grained converters to get more control over the conversion.
+	Later, you will switch to more fine-grained converters to get more control over the conversion.
 </info-box>
 
-You need to define converters for 3 model elements. Update the `SimpleBoxEditing` plugin with this code:
+You need to define converters for three model elements. Update the `SimpleBoxEditing` plugin with this code:
 
 ```js
 // simplebox/simpleboxediting.js
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin } from 'ckeditor5';
 
 export default class SimpleBoxEditing extends Plugin {
 	init() {
@@ -437,7 +286,7 @@ export default class SimpleBoxEditing extends Plugin {
 }
 ```
 
-Once you have converters, you can try to see the simple box in action. You have not defined a way to insert a new simple box into the document yet, so load it via the editor data. In order to do that, you need to modify the `index.html` file:
+Once you have the converters, you can try to see the simple box in action. You have not defined a way to insert a new simple box into the document yet, so load it via the editor data. To do that, you need to modify the `index.html` file:
 
 ```html
 <!DOCTYPE html>
@@ -485,41 +334,34 @@ Once you have converters, you can try to see the simple box in action. You have 
 			</section>
 		</div>
 
-		<script src="dist/bundle.js"></script>
+		<script type="module" src="./main.js"></script>
 	</body>
 </html>
 ```
 
-Rebuild your project and voila &mdash; that's your first simple box instance:
+Voilà &ndash; this is your first simple box instance:
 
 {@img assets/img/tutorial-implementing-a-widget-3.png Screenshot of a classic editor with an instance of a simple box inside.}
 
-### What's in the model?
+### What is in the model?
 
-The HTML that you added to the `index.html` file is your editor's data. This is what `editor.getData()` would return. Also, for now, this also the DOM structure which is rendered by the CKEditor&nbsp;5 engine in the editable region:
+The HTML that you added to the `index.html` file is your editor’s data. It is what `editor.getData()` would return. Also, for now, this is also the DOM structure that the CKEditor&nbsp;5 engine renders in the editable region:
 
 {@img assets/img/tutorial-implementing-a-widget-4.png Screenshot of a DOM structure of the simple box instance – it looks exactly like the data loaded into the editor.}
 
-However, what's in the model?
-
-To learn that, use the official {@link framework/development-tools/inspector CKEditor&nbsp;5 inspector}. Once {@link framework/development-tools/inspector#importing-the-inspector installed}, you need to load it in the `app.js` file:
+However, what's in the model? To learn that, use the official {@link framework/development-tools/inspector CKEditor&nbsp;5 inspector}. Once {@link framework/development-tools/inspector#importing-the-inspector installed}, you need to load it in the `main.js` file:
 
 ```js
-// app.js
-
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { List } from '@ckeditor/ckeditor5-list';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+// main.js
 
 import SimpleBox from './simplebox/simplebox';
 
 import CKEditorInspector from '@ckeditor/ckeditor5-inspector';                 // ADDED
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
+		licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 		plugins: [
 			Essentials, Paragraph, Heading, List, Bold, Italic,
 			SimpleBox
@@ -529,18 +371,15 @@ ClassicEditor
 	.then( editor => {
 		console.log( 'Editor was initialized', editor );
 
-		CKEditorInspector.attach( 'editor', editor );
+		CKEditorInspector.attach( { 'editor': editor } );
 
 		window.editor = editor;
-	} )
-	.catch( error => {
-		console.error( error.stack );
 	} );
 ```
 
-After rebuilding your project and refreshing the page you will see the inspector:
+After refreshing the page, you will see the inspector:
 
-{@img assets/img/tutorial-implementing-a-widget-4b.png Screenshot of a the simple box widget's structure displayed by CKEditor&nbsp;5 inspector.}
+{@img assets/img/tutorial-implementing-a-widget-4b.png Screenshot of a the simple box widget structure displayed by CKEditor&nbsp;5 inspector.}
 
 You will see the following HTML-like string:
 
@@ -556,63 +395,51 @@ You will see the following HTML-like string:
 </simpleBox>
 ```
 
-As you can see, this structure is quite different than the HTML input/output. If you look closely, you will also notice the `[]` characters in the first paragraph &mdash; this is the selection position.
+As you can see, this structure is quite different than the HTML input/output. If you look closely, you will also notice the `[]` characters in the first paragraph &ndash; this is the selection position.
 
-Play a bit with the editor features (bold, italic, headings, lists, selection) to see how the model structure changes.
+Play with the editor features a bit (bold, italic, headings, lists, selection) to see the changes in the model structure.
 
 <info-box>
 	You can also use some {@link framework/development-tools/testing-helpers useful helpers like `getData()` and `setData()`} to learn more about the state of the editor model or write assertions in tests.
 </info-box>
 
-### Behavior before "widgetizing" simple box
+### Behavior before turning simple box into a widget
 
 It is time to check if the simple box behaves like you would like it to. You can observe the following:
 
-* You can type text in the title, but pressing <kbd>Enter</kbd> will not split it and <kbd>Backspace</kbd> will not delete it entirely. This is because it was marked as an `isLimit` element in the schema.
-* You cannot apply a list in the title and cannot turn it into a heading (other than `<h1 class="simple-box-title">` which it is already). This is because it allows only the content that is allowed in other block elements (like paragraphs). You can, however, apply italic inside the title (because italic is allowed in other blocks).
-* The description behaves like the title, but it allows more content inside &mdash; lists and other headings.
-* If you try to select the entire simple box instance and press <kbd>Delete</kbd>, it will be deleted as a whole. The same when you copy and paste it. This is because it was marked as an `isObject` element in the schema.
-* You cannot easily select the entire simple box instance by clicking on it. Also, the cursor pointer does not change when you hover it. In other words, it seems a bit "dead". This is because you have not defined the view behavior yet.
+* You can type text in the title. Pressing <kbd>Enter</kbd> will not split it, and <kbd>Backspace</kbd> will not delete it entirely. It is because it was marked as an `isLimit` element in the schema.
+* You cannot apply a list in the title and cannot turn it into a heading (other than `<h1 class="simple-box-title">`, which it is already). It is because it allows only the content that is allowed in other block elements (like paragraphs). You can, however, apply italic inside the title (because italic is permitted in different blocks).
+* The description behaves similarly to the title, but it allows more content inside &ndash; lists and other headings.
+* If you try to select the entire simple box instance and press <kbd>Delete</kbd>, it will be deleted as a whole. The same when you copy and paste it. It is because it was marked as an `isObject` element in the schema.
+* You cannot easily select the entire simple box instance by clicking it. Also, the cursor pointer does not change when you hover it. In other words, it seems a bit unresponsive. The reason is that you have not yet defined the view behavior.
 
-Pretty cool so far, right? With a very little code, you were able to define the behavior of your simple box plugin which maintains the integrity of these elements. The engine ensures that the user does not break these instances.
+Pretty cool so far, right? With little code, you were able to define the behavior of your simple box plugin, which maintains the integrity of these elements. The engine ensures that the user does not break these instances.
 
 See what else you can improve.
 
 ### Making simple box a widget
 
 <info-box>
-	If you are familiar with the {@link @ckeditor4 guide/dev/deep_dive/widgets/README Widget System of CKEditor 4} you will notice significant differences in how widgets are implemented in CKEditor&nbsp;5.
+	In CKEditor&nbsp;5 the widget system is mostly handled by the engine. Some of it is contained withing the ({@link api/widget `@ckeditor/ckeditor5-widget`}) package and some have to be handled by other utilities provided by CKEditor&nbsp;5 Framework.
 
-	CKEditor 4 implementation exposes a declarative API that controls the entire behavior of a widget (from its schema and internal model to the styles, clicking behavior, context menu and the dialog).
-
-	In CKEditor&nbsp;5 the widget system was redesigned. Most of its responsibilities were taken over by the engine, some were extracted to a separate package ({@link api/widget `@ckeditor/ckeditor5-widget`}) and some have to be handled by other utilities provided by CKEditor&nbsp;5 Framework.
-
-	CKEditor&nbsp;5 implementation is, therefore, open for extensions and recomposition. You can choose the behaviors that you want (just like you did so far in this tutorial by defining a schema) and skip others or implement them by yourself.
+	CKEditor&nbsp;5 implementation is, therefore, open for extensions and recomposition. You can choose the behaviors that you want (just like you did so far in this tutorial by defining a schema) and skip others, or implement them by yourself.
 </info-box>
 
-The converters that you defined convert the model `<simpleBox*>` elements to plain {@link module:engine/view/containerelement~ContainerElement `ContainerElement`}s in the view (and back during upcasting).
+The converters that you defined convert the model `<simpleBox*>` elements to plain {@link module:engine/view/containerelement~ViewContainerElement `ContainerElement`}s in the view (and back during upcasting).
 
 You want to change this behavior a bit so the structure created in the editing view is enhanced with the {@link module:widget/utils~toWidget `toWidget()`} and {@link module:widget/utils~toWidgetEditable `toWidgetEditable()`} utilities. You do not want to affect the data view, though. Therefore, you will need to define converters for the editing and data downcasting separately.
 
 If you find the concept of downcasting and upcasting confusing, read the {@link framework/architecture/editing-engine#conversion introduction to conversion}.
 
-Before you start coding, you need to install the {@link api/widget `@ckeditor/ckeditor5-widget`} package:
-
-```bash
-npm install --save @ckeditor/ckeditor5-widget
-```
-
 Now it is time to revisit the `_defineConverters()` method that you defined earlier. You will use the {@link module:engine/conversion/upcasthelpers~UpcastHelpers#elementToElement `elementToElement()` upcast helper} and the {@link module:engine/conversion/downcasthelpers~DowncastHelpers#elementToElement `elementToElement()` downcast helper} instead of the two-way `elementToElement()` converter helper.
 
-Additionally, you need to ensure that the {@link module:widget/widget~Widget `Widget`} plugin is loaded. If you omit it, the elements in the view will have all the classes (e.g. `ck-widget`) but there will be no "behaviors" loaded (e.g. clicking a widget will not select it).
+Additionally, ensure that the {@link module:widget/widget~Widget `Widget`} plugin is loaded. If you omit it, the elements in the view will have all the classes (like `ck-widget`), but there will be no "behaviors" loaded (for example, clicking a widget will not select it).
 
 ```js
 // simplebox/simpleboxediting.js
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
-
-// ADDED 2 imports
-import { Widget, toWidget, toWidgetEditable } from '@ckeditor/ckeditor5-widget';
+// ADDED 2 imports.
+import { Plugin, Widget, toWidget, toWidgetEditable } from 'ckeditor5';
 
 export default class SimpleBoxEditing extends Plugin {
 	static get requires() {                                                    // ADDED
@@ -634,7 +461,7 @@ export default class SimpleBoxEditing extends Plugin {
 	_defineConverters() {                                                      // MODIFIED
 		const conversion = this.editor.conversion;
 
-		// <simpleBox> converters
+		// <simpleBox> converters.
 		conversion.for( 'upcast' ).elementToElement( {
 			model: 'simpleBox',
 			view: {
@@ -658,7 +485,7 @@ export default class SimpleBoxEditing extends Plugin {
 			}
 		} );
 
-		// <simpleBoxTitle> converters
+		// <simpleBoxTitle> converters.
 		conversion.for( 'upcast' ).elementToElement( {
 			model: 'simpleBoxTitle',
 			view: {
@@ -683,7 +510,7 @@ export default class SimpleBoxEditing extends Plugin {
 			}
 		} );
 
-		// <simpleBoxDescription> converters
+		// <simpleBoxDescription> converters.
 		conversion.for( 'upcast' ).elementToElement( {
 			model: 'simpleBoxDescription',
 			view: {
@@ -711,43 +538,39 @@ export default class SimpleBoxEditing extends Plugin {
 }
 ```
 
-<info-box>
-	As you can see, the code became much more verbose and far longer. This is because you used lower-level converters. We plan to provide more handy widget conversion utilities in the future. Read more (and 👍) in [this ticket](https://github.com/ckeditor/ckeditor5/issues/1228).
-</info-box>
+### Behavior after turning simple box into a widget
 
-### Behavior after "widgetizing" simple box
+Now, you should see how your simple box plugin has changed.
 
-You can rebuild your project now and see how your simple box plugin has changed.
-
-{@img assets/img/tutorial-implementing-a-widget-5.png Screenshot of the widget's focus outline.}
+{@img assets/img/tutorial-implementing-a-widget-5.png Screenshot of the widget focus outline.}
 
 You should observe that:
 
-* The `<section>`, `<h1>`, and `<div>` elements have the `contentEditable` attribute on them (plus some classes). This attribute tells the browser whether an element is considered "editable". Passing the element through `toWidget()` will make its content non-editable. Conversely, passing it through `toWidgetEditable()` will make its content editable again.
-* You can now click the widget (the gray area) to select it. Once it is selected, it is easier to copy-paste it.
+* The `<section>`, `<h1>`, and `<div>` elements have the `contentEditable` attribute on them (plus some classes). This attribute tells the browser whether an element is considered editable. Passing the element through `toWidget()` will make its content non-editable. Conversely, passing it through `toWidgetEditable()` will make its content editable again.
+* You can now click the widget (the gray area) to select it. Once the widget is selected, it is easier to copy and paste.
 * The widget and its nested editable regions react to hovering, selection, and focus (outline).
 
 In other words, the simple box instance became much more responsive.
 
-Additionally, if you call `editor.getData()` you will get the same HTML as before "widgetizing" the simple box. This is thanks to using `toWidget()` and `toNestedEditable()` only in the `editingDowncast` pipeline.
+Additionally, if you call `editor.getData()`, you will get the same HTML as before the simple box became a widget. It is thanks to using `toWidget()` and `toNestedEditable()` only in the `editingDowncast` pipeline.
 
-This is all that you need from the model and the view layers for now. In terms of "editability" and data input/output it is fully functional. Now find a way to insert new simple boxes into the document!
+This is all you need from the model and the view layers for now. In terms of being editable and data input/output, it is fully functional. Now find a way to insert new simple boxes into the document!
 
 ## Creating a command
 
-A {@link framework/architecture/core-editor-architecture#commands command} is a combination of an action and a state. You can interact with most of the editor features by the commands they expose. This allows not only for executing these features (e.g. bolding a fragment of text) but also checking if this action can be executed in the selection's current location as well as observing other state properties (such as whether the currently selected text is bolded).
+A {@link framework/architecture/core-editor-architecture#commands command} is a combination of an action and a state. You can interact with most of the editor features by the commands they expose. This allows not only for executing these features (like making a fragment of text bold) but also checking if this action can be executed in the selection's current location as well as observing other state properties (such as whether the currently selected text was made bold).
 
-In the case of the simple box the situation is simple:
+For a simple box, the situation is simple:
 
-* you need an "insert a new simple box" action,
-* and a "can you insert a new simple box here (at the current selection position)" check.
+* You need an "insert a new simple box" action.
+* You need a "can you insert a new simple box here (at the current selection position)" check.
 
-Create a new file `insertsimpleboxcommand.js` in the `simplebox/` directory. You will use the {@link module:engine/model/model~Model#insertObject `model.insertObject()`} method which will be able to, for example, split a paragraph if you try to insert a simple box in the middle of it (which is not allowed by the schema).
+Create a new file `insertsimpleboxcommand.js` in the `simplebox/` directory. You will use the {@link module:engine/model/model~Model#insertObject `model.insertObject()`} method, which will be able to, for example, split a paragraph if you try to insert a simple box in the middle of it (which is not allowed by the schema).
 
 ```js
 // simplebox/insertsimpleboxcommand.js
 
-import { Command } from '@ckeditor/ckeditor5-core';
+import { Command } from 'ckeditor5';
 
 export default class InsertSimpleBoxCommand extends Command {
 	execute() {
@@ -788,8 +611,7 @@ Import the command and register it in the `SimpleBoxEditing` plugin:
 ```js
 // simplebox/simpleboxediting.js
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
-import { Widget, toWidget, toWidgetEditable } from '@ckeditor/ckeditor5-widget';
+import { Plugin, Widget, toWidget, toWidgetEditable } from 'ckeditor5';
 
 import InsertSimpleBoxCommand from './insertsimpleboxcommand';                 // ADDED
 
@@ -820,25 +642,25 @@ export default class SimpleBoxEditing extends Plugin {
 }
 ```
 
-You can now execute this command in order to insert a new simple box. Calling:
+You can now execute this command to insert a new simple box. Call:
 
 ```js
 editor.execute( 'insertSimpleBox' );
 ```
 
-Should result in:
+It should result in:
 
 {@img assets/img/tutorial-implementing-a-widget-6.png Screenshot of a simple box instance inserted at the beginning of the editor content.}
 
-You can also try inspecting the `isEnabled` property value (or just checking it in CKEditor&nbsp;5 inspector):
+You can also try inspecting the `isEnabled` property value (or just checking it in the CKEditor&nbsp;5 inspector):
 
 ```js
 console.log( editor.commands.get( 'insertSimpleBox' ).isEnabled );
 ```
 
-It is always `true` except when the selection is in one place &mdash; in other simple box's title. You can also observe that executing the command when the selection is in that place takes no effect.
+It is always `true` except when the selection is in one place, in another simple box’s title. You can also observe that executing the command when the selection is in that place takes no effect.
 
-Change one more thing before you move forward &mdash; disallow `simpleBox` inside `simpleBoxDescription`, too. This can be done by {@link module:engine/model/schema~Schema#addChildCheck defining a custom child check}:
+Change one more thing before you move forward &ndash; disallow `simpleBox` inside `simpleBoxDescription`, too. This can be done by {@link module:engine/model/schema~ModelSchema#addChildCheck defining a custom child check}:
 
 ```js
 // simplebox/simpleboxediting.js
@@ -904,7 +726,7 @@ export default class SimpleBoxEditing extends Plugin {
 }
 ```
 
-Now the command should be disabled also when the selection is inside the description of another simple box instance.
+Now the command should also be disabled when the selection is inside the description of another simple box instance.
 
 ## Creating a button
 
@@ -917,8 +739,7 @@ See what it looks like in practice and extend the `SimpleBoxUI` plugin [created 
 ```js
 // simplebox/simpleboxui.js
 
-import { ButtonView } from '@ckeditor/ckeditor5-ui';
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { ButtonView, Plugin } from 'ckeditor5';
 
 export default class SimpleBoxUI extends Plugin {
 	init() {
@@ -960,7 +781,9 @@ The last thing you need to do is tell the editor to display the button in the to
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
+		licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 		plugins: [ Essentials, Paragraph, Heading, List, Bold, Italic, SimpleBox ],
 		// Insert the "simpleBox" button into the editor toolbar.
 		toolbar: [ 'heading', 'bold', 'italic', 'numberedList', 'bulletedList', 'simpleBox' ]
@@ -979,71 +802,25 @@ Refresh the web page and try it yourself:
 
 {@img assets/img/tutorial-implementing-a-widget-7.png Screenshot of the simple box widget being inserted using the toolbar button.}
 
+## Adding a widget toolbar
 
-## Demo
+So far, you have created a simple box widget with a button to insert it into the editor. But what if you want to add some controls to the widget itself? For example, you might want to allow users to toggle some widget properties without having to delete and recreate the widget.
 
-You can see the block widget implementation in action in the editor below. You can also check out the full [source code](#final-solution) of this tutorial if you want to develop your own block widgets.
+In this section, you will add a contextual toolbar that appears when the simple box widget is selected. This toolbar will contain a toggle button to mark the box as "secret," which will blur its content to hide sensitive information.
 
-{@snippet framework/tutorials/block-widget}
+### Adding an attribute to the schema
 
-## Final solution
+First, you need to extend the simple box schema to support a new `secret` attribute. This attribute will be a boolean value that determines whether the box content should be blurred.
 
-The following code contains a complete implementation of the `SimpleBox` plugin (and all its dependencies) and the code to run the editor. You can paste it into the [`app.js`](#plugin-structure) file and it will run out–of–the–box:
+Update the schema definition in the `SimpleBoxEditing` plugin:
 
 ```js
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { List } from '@ckeditor/ckeditor5-list';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+// simplebox/simpleboxediting.js
 
-import { Command, Plugin } from '@ckeditor/ckeditor5-core';
-import { ButtonView } from '@ckeditor/ckeditor5-ui';
-import { Widget, toWidget, toWidgetEditable } from '@ckeditor/ckeditor5-widget';
+// Previously imported packages.
+// ...
 
-class SimpleBox extends Plugin {
-	static get requires() {
-		return [ SimpleBoxEditing, SimpleBoxUI ];
-	}
-}
-
-class SimpleBoxUI extends Plugin {
-	init() {
-		console.log( 'SimpleBoxUI#init() got called' );
-
-		const editor = this.editor;
-		const t = editor.t;
-
-		// The "simpleBox" button must be registered among the UI components of the editor
-		// to be displayed in the toolbar.
-		editor.ui.componentFactory.add( 'simpleBox', locale => {
-			// The state of the button will be bound to the widget command.
-			const command = editor.commands.get( 'insertSimpleBox' );
-
-			// The button will be an instance of ButtonView.
-			const buttonView = new ButtonView( locale );
-
-			buttonView.set( {
-				// The t() function helps localize the editor. All strings enclosed in t() can be
-				// translated and change when the language of the editor changes.
-				label: t( 'Simple Box' ),
-				withText: true,
-				tooltip: true
-			} );
-
-			// Bind the state of the button to the command.
-			buttonView.bind( 'isOn', 'isEnabled' ).to( command, 'value', 'isEnabled' );
-
-			// Execute the command when the button is clicked (executed).
-			this.listenTo( buttonView, 'execute', () => editor.execute( 'insertSimpleBox' ) );
-
-			return buttonView;
-		} );
-	}
-}
-
-class SimpleBoxEditing extends Plugin {
+export default class SimpleBoxEditing extends Plugin {
 	static get requires() {
 		return [ Widget ];
 	}
@@ -1061,161 +838,474 @@ class SimpleBoxEditing extends Plugin {
 		const schema = this.editor.model.schema;
 
 		schema.register( 'simpleBox', {
-			// Behaves like a self-contained block object (e.g. a block image)
-			// allowed in places where other blocks are allowed (e.g. directly in the root).
-			inheritAllFrom: '$blockObject'
+			inheritAllFrom: '$blockObject',
+
+			// Added: Allow the 'secret' boolean attribute on simpleBox elements.
+			allowAttributes: [ 'secret' ]
 		} );
 
-		schema.register( 'simpleBoxTitle', {
-			// Cannot be split or left by the caret.
-			isLimit: true,
-
-			allowIn: 'simpleBox',
-
-			// Allow content which is allowed in blocks (i.e. text with attributes).
-			allowContentOf: '$block'
-		} );
-
-		schema.register( 'simpleBoxDescription', {
-			// Cannot be split or left by the caret.
-			isLimit: true,
-
-			allowIn: 'simpleBox',
-
-			// Allow content which is allowed in the root (e.g. paragraphs).
-			allowContentOf: '$root'
-		} );
-
-		schema.addChildCheck( ( context, childDefinition ) => {
-			if ( context.endsWith( 'simpleBoxDescription' ) && childDefinition.name == 'simpleBox' ) {
-				return false;
-			}
-		} );
+		// schema.register( 'simpleBoxTitle', {
+		// 	...
+		// } );
+		//
+		// schema.register( 'simpleBoxDescription', {
+		// 	...
+		// } );
+		//
+		// schema.addChildCheck( ( context, childDefinition ) => {
+		// 	...
+		// } );
 	}
 
 	_defineConverters() {
-		const conversion = this.editor.conversion;
+		// Previously defined converters.
+		// ...
+	}
+}
+```
+
+The `allowAttributes` property tells the schema that the `simpleBox` element can have a `secret` attribute.
+
+### Creating a command
+
+Now you need to create a command that will toggle the `secret` attribute. Create a new file `togglesimpleboxsecretcommand.js`:
+
+```js
+// simplebox/togglesimpleboxsecretcommand.js
+
+import { Command } from 'ckeditor5';
+
+export default class ToggleSimpleBoxSecretCommand extends Command {
+	refresh() {
+		const editor = this.editor;
+		const element = getClosestSelectedSimpleBoxElement( editor.model.document.selection );
+
+		// Enable the command only when a simple box is selected.
+		this.isEnabled = !!element;
+
+		// Set the command value to the current state of the 'secret' attribute.
+		this.value = !!( element && element.getAttribute( 'secret' ) );
+	}
+
+	execute( options = {} ) {
+		const editor = this.editor;
+		const model = editor.model;
+		const simpleBox = getClosestSelectedSimpleBoxElement( model.document.selection );
+
+		// Toggle the current state if no value is provided.
+		const newValue = options.value === undefined ? !this.value : options.value;
+
+		if ( simpleBox ) {
+			model.change( writer => {
+				if ( newValue ) {
+					// Set the 'secret' attribute to true when enabling.
+					writer.setAttribute( 'secret', true, simpleBox );
+				} else {
+					// Remove the attribute entirely when disabling.
+					writer.removeAttribute( 'secret', simpleBox );
+				}
+			} );
+		}
+	}
+}
+
+function getClosestSelectedSimpleBoxElement( selection ) {
+	const selectedElement = selection.getSelectedElement();
+
+	// First, check if the selection is directly on a simple box.
+	if ( !!selectedElement && selectedElement.is( 'element', 'simpleBox' ) ) {
+		return selectedElement;
+	} else {
+		// Otherwise, find the closest simple box ancestor.
+		return selection.getFirstPosition().findAncestor( 'simpleBox' );
+	}
+}
+```
+
+The command checks if the selection is inside a simple box and enables itself accordingly. The `value` property reflects the current state of the `secret` attribute (either `true` or `undefined`).
+
+The `execute()` method accepts an optional `options` parameter with a `value` property. If no value is provided, the command automatically toggles the current state (hence its name, a "toggle" command). You can also explicitly pass a value if needed, but for most use cases, calling `editor.execute( 'toggleSimpleBoxSecret' )` without parameters is sufficient.
+
+<info-box>
+	This follows the common CKEditor&nbsp;5 pattern for boolean attributes: use `true` for enabled or remove the attribute entirely (resulting in `undefined`), rather than setting it to `false`. This is the same approach used by features like links and their decorators.
+</info-box>
+
+Register this command in the `SimpleBoxEditing` plugin:
+
+```js
+// simplebox/simpleboxediting.js
+
+import { Plugin, Widget, toWidget, toWidgetEditable } from 'ckeditor5';
+
+import InsertSimpleBoxCommand from './insertsimpleboxcommand';
+// Added: Import the new command.
+import ToggleSimpleBoxSecretCommand from './togglesimpleboxsecretcommand';
+
+export default class SimpleBoxEditing extends Plugin {
+	static get requires() {
+		return [ Widget ];
+	}
+
+	init() {
+		console.log( 'SimpleBoxEditing#init() got called' );
+
+		this._defineSchema();
+		this._defineConverters();
+
+		this.editor.commands.add( 'insertSimpleBox', new InsertSimpleBoxCommand( this.editor ) );
+
+		// Added: Register the command to toggle the secret state.
+		this.editor.commands.add( 'toggleSimpleBoxSecret', new ToggleSimpleBoxSecretCommand( this.editor ) );
+	}
+
+
+	_defineSchema() {
+		// Previously registered schema.
+		// ...
+	}
+
+	_defineConverters() {
+		// Previously defined converters.
+		// ...
+	}
+}
+```
+
+### Updating converters
+
+Next, you need to update the converters to handle the `secret` attribute. You need to convert it from the view to the model (upcast) and from the model to the view (downcast to both data and editing views).
+
+Update the `_defineConverters()` method in the `SimpleBoxEditing` plugin:
+
+```js
+// simplebox/simpleboxediting.js
+
+// Previously imported packages.
+// ...
+
+export default class SimpleBoxEditing extends Plugin {
+	static get requires() {
+		return [ Widget ];
+	}
+
+	init() {
+		console.log( 'SimpleBoxEditing#init() got called' );
+
+		this._defineSchema();
+		this._defineConverters();
+
+		this.editor.commands.add( 'insertSimpleBox', new InsertSimpleBoxCommand( this.editor ) );
+		this.editor.commands.add( 'toggleSimpleBoxSecret', new ToggleSimpleBoxSecretCommand( this.editor ) );
+	}
+
+	_defineSchema() {
+		// Previously registered schema.
+		// ...
+	}
+
+	_defineConverters() {
 
 		// <simpleBox> converters
-		conversion.for( 'upcast' ).elementToElement( {
-			model: 'simpleBox',
-			view: {
-				name: 'section',
-				classes: 'simple-box'
-			}
-		} );
-		conversion.for( 'dataDowncast' ).elementToElement( {
-			model: 'simpleBox',
-			view: {
-				name: 'section',
-				classes: 'simple-box'
-			}
-		} );
+		// (no changes)
+
+		// Changed: Set custom property for widget detection.
 		conversion.for( 'editingDowncast' ).elementToElement( {
 			model: 'simpleBox',
 			view: ( modelElement, { writer: viewWriter } ) => {
 				const section = viewWriter.createContainerElement( 'section', { class: 'simple-box' } );
 
+				// Set custom property to later check the view element.
+				viewWriter.setCustomProperty( 'simpleBox', true, section );
+
 				return toWidget( section, viewWriter, { label: 'simple box widget' } );
 			}
 		} );
 
-		// <simpleBoxTitle> converters
-		conversion.for( 'upcast' ).elementToElement( {
-			model: 'simpleBoxTitle',
+		// Added: Handle the 'secret' attribute conversion between model and view.
+		conversion.attributeToAttribute( {
+			model: 'secret',
 			view: {
-				name: 'h1',
-				classes: 'simple-box-title'
+				name: 'section',
+				key: 'class',
+				value: 'secret'
 			}
 		} );
-		conversion.for( 'dataDowncast' ).elementToElement( {
-			model: 'simpleBoxTitle',
-			view: {
-				name: 'h1',
-				classes: 'simple-box-title'
-			}
-		} );
-		conversion.for( 'editingDowncast' ).elementToElement( {
-			model: 'simpleBoxTitle',
-			view: ( modelElement, { writer: viewWriter } ) => {
-				// Note: You use a more specialized createEditableElement() method here.
-				const h1 = viewWriter.createEditableElement( 'h1', { class: 'simple-box-title' } );
 
-				return toWidgetEditable( h1, viewWriter );
-			}
-		} );
+		// <simpleBoxTitle> converters
+		// (no changes)
+		// ...
 
 		// <simpleBoxDescription> converters
-		conversion.for( 'upcast' ).elementToElement( {
-			model: 'simpleBoxDescription',
-			view: {
-				name: 'div',
-				classes: 'simple-box-description'
-			}
-		} );
-		conversion.for( 'dataDowncast' ).elementToElement( {
-			model: 'simpleBoxDescription',
-			view: {
-				name: 'div',
-				classes: 'simple-box-description'
-			}
-		} );
-		conversion.for( 'editingDowncast' ).elementToElement( {
-			model: 'simpleBoxDescription',
-			view: ( modelElement, { writer: viewWriter } ) => {
-				// Note: You use a more specialized createEditableElement() method here.
-				const div = viewWriter.createEditableElement( 'div', { class: 'simple-box-description' } );
+		// (no changes)
+		// ...
+	}
+}
+```
 
-				return toWidgetEditable( div, viewWriter );
-			}
+The element converters remain unchanged. The new part is the attribute conversion using the two-way {@link module:engine/conversion/conversion~Conversion#attributeToAttribute `attributeToAttribute()`} helper.
+
+This single converter handles both directions: it maps the `secret` CSS class from the view to the `secret` model attribute (upcast). It also converts the model's `secret` attribute back to a CSS class in both editing and data views (downcast).
+
+Note that you also added a custom property to the widget in the editing downcast converter using {@link module:engine/view/downcastwriter~ViewDowncastWriter#setCustomProperty `setCustomProperty()`}. This custom property serves as a marker to identify simple box widgets in the view layer. Without this property, you would need to rely solely on CSS classes or element structure, which is less reliable.
+
+You do not need to update the `createSimpleBox()` function because new simple boxes should not have the `secret` attribute by default (it will be `undefined`).
+
+### Creating the toolbar button
+
+Now you can create a button that will toggle the `secret` attribute. You will use the {@link module:ui/button/switchbuttonview~SwitchButtonView `SwitchButtonView`} class, which is a button with an on/off state.
+
+Update the `SimpleBoxUI` plugin:
+
+```js
+// simplebox/simpleboxui.js
+
+// Added: Import SwitchButtonView for the toggle button.
+import { ButtonView, SwitchButtonView, Plugin } from 'ckeditor5';
+
+export default class SimpleBoxUI extends Plugin {
+	init() {
+		console.log( 'SimpleBoxUI#init() got called' );
+
+		const editor = this.editor;
+		const t = editor.t;
+
+		editor.ui.componentFactory.add( 'simpleBox', locale => {
+			// ... existing simpleBox button code ...
+		} );
+
+		// Added: Register the "secretSimpleBox" switch button for toggling the secret state.
+		editor.ui.componentFactory.add( 'secretSimpleBox', locale => {
+			const command = editor.commands.get( 'toggleSimpleBoxSecret' );
+			const switchButton = new SwitchButtonView( locale );
+
+			switchButton.set( {
+				label: t( 'Secret box' ),
+				withText: true
+			} );
+
+			// Bind the switch's state to the command's value and enabled state.
+			switchButton.bind( 'isOn', 'isEnabled' ).to( command, 'value', 'isEnabled' );
+
+		// Execute the command when the switch is toggled.
+		// The command will automatically toggle based on its current state.
+		this.listenTo( switchButton, 'execute', () => {
+			editor.execute( 'toggleSimpleBoxSecret' );
+		} );
+
+			return switchButton;
+		} );
+	}
+}
+```
+
+The switch button is bound to the `toggleSimpleBoxSecret` command. When clicked, it executes the command without any parameters, and the command automatically toggles its state based on its current `value`.
+
+### Registering the widget toolbar
+
+Now you need to create a plugin that will register the widget toolbar using the {@link module:widget/widgettoolbarrepository~WidgetToolbarRepository `WidgetToolbarRepository`} plugin. This plugin manages all widget toolbars in the editor and handles their positioning and visibility.
+
+Create a new file `simpleboxtoolbar.js`:
+
+```js
+// simplebox/simpleboxtoolbar.js
+
+import { Plugin, WidgetToolbarRepository } from 'ckeditor5';
+
+export default class SimpleBoxToolbar extends Plugin {
+	static get requires() {
+		return [ WidgetToolbarRepository ];
+	}
+
+	afterInit() {
+		const editor = this.editor;
+		const widgetToolbarRepository = editor.plugins.get( WidgetToolbarRepository );
+
+		// Register a new toolbar for the simple box widget.
+		widgetToolbarRepository.register( 'simpleBoxToolbar', {
+			// Toolbar items come from the editor configuration.
+			items: editor.config.get( 'simpleBox.toolbar' ),
+
+			// Callback to determine which view element the toolbar should be attached to.
+			getRelatedElement: getClosestSimpleBoxWidget
 		} );
 	}
 }
 
-class InsertSimpleBoxCommand extends Command {
-	execute() {
-		this.editor.model.change( writer => {
-			// Insert <simpleBox>*</simpleBox> at the current selection position
-			// in a way that will result in creating a valid model structure.
-			this.editor.model.insertObject( createSimpleBox( writer ) );
-		} );
+function getClosestSimpleBoxWidget( selection ) {
+	const selectionPosition = selection.getFirstPosition();
+
+	if ( !selectionPosition ) {
+		return null;
 	}
 
-	refresh() {
-		const model = this.editor.model;
-		const selection = model.document.selection;
-		const allowedIn = model.schema.findAllowedParent( selection.getFirstPosition(), 'simpleBox' );
+	// Check if the selected element itself is a simple box widget.
+	const viewElement = selection.getSelectedElement();
 
-		this.isEnabled = allowedIn !== null;
+	if ( viewElement && isSimpleBoxWidget( viewElement ) ) {
+		return viewElement;
+	}
+
+	// Otherwise, search up the view hierarchy for a simple box widget.
+	let parent = selectionPosition.parent;
+
+	while ( parent ) {
+		if ( parent.is( 'element' ) && isSimpleBoxWidget( parent ) ) {
+			return parent;
+		}
+
+		parent = parent.parent;
+	}
+
+	return null;
+}
+
+function isSimpleBoxWidget( viewElement ) {
+	// Check if the element has our custom property and is a widget.
+	return !!viewElement.getCustomProperty( 'simpleBox' ) && isWidget( viewElement );
+}
+```
+
+The `SimpleBoxToolbar` plugin registers a widget toolbar in the `afterInit()` method. The toolbar configuration is read from the editor configuration under the `simpleBox.toolbar` property. The `getRelatedElement` function is a callback that returns the view element to which the toolbar should be attached. It searches for the closest simple box widget in the view hierarchy.
+
+The helper function `isSimpleBoxWidget()` checks if a view element is a simple box widget by looking for the custom property you set earlier in the editing downcast converter.
+
+Now register this plugin in the master `SimpleBox` plugin:
+
+```js
+// simplebox/simplebox.js
+
+import SimpleBoxEditing from './simpleboxediting';
+import SimpleBoxUI from './simpleboxui';
+// Added: Import the new toolbar plugin.
+import SimpleBoxToolbar from './simpleboxtoolbar';
+import { Plugin } from 'ckeditor5';
+
+export default class SimpleBox extends Plugin {
+	static get requires() {
+		// Changed: Include the toolbar plugin in the requirements.
+		return [ SimpleBoxEditing, SimpleBoxUI, SimpleBoxToolbar ];
 	}
 }
+```
 
-function createSimpleBox( writer ) {
-	const simpleBox = writer.createElement( 'simpleBox' );
-	const simpleBoxTitle = writer.createElement( 'simpleBoxTitle' );
-	const simpleBoxDescription = writer.createElement( 'simpleBoxDescription' );
+Finally, add the toolbar configuration to the editor setup in `main.js`:
 
-	writer.append( simpleBoxTitle, simpleBox );
-	writer.append( simpleBoxDescription, simpleBox );
+```js
+// main.js
 
-	// There must be at least one paragraph for the description to be editable.
-	// See https://github.com/ckeditor/ckeditor5/issues/1464.
-	writer.appendElement( 'paragraph', simpleBoxDescription );
-
-	return simpleBox;
-}
+import SimpleBox from './simplebox/simplebox';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ Essentials, Bold, Italic, Heading, List, Paragraph, SimpleBox ],
-		toolbar: [ 'heading', '|', 'bold', 'italic', 'numberedList', 'bulletedList', 'simpleBox' ],
-	} )
-	.then( editor => {
-		console.log( 'Editor was initialized', editor );
-
-		window.editor = editor;
-	} )
-	.catch( err => {
-		console.error( err.stack );
+	.create( {
+		attachTo: document.querySelector( '#editor' ),
+		licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
+		plugins: [
+			Essentials, Paragraph, Heading, List, Bold, Italic,
+			SimpleBox
+		],
+		toolbar: [ 'heading', 'bold', 'italic', 'numberedList', 'bulletedList', 'simpleBox' ],
+		// Added toolbar configuration.
+		simpleBox: {
+			toolbar: [ 'secretSimpleBox' ]
+		}
 	} );
 ```
+
+### Styling the secret state
+
+The last step is to add CSS styles that will blur the content of a secret simple box. Add these styles to your `index.html` file:
+
+```css
+.simple-box.secret .simple-box-title,
+.simple-box.secret .simple-box-description {
+	filter: blur(4px);
+	user-select: none;
+	pointer-events: none;
+}
+
+.simple-box.secret::before {
+	content: "Secret content";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: rgba(0, 0, 0, 0.7);
+	color: white;
+	padding: 8px 16px;
+	border-radius: 4px;
+	font-size: 14px;
+	z-index: 1;
+}
+```
+
+These styles apply a blur effect to the title and description when the box is marked as secret. They also display a "Secret content" label on top of the blurred content.
+
+Now, when you select a simple box widget, a contextual toolbar will appear with a "Secret box" toggle. Clicking it will blur the content of the box, making it unreadable. You can click it again to reveal the content.
+
+This pattern of using {@link module:widget/widgettoolbarrepository~WidgetToolbarRepository `WidgetToolbarRepository`} is used throughout CKEditor&nbsp;5 for features like images, tables, and other widgets. It provides a consistent way to add contextual controls to widgets without cluttering the main toolbar.
+
+## Demo
+
+You can see the block widget implementation in action in the editor below. You can also check out the full [source code](#final-solution) of this tutorial if you want to develop your own block widgets.
+
+{@snippet framework/tutorials/block-widget}
+
+## Final solution
+
+If you got lost at any point in the tutorial or want to go straight to the solution, there is a repository with the [final project](https://github.com/ckeditor/ckeditor5-tutorials-examples/tree/main/block-widget/final-project) available.
+
+```bash
+npx -y degit ckeditor/ckeditor5-tutorials-examples/block-widget/final-project final-project
+cd final-project
+
+npm install
+npm run dev
+```
+
+## Adapt this tutorial to CDN
+
+If you want to use the editor from CDN, you can adapt this tutorial by following these steps.
+
+First, clone the repository the same way as before. **But do not install the dependencies.** Instead, open the `index.html` file and add the following tags:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>CKEditor 5 Framework – tutorial CDN</title>
+		<link rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/{@var ckeditor5-version}/ckeditor5.css" />
+	</head>
+	<body>
+		<div id="editor">
+			<p>Hello world!</p>
+		</div>
+		<script src="https://cdn.ckeditor.com/ckeditor5/{@var ckeditor5-version}/ckeditor5.umd.js"></script>
+
+		<script type="module" src="/main.js"></script>
+	</body>
+</html>
+```
+
+The CSS file contains the editor and content styles. Consequently, you do not need to import styles into your JavaScript file.
+
+```js
+// Before:
+import 'ckeditor5/ckeditor5.css';
+
+// After:
+// No need to import the styles.
+```
+
+The script tag loads the editor from the CDN. It exposes the global variable `CKEDITOR`. You can use it in your project to access the editor class and plugins. That is why you must change the import statements to destructuring in the JavaScript files:
+
+```js
+// Before:
+import { ClassicEditor, Essentials, Bold, Italic, Paragraph } from 'ckeditor5';
+
+// After:
+const { ClassicEditor, Essentials, Bold, Italic, Paragraph } = CKEDITOR;
+```
+
+After following these steps and running the `npm run dev` command, you should be able to open the editor in the browser.

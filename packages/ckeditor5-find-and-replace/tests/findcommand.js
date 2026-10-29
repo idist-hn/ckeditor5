@@ -1,12 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import { setData, stringify } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import FindAndReplaceEditing from '../src/findandreplaceediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _setModelData, _stringifyModel } from '@ckeditor/ckeditor5-engine';
+import { FindAndReplaceEditing } from '../src/findandreplaceediting.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
 describe( 'FindCommand', () => {
 	let editor, model, command;
@@ -29,87 +31,87 @@ describe( 'FindCommand', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets public properties', () => {
-			expect( command ).to.have.property( 'isEnabled', true );
-			expect( command ).to.have.property( 'affectsData', false );
+			expect( command ).toHaveProperty( 'isEnabled', true );
+			expect( command ).toHaveProperty( 'affectsData', false );
 		} );
 
 		it( 'sets state property', () => {
-			expect( command ).to.have.property( '_state', editor.plugins.get( 'FindAndReplaceEditing' ).state );
+			expect( command ).toHaveProperty( '_state', editor.plugins.get( 'FindAndReplaceEditing' ).state );
 		} );
 	} );
 
 	describe( 'isEnabled', () => {
 		it( 'should be enabled in empty document', () => {
-			setData( model, '[]' );
-			expect( command.isEnabled ).to.be.true;
+			_setModelData( model, '[]' );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled by default', () => {
-			setData( model, '<paragraph>foo[]</paragraph>' );
-			expect( command.isEnabled ).to.be.true;
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled in readonly mode editor', () => {
-			setData( model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be enabled after disabling readonly mode', () => {
-			setData( model, '<paragraph>foo[]</paragraph>' );
+			_setModelData( model, '<paragraph>foo[]</paragraph>' );
 
 			editor.enableReadOnlyMode( 'unit-test' );
 			editor.disableReadOnlyMode( 'unit-test' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		describe( 'with string passed', () => {
 			it( 'places markers correctly in the model', () => {
-				setData( model, '<paragraph>[]Foo bar baz. Bam bar bom.</paragraph>' );
+				_setModelData( model, '<paragraph>[]Foo bar baz. Bam bar bom.</paragraph>' );
 
 				const { results } = command.execute( 'bar' );
 				const markers = getSimplifiedMarkersFromResults( results );
 
-				expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+				expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 					'<paragraph>Foo <X:start></X:start>bar<X:end></X:end> baz. Bam <Y:start></Y:start>bar<Y:end></Y:end> bom.</paragraph>'
 				);
 			} );
 
 			it( 'calls model.change() only once', () => {
-				setData( model, '<paragraph>[]Foo bar baz. Bam bar bar bar bar bom.</paragraph>' );
-				const spy = sinon.spy( model, 'change' );
+				_setModelData( model, '<paragraph>[]Foo bar baz. Bam bar bar bar bar bom.</paragraph>' );
+				const spy = vi.spyOn( model, 'change' );
 
 				command.execute( 'bar' );
 
 				// It's called two additional times
 				// from 'change:highlightedResult' handler in FindAndReplaceEditing.
-				expect( spy.callCount ).to.equal( 3 );
+				expect( spy ).toHaveBeenCalledTimes( 3 );
 			} );
 
 			it( 'returns no result if nothing matched', () => {
-				setData( model, '<paragraph>[]Foo bar baz. Bam bar bom.</paragraph>' );
+				_setModelData( model, '<paragraph>[]Foo bar baz. Bam bar bom.</paragraph>' );
 
 				const { results } = command.execute( 'missing' );
 
-				expect( results.length ).to.equal( 0 );
+				expect( results.length ).toBe( 0 );
 			} );
 
 			it( 'assigns proper labels to matches', () => {
-				setData( model, '<paragraph>Foo bar b[]az. Bam bar bom.</paragraph>' );
+				_setModelData( model, '<paragraph>Foo bar b[]az. Bam bar bom.</paragraph>' );
 
 				const { results } = command.execute( 'bar' );
 				const labels = results.map( result => result.label );
 
-				expect( labels ).to.deep.equal( [ 'bar', 'bar' ] );
+				expect( labels ).toEqual( [ 'bar', 'bar' ] );
 			} );
 
 			it( 'assigns non-empty ids for each match', () => {
-				setData( model, '<paragraph>Foo bar b[]az. Bam bar bom.</paragraph>' );
+				_setModelData( model, '<paragraph>Foo bar b[]az. Bam bar bom.</paragraph>' );
 
 				const { results } = command.execute( 'bar' );
 				const ids = results.map( result => result.id );
@@ -117,19 +119,19 @@ describe( 'FindCommand', () => {
 				for ( let i = 0; i < ids.length; i++ ) {
 					const currentId = ids[ i ];
 
-					expect( currentId, `id #${ i }` ).to.be.a.string;
-					expect( currentId.length, `id #${ i }` ).to.not.equal( 0 );
+					expect( currentId, `id #${ i }` ).toEqual( expect.any( String ) );
+					expect( currentId.length, `id #${ i }` ).not.toBe( 0 );
 				}
 			} );
 
 			it( 'assigns an unique ids for each match', () => {
-				setData( model, '<paragraph>Foo bar b[]az. Bam bar bom bar.</paragraph>' );
+				_setModelData( model, '<paragraph>Foo bar b[]az. Bam bar bom bar.</paragraph>' );
 
 				const { results } = command.execute( 'bar' );
 				const ids = results.map( result => result.id );
 
-				expect( ids[ 0 ] ).not.to.equal( ids[ 1 ] );
-				expect( ids[ 1 ] ).not.to.equal( ids[ 2 ] );
+				expect( ids[ 0 ] ).not.toBe( ids[ 1 ] );
+				expect( ids[ 1 ] ).not.toBe( ids[ 2 ] );
 			} );
 
 			it( 'properly searches for regexp special characters simple', () => {
@@ -137,11 +139,11 @@ describe( 'FindCommand', () => {
 
 				const { results } = command.execute( ']{' );
 
-				expect( results.length ).to.equal( 1 );
+				expect( results.length ).toBe( 1 );
 
 				const markers = getSimplifiedMarkersFromResults( results );
 
-				expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+				expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 					'<paragraph>-[\\<X:start></X:start>]{<X:end></X:end>}()*+?.,^$|#\\s</paragraph>'
 				);
 			} );
@@ -151,11 +153,11 @@ describe( 'FindCommand', () => {
 
 				const { results } = command.execute( '-[\\]{}()*+?.,^$|#\\s' );
 
-				expect( results.length ).to.equal( 1 );
+				expect( results.length ).toBe( 1 );
 
 				const markers = getSimplifiedMarkersFromResults( results );
 
-				expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+				expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 					'<paragraph><X:start></X:start>' +
 						'-[\\]{}()*+?.,^$|#\\s' +
 					'<X:end></X:end></paragraph>'
@@ -167,13 +169,22 @@ describe( 'FindCommand', () => {
 
 				const { results } = command.execute( '🐛' );
 
-				expect( results.length ).to.equal( 1 );
+				expect( results.length ).toBe( 1 );
 
 				const markers = getSimplifiedMarkersFromResults( results );
 
-				expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+				expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 					'<paragraph>foo <X:start></X:start>🐛<X:end></X:end> bar</paragraph>'
 				);
+			} );
+
+			it( 'sets proper searchText state value', () => {
+				editor.setData( '<p>foo 🐛 bar</p>' );
+
+				const { results } = command.execute( '🐛' );
+
+				expect( results.length ).toBe( 1 );
+				expect( command._state.searchText ).toBe( '🐛' );
 			} );
 
 			describe( 'options.matchCase', () => {
@@ -182,7 +193,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { matchCase: true } );
 
-					expect( results.length ).to.equal( 0 );
+					expect( results.length ).toBe( 0 );
 				} );
 
 				it( 'set to true matches identically cased string', () => {
@@ -190,11 +201,11 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bAr', { matchCase: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 
 					const markers = getSimplifiedMarkersFromResults( results );
 
-					expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+					expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 						'<paragraph>foo <X:start></X:start>bAr<X:end></X:end></paragraph>'
 					);
 				} );
@@ -204,11 +215,11 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar' );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 
 					const markers = getSimplifiedMarkersFromResults( results );
 
-					expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+					expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 						'<paragraph>foo <X:start></X:start>bAr<X:end></X:end></paragraph>'
 					);
 				} );
@@ -220,7 +231,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 3 );
+					expect( results.length ).toBe( 3 );
 				} );
 
 				it( 'set to true matches a word followed by a dot', () => {
@@ -228,7 +239,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 
 				it( 'set to true makes a proper selection', () => {
@@ -238,7 +249,7 @@ describe( 'FindCommand', () => {
 
 					const markers = getSimplifiedMarkersFromResults( results );
 
-					expect( stringify( model.document.getRoot(), null, markers ) ).to.equal(
+					expect( _stringifyModel( model.document.getRoot(), null, markers ) ).toBe(
 						'<paragraph>foo <X:start></X:start>bar<X:end></X:end> baz</paragraph>'
 					);
 				} );
@@ -248,7 +259,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 
 				it( 'set to true matches a word separated by an emoji', () => {
@@ -256,31 +267,31 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 
-				it( 'set to true matches a text ending with a space ', () => {
+				it( 'set to true matches a text ending with a space', () => {
 					editor.setData( '<p>foo bar baz</p>' );
 
 					const { results } = command.execute( 'bar ', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 
-				it( 'set to true matches a text starting with a space ', () => {
+				it( 'set to true matches a text starting with a space', () => {
 					editor.setData( '<p>foo bar baz</p>' );
 
 					const { results } = command.execute( ' bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 
-				it( 'set to true matches a text starting and ending with a space ', () => {
+				it( 'set to true matches a text starting and ending with a space', () => {
 					editor.setData( '<p>foo bar baz</p>' );
 
 					const { results } = command.execute( ' bar ', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 
 				it( 'set to true doesn\'t match a word including diacritic characters', () => {
@@ -288,7 +299,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 0 );
+					expect( results.length ).toBe( 0 );
 				} );
 
 				it( 'set to true doesn\'t match similar words with superfluous characters', () => {
@@ -296,7 +307,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 0 );
+					expect( results.length ).toBe( 0 );
 				} );
 
 				it( 'set to true matches words separated by a single space', () => {
@@ -304,7 +315,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar', { wholeWords: true } );
 
-					expect( results.length ).to.equal( 2 );
+					expect( results.length ).toBe( 2 );
 				} );
 
 				it( 'is disabled by default', () => {
@@ -312,7 +323,7 @@ describe( 'FindCommand', () => {
 
 					const { results } = command.execute( 'bar' );
 
-					expect( results.length ).to.equal( 1 );
+					expect( results.length ).toBe( 1 );
 				} );
 			} );
 
@@ -331,8 +342,8 @@ describe( 'FindCommand', () => {
 					multiRootEditor = await MultiRootEditor.create( { plugins: [ FindAndReplaceEditing, Paragraph ] } );
 					multiRootModel = multiRootEditor.model;
 
-					setData( multiRootModel, '<paragraph>Foo bar baz</paragraph>' );
-					setData( multiRootModel, '<paragraph>Foo bar baz</paragraph>', { rootName: 'second' } );
+					_setModelData( multiRootModel, '<paragraph>Foo bar baz</paragraph>' );
+					_setModelData( multiRootModel, '<paragraph>Foo bar baz</paragraph>', { rootName: 'second' } );
 				} );
 
 				afterEach( async () => {
@@ -343,11 +354,11 @@ describe( 'FindCommand', () => {
 					const { results } = multiRootEditor.execute( 'find', 'z' );
 					const [ markerMain, markerSecond ] = getSimplifiedMarkersFromResults( results );
 
-					expect( stringify( multiRootModel.document.getRoot( 'main' ), null, [ markerMain ] ) ).to.equal(
+					expect( _stringifyModel( multiRootModel.document.getRoot( 'main' ), null, [ markerMain ] ) ).toBe(
 						'<paragraph>Foo bar ba<X:start></X:start>z<X:end></X:end></paragraph>'
 					);
 
-					expect( stringify( multiRootModel.document.getRoot( 'second' ), null, [ markerSecond ] ) ).to.equal(
+					expect( _stringifyModel( multiRootModel.document.getRoot( 'second' ), null, [ markerSecond ] ) ).toBe(
 						'<paragraph>Foo bar ba<Y:start></Y:start>z<Y:end></Y:end></paragraph>'
 					);
 				} );
@@ -355,16 +366,205 @@ describe( 'FindCommand', () => {
 				it( 'should properly search for occurrences in every root', () => {
 					const { results } = multiRootEditor.execute( 'find', 'z' );
 
-					expect( results ).to.be.lengthOf( 2 );
+					expect( results ).toHaveLength( 2 );
 				} );
 
 				it( 'should properly search for all occurrences if the first occurrence is not in the main root', () => {
-					setData( multiRootModel, '<paragraph>Foo bar bar</paragraph>' );
+					_setModelData( multiRootModel, '<paragraph>Foo bar bar</paragraph>' );
 
 					const { results } = multiRootEditor.execute( 'find', 'z' );
 
-					expect( results ).to.be.lengthOf( 1 );
+					expect( results ).toHaveLength( 1 );
 				} );
+			} );
+		} );
+
+		describe( 'in inline root editor', () => {
+			let inlineRootEditor, inlineRootModel, inlineRootCommand;
+
+			beforeEach( async () => {
+				inlineRootEditor = await ModelTestEditor.create( {
+					plugins: [ FindAndReplaceEditing ],
+					root: { modelElement: '$inlineRoot' }
+				} );
+
+				inlineRootModel = inlineRootEditor.model;
+				inlineRootCommand = inlineRootEditor.commands.get( 'find' );
+			} );
+
+			afterEach( async () => {
+				await inlineRootEditor.destroy();
+			} );
+
+			it( 'finds a single match', () => {
+				_setModelData( inlineRootModel, 'foo bar baz' );
+
+				const { results } = inlineRootCommand.execute( 'bar' );
+
+				expect( results.length ).toBe( 1 );
+			} );
+
+			it( 'finds multiple matches', () => {
+				_setModelData( inlineRootModel, 'bar foo bar baz bar' );
+
+				const { results } = inlineRootCommand.execute( 'bar' );
+
+				expect( results.length ).toBe( 3 );
+			} );
+
+			it( 'returns no results if nothing matched', () => {
+				_setModelData( inlineRootModel, 'foo bar baz' );
+
+				const { results } = inlineRootCommand.execute( 'missing' );
+
+				expect( results.length ).toBe( 0 );
+			} );
+
+			it( 'returns no results for empty document', () => {
+				_setModelData( inlineRootModel, '' );
+
+				const { results } = inlineRootCommand.execute( 'bar' );
+
+				expect( results.length ).toBe( 0 );
+			} );
+
+			it( 'assigns proper labels to matches', () => {
+				_setModelData( inlineRootModel, 'foo bar baz bar' );
+
+				const { results } = inlineRootCommand.execute( 'bar' );
+				const labels = results.map( result => result.label );
+
+				expect( labels ).toEqual( [ 'bar', 'bar' ] );
+			} );
+
+			it( 'assigns unique non-empty ids to each match', () => {
+				_setModelData( inlineRootModel, 'bar foo bar' );
+
+				const { results } = inlineRootCommand.execute( 'bar' );
+				const ids = results.map( result => result.id );
+
+				expect( ids[ 0 ] ).toEqual( expect.any( String ) );
+				expect( ids[ 0 ].length ).not.toBe( 0 );
+				expect( ids[ 0 ] ).not.toBe( ids[ 1 ] );
+			} );
+
+			it( 'does not produce duplicate results after subsequent setData() calls', () => {
+				_setModelData( inlineRootModel, 'CupCake' );
+				inlineRootCommand.execute( 'CupCake' );
+
+				inlineRootEditor.setData( 'CupCake CupCake' );
+
+				const { results } = inlineRootCommand.execute( 'CupCake' );
+
+				expect( results.length ).toBe( 2 );
+			} );
+
+			it( 'returns 0 results after setData() clears the document', () => {
+				_setModelData( inlineRootModel, 'CupCake' );
+				inlineRootCommand.execute( 'CupCake' );
+
+				inlineRootEditor.setData( '' );
+
+				const { results } = inlineRootCommand.execute( 'CupCake' );
+
+				expect( results.length ).toBe( 0 );
+			} );
+
+			describe( 'options.matchCase', () => {
+				it( 'set to true does not match differently cased string', () => {
+					_setModelData( inlineRootModel, 'foo bAr' );
+
+					const { results } = inlineRootCommand.execute( 'bar', { matchCase: true } );
+
+					expect( results.length ).toBe( 0 );
+				} );
+
+				it( 'set to true matches identically cased string', () => {
+					_setModelData( inlineRootModel, 'foo bAr' );
+
+					const { results } = inlineRootCommand.execute( 'bAr', { matchCase: true } );
+
+					expect( results.length ).toBe( 1 );
+				} );
+
+				it( 'is disabled by default', () => {
+					_setModelData( inlineRootModel, 'foo bAr' );
+
+					const { results } = inlineRootCommand.execute( 'bar' );
+
+					expect( results.length ).toBe( 1 );
+				} );
+			} );
+
+			describe( 'options.wholeWords', () => {
+				it( 'set to true matches whole words', () => {
+					_setModelData( inlineRootModel, 'foo bar baz' );
+
+					const { results } = inlineRootCommand.execute( 'bar', { wholeWords: true } );
+
+					expect( results.length ).toBe( 1 );
+				} );
+
+				it( 'set to true does not match words with superfluous characters', () => {
+					_setModelData( inlineRootModel, 'foo barr baz aaabar' );
+
+					const { results } = inlineRootCommand.execute( 'bar', { wholeWords: true } );
+
+					expect( results.length ).toBe( 0 );
+				} );
+
+				it( 'set to true matches multiple whole word occurrences', () => {
+					_setModelData( inlineRootModel, 'bar foo bar' );
+
+					const { results } = inlineRootCommand.execute( 'bar', { wholeWords: true } );
+
+					expect( results.length ).toBe( 2 );
+				} );
+
+				it( 'set to true matches a word followed by a dot', () => {
+					_setModelData( inlineRootModel, 'foo bar.' );
+
+					const { results } = inlineRootCommand.execute( 'bar', { wholeWords: true } );
+
+					expect( results.length ).toBe( 1 );
+				} );
+
+				it( 'is disabled by default', () => {
+					_setModelData( inlineRootModel, 'foo aabaraa' );
+
+					const { results } = inlineRootCommand.execute( 'bar' );
+
+					expect( results.length ).toBe( 1 );
+				} );
+			} );
+		} );
+
+		describe( 'with callback passed', () => {
+			it( 'sets returned searchText attribute to the object result', () => {
+				const findAndReplaceUtils = editor.plugins.get( 'FindAndReplaceUtils' );
+
+				_setModelData( model, '<paragraph>[]Foo bar baz. Bam bar bom.</paragraph>' );
+
+				const searchText = 'bar';
+				const { results } = command.execute( ( ...args ) => ( {
+					results: findAndReplaceUtils.findByTextCallback( searchText, {} )( ...args ),
+					searchText
+				} ) );
+
+				expect( results.length ).toBe( 2 );
+				expect( command._state.searchText ).toBe( searchText );
+			} );
+
+			it( 'sets empty searchText if array is returned', () => {
+				const findAndReplaceUtils = editor.plugins.get( 'FindAndReplaceUtils' );
+
+				_setModelData( model, '<paragraph>[]Foo bar baz. Bam bar bom.</paragraph>' );
+
+				const searchText = 'bar';
+				const { results } = command.execute( findAndReplaceUtils.findByTextCallback( searchText, {} ) );
+
+				expect( results.length ).toBe( 2 );
+				expect( command._state.searchText ).toBe( '' );
 			} );
 		} );
 
@@ -373,7 +573,7 @@ describe( 'FindCommand', () => {
 
 			const { results } = command.execute( 'bar' );
 
-			expect( editor.model.markers.has( results.get( 0 ).marker.name ) ).to.be.true;
+			expect( editor.model.markers.has( results.get( 0 ).marker.name ) ).toBe( true );
 		} );
 
 		/**

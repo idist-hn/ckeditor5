@@ -1,31 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document, Event, window */
-
-import WidgetResize from '../src/widgetresize';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { WidgetResize } from '../src/widgetresize.js';
 
 // ClassicTestEditor can't be used, as it doesn't handle the focus, which is needed to test resizer visual cues.
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { ArticlePluginSet } from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset.js';
 
-import { toWidget } from '../src/utils';
-import { setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { toWidget } from '../src/utils.js';
+import { _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
 
-import { resizerMouseSimulator, focusEditor, getHandleCenterPoint, getWidgetDomParts } from './widgetresize/_utils/utils';
+import { resizerMouseSimulator, focusEditor, getHandleCenterPoint, getWidgetDomParts } from './widgetresize/_utils/utils.js';
 
 describe( 'WidgetResize', () => {
-	let editor, editorElement, widget, mouseListenerSpies, commitStub;
+	let editor, editorElement, widget, commitStub;
 	const INITIAL_WIDGET_WIDTH = '25%';
 
 	beforeEach( async () => {
 		editorElement = createEditorElement();
 		editor = await createEditor( editorElement );
 
-		setModelData( editor.model, '[<widget></widget>]' );
+		_setModelData( editor.model, '[<widget></widget>]' );
 
 		await focusEditor( editor );
 
@@ -37,21 +35,15 @@ describe( 'WidgetResize', () => {
 			writer.setAttribute( 'style', 'width: 400px; padding: 0px; overflow: hidden', viewEditableRoot );
 		} );
 
-		commitStub = sinon.stub();
+		commitStub = vi.fn();
 
-		mouseListenerSpies = {
-			down: sinon.spy( WidgetResize.prototype, '_mouseDownListener' ),
-			move: sinon.spy( WidgetResize.prototype, '_mouseMoveListener' ),
-			up: sinon.spy( WidgetResize.prototype, '_mouseUpListener' )
-		};
+		vi.spyOn( WidgetResize.prototype, '_mouseDownListener' );
+		vi.spyOn( WidgetResize.prototype, '_mouseMoveListener' );
+		vi.spyOn( WidgetResize.prototype, '_mouseUpListener' );
 	} );
 
 	afterEach( () => {
 		editorElement.remove();
-
-		for ( const stub of Object.values( mouseListenerSpies ) ) {
-			stub.restore();
-		}
 
 		if ( editor ) {
 			return editor.destroy();
@@ -60,7 +52,15 @@ describe( 'WidgetResize', () => {
 
 	describe( 'plugin', () => {
 		it( 'is loaded', () => {
-			expect( editor.plugins.get( WidgetResize ) ).to.be.instanceOf( WidgetResize );
+			expect( editor.plugins.get( WidgetResize ) ).toBeInstanceOf( WidgetResize );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( WidgetResize.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( WidgetResize.isPremiumPlugin ).toBe( false );
 		} );
 	} );
 
@@ -72,10 +72,12 @@ describe( 'WidgetResize', () => {
 		it( 'don\'t break when called with unexpected element', () => {
 			const unrelatedElement = document.createElement( 'div' );
 
-			editor.plugins.get( WidgetResize )._mouseDownListener( {}, {
-				domTarget: unrelatedElement,
-				preventDefault: sinon.spy()
-			} );
+			expect( () => {
+				editor.plugins.get( WidgetResize )._mouseDownListener( {}, {
+					domTarget: unrelatedElement,
+					preventDefault: vi.fn()
+				} );
+			} ).not.toThrow();
 		} );
 
 		it( 'passes new width to the options.onCommit()', () => {
@@ -86,8 +88,8 @@ describe( 'WidgetResize', () => {
 
 			resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
 
-			expect( commitStub.callCount ).to.equal( 1 );
-			sinon.assert.calledWithExactly( commitStub, '120px' );
+			expect( commitStub.mock.calls.length ).toBe( 1 );
+			expect( commitStub ).toHaveBeenCalledWith( '120px' );
 		} );
 
 		it( 'are detached when plugin is destroyed', async () => {
@@ -99,7 +101,7 @@ describe( 'WidgetResize', () => {
 			document.body.dispatchEvent( event );
 
 			// Ensure nothing got called.
-			expect( plugin._mouseDownListener.callCount ).to.equal( 0 );
+			expect( plugin._mouseDownListener.mock.calls.length ).toBe( 0 );
 		} );
 
 		it( 'nothing bad happens if activeResizer got unset', () => {
@@ -111,30 +113,31 @@ describe( 'WidgetResize', () => {
 			const domParts = getWidgetDomParts( editor, widget, usedResizer );
 			const initialPointerPosition = getHandleCenterPoint( domParts.widget, usedResizer );
 
-			editor.plugins.get( WidgetResize )._getResizerByHandle = sinon.stub().returns( null );
+			editor.plugins.get( WidgetResize )._getResizerByHandle = vi.fn().mockReturnValue( null );
 
-			resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, initialPointerPosition );
-			// No exception should be thrown.
+			expect( () => {
+				resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, initialPointerPosition );
+			} ).not.toThrow();
 		} );
 
 		it( 'stops the event after starting resizing', () => {
-			const stopSpy = sinon.spy().named( 'stop' );
+			const stopSpy = vi.fn();
 
 			const domParts = getWidgetDomParts( editor, widget, 'top-right' );
 
 			resizerMouseSimulator.down( editor, domParts.resizeHandle, { stop: stopSpy } );
 
-			expect( stopSpy.called ).to.be.equal( true );
+			expect( stopSpy.mock.calls.length > 0 ).toBe( true );
 		} );
 
 		it( 'prevents default action after starting resizing', () => {
-			const preventDefaultSpy = sinon.spy().named( 'preventDefault' );
+			const preventDefaultSpy = vi.fn();
 
 			const domParts = getWidgetDomParts( editor, widget, 'top-right' );
 
 			resizerMouseSimulator.down( editor, domParts.resizeHandle, { preventDefault: preventDefaultSpy } );
 
-			expect( preventDefaultSpy.called ).to.be.equal( true );
+			expect( preventDefaultSpy.mock.calls.length > 0 ).toBe( true );
 		} );
 	} );
 
@@ -146,25 +149,25 @@ describe( 'WidgetResize', () => {
 		it( 'should redraw the selected resizer', () => {
 			const widgetResizePlugin = editor.plugins.get( WidgetResize );
 			const selectedResizer = widgetResizePlugin.selectedResizer;
-			const spy = sinon.spy( selectedResizer, 'redraw' );
+			const spy = vi.spyOn( selectedResizer, 'redraw' );
 
 			selectedResizer.isVisible = true;
 
 			widgetResizePlugin.redrawSelectedResizer();
 
-			expect( spy.called ).to.be.true;
+			expect( spy.mock.calls.length > 0 ).toBe( true );
 		} );
 
 		it( 'should not redraw the selected resizer if it is not visible', () => {
 			const widgetResizePlugin = editor.plugins.get( WidgetResize );
 			const selectedResizer = widgetResizePlugin.selectedResizer;
-			const spy = sinon.spy( selectedResizer, 'redraw' );
+			const spy = vi.spyOn( selectedResizer, 'redraw' );
 
 			selectedResizer.isVisible = false;
 
 			widgetResizePlugin.redrawSelectedResizer();
 
-			expect( spy.called ).to.be.false;
+			expect( spy.mock.calls.length > 0 ).toBe( false );
 		} );
 
 		it( 'should not crash if there is no selected resizer', () => {
@@ -173,7 +176,7 @@ describe( 'WidgetResize', () => {
 
 			expect( () => {
 				widgetResizePlugin.redrawSelectedResizer();
-			} ).not.to.throw();
+			} ).not.toThrow();
 		} );
 	} );
 
@@ -182,33 +185,34 @@ describe( 'WidgetResize', () => {
 
 		const widgetResizePlugin = editor.plugins.get( WidgetResize );
 
-		const spy = sinon.spy( widgetResizePlugin, 'redrawSelectedResizer' );
-		const clock = sinon.useFakeTimers();
+		const spy = vi.spyOn( widgetResizePlugin, 'redrawSelectedResizer' );
+
+		vi.useFakeTimers();
 
 		editor.ui.fire( 'update' );
 
-		clock.tick( 200 );
+		vi.advanceTimersByTime( 200 );
 
-		expect( spy.called ).to.be.true;
+		expect( spy.mock.calls.length > 0 ).toBe( true );
 
-		sinon.restore();
+		vi.useRealTimers();
 	} );
 
 	it( 'should redraw the resizer after window resize', () => {
 		createResizer();
 
 		const widgetResizePlugin = editor.plugins.get( WidgetResize );
-		const spy = sinon.spy( widgetResizePlugin, 'redrawSelectedResizer' );
+		const spy = vi.spyOn( widgetResizePlugin, 'redrawSelectedResizer' );
 
-		const clock = sinon.useFakeTimers();
+		vi.useFakeTimers();
 
 		window.dispatchEvent( new Event( 'resize' ) );
 
-		clock.tick( 200 );
+		vi.advanceTimersByTime( 200 );
 
-		expect( spy.called ).to.be.true;
+		expect( spy.mock.calls.length > 0 ).toBe( true );
 
-		sinon.restore();
+		vi.useRealTimers();
 	} );
 
 	describe( 'selectability', () => {
@@ -222,13 +226,13 @@ describe( 'WidgetResize', () => {
 			const widgetResizePlugin = editor.plugins.get( WidgetResize );
 			const selectedResizer = widgetResizePlugin.selectedResizer;
 
-			expect( selectedResizer ).not.to.be.null;
-			expect( selectedResizer.isSelected ).to.be.true;
+			expect( selectedResizer ).not.toBeNull();
+			expect( selectedResizer.isSelected ).toBe( true );
 
 			widgetResizePlugin.deselect();
 
-			expect( widgetResizePlugin.selectedResizer ).to.be.null;
-			expect( selectedResizer.isSelected ).to.be.false;
+			expect( widgetResizePlugin.selectedResizer ).toBeNull();
+			expect( selectedResizer.isSelected ).toBe( false );
 		} );
 
 		it( 'select() should properly set selected resizer', () => {
@@ -237,8 +241,8 @@ describe( 'WidgetResize', () => {
 			widgetResizePlugin.deselect();
 			widgetResizePlugin.select( resizer );
 
-			expect( widgetResizePlugin.selectedResizer ).to.equal( resizer );
-			expect( resizer.isSelected ).to.be.true;
+			expect( widgetResizePlugin.selectedResizer ).toBe( resizer );
+			expect( resizer.isSelected ).toBe( true );
 		} );
 
 		it( 'select() should deselect current resizer if different resizer is selected', () => {
@@ -248,43 +252,43 @@ describe( 'WidgetResize', () => {
 			widgetResizePlugin.select( resizer );
 			widgetResizePlugin.select( otherResizer );
 
-			expect( resizer.isSelected ).to.be.false;
+			expect( resizer.isSelected ).toBe( false );
 		} );
 
 		it( 'should deselect and select resizer when view element with attached resizer is selected and deselected', () => {
 			const view = editor.editing.view;
 			const widgetResizePlugin = editor.plugins.get( WidgetResize );
 
-			sinon.spy( widgetResizePlugin, 'select' );
-			sinon.spy( widgetResizePlugin, 'deselect' );
+			vi.spyOn( widgetResizePlugin, 'select' );
+			vi.spyOn( widgetResizePlugin, 'deselect' );
 
 			view.change( writer => {
 				writer.setSelection( null );
 			} );
 
-			expect( widgetResizePlugin.deselect.calledOnce ).to.be.true;
-			expect( widgetResizePlugin.select.called ).to.be.false;
+			expect( widgetResizePlugin.deselect.mock.calls.length ).toBe( 1 );
+			expect( widgetResizePlugin.select.mock.calls.length > 0 ).toBe( false );
 
 			view.change( writer => {
 				writer.setSelection( widget, 'on' );
 			} );
 
-			expect( widgetResizePlugin.select.calledWithExactly( resizer ) ).to.be.true;
+			expect( widgetResizePlugin.select ).toHaveBeenCalledWith( resizer );
 
-			widgetResizePlugin.deselect.resetHistory();
-			widgetResizePlugin.select.resetHistory();
+			widgetResizePlugin.deselect.mockClear();
+			widgetResizePlugin.select.mockClear();
 
 			view.change( writer => {
 				writer.setSelection( null );
 			} );
 
-			expect( widgetResizePlugin.deselect.calledOnce ).to.be.true;
-			expect( widgetResizePlugin.select.called ).to.be.false;
+			expect( widgetResizePlugin.deselect.mock.calls.length ).toBe( 1 );
+			expect( widgetResizePlugin.select.mock.calls.length > 0 ).toBe( false );
 		} );
 
 		it( 'should not select resizer after attaching when selection was not on resizer', async () => {
 			const widgetResizePlugin = editor.plugins.get( WidgetResize );
-			const spy = sinon.spy( widgetResizePlugin, 'select' );
+			const spy = vi.spyOn( widgetResizePlugin, 'select' );
 			const view = editor.editing.view;
 
 			view.change( writer => {
@@ -292,7 +296,7 @@ describe( 'WidgetResize', () => {
 			} );
 			widgetResizePlugin.attachTo( gerResizerOptions( editor ) );
 
-			expect( spy.called ).to.be.false;
+			expect( spy.mock.calls.length > 0 ).toBe( false );
 		} );
 	} );
 
@@ -309,70 +313,70 @@ describe( 'WidgetResize', () => {
 
 				const intermediatePointerPosition = initialPointerPosition.clone().moveBy( 50, 0 );
 				resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, intermediatePointerPosition );
-				sinon.assert.calledWithExactly( commitStub.firstCall, '150px' );
+				expect( commitStub ).toHaveBeenNthCalledWith( 1, '150px' );
 
 				const finalPointerPosition = intermediatePointerPosition.clone().moveBy( 50, 0 );
 				resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
-				sinon.assert.calledWithExactly( commitStub.secondCall, '200px' );
+				expect( commitStub ).toHaveBeenNthCalledWith( 2, '200px' );
 
-				expect( commitStub.callCount ).to.equal( 2 );
+				expect( commitStub.mock.calls.length ).toBe( 2 );
 			} );
 
-			it( 'shrinks correctly with left-bottom handler', generateResizeTest( {
+			it( 'shrinks correctly with left-bottom handler', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: 20, y: -10 },
 				expectedWidth: '80px'
 			} ) );
 
-			it( 'shrinks correctly with right-bottom handler', generateResizeTest( {
+			it( 'shrinks correctly with right-bottom handler', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: -20, y: -10 },
 				expectedWidth: '80px'
 			} ) );
 
-			it( 'shrinks correctly with left-top handler', generateResizeTest( {
+			it( 'shrinks correctly with left-top handler', expectResize( {
 				usedHandle: 'top-left',
 				movePointerBy: { x: 20, y: 10 },
 				expectedWidth: '80px'
 			} ) );
 
-			it( 'shrinks correctly with right-top handler', generateResizeTest( {
+			it( 'shrinks correctly with right-top handler', expectResize( {
 				usedHandle: 'top-right',
 				movePointerBy: { x: -20, y: 10 },
 				expectedWidth: '80px'
 			} ) );
 
-			it( 'enlarges correctly with left-bottom handler', generateResizeTest( {
+			it( 'enlarges correctly with left-bottom handler', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: -10, y: 10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with right-bottom handler', generateResizeTest( {
+			it( 'enlarges correctly with right-bottom handler', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: 10, y: 10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with right-bottom handler, y axis only', generateResizeTest( {
+			it( 'enlarges correctly with right-bottom handler, y axis only', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: 0, y: 20 },
 				expectedWidth: '140px'
 			} ) );
 
-			it( 'enlarges correctly with right-bottom handler, x axis only', generateResizeTest( {
+			it( 'enlarges correctly with right-bottom handler, x axis only', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: 40, y: 0 },
 				expectedWidth: '140px'
 			} ) );
 
-			it( 'enlarges correctly with left-top handler', generateResizeTest( {
+			it( 'enlarges correctly with left-top handler', expectResize( {
 				usedHandle: 'top-left',
 				movePointerBy: { x: -20, y: -10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with right-top handler', generateResizeTest( {
+			it( 'enlarges correctly with right-top handler', expectResize( {
 				usedHandle: 'top-right',
 				movePointerBy: { x: 20, y: 10 },
 				expectedWidth: '120px'
@@ -386,37 +390,37 @@ describe( 'WidgetResize', () => {
 				} );
 			} );
 
-			it( 'shrinks correctly with left-bottom handler', generateResizeTest( {
+			it( 'shrinks correctly with left-bottom handler', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: 10, y: -10 },
 				expectedWidth: '80px'
 			} ) );
 
-			it( 'shrinks correctly with right-bottom handler', generateResizeTest( {
+			it( 'shrinks correctly with right-bottom handler', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: -10, y: -10 },
 				expectedWidth: '80px'
 			} ) );
 
-			it( 'enlarges correctly with right-bottom handler, x axis only', generateResizeTest( {
+			it( 'enlarges correctly with right-bottom handler, x axis only', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: 10, y: 0 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with right-bottom handler, y axis only', generateResizeTest( {
+			it( 'enlarges correctly with right-bottom handler, y axis only', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: 0, y: 10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with left-bottom handler, x axis only', generateResizeTest( {
+			it( 'enlarges correctly with left-bottom handler, x axis only', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: -10, y: 0 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with left-bottom handler, y axis only', generateResizeTest( {
+			it( 'enlarges correctly with left-bottom handler, y axis only', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: 0, y: 10 },
 				expectedWidth: '120px'
@@ -424,25 +428,25 @@ describe( 'WidgetResize', () => {
 
 			// --- top handlers ---
 
-			it( 'enlarges correctly with left-top handler', generateResizeTest( {
+			it( 'enlarges correctly with left-top handler', expectResize( {
 				usedHandle: 'top-left',
 				movePointerBy: { x: -10, y: -10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with left-top handler, y axis only', generateResizeTest( {
+			it( 'enlarges correctly with left-top handler, y axis only', expectResize( {
 				usedHandle: 'top-left',
 				movePointerBy: { x: 0, y: -10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with right-top handler', generateResizeTest( {
+			it( 'enlarges correctly with right-top handler', expectResize( {
 				usedHandle: 'top-right',
 				movePointerBy: { x: 10, y: -10 },
 				expectedWidth: '120px'
 			} ) );
 
-			it( 'enlarges correctly with right-top handler, y axis only', generateResizeTest( {
+			it( 'enlarges correctly with right-top handler, y axis only', expectResize( {
 				usedHandle: 'top-right',
 				movePointerBy: { x: 0, y: -10 },
 				expectedWidth: '120px'
@@ -465,16 +469,16 @@ describe( 'WidgetResize', () => {
 
 				const intermediatePointerPosition = initialPointerPosition.clone().moveBy( 100, 0 );
 				resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, intermediatePointerPosition );
-				sinon.assert.calledWithExactly( commitStub.firstCall, '50%' );
+				expect( commitStub ).toHaveBeenNthCalledWith( 1, '50%' );
 
 				const finalPointerPosition = intermediatePointerPosition.clone().moveBy( 100, 0 );
 				resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
-				sinon.assert.calledWithExactly( commitStub.secondCall, '75%' );
+				expect( commitStub ).toHaveBeenNthCalledWith( 2, '75%' );
 
-				expect( commitStub.callCount ).to.equal( 2 );
+				expect( commitStub.mock.calls.length ).toBe( 2 );
 			} );
 
-			it( 'shrinks correctly with bottom-left handler', generateResizeTest( {
+			it( 'shrinks correctly with bottom-left handler', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: 10, y: -10 },
 				expectedWidth: '22.5%'
@@ -489,13 +493,13 @@ describe( 'WidgetResize', () => {
 				} );
 			} );
 
-			it( 'shrinks correctly with bottom-left handler', generateResizeTest( {
+			it( 'shrinks correctly with bottom-left handler', expectResize( {
 				usedHandle: 'bottom-left',
 				movePointerBy: { x: 10, y: -10 },
 				expectedWidth: '20%'
 			} ) );
 
-			it( 'enlarges correctly with bottom-right handler', generateResizeTest( {
+			it( 'enlarges correctly with bottom-right handler', expectResize( {
 				usedHandle: 'bottom-right',
 				movePointerBy: { x: 0, y: 5 },
 				expectedWidth: '27.5%'
@@ -506,7 +510,7 @@ describe( 'WidgetResize', () => {
 					writer.setStyle( 'width', '100pt', widget );
 				} );
 
-				generateResizeTest( {
+				expectResize( {
 					usedHandle: 'bottom-right',
 					movePointerBy: { x: 0, y: 5 },
 					expectedWidth: '36.67%'
@@ -515,7 +519,7 @@ describe( 'WidgetResize', () => {
 		} );
 
 		it( 'doesn\'t call options.onCommit() in case of no change', () => {
-			const commitStub = sinon.stub();
+			const commitStub = vi.fn();
 			createResizer( {
 				onCommit: commitStub
 			} );
@@ -524,10 +528,11 @@ describe( 'WidgetResize', () => {
 
 			resizerMouseSimulator.down( editor, domParts.resizeHandle );
 			resizerMouseSimulator.up( editor );
-			expect( commitStub.callCount, 'call count' ).to.be.eql( 0 );
+			expect( commitStub.mock.calls.length ).toEqual( 0 );
 		} );
 
-		// Note that ultimately width should be changed, but through a model converter, not with direct view changes (#6060).
+		// Note that ultimately width should be changed, but through a model converter, not with direct view changes.
+		// See https://github.com/ckeditor/ckeditor5/issues/6060.
 		it( 'restores the original view width after resize is done', () => {
 			createResizer();
 
@@ -537,12 +542,12 @@ describe( 'WidgetResize', () => {
 
 			resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
 
-			expect( widget.getStyle( 'width' ) ).to.equal( INITIAL_WIDGET_WIDTH );
+			expect( widget.getStyle( 'width' ) ).toBe( INITIAL_WIDGET_WIDTH );
 		} );
 
 		// Verify render count https://github.com/ckeditor/ckeditor5-widget/pull/122#issuecomment-617012777.
 		it( 'renders the final result in one step', () => {
-			const renderListener = sinon.stub();
+			const renderListener = vi.fn();
 			const resizer = createResizer();
 
 			const usedHandle = 'bottom-right';
@@ -557,7 +562,7 @@ describe( 'WidgetResize', () => {
 
 			resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
 
-			expect( renderListener.callCount ).to.equal( 1 );
+			expect( renderListener.mock.calls.length ).toBe( 1 );
 		} );
 
 		it( 'returns proper value when resize host is different from widget wrapper', () => {
@@ -578,9 +583,9 @@ describe( 'WidgetResize', () => {
 			const finalPointerPosition = initialPointerPosition.moveBy( pointerDifference.x, pointerDifference.y );
 
 			resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
-			expect( commitStub.callCount, 'call count' ).to.be.eql( 1 );
-			expect( commitStub.args[ 0 ][ 0 ], 'width' ).to.equal( expectedWidth );
-			sinon.assert.calledOnce( commitStub );
+			expect( commitStub.mock.calls.length ).toEqual( 1 );
+			expect( commitStub.mock.calls[ 0 ][ 0 ] ).toBe( expectedWidth );
+			expect( commitStub ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'doesn\'t break if the widget wrapper was removed from DOM', () => {
@@ -591,7 +596,9 @@ describe( 'WidgetResize', () => {
 
 			domParts.resizeWrapper.remove();
 
-			resizer.redraw();
+			expect( () => {
+				resizer.redraw();
+			} ).not.toThrow();
 		} );
 	} );
 
@@ -616,19 +623,20 @@ describe( 'WidgetResize', () => {
 		} );
 
 		it( 'works without WidgetToolbarRepository plugin', async () => {
-			setModelData( localEditor.model, '[<widget></widget>]' );
+			_setModelData( localEditor.model, '[<widget></widget>]' );
 
-			localEditor.plugins.get( WidgetResize ).attachTo( gerResizerOptions( localEditor ) );
-			// Nothing should be thrown.
+			expect( () => {
+				localEditor.plugins.get( WidgetResize ).attachTo( gerResizerOptions( localEditor ) );
+			} ).not.toThrow();
 		} );
 
 		it( 'sets the selected resizer if associated widget is already selected', async () => {
-			setModelData( localEditor.model, '[<widget></widget>]' );
+			_setModelData( localEditor.model, '[<widget></widget>]' );
 
 			const widgetResizePlugin = localEditor.plugins.get( WidgetResize );
 			const resizer = widgetResizePlugin.attachTo( gerResizerOptions( localEditor ) );
 
-			expect( widgetResizePlugin.selectedResizer ).to.eql( resizer );
+			expect( widgetResizePlugin.selectedResizer ).toEqual( resizer );
 		} );
 
 		it( 'sets the visible resizer if the associated inline widget surrounded by an attribute is already selected', async () => {
@@ -659,9 +667,9 @@ describe( 'WidgetResize', () => {
 					}
 				} );
 
-			setModelData( localEditor.model, '<paragraph>foo [<inline-widget attr="foo"></inline-widget>] bar</paragraph>' );
+			_setModelData( localEditor.model, '<paragraph>foo [<inline-widget attr="foo"></inline-widget>] bar</paragraph>' );
 
-			expect( getViewData( localEditor.editing.view ) ).to.equal(
+			expect( _getViewData( localEditor.editing.view ) ).toBe(
 				'<p>' +
 					'foo ' +
 					'<attr>[<span class="ck-widget ck-widget_selected" contenteditable="false"></span>]</attr>' +
@@ -682,7 +690,7 @@ describe( 'WidgetResize', () => {
 				onCommit: commitStub
 			} );
 
-			expect( widgetResizePlugin.selectedResizer ).to.eql( resizer );
+			expect( widgetResizePlugin.selectedResizer ).toEqual( resizer );
 		} );
 	} );
 
@@ -692,15 +700,15 @@ describe( 'WidgetResize', () => {
 			const plugin = editor.plugins.get( WidgetResize );
 			const resizer = plugin.attachTo( gerResizerOptions( editor ) );
 			const widgetViewElement = editor.editing.view.document.getRoot().getChild( 0 );
-			const resizerDestroySpy = sinon.spy( resizer, 'destroy' );
+			const resizerDestroySpy = vi.spyOn( resizer, 'destroy' );
 
-			expect( plugin.getResizerByViewElement( widgetViewElement ) ).to.equal( resizer );
-			sinon.assert.notCalled( resizerDestroySpy );
+			expect( plugin.getResizerByViewElement( widgetViewElement ) ).toBe( resizer );
+			expect( resizerDestroySpy ).not.toHaveBeenCalled();
 
 			editor.setData( '' );
 
-			expect( plugin.getResizerByViewElement( widgetViewElement ) ).to.be.undefined;
-			sinon.assert.calledOnce( resizerDestroySpy );
+			expect( plugin.getResizerByViewElement( widgetViewElement ) ).toBeUndefined();
+			expect( resizerDestroySpy ).toHaveBeenCalledOnce();
 		} );
 
 		// https://github.com/ckeditor/ckeditor5/issues/10266
@@ -708,7 +716,7 @@ describe( 'WidgetResize', () => {
 			const plugin = editor.plugins.get( WidgetResize );
 			const resizer = plugin.attachTo( gerResizerOptions( editor ) );
 			const widgetViewElement = editor.editing.view.document.getRoot().getChild( 0 );
-			const resizerDestroySpy = sinon.spy( resizer, 'destroy' );
+			const resizerDestroySpy = vi.spyOn( resizer, 'destroy' );
 
 			editor.model.schema.register( 'wrapperBlock', {
 				allowIn: '$root',
@@ -724,29 +732,29 @@ describe( 'WidgetResize', () => {
 				writer.setSelection( null );
 			} );
 
-			expect( plugin.getResizerByViewElement( widgetViewElement ) ).to.equal( resizer );
-			sinon.assert.notCalled( resizerDestroySpy );
+			expect( plugin.getResizerByViewElement( widgetViewElement ) ).toBe( resizer );
+			expect( resizerDestroySpy ).not.toHaveBeenCalled();
 
 			editor.model.change( writer => {
 				writer.wrap( writer.createRangeIn( editor.model.document.getRoot() ), 'wrapperBlock' );
 			} );
 
-			expect( plugin.getResizerByViewElement( widgetViewElement ) ).to.be.undefined;
-			sinon.assert.calledOnce( resizerDestroySpy );
+			expect( plugin.getResizerByViewElement( widgetViewElement ) ).toBeUndefined();
+			expect( resizerDestroySpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'does not remove resizer when model document has been changed, but resizer is still attached', () => {
 			const plugin = editor.plugins.get( WidgetResize );
 			const resizer = plugin.attachTo( gerResizerOptions( editor ) );
 			const widgetViewElement = editor.editing.view.document.getRoot().getChild( 0 );
-			const resizerDestroySpy = sinon.spy( resizer, 'destroy' );
+			const resizerDestroySpy = vi.spyOn( resizer, 'destroy' );
 
 			editor.model.change( writer => {
 				writer.setSelection( null );
 			} );
 
-			expect( plugin.getResizerByViewElement( widgetViewElement ) ).to.equal( resizer );
-			sinon.assert.notCalled( resizerDestroySpy );
+			expect( plugin.getResizerByViewElement( widgetViewElement ) ).toBe( resizer );
+			expect( resizerDestroySpy ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -767,8 +775,8 @@ describe( 'WidgetResize', () => {
 
 			resizer.cancel();
 
-			// Value should be restored to the initial value (#6060).
-			expect( widget.getStyle( 'width' ) ).to.equal( INITIAL_WIDGET_WIDTH );
+			// Value should be restored to the initial value (https://github.com/ckeditor/ckeditor5/issues/6060).
+			expect( widget.getStyle( 'width' ) ).toBe( INITIAL_WIDGET_WIDTH );
 		} );
 	} );
 
@@ -779,7 +787,7 @@ describe( 'WidgetResize', () => {
 
 			createResizer();
 
-			expect( plugin._getResizerByHandle( randomElement ) ).to.be.undefined;
+			expect( plugin._getResizerByHandle( randomElement ) ).toBeUndefined();
 		} );
 	} );
 
@@ -789,7 +797,7 @@ describe( 'WidgetResize', () => {
 	 * @param {Object} options.movePointerBy How much should the pointer move during the drag compared to the initial position.
 	 * @param {String} options.expectedWidth
 	 */
-	function generateResizeTest( options ) {
+	function expectResize( options ) {
 		return () => {
 			options = options || {};
 
@@ -800,9 +808,9 @@ describe( 'WidgetResize', () => {
 			const finalPointerPosition = initialPointerPosition.moveBy( pointerDifference.x, pointerDifference.y );
 
 			resizerMouseSimulator.dragTo( editor, domParts.resizeHandle, finalPointerPosition );
-			expect( commitStub.callCount, 'call count' ).to.be.eql( 1 );
-			expect( commitStub.args[ 0 ][ 0 ], 'width' ).to.equal( options.expectedWidth );
-			sinon.assert.calledOnce( commitStub );
+			expect( commitStub.mock.calls.length ).toEqual( 1 );
+			expect( commitStub.mock.calls[ 0 ][ 0 ] ).toBe( options.expectedWidth );
+			expect( commitStub ).toHaveBeenCalledOnce();
 		};
 	}
 

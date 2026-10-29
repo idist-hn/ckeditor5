@@ -1,42 +1,44 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageupload/imageuploadprogress
  */
 
-/* globals setTimeout */
+import { type Editor, Plugin } from '@ckeditor/ckeditor5-core';
+import { FileRepository, type FileLoader } from '@ckeditor/ckeditor5-upload';
 
-import { type Editor, Plugin } from 'ckeditor5/src/core';
-import { FileRepository, type FileLoader } from 'ckeditor5/src/upload';
-
-import '../../theme/imageuploadprogress.css';
-import '../../theme/imageuploadicon.css';
-import '../../theme/imageuploadloader.css';
-import type { GetCallback } from 'ckeditor5/src/utils';
+import type { GetCallback } from '@ckeditor/ckeditor5-utils';
 import type {
-	DowncastWriter,
-	View,
+	ViewDowncastWriter,
+	EditingView,
 	ViewElement,
 	ViewContainerElement,
 	ViewUIElement,
 	DowncastAttributeEvent,
-	Element
-} from 'ckeditor5/src/engine';
-import type ImageUtils from '../imageutils';
+	ModelElement
+} from '@ckeditor/ckeditor5-engine';
+import { type ImageUtils } from '../imageutils.js';
 
 /**
  * The image upload progress plugin.
  * It shows a placeholder when the image is read from the disk and a progress bar while the image is uploading.
  */
-export default class ImageUploadProgress extends Plugin {
+export class ImageUploadProgress extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'ImageUploadProgress' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -85,7 +87,7 @@ export default class ImageUploadProgress extends Plugin {
 	 */
 	private uploadStatusChange: GetCallback<DowncastAttributeEvent> = ( evt, data, conversionApi ) => {
 		const editor = this.editor;
-		const modelImage = data.item as Element;
+		const modelImage = data.item as ModelElement;
 		const uploadId = modelImage.getAttribute( 'uploadId' ) as string | number;
 
 		if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
@@ -144,7 +146,7 @@ export default class ImageUploadProgress extends Plugin {
 /**
  * Adds ck-appear class to the image figure if one is not already applied.
  */
-function _startAppearEffect( viewFigure: ViewContainerElement, writer: DowncastWriter ) {
+function _startAppearEffect( viewFigure: ViewContainerElement, writer: ViewDowncastWriter ) {
 	if ( !viewFigure.hasClass( 'ck-appear' ) ) {
 		writer.addClass( 'ck-appear', viewFigure );
 	}
@@ -153,14 +155,14 @@ function _startAppearEffect( viewFigure: ViewContainerElement, writer: DowncastW
 /**
  * Removes ck-appear class to the image figure if one is not already removed.
  */
-function _stopAppearEffect( viewFigure: ViewContainerElement, writer: DowncastWriter ) {
+function _stopAppearEffect( viewFigure: ViewContainerElement, writer: ViewDowncastWriter ) {
 	writer.removeClass( 'ck-appear', viewFigure );
 }
 
 /**
  * Shows placeholder together with infinite progress bar on given image figure.
  */
-function _showPlaceholder( imageUtils: ImageUtils, placeholder: string, viewFigure: ViewContainerElement, writer: DowncastWriter ) {
+function _showPlaceholder( imageUtils: ImageUtils, placeholder: string, viewFigure: ViewContainerElement, writer: ViewDowncastWriter ) {
 	if ( !viewFigure.hasClass( 'ck-image-upload-placeholder' ) ) {
 		writer.addClass( 'ck-image-upload-placeholder', viewFigure );
 	}
@@ -179,7 +181,7 @@ function _showPlaceholder( imageUtils: ImageUtils, placeholder: string, viewFigu
 /**
  * Removes placeholder together with infinite progress bar on given image figure.
  */
-function _hidePlaceholder( viewFigure: ViewContainerElement, writer: DowncastWriter ) {
+function _hidePlaceholder( viewFigure: ViewContainerElement, writer: ViewDowncastWriter ) {
 	if ( viewFigure.hasClass( 'ck-image-upload-placeholder' ) ) {
 		writer.removeClass( 'ck-image-upload-placeholder', viewFigure );
 	}
@@ -191,7 +193,7 @@ function _hidePlaceholder( viewFigure: ViewContainerElement, writer: DowncastWri
  * Shows progress bar displaying upload progress.
  * Attaches it to the file loader to update when upload percentace is changed.
  */
-function _showProgressBar( viewFigure: ViewContainerElement, writer: DowncastWriter, loader: FileLoader, view: View ) {
+function _showProgressBar( viewFigure: ViewContainerElement, writer: ViewDowncastWriter, loader: FileLoader, view: EditingView ) {
 	const progressBar = _createProgressBar( writer );
 	writer.insert( writer.createPositionAt( viewFigure, 'end' ), progressBar );
 
@@ -206,14 +208,14 @@ function _showProgressBar( viewFigure: ViewContainerElement, writer: DowncastWri
 /**
  * Hides upload progress bar.
  */
-function _hideProgressBar( viewFigure: ViewContainerElement, writer: DowncastWriter ) {
+function _hideProgressBar( viewFigure: ViewContainerElement, writer: ViewDowncastWriter ) {
 	_removeUIElement( viewFigure, writer, 'progressBar' );
 }
 
 /**
  * Shows complete icon and hides after a certain amount of time.
  */
-function _showCompleteIcon( viewFigure: ViewContainerElement, writer: DowncastWriter, view: View ) {
+function _showCompleteIcon( viewFigure: ViewContainerElement, writer: ViewDowncastWriter, view: EditingView ) {
 	const completeIcon = writer.createUIElement( 'div', { class: 'ck-image-upload-complete-icon' } );
 
 	writer.insert( writer.createPositionAt( viewFigure, 'end' ), completeIcon );
@@ -224,9 +226,9 @@ function _showCompleteIcon( viewFigure: ViewContainerElement, writer: DowncastWr
 }
 
 /**
- * Create progress bar element using {@link module:engine/view/uielement~UIElement}.
+ * Create progress bar element using {@link module:engine/view/uielement~ViewUIElement}.
  */
-function _createProgressBar( writer: DowncastWriter ): ViewUIElement {
+function _createProgressBar( writer: ViewDowncastWriter ): ViewUIElement {
 	const progressBar = writer.createUIElement( 'div', { class: 'ck-progress-bar' } );
 
 	writer.setCustomProperty( 'progressBar', true, progressBar );
@@ -235,9 +237,9 @@ function _createProgressBar( writer: DowncastWriter ): ViewUIElement {
 }
 
 /**
- * Create placeholder element using {@link module:engine/view/uielement~UIElement}.
+ * Create placeholder element using {@link module:engine/view/uielement~ViewUIElement}.
  */
-function _createPlaceholder( writer: DowncastWriter ): ViewUIElement {
+function _createPlaceholder( writer: ViewDowncastWriter ): ViewUIElement {
 	const placeholder = writer.createUIElement( 'div', { class: 'ck-upload-placeholder-loader' } );
 
 	writer.setCustomProperty( 'placeholder', true, placeholder );
@@ -246,7 +248,7 @@ function _createPlaceholder( writer: DowncastWriter ): ViewUIElement {
 }
 
 /**
- * Returns {@link module:engine/view/uielement~UIElement} of given unique property from image figure element.
+ * Returns {@link module:engine/view/uielement~ViewUIElement} of given unique property from image figure element.
  * Returns `undefined` if element is not found.
  */
 function _getUIElement( imageFigure: ViewElement, uniqueProperty: string ): ViewUIElement | undefined {
@@ -258,9 +260,9 @@ function _getUIElement( imageFigure: ViewElement, uniqueProperty: string ): View
 }
 
 /**
- * Removes {@link module:engine/view/uielement~UIElement} of given unique property from image figure element.
+ * Removes {@link module:engine/view/uielement~ViewUIElement} of given unique property from image figure element.
  */
-function _removeUIElement( viewFigure: ViewContainerElement, writer: DowncastWriter, uniqueProperty: string ) {
+function _removeUIElement( viewFigure: ViewContainerElement, writer: ViewDowncastWriter, uniqueProperty: string ) {
 	const element = _getUIElement( viewFigure, uniqueProperty );
 
 	if ( element ) {
@@ -271,7 +273,7 @@ function _removeUIElement( viewFigure: ViewContainerElement, writer: DowncastWri
 /**
  * Displays local data from file loader.
  */
-function _displayLocalImage( imageUtils: ImageUtils, viewFigure: ViewElement, writer: DowncastWriter, loader: FileLoader ) {
+function _displayLocalImage( imageUtils: ImageUtils, viewFigure: ViewElement, writer: ViewDowncastWriter, loader: FileLoader ) {
 	if ( loader.data ) {
 		const viewImg = imageUtils.findViewImgElement( viewFigure )!;
 

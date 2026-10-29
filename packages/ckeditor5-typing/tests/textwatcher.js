@@ -1,19 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import TextWatcher from '../src/textwatcher';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+
+import { TextWatcher } from '../src/textwatcher.js';
 
 describe( 'TextWatcher', () => {
 	let editor, model, doc;
 	let watcher, matchedDataSpy, matchedSelectionSpy, unmatchedSpy, testCallbackStub;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		return ModelTestEditor.create()
@@ -22,14 +21,14 @@ describe( 'TextWatcher', () => {
 				model = editor.model;
 				doc = model.document;
 
-				testCallbackStub = sinon.stub();
-				matchedDataSpy = sinon.spy();
-				matchedSelectionSpy = sinon.spy();
-				unmatchedSpy = sinon.spy();
+				testCallbackStub = vi.fn();
+				matchedDataSpy = vi.fn();
+				matchedSelectionSpy = vi.fn();
+				unmatchedSpy = vi.fn();
 
 				model.schema.register( 'paragraph', { inheritAllFrom: '$block' } );
 
-				setData( model, '<paragraph>foo []</paragraph>' );
+				_setModelData( model, '<paragraph>foo []</paragraph>' );
 
 				watcher = new TextWatcher( model, testCallbackStub, () => {} );
 				watcher.on( 'matched:data', matchedDataSpy );
@@ -39,8 +38,6 @@ describe( 'TextWatcher', () => {
 	} );
 
 	afterEach( () => {
-		sinon.restore();
-
 		if ( editor ) {
 			return editor.destroy();
 		}
@@ -48,13 +45,13 @@ describe( 'TextWatcher', () => {
 
 	describe( '#isEnabled', () => {
 		it( 'should be enabled after initialization', () => {
-			expect( watcher.isEnabled ).to.be.true;
+			expect( watcher.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be disabled after setting #isEnabled to false', () => {
 			watcher.isEnabled = false;
 
-			expect( watcher.isEnabled ).to.be.false;
+			expect( watcher.isEnabled ).toBe( false );
 		} );
 	} );
 
@@ -64,8 +61,8 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledWithExactly( testCallbackStub, 'foo @' );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( testCallbackStub ).toHaveBeenCalledWith( 'foo @' );
 		} );
 
 		it( 'should not evaluate text for not collapsed selection', () => {
@@ -75,7 +72,7 @@ describe( 'TextWatcher', () => {
 				writer.setSelection( writer.createRange( start, start.getShiftedBy( 1 ) ) );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should evaluate text for selection changes', () => {
@@ -83,8 +80,8 @@ describe( 'TextWatcher', () => {
 				writer.setSelection( doc.getRoot().getChild( 0 ), 1 );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledWithExactly( testCallbackStub, 'f' );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( testCallbackStub ).toHaveBeenCalledWith( 'f' );
 		} );
 
 		it( 'should evaluate text before caret up to <softBreak>', () => {
@@ -98,8 +95,8 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledWithExactly( testCallbackStub, '@' );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( testCallbackStub ).toHaveBeenCalledWith( '@' );
 		} );
 
 		it( 'should not evaluate text for undo batches', () => {
@@ -107,7 +104,7 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not evaluate text for non-local batches', () => {
@@ -115,7 +112,7 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not evaluate text when watcher is disabled', () => {
@@ -125,7 +122,7 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should evaluate text when watcher is enabled again', () => {
@@ -135,7 +132,7 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
 
 			watcher.isEnabled = true;
 
@@ -143,41 +140,41 @@ describe( 'TextWatcher', () => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledWithExactly( testCallbackStub, 'foo @@' );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( testCallbackStub ).toHaveBeenCalledWith( 'foo @@' );
 		} );
 	} );
 
 	describe( 'events', () => {
 		describe( '"matched:data"', () => {
 			it( 'should be fired when test callback returns true for model data changes', () => {
-				testCallbackStub.returns( true );
+				testCallbackStub.mockReturnValue( true );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.calledOnce( testCallbackStub );
-				sinon.assert.calledOnce( matchedDataSpy );
-				sinon.assert.notCalled( matchedSelectionSpy );
-				sinon.assert.notCalled( unmatchedSpy );
+				expect( testCallbackStub ).toHaveBeenCalledOnce();
+				expect( matchedDataSpy ).toHaveBeenCalledOnce();
+				expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+				expect( unmatchedSpy ).not.toHaveBeenCalled();
 			} );
 
 			it( 'should be fired with additional data when test callback returns true for model data changes', () => {
 				const additionalData = { abc: 'xyz' };
 
-				testCallbackStub.returns( additionalData );
+				testCallbackStub.mockReturnValue( additionalData );
 
 				model.change( writer => {
 					writer.insertText( '@', doc.selection.getFirstPosition() );
 				} );
 
-				sinon.assert.calledOnce( testCallbackStub );
-				sinon.assert.calledOnce( matchedDataSpy );
-				sinon.assert.notCalled( matchedSelectionSpy );
-				sinon.assert.notCalled( unmatchedSpy );
+				expect( testCallbackStub ).toHaveBeenCalledOnce();
+				expect( matchedDataSpy ).toHaveBeenCalledOnce();
+				expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+				expect( unmatchedSpy ).not.toHaveBeenCalled();
 
-				expect( matchedDataSpy.firstCall.args[ 1 ] ).to.deep.include( additionalData );
+				expect( matchedDataSpy.mock.calls[ 0 ][ 1 ] ).to.deep.include( additionalData );
 			} );
 		} );
 
@@ -185,20 +182,20 @@ describe( 'TextWatcher', () => {
 		' (even when test callback returns true for model data changes)', () => {
 			watcher.isEnabled = false;
 
-			testCallbackStub.returns( true );
+			testCallbackStub.mockReturnValue( true );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
-			sinon.assert.notCalled( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
+			expect( matchedDataSpy ).not.toHaveBeenCalled();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should fire "matched:selection" event when test callback returns true for model data changes', () => {
-			testCallbackStub.returns( true );
+			testCallbackStub.mockReturnValue( true );
 
 			model.enqueueChange( { isLocal: false }, writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -208,17 +205,17 @@ describe( 'TextWatcher', () => {
 				writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.notCalled( matchedDataSpy );
-			sinon.assert.calledOnce( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( matchedDataSpy ).not.toHaveBeenCalled();
+			expect( matchedSelectionSpy ).toHaveBeenCalledOnce();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not fire "matched:selection" event when when watcher is disabled' +
 		' (even when test callback returns true for model data changes)', () => {
 			watcher.isEnabled = false;
 
-			testCallbackStub.returns( true );
+			testCallbackStub.mockReturnValue( true );
 
 			model.enqueueChange( { isUndoable: false }, writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
@@ -228,58 +225,58 @@ describe( 'TextWatcher', () => {
 				writer.setSelection( doc.getRoot().getChild( 0 ), 0 );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
-			sinon.assert.notCalled( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
+			expect( matchedDataSpy ).not.toHaveBeenCalled();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should not fire "matched" event when test callback returns false', () => {
-			testCallbackStub.returns( false );
+			testCallbackStub.mockReturnValue( false );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.notCalled( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( matchedDataSpy ).not.toHaveBeenCalled();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 		} );
 
 		it( 'should fire "unmatched" event when test callback returns false when it was previously matched', () => {
-			testCallbackStub.returns( true );
+			testCallbackStub.mockReturnValue( true );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledOnce( matchedDataSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( matchedDataSpy ).toHaveBeenCalledOnce();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 
-			testCallbackStub.returns( false );
+			testCallbackStub.mockReturnValue( false );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledTwice( testCallbackStub );
-			sinon.assert.calledOnce( matchedDataSpy );
-			sinon.assert.calledOnce( unmatchedSpy );
+			expect( testCallbackStub ).toHaveBeenCalledTimes( 2 );
+			expect( matchedDataSpy ).toHaveBeenCalledOnce();
+			expect( unmatchedSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should fire "umatched" event when selection is expanded', () => {
-			testCallbackStub.returns( true );
+			testCallbackStub.mockReturnValue( true );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledOnce( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( matchedDataSpy ).toHaveBeenCalledOnce();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 
 			model.change( writer => {
 				const start = writer.createPositionAt( doc.getRoot().getChild( 0 ), 0 );
@@ -287,25 +284,25 @@ describe( 'TextWatcher', () => {
 				writer.setSelection( writer.createRange( start, start.getShiftedBy( 1 ) ) );
 			} );
 
-			sinon.assert.calledOnce( testCallbackStub );
-			sinon.assert.calledOnce( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.calledOnce( unmatchedSpy );
+			expect( testCallbackStub ).toHaveBeenCalledOnce();
+			expect( matchedDataSpy ).toHaveBeenCalledOnce();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'should not fire "umatched" event when selection is expanded if watcher is disabled', () => {
 			watcher.isEnabled = false;
 
-			testCallbackStub.returns( true );
+			testCallbackStub.mockReturnValue( true );
 
 			model.change( writer => {
 				writer.insertText( '@', doc.selection.getFirstPosition() );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
-			sinon.assert.notCalled( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
+			expect( matchedDataSpy ).not.toHaveBeenCalled();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 
 			model.change( writer => {
 				const start = writer.createPositionAt( doc.getRoot().getChild( 0 ), 0 );
@@ -313,10 +310,10 @@ describe( 'TextWatcher', () => {
 				writer.setSelection( writer.createRange( start, start.getShiftedBy( 1 ) ) );
 			} );
 
-			sinon.assert.notCalled( testCallbackStub );
-			sinon.assert.notCalled( matchedDataSpy );
-			sinon.assert.notCalled( matchedSelectionSpy );
-			sinon.assert.notCalled( unmatchedSpy );
+			expect( testCallbackStub ).not.toHaveBeenCalled();
+			expect( matchedDataSpy ).not.toHaveBeenCalled();
+			expect( matchedSelectionSpy ).not.toHaveBeenCalled();
+			expect( unmatchedSpy ).not.toHaveBeenCalled();
 		} );
 	} );
 } );

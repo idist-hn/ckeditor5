@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module clipboard/dragdrop
  */
 
-import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
 import {
-	LiveRange,
-	MouseObserver,
-	type DataTransfer,
-	type Element,
+	ModelLiveRange,
+	PointerObserver,
+	type ViewDataTransfer,
+	type ModelElement,
 	type Model,
-	type Range,
-	type Position,
-	type ViewDocumentMouseDownEvent,
-	type ViewDocumentMouseUpEvent,
+	type ModelRange,
+	type ModelPosition,
 	type ViewElement,
-	type DomEventData
+	type ViewDocumentDomEventData,
+	type ViewDocumentPointerDownEvent,
+	type ViewDocumentPointerUpEvent
 } from '@ckeditor/ckeditor5-engine';
 
 import {
@@ -34,6 +34,8 @@ import {
 	uid,
 	global,
 	createElement,
+	isShadowRoot,
+	containsNode,
 	DomEmitterMixin,
 	delay,
 	Rect,
@@ -42,23 +44,23 @@ import {
 	type DomEmitter
 } from '@ckeditor/ckeditor5-utils';
 
-import ClipboardPipeline, {
+import {
+	ClipboardPipeline,
 	type ClipboardContentInsertionEvent
-} from './clipboardpipeline';
+} from './clipboardpipeline.js';
 
-import ClipboardObserver, {
+import {
+	ClipboardObserver,
 	type ViewDocumentDragEndEvent,
 	type ViewDocumentDragEnterEvent,
 	type ViewDocumentDraggingEvent,
 	type ViewDocumentDragLeaveEvent,
 	type ViewDocumentDragStartEvent,
 	type ViewDocumentClipboardInputEvent
-} from './clipboardobserver';
+} from './clipboardobserver.js';
 
-import DragDropTarget from './dragdroptarget';
-import DragDropBlockToolbar from './dragdropblocktoolbar';
-
-import '../theme/clipboard.css';
+import { DragDropTarget } from './dragdroptarget.js';
+import { DragDropBlockToolbar } from './dragdropblocktoolbar.js';
 
 // Drag and drop events overview:
 //
@@ -145,11 +147,11 @@ import '../theme/clipboard.css';
  *
  * @internal
  */
-export default class DragDrop extends Plugin {
+export class DragDrop extends Plugin {
 	/**
 	 * The live range over the original content that is being dragged.
 	 */
-	private _draggedRange!: LiveRange | null;
+	private _draggedRange!: ModelLiveRange | null;
 
 	/**
 	 * The UID of current dragging that is used to verify if the drop started in the same editor as the drag start.
@@ -161,7 +163,7 @@ export default class DragDrop extends Plugin {
 	/**
 	 * The reference to the model element that currently has a `draggable` attribute set (it is set while dragging).
 	 */
-	private _draggableElement!: Element | null;
+	private _draggableElement!: ModelElement | null;
 
 	/**
 	 * A delayed callback removing draggable attributes.
@@ -195,8 +197,15 @@ export default class DragDrop extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ClipboardPipeline, Widget, DragDropTarget, DragDropBlockToolbar ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ClipboardPipeline, Widget, DragDropTarget, DragDropBlockToolbar ]> {
+		return [ ClipboardPipeline, Widget, DragDropTarget, DragDropBlockToolbar ];
 	}
 
 	/**
@@ -211,7 +220,7 @@ export default class DragDrop extends Plugin {
 		this._draggableElement = null;
 
 		view.addObserver( ClipboardObserver );
-		view.addObserver( MouseObserver );
+		view.addObserver( PointerObserver );
 
 		this._setupDragging();
 		this._setupContentInsertionIntegration();
@@ -269,7 +278,7 @@ export default class DragDrop extends Plugin {
 		// The handler for the drag start; it is responsible for setting data transfer object.
 		this.listenTo<ViewDocumentDragStartEvent>( viewDocument, 'dragstart', ( evt, data ) => {
 			// Don't drag the editable element itself.
-			if ( data.target && data.target.is( 'editableElement' ) ) {
+			if ( data.target?.is( 'editableElement' ) ) {
 				data.preventDefault();
 
 				return;
@@ -285,7 +294,9 @@ export default class DragDrop extends Plugin {
 
 			this._draggingUid = uid();
 
-			data.dataTransfer.effectAllowed = this.isEnabled ? 'copyMove' : 'copy';
+			const canEditAtDraggedRange = this.isEnabled && editor.model.canEditAt( this._draggedRange );
+
+			data.dataTransfer.effectAllowed = canEditAtDraggedRange ? 'copyMove' : 'copy';
 			data.dataTransfer.setData( 'application/ckeditor5-dragging-uid', this._draggingUid );
 
 			const draggedSelection = model.createSelection( this._draggedRange.toRange() );
@@ -300,7 +311,7 @@ export default class DragDrop extends Plugin {
 
 			data.stopPropagation();
 
-			if ( !this.isEnabled ) {
+			if ( !canEditAtDraggedRange ) {
 				this._draggedRange.detach();
 				this._draggedRange = null;
 				this._draggingUid = '';
@@ -343,9 +354,23 @@ export default class DragDrop extends Plugin {
 				return;
 			}
 
-			const { clientX, clientY } = ( data as DomEventData<DragEvent> ).domEvent;
+			const { clientX, clientY } = ( data as ViewDocumentDomEventData<DragEvent> ).domEvent;
 
-			dragDropTarget.updateDropMarker( data.target, data.targetRanges, clientX, clientY, this._blockMode );
+			const targetRange = dragDropTarget.updateDropMarker(
+				data.target,
+				data.targetRanges,
+				clientX,
+				clientY,
+				this._blockMode,
+				this._draggedRange
+			);
+
+			// Do not allow dropping if there is no valid target range (e.g., dropping on non-editable place).
+			if ( !targetRange ) {
+				data.dataTransfer.dropEffect = 'none';
+
+				return;
+			}
 
 			// If this is content being dragged from another editor, moving out of current editor instance
 			// is not possible until 'dragend' event case will be fixed.
@@ -381,8 +406,15 @@ export default class DragDrop extends Plugin {
 				return;
 			}
 
-			const { clientX, clientY } = ( data as DomEventData<DragEvent> ).domEvent;
-			const targetRange = dragDropTarget.getFinalDropRange( data.target, data.targetRanges, clientX, clientY, this._blockMode );
+			const { clientX, clientY } = ( data as ViewDocumentDomEventData<DragEvent> ).domEvent;
+			const targetRange = dragDropTarget.getFinalDropRange(
+				data.target,
+				data.targetRanges,
+				clientX,
+				clientY,
+				this._blockMode,
+				this._draggedRange
+			);
 
 			if ( !targetRange ) {
 				this._finalizeDragging( false );
@@ -459,7 +491,7 @@ export default class DragDrop extends Plugin {
 
 		// Add the 'draggable' attribute to the widget while pressing the selection handle.
 		// This is required for widgets to be draggable. In Chrome it will enable dragging text nodes.
-		this.listenTo<ViewDocumentMouseDownEvent>( viewDocument, 'mousedown', ( evt, data ) => {
+		this.listenTo<ViewDocumentPointerDownEvent>( viewDocument, 'pointerdown', ( evt, data ) => {
 			// The lack of data can be caused by editor tests firing fake mouse events. This should not occur
 			// in real-life scenarios but this greatly simplifies editor tests that would otherwise fail a lot.
 			if ( env.isAndroid || !data ) {
@@ -498,7 +530,7 @@ export default class DragDrop extends Plugin {
 		} );
 
 		// Remove the draggable attribute in case no dragging started (only mousedown + mouseup).
-		this.listenTo<ViewDocumentMouseUpEvent>( viewDocument, 'mouseup', () => {
+		this.listenTo<ViewDocumentPointerUpEvent>( viewDocument, 'pointerup', () => {
 			if ( !env.isAndroid ) {
 				this._clearDraggableAttributesDelayed();
 			}
@@ -553,7 +585,22 @@ export default class DragDrop extends Plugin {
 
 		// Delete moved content.
 		if ( moved && this.isEnabled ) {
-			model.deleteContent( model.createSelection( this._draggedRange ), { doNotAutoparagraph: true } );
+			model.change( writer => {
+				const selection = model.createSelection( this._draggedRange );
+
+				model.deleteContent( selection, { doNotAutoparagraph: true } );
+
+				// Check result selection if it does not require auto-paragraphing of empty container.
+				const selectionParent = selection.getFirstPosition()!.parent as ModelElement;
+
+				if (
+					selectionParent.isEmpty &&
+					!model.schema.checkChild( selectionParent, '$text' ) &&
+					model.schema.checkChild( selectionParent, 'paragraph' )
+				) {
+					writer.insertElement( 'paragraph', selectionParent, 0 );
+				}
+			} );
 		}
 
 		this._draggedRange.detach();
@@ -574,7 +621,7 @@ export default class DragDrop extends Plugin {
 		if ( draggableWidget ) {
 			const modelElement = editor.editing.mapper.toModelElement( draggableWidget )!;
 
-			this._draggedRange = LiveRange.fromRange( model.createRangeOn( modelElement ) );
+			this._draggedRange = ModelLiveRange.fromRange( model.createRangeOn( modelElement ) );
 			this._blockMode = model.schema.isBlock( modelElement );
 
 			// Disable toolbars so they won't obscure the drop area.
@@ -588,7 +635,7 @@ export default class DragDrop extends Plugin {
 		}
 
 		// If this was not a widget we should check if we need to drag some text content.
-		if ( selection.isCollapsed && !( selection.getFirstPosition()!.parent as Element ).isEmpty ) {
+		if ( selection.isCollapsed && !( selection.getFirstPosition()!.parent as ModelElement ).isEmpty ) {
 			return;
 		}
 
@@ -596,7 +643,7 @@ export default class DragDrop extends Plugin {
 		const draggedRange = selection.getFirstRange()!;
 
 		if ( blocks.length == 0 ) {
-			this._draggedRange = LiveRange.fromRange( draggedRange );
+			this._draggedRange = ModelLiveRange.fromRange( draggedRange );
 
 			return;
 		}
@@ -604,15 +651,18 @@ export default class DragDrop extends Plugin {
 		const blockRange = getRangeIncludingFullySelectedParents( model, blocks );
 
 		if ( blocks.length > 1 ) {
-			this._draggedRange = LiveRange.fromRange( blockRange );
+			this._draggedRange = ModelLiveRange.fromRange( blockRange );
 			this._blockMode = true;
 			// TODO block mode for dragging from outside editor? or inline? or both?
-		} else if ( blocks.length == 1 ) {
-			const touchesBlockEdges = draggedRange.start.isTouching( blockRange.start ) &&
+		} else {
+			/* v8 ignore else -- @preserve */
+			if ( blocks.length == 1 ) {
+				const touchesBlockEdges = draggedRange.start.isTouching( blockRange.start ) &&
 					draggedRange.end.isTouching( blockRange.end );
 
-			this._draggedRange = LiveRange.fromRange( touchesBlockEdges ? blockRange : draggedRange );
-			this._blockMode = touchesBlockEdges;
+				this._draggedRange = ModelLiveRange.fromRange( touchesBlockEdges ? blockRange : draggedRange );
+				this._blockMode = touchesBlockEdges;
+			}
 		}
 
 		model.change( writer => writer.setSelection( this._draggedRange!.toRange() ) );
@@ -626,7 +676,7 @@ export default class DragDrop extends Plugin {
 		domTarget,
 		clientX
 	}: {
-		dataTransfer: DataTransfer;
+		dataTransfer: ViewDataTransfer;
 		domTarget: HTMLElement;
 		clientX: number;
 	} ): void {
@@ -635,31 +685,64 @@ export default class DragDrop extends Plugin {
 		const domEditable = view.domConverter.mapViewToDom( editable )!;
 		const computedStyle = global.window.getComputedStyle( domEditable );
 
+		// Create the preview in the editable's own document so it can be appended into the editable's tree
+		// (its shadow root, or that document's body) without crossing document boundaries.
+		const editableDocument = domEditable.ownerDocument;
+
 		if ( !this._previewContainer ) {
-			this._previewContainer = createElement( global.document, 'div', {
+			this._previewContainer = createElement( editableDocument, 'div', {
 				style: 'position: fixed; left: -999999px;'
 			} );
-
-			global.document.body.appendChild( this._previewContainer );
 		} else if ( this._previewContainer.firstElementChild ) {
 			this._previewContainer.removeChild( this._previewContainer.firstElementChild );
 		}
 
-		const domRect = new Rect( domEditable );
+		// Mount the preview in the same root as the editable so it inherits the editor content styles,
+		// which live inside the shadow root when the editor is placed in one. Done on every drag (rather
+		// than only on creation) so the preview follows the editable if it moves to a different root.
+		const editableRoot = domEditable.getRootNode();
 
-		// If domTarget is inside the editable root, browsers will display the preview correctly by themselves.
-		if ( domEditable.contains( domTarget ) ) {
+		if ( isShadowRoot( editableRoot ) ) {
+			editableRoot.appendChild( this._previewContainer );
+		} else {
+			editableDocument.body.appendChild( this._previewContainer );
+		}
+
+		const preview = createElement( editableDocument, 'div' );
+
+		preview.className = 'ck ck-content ck-clipboard-preview';
+
+		const domRect = new Rect( domEditable );
+		const domEditablePaddingLeft = parseFloat( computedStyle.paddingLeft );
+		const domEditablePaddingRight = parseFloat( computedStyle.paddingRight );
+		const editableWidth = parseFloat( computedStyle.width ) - domEditablePaddingLeft - domEditablePaddingRight;
+
+		// Dragging by the drag handle outside editable element.
+		if ( !containsNode( domEditable, domTarget ) ) {
+			if ( !env.isiOS ) {
+				const offsetLeft = domRect.left - clientX + domEditablePaddingLeft;
+
+				preview.style.width = `${ editableWidth + offsetLeft }px`;
+				preview.style.paddingLeft = `${ offsetLeft }px`;
+			} else {
+				// Without a padding as on iOS preview have a background and padding would be visible.
+				preview.style.width = `${ editableWidth }px`;
+				preview.style.backgroundColor = 'var(--ck-color-base-background)';
+			}
+		} else if ( env.isiOS ) {
+			// Custom preview for iOS. Note that it must have some dimensions for iOS to start dragging element.
+			preview.style.maxWidth = `${ editableWidth }px`;
+			preview.style.padding = '10px';
+			preview.style.minWidth = '200px';
+			preview.style.minHeight = '20px';
+			preview.style.boxSizing = 'border-box';
+			preview.style.backgroundColor = 'var(--ck-color-base-background)';
+		} else {
+			// If domTarget is inside the editable root, browsers will display the preview correctly by themselves.
 			return;
 		}
 
-		const domEditablePaddingLeft = parseFloat( computedStyle.paddingLeft );
-		const preview = createElement( global.document, 'div' );
-
-		preview.className = 'ck ck-content';
-		preview.style.width = computedStyle.width;
-		preview.style.paddingLeft = `${ domRect.left - clientX + domEditablePaddingLeft }px`;
-
-		preview.innerHTML = dataTransfer.getData( 'text/html' );
+		view.domConverter.setContentOf( preview, dataTransfer.getData( 'text/html' ) );
 
 		dataTransfer.setDragImage( preview, 0, 0 );
 
@@ -671,7 +754,7 @@ export default class DragDrop extends Plugin {
  * Returns the drop effect that should be a result of dragging the content.
  * This function is handling a quirk when checking the effect in the 'drop' DOM event.
  */
-function getFinalDropEffect( dataTransfer: DataTransfer ): DataTransfer[ 'dropEffect' ] {
+function getFinalDropEffect( dataTransfer: ViewDataTransfer ): ViewDataTransfer[ 'dropEffect' ] {
 	if ( env.isGecko ) {
 		return dataTransfer.dropEffect;
 	}
@@ -724,12 +807,12 @@ function findDraggableWidget( target: ViewElement ): ViewElement | null {
  * Because all elements inside the `blockQuote` are selected, the range is extended to include the `blockQuote` too.
  * If only first and second paragraphs would be selected, the range would not include it.
  */
-function getRangeIncludingFullySelectedParents( model: Model, elements: Array<Element> ): Range {
+function getRangeIncludingFullySelectedParents( model: Model, elements: Array<ModelElement> ): ModelRange {
 	const firstElement = elements[ 0 ];
 	const lastElement = elements[ elements.length - 1 ];
 	const parent = firstElement.getCommonAncestor( lastElement );
-	const startPosition: Position = model.createPositionBefore( firstElement );
-	const endPosition: Position = model.createPositionAfter( lastElement );
+	const startPosition: ModelPosition = model.createPositionBefore( firstElement );
+	const endPosition: ModelPosition = model.createPositionAfter( lastElement );
 
 	if (
 		parent &&

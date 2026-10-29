@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/ui/stylegroupview
  */
 
-import { LabelView, View } from 'ckeditor5/src/ui';
-import type { Locale } from 'ckeditor5/src/utils';
+import { LabelView, View } from '@ckeditor/ckeditor5-ui';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
 
-import StyleGridView from './stylegridview';
-import type { NormalizedStyleDefinition } from '../styleutils';
-
-import '../../theme/stylegroup.css';
+import { StyleGridView } from './stylegridview.js';
+import type { NormalizedStyleDefinition } from '../styleutils.js';
 
 /**
  * A class representing a group of styles (e.g. "block" or "inline").
  *
  * Renders a {@link module:style/ui/stylegridview~StyleGridView style grid} and a label.
+ *
+ * @internal
  */
-export default class StyleGroupView extends View<HTMLDivElement> {
+export class StyleGroupView extends View<HTMLDivElement> {
 	/**
 	 * The styles grid of the group.
 	 */

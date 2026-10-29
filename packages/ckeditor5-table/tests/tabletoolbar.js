@@ -1,27 +1,29 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import TableToolbar from '../src/tabletoolbar';
-import Table from '../src/table';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import Plugin from '@ckeditor/ckeditor5-core/src/plugin';
-import ButtonView from '@ckeditor/ckeditor5-ui/src/button/buttonview';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import WidgetToolbarRepository from '@ckeditor/ckeditor5-widget/src/widgettoolbarrepository';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import ImageToolbar from '@ckeditor/ckeditor5-image/src/imagetoolbar';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import ImageStyle from '@ckeditor/ckeditor5-image/src/imagestyle';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { TableToolbar } from '../src/tabletoolbar.js';
+import { Table } from '../src/table.js';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { ButtonView, View } from '@ckeditor/ckeditor5-ui';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { WidgetToolbarRepository } from '@ckeditor/ckeditor5-widget';
+import { ImageToolbar, Image, ImageStyle } from '@ckeditor/ckeditor5-image';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
 
 describe( 'TableToolbar', () => {
-	testUtils.createSinonSandbox();
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TableToolbar.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TableToolbar.isPremiumPlugin ).toBe( false );
+	} );
 
 	describe( 'contentToolbar', () => {
 		let editor, model, doc, widgetToolbarRepository, toolbar, balloon, editorElement;
@@ -30,9 +32,9 @@ describe( 'TableToolbar', () => {
 			editorElement = global.document.createElement( 'div' );
 			global.document.body.appendChild( editorElement );
 
-			return ClassicTestEditor
+			return ClassicEditor
 				.create( editorElement, {
-					plugins: [ Paragraph, Image, ImageStyle, ImageToolbar, Table, TableToolbar, FakeButton ],
+					plugins: [ Paragraph, Image, ImageStyle, ImageToolbar, Table, TableToolbar, FakeButton, ClipboardPipeline ],
 					image: {
 						toolbar: [ 'imageStyle:block', 'imageStyle:side' ]
 					},
@@ -57,19 +59,19 @@ describe( 'TableToolbar', () => {
 		} );
 
 		it( 'should be loaded', () => {
-			expect( editor.plugins.get( TableToolbar ) ).to.be.instanceOf( TableToolbar );
+			expect( editor.plugins.get( TableToolbar ) ).toBeInstanceOf( TableToolbar );
 		} );
 
 		it( 'should not initialize if there is no configuration', () => {
 			const editorElement = global.document.createElement( 'div' );
 			global.document.body.appendChild( editorElement );
 
-			return ClassicTestEditor.create( editorElement, {
-				plugins: [ TableToolbar ]
+			return ClassicEditor.create( editorElement, {
+				plugins: [ TableToolbar, ClipboardPipeline ]
 			} )
 				.then( editor => {
 					const widgetToolbarRepository = editor.plugins.get( WidgetToolbarRepository );
-					expect( widgetToolbarRepository._toolbarDefinitions.get( 'tableContent' ) ).to.be.undefined;
+					expect( widgetToolbarRepository._toolbarDefinitions.get( 'tableContent' ) ).toBeUndefined();
 
 					editorElement.remove();
 					return editor.destroy();
@@ -80,28 +82,29 @@ describe( 'TableToolbar', () => {
 			it( 'should use the config.table.contenToolbar to create items', () => {
 				editor.ui.focusTracker.isFocused = true;
 
-				setData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
 
-				expect( toolbar.items ).to.have.length( 1 );
-				expect( toolbar.items.get( 0 ).label ).to.equal( 'fake button' );
+				expect( toolbar.items ).toHaveLength( 1 );
+				expect( toolbar.items.get( 0 ).label ).toEqual( 'fake button' );
 			} );
 
 			it( 'should set proper CSS classes', () => {
-				const spy = sinon.spy( balloon, 'add' );
+				const spy = vi.spyOn( balloon, 'add' );
 
 				editor.ui.focusTracker.isFocused = true;
 
-				setData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
 
-				sinon.assert.calledWithMatch( spy, sinon.match( ( { balloonClassName, view } ) => {
-					return view === toolbar && balloonClassName === 'ck-toolbar-container';
+				expect( spy ).toHaveBeenCalledWith( expect.objectContaining( {
+					view: toolbar,
+					balloonClassName: 'ck-toolbar-container'
 				} ) );
 			} );
 
 			it( 'should set aria-label attribute', () => {
 				toolbar.render();
 
-				expect( toolbar.element.getAttribute( 'aria-label' ) ).to.equal( 'Table toolbar' );
+				expect( toolbar.element.getAttribute( 'aria-label' ) ).toEqual( 'Table toolbar' );
 
 				toolbar.destroy();
 			} );
@@ -111,25 +114,25 @@ describe( 'TableToolbar', () => {
 			it( 'should show the toolbar when the editor gains focus and the table is selected', () => {
 				editor.ui.focusTracker.isFocused = true;
 
-				setData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
 
 				editor.ui.focusTracker.isFocused = false;
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				editor.ui.focusTracker.isFocused = true;
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 			} );
 
 			it( 'should hide the toolbar when the editor loses focus and the table is selected', () => {
 				editor.ui.focusTracker.isFocused = false;
 
-				setData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
 
 				editor.ui.focusTracker.isFocused = true;
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				editor.ui.focusTracker.isFocused = false;
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 			} );
 		} );
 
@@ -139,22 +142,22 @@ describe( 'TableToolbar', () => {
 			} );
 
 			it( 'should not show the toolbar on ui#update when the table is selected', () => {
-				setData( model, '<paragraph>foo</paragraph>[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
+				_setModelData( model, '<paragraph>foo</paragraph>[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 			} );
 
 			it( 'should show the toolbar on ui#update when the table content is selected', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>[foo]</paragraph><table><tableRow><tableCell><paragraph>bar</paragraph></tableCell></tableRow></table>'
 				);
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				editor.ui.fire( 'update' );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				model.change( writer => {
 					// Select the <tableCell>[bar]</tableCell>
@@ -163,22 +166,22 @@ describe( 'TableToolbar', () => {
 					);
 				} );
 
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				// Make sure successive change does not throw, e.g. attempting
 				// to insert the toolbar twice.
 				editor.ui.fire( 'update' );
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 			} );
 
 			it( 'should not show the toolbar on ui#update when the image inside table is selected', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>[foo]</paragraph>' +
 					'<table><tableRow><tableCell><paragraph>foo</paragraph><imageBlock src=""></imageBlock></tableCell></tableRow></table>'
 				);
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				const imageToolbar = widgetToolbarRepository._toolbarDefinitions.get( 'image' ).view;
 
@@ -189,7 +192,7 @@ describe( 'TableToolbar', () => {
 					writer.setSelection( nodeByPath, 'on' );
 				} );
 
-				expect( balloon.visibleView ).to.equal( imageToolbar );
+				expect( balloon.visibleView ).toEqual( imageToolbar );
 
 				model.change( writer => {
 					// Select the <tableCell><paragraph>[]</paragraph><imageBlock></imageBlock></tableCell>
@@ -198,13 +201,13 @@ describe( 'TableToolbar', () => {
 					);
 				} );
 
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 			} );
 
 			it( 'should not engage when the toolbar is in the balloon yet invisible', () => {
-				setData( model, '<table><tableRow><tableCell><paragraph>x[y]z</paragraph></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell><paragraph>x[y]z</paragraph></tableCell></tableRow></table>' );
 
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				// Put anything on top of the ContextualBalloon stack above the table toolbar.
 				const lastView = new View();
@@ -217,20 +220,20 @@ describe( 'TableToolbar', () => {
 					}
 				} );
 
-				expect( balloon.visibleView ).to.equal( lastView );
+				expect( balloon.visibleView ).toEqual( lastView );
 
 				editor.ui.fire( 'update' );
 
-				expect( balloon.visibleView ).to.equal( lastView );
+				expect( balloon.visibleView ).toEqual( lastView );
 			} );
 
 			it( 'should hide the toolbar on render if the table is de–selected', () => {
-				setData(
+				_setModelData(
 					model,
 					'<paragraph>foo</paragraph><table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>'
 				);
 
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				model.change( writer => {
 					// Select the <paragraph>[...]</paragraph>
@@ -239,12 +242,12 @@ describe( 'TableToolbar', () => {
 					);
 				} );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				// Make sure successive change does not throw, e.g. attempting
 				// to remove the toolbar twice.
 				editor.ui.fire( 'update' );
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 			} );
 		} );
 	} );
@@ -256,8 +259,8 @@ describe( 'TableToolbar', () => {
 			element = document.createElement( 'div' );
 			document.body.appendChild( element );
 
-			return ClassicTestEditor.create( element, {
-				plugins: [ Paragraph, Table, TableToolbar, FakeButton ],
+			return ClassicEditor.create( element, {
+				plugins: [ Paragraph, Table, TableToolbar, FakeButton, ClipboardPipeline ],
 				table: {
 					tableToolbar: [ 'fake_button' ]
 				}
@@ -280,12 +283,12 @@ describe( 'TableToolbar', () => {
 				const editorElement = global.document.createElement( 'div' );
 				global.document.body.appendChild( editorElement );
 
-				return ClassicTestEditor.create( editorElement, {
+				return ClassicEditor.create( editorElement, {
 					plugins: [ TableToolbar ]
 				} )
 					.then( editor => {
 						const widgetToolbarRepository = editor.plugins.get( WidgetToolbarRepository );
-						expect( widgetToolbarRepository._toolbarDefinitions.get( 'table' ) ).to.be.undefined;
+						expect( widgetToolbarRepository._toolbarDefinitions.get( 'table' ) ).toBeUndefined();
 
 						editorElement.remove();
 						return editor.destroy();
@@ -295,21 +298,22 @@ describe( 'TableToolbar', () => {
 			it( 'should use the config.table.tableWidget to create items', () => {
 				editor.ui.focusTracker.isFocused = true;
 
-				setData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
+				_setModelData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
 
-				expect( toolbar.items ).to.have.length( 1 );
-				expect( toolbar.items.get( 0 ).label ).to.equal( 'fake button' );
+				expect( toolbar.items ).toHaveLength( 1 );
+				expect( toolbar.items.get( 0 ).label ).toEqual( 'fake button' );
 			} );
 
 			it( 'should set proper CSS classes', () => {
-				const spy = sinon.spy( balloon, 'add' );
+				const spy = vi.spyOn( balloon, 'add' );
 
 				editor.ui.focusTracker.isFocused = true;
 
-				setData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
+				_setModelData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
 
-				sinon.assert.calledWithMatch( spy, sinon.match( ( { balloonClassName, view } ) => {
-					return view === toolbar && balloonClassName === 'ck-toolbar-container';
+				expect( spy ).toHaveBeenCalledWith( expect.objectContaining( {
+					view: toolbar,
+					balloonClassName: 'ck-toolbar-container'
 				} ) );
 			} );
 		} );
@@ -318,25 +322,25 @@ describe( 'TableToolbar', () => {
 			it( 'should show the toolbar when the editor gains focus and the table is selected', () => {
 				editor.ui.focusTracker.isFocused = true;
 
-				setData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
+				_setModelData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
 
 				editor.ui.focusTracker.isFocused = false;
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				editor.ui.focusTracker.isFocused = true;
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 			} );
 
 			it( 'should hide the toolbar when the editor loses focus and the table is selected', () => {
 				editor.ui.focusTracker.isFocused = false;
 
-				setData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
+				_setModelData( model, '[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
 
 				editor.ui.focusTracker.isFocused = true;
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				editor.ui.focusTracker.isFocused = false;
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 			} );
 		} );
 
@@ -346,41 +350,41 @@ describe( 'TableToolbar', () => {
 			} );
 
 			it( 'should show the toolbar on ui#update when the table widget is selected', () => {
-				setData( editor.model, '<paragraph>[foo]</paragraph><table><tableRow><tableCell></tableCell></tableRow></table>' );
+				_setModelData( editor.model, '<paragraph>[foo]</paragraph><table><tableRow><tableCell></tableCell></tableRow></table>' );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				editor.ui.fire( 'update' );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				editor.model.change( writer => {
 					// Select the [<table></table>]
 					writer.setSelection( editor.model.document.getRoot().getChild( 1 ), 'on' );
 				} );
 
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				// Make sure successive change does not throw, e.g. attempting
 				// to insert the toolbar twice.
 				editor.ui.fire( 'update' );
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 			} );
 
 			it( 'should not show the toolbar on ui#update when the selection is inside a table cell', () => {
-				setData( editor.model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
+				_setModelData( editor.model, '<table><tableRow><tableCell><paragraph>[]</paragraph></tableCell></tableRow></table>' );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				editor.ui.fire( 'update' );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 			} );
 
 			it( 'should not engage when the toolbar is in the balloon yet invisible', () => {
-				setData( model, '<table><tableRow><tableCell></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell></tableCell></tableRow></table>' );
 
-				expect( balloon.visibleView ).to.equal( toolbar );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				const lastView = new View();
 				lastView.element = document.createElement( 'div' );
@@ -392,28 +396,28 @@ describe( 'TableToolbar', () => {
 					}
 				} );
 
-				expect( balloon.visibleView ).to.equal( lastView );
+				expect( balloon.visibleView ).toEqual( lastView );
 
 				editor.ui.fire( 'update' );
 
-				expect( balloon.visibleView ).to.equal( lastView );
+				expect( balloon.visibleView ).toEqual( lastView );
 			} );
 
 			it( 'should hide the toolbar on ui#update if the table is de–selected', () => {
-				setData( model, '<paragraph>foo</paragraph>[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
-				expect( balloon.visibleView ).to.equal( toolbar );
+				_setModelData( model, '<paragraph>foo</paragraph>[<table><tableRow><tableCell></tableCell></tableRow></table>]' );
+				expect( balloon.visibleView ).toEqual( toolbar );
 
 				model.change( writer => {
 					// Select the <paragraph>[...]</paragraph>
 					writer.setSelection( model.document.getRoot().getChild( 0 ), 'in' );
 				} );
 
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 
 				// Make sure successive change does not throw, e.g. attempting
 				// to remove the toolbar twice.
 				editor.ui.fire( 'update' );
-				expect( balloon.visibleView ).to.be.null;
+				expect( balloon.visibleView ).toBeNull();
 			} );
 		} );
 	} );

@@ -1,13 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
-import { getData as getModelData, setData as setModelData } from '../../src/dev-utils/model';
+import { _getModelData, _setModelData } from '../../src/dev-utils/model.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'Bug ckeditor5#11925', () => {
 	let editor;
@@ -23,7 +24,7 @@ describe( 'Bug ckeditor5#11925', () => {
 	} );
 
 	it( 'should not break the editor after setting invalid selection', () => {
-		setModelData( editor.model, '<paragraph>X</paragraph><paragraph>Foo [bar] baz</paragraph><paragraph>Y</paragraph>' );
+		_setModelData( editor.model, '<paragraph>X</paragraph><paragraph>Foo [bar] baz</paragraph><paragraph>Y</paragraph>' );
 
 		const selection = editor.model.document.selection.getFirstRange();
 
@@ -37,15 +38,15 @@ describe( 'Bug ckeditor5#11925', () => {
 			editor.model.change( writer => {
 				writer.setSelection( selection );
 			} );
-		}, /model-nodelist-offset-out-of-bound/ );
+		}, /document-selection-wrong-position/ );
 
 		expect( () => {
 			editor.model.change( writer => {
 				writer.insertText( 'abc', editor.model.document.selection.getFirstPosition() );
 			} );
-		} ).to.not.throw();
+		} ).not.toThrow();
 
-		expect( getModelData( editor.model ) ).to.equal(
+		expect( _getModelData( editor.model ) ).toBe(
 			'<paragraph>Xabc[]</paragraph><paragraph>Y</paragraph>'
 		);
 	} );

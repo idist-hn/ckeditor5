@@ -1,21 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals ClassicEditor, console, window, document */
+import {
+	TOKEN_URL,
+	getViewportTopOffsetConfig
+} from '@snippets/index.js';
+import { ImageEditor } from './build-image-source.js';
 
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config.js';
-
-ClassicEditor
-	.create( document.querySelector( '#snippet-presentational-image-style-default' ), {
+ImageEditor
+	.create( {
+		attachTo: document.querySelector( '#snippet-presentational-image-style-default' ),
 		removePlugins: [ 'LinkImage', 'AutoImage', 'imageCaption' ],
 		toolbar: {
 			items: [
 				'undo', 'redo',
 				'|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 			]
 		},
@@ -26,6 +29,11 @@ ClassicEditor
 					name: 'resizeImage:original',
 					label: 'Original',
 					value: null
+				},
+				{
+					name: 'resizeImage:custom',
+					label: 'Custom',
+					value: 'custom'
 				},
 				{
 					name: 'resizeImage:40',
@@ -42,15 +50,21 @@ ClassicEditor
 				'imageStyle:inline',
 				'imageStyle:wrapText',
 				'imageStyle:breakText',
-				'resizeImage'
+				'resizeImage',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		},
-		cloudServices: CS_CONFIG
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ],
+			forceDemoLabel: true
+		}
 	} )
 	.then( editor => {
 		window.editorStylePresentational = editor;

@@ -1,18 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/autolink
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { DocumentSelectionChangeEvent, Element, Model, Range } from 'ckeditor5/src/engine';
-import { Delete, TextWatcher, getLastTextLine, type TextWatcherMatchedDataEvent } from 'ckeditor5/src/typing';
-import type { EnterCommand, ShiftEnterCommand } from 'ckeditor5/src/enter';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ClipboardInputTransformationEvent } from '@ckeditor/ckeditor5-clipboard';
+import type { ModelDocumentSelectionChangeEvent, Model, ModelPosition, ModelRange, ModelWriter } from '@ckeditor/ckeditor5-engine';
+import { Delete, TextWatcher, getLastTextLine, findAttributeRange, type TextWatcherMatchedDataEvent } from '@ckeditor/ckeditor5-typing';
+import type { EnterCommand, ShiftEnterCommand } from '@ckeditor/ckeditor5-enter';
 
-import { addLinkProtocolIfApplicable, linkHasProtocol } from './utils';
+import { addLinkProtocolIfApplicable, linkHasProtocol } from './utils.js';
+import { LinkEditing } from './linkediting.js';
 
 const MIN_LINK_LENGTH_WITH_SPACE_AT_END = 4; // Ie: "t.co " (length 5).
 
@@ -46,6 +48,9 @@ const URL_REG_EXP = new RegExp(
 					// TLD identifier name.
 					'(?:[a-z\\u00a1-\\uffff]{2,63})' +
 				')' +
+				'|' +
+				// Allow localhost as a valid hostname
+				'localhost' +
 			')' +
 			// port number (optional)
 			'(?::\\d{2,5})?' +
@@ -68,12 +73,12 @@ const URL_GROUP_IN_MATCH = 2;
 /**
  * The autolink plugin.
  */
-export default class AutoLink extends Plugin {
+export class AutoLink extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ Delete ] as const;
+	public static get requires(): PluginDependenciesOf<[ Delete, LinkEditing ]> {
+		return [ Delete, LinkEditing ];
 	}
 
 	/**
@@ -86,11 +91,18 @@ export default class AutoLink extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
 		const selection = editor.model.document.selection;
 
-		selection.on<DocumentSelectionChangeEvent>( 'change:range', () => {
+		selection.on<ModelDocumentSelectionChangeEvent>( 'change:range', () => {
 			// Disable plugin when selection is inside a code block.
 			this.isEnabled = !selection.anchor!.parent.is( 'element', 'codeBlock' );
 		} );
@@ -104,6 +116,86 @@ export default class AutoLink extends Plugin {
 	public afterInit(): void {
 		this._enableEnterHandling();
 		this._enableShiftEnterHandling();
+		this._enablePasteLinking();
+	}
+
+	/**
+	 * For given position, returns a range that includes the whole link that contains the position.
+	 *
+	 * If position is not inside a link, returns `null`.
+	 */
+	private _expandLinkRange( model: Model, position: ModelPosition ): ModelRange | null {
+		if ( position.textNode && position.textNode.hasAttribute( 'linkHref' ) ) {
+			return findAttributeRange( position, 'linkHref', position.textNode.getAttribute( 'linkHref' ), model );
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Extends the document selection to includes all links that intersects with given `selectedRange`.
+	 */
+	private _selectEntireLinks( writer: ModelWriter, selectedRange: ModelRange ): void {
+		const editor = this.editor;
+		const model = editor.model;
+		const selection = model.document.selection;
+		const selStart = selection.getFirstPosition()!;
+		const selEnd = selection.getLastPosition()!;
+
+		let updatedSelection = selectedRange.getJoined( this._expandLinkRange( model, selStart ) || selectedRange );
+
+		if ( updatedSelection ) {
+			updatedSelection = updatedSelection.getJoined( this._expandLinkRange( model, selEnd ) || selectedRange );
+		}
+
+		if ( updatedSelection && ( updatedSelection.start.isBefore( selStart ) || updatedSelection.end.isAfter( selEnd ) ) ) {
+			// Only update the selection if it changed.
+			writer.setSelection( updatedSelection );
+		}
+	}
+
+	/**
+	 * Enables autolinking on pasting a URL when some content is selected.
+	 */
+	private _enablePasteLinking(): void {
+		const editor = this.editor;
+		const model = editor.model;
+		const selection = model.document.selection;
+		const clipboardPipeline = editor.plugins.get( 'ClipboardPipeline' );
+		const linkCommand = editor.commands.get( 'link' )!;
+
+		clipboardPipeline.on<ClipboardInputTransformationEvent>( 'inputTransformation', ( evt, data ) => {
+			if ( !this.isEnabled || !linkCommand.isEnabled || selection.isCollapsed || data.method !== 'paste' ) {
+				// Abort if we are disabled or the selection is collapsed.
+				return;
+			}
+
+			if ( selection.rangeCount > 1 ) {
+				// Abort if there are multiple selection ranges.
+				return;
+			}
+
+			const selectedRange = selection.getFirstRange()!;
+
+			const newLink = data.dataTransfer.getData( 'text/plain' );
+
+			if ( !newLink ) {
+				// Abort if there is no plain text on the clipboard.
+				return;
+			}
+
+			const matches = newLink.match( URL_REG_EXP );
+
+			// If the text in the clipboard has a URL, and that URL is the whole clipboard.
+			if ( matches && matches[ 2 ] === newLink ) {
+				model.change( writer => {
+					this._selectEntireLinks( writer, selectedRange );
+					linkCommand.execute( newLink );
+				} );
+
+				evt.stop();
+			}
+		}, { priority: 'high' } );
 	}
 
 	/**
@@ -113,27 +205,40 @@ export default class AutoLink extends Plugin {
 		const editor = this.editor;
 
 		const watcher = new TextWatcher( editor.model, text => {
+			let mappedText = text;
+
 			// 1. Detect <kbd>Space</kbd> after a text with a potential link.
-			if ( !isSingleSpaceAtTheEnd( text ) ) {
+			if ( !isSingleSpaceAtTheEnd( mappedText ) ) {
 				return;
 			}
 
-			// 2. Check text before last typed <kbd>Space</kbd>.
-			const url = getUrlAtTextEnd( text.substr( 0, text.length - 1 ) );
+			// 2. Remove the last space character.
+			mappedText = mappedText.slice( 0, -1 );
+
+			// 3. Remove punctuation at the end of the URL if it exists.
+			if ( '!.:,;?'.includes( mappedText[ mappedText.length - 1 ] ) ) {
+				mappedText = mappedText.slice( 0, -1 );
+			}
+
+			// 4. Check text before last typed <kbd>Space</kbd> or punctuation.
+			const url = getUrlAtTextEnd( mappedText );
 
 			if ( url ) {
-				return { url };
+				return {
+					url,
+					removedTrailingCharacters: text.length - mappedText.length
+				};
 			}
 		} );
 
-		watcher.on<TextWatcherMatchedDataEvent<{ url: string }>>( 'matched:data', ( evt, data ) => {
-			const { batch, range, url } = data;
+		watcher.on<TextWatcherMatchedDataEvent<{ url: string; removedTrailingCharacters: number }>>( 'matched:data', ( evt, data ) => {
+			const { batch, range, url, removedTrailingCharacters } = data;
 
 			if ( !batch.isTyping ) {
 				return;
 			}
 
-			const linkEnd = range.end.getShiftedBy( -1 ); // Executed after a space character.
+			const linkEnd = range.end.getShiftedBy( -removedTrailingCharacters ); // Executed after a space character or punctuation.
 			const linkStart = linkEnd.getShiftedBy( -url.length );
 
 			const linkRange = editor.model.createRange( linkStart, linkEnd );
@@ -159,11 +264,14 @@ export default class AutoLink extends Plugin {
 		enterCommand.on( 'execute', () => {
 			const position = model.document.selection.getFirstPosition()!;
 
-			if ( !position.parent.previousSibling ) {
-				return;
-			}
+			let rangeToCheck: ModelRange;
 
-			const rangeToCheck = model.createRangeIn( position.parent.previousSibling as Element );
+			// Previous sibling might not be an element if enter was blocked due to be triggered in a limit element.
+			if ( position.parent.previousSibling?.is( 'element' ) ) {
+				rangeToCheck = model.createRangeIn( position.parent.previousSibling );
+			} else {
+				rangeToCheck = model.createRange( model.createPositionAt( position.parent, 0 ), position );
+			}
 
 			this._checkAndApplyAutoLinkOnRange( rangeToCheck );
 		} );
@@ -197,7 +305,7 @@ export default class AutoLink extends Plugin {
 	/**
 	 * Checks if the passed range contains a linkable text.
 	 */
-	private _checkAndApplyAutoLinkOnRange( rangeToCheck: Range ): void {
+	private _checkAndApplyAutoLinkOnRange( rangeToCheck: ModelRange ): void {
 		const model = this.editor.model;
 		const { text, range } = getLastTextLine( rangeToCheck, model );
 
@@ -219,7 +327,7 @@ export default class AutoLink extends Plugin {
 	 * @param url The URL to link.
 	 * @param range The text range to apply the link attribute to.
 	 */
-	private _applyAutoLink( url: string, range: Range ): void {
+	private _applyAutoLink( url: string, range: ModelRange ): void {
 		const model = this.editor.model;
 
 		const defaultProtocol = this.editor.config.get( 'link.defaultProtocol' );
@@ -238,7 +346,7 @@ export default class AutoLink extends Plugin {
 	 * @param url The URL to link.
 	 * @param range The text range to apply the link attribute to.
 	 */
-	private _persistAutoLink( url: string, range: Range ): void {
+	private _persistAutoLink( url: string, range: ModelRange ): void {
 		const model = this.editor.model;
 		const deletePlugin = this.editor.plugins.get( 'Delete' );
 
@@ -264,11 +372,11 @@ function getUrlAtTextEnd( text: string ): string | null {
 	return match ? match[ URL_GROUP_IN_MATCH ] : null;
 }
 
-function isLinkAllowedOnRange( range: Range, model: Model ): boolean {
+function isLinkAllowedOnRange( range: ModelRange, model: Model ): boolean {
 	return model.schema.checkAttributeInSelection( model.createSelection( range ), 'linkHref' );
 }
 
-function linkIsAlreadySet( range: Range ): boolean {
+function linkIsAlreadySet( range: ModelRange ): boolean {
 	const item = range.start.nodeAfter;
 	return !!item && item.hasAttribute( 'linkHref' );
 }

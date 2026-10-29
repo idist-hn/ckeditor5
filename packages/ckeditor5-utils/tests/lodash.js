@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { extend } from 'lodash-es';
+import { describe, expect, it } from 'vitest';
+import { extend } from 'es-toolkit/compat';
 
 describe( 'utils', () => {
 	describe( 'extend()', () => {
@@ -27,10 +28,10 @@ describe( 'utils', () => {
 
 			extend( target, ext1, ext2 );
 
-			expect( target ).to.have.property( 'a' ).to.equal( 0 );
-			expect( target ).to.have.property( 'b' ).to.equal( 1 );
-			expect( target ).to.have.property( 'c' ).to.equal( 2 );
-			expect( target ).to.have.property( 'd' ).to.equal( 2 );
+			expect( target ).toHaveProperty( 'a', 0 );
+			expect( target ).toHaveProperty( 'b', 1 );
+			expect( target ).toHaveProperty( 'c', 2 );
+			expect( target ).toHaveProperty( 'd', 2 );
 		} );
 	} );
 } );

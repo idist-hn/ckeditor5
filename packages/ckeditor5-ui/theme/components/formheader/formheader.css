@@ -1,20 +1,83 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+:root,
+:host {
+	/* Size */
+	/* One line of the header label + the header's top/bottom padding, so the header is exactly as tall
+	   as its content needs (no centering slack) while staying a real length that dialog height calcs
+	   can subtract. Mirrors the block values in --ck-form-header-padding. Legacy theme sets 3em. */
+	--ck-form-header-height: calc(
+		var(--ck-form-header-label-font-size) * var(--ck-line-height-base)
+		+ var(--ck-spacing-padding-comfortable)
+		+ var(--ck-spacing-padding-compact)
+	);
+
+	/* Spacing */
+	--ck-form-header-padding-block: var(--ck-spacing-padding-compact);
+	/* top / inline / bottom / inline. The block (top + bottom) values also drive --ck-form-header-height. */
+	--ck-form-header-padding: var(--ck-spacing-padding-comfortable) var(--ck-spacing-padding-comfortable) var(--ck-spacing-padding-compact) var(--ck-spacing-padding-comfortable);
+	/* Opt-in: set to a value to override the inline-start padding of the header when the back button is visible. */
+	--ck-form-header-with-back-button-padding-inline-start: var(--ck-spacing-padding-comfortable);
+
+	/* Typography */
+	--ck-form-header-label-font-size: var(--ck-font-size-normal, var(--ck-font-size-base));
+
+	/* Color */
+	/* Read through the `background` shorthand, so a gradient or pattern works too. */
+	--ck-form-header-background: transparent;
+	/* Declared `initial` and read with `--ck-color-text` as the fallback, the color the label had before, so overrides
+	   of `--ck-color-text` keep reaching the label. */
+	--ck-form-header-text-color: initial;
+}
+
 .ck.ck-form__header {
+	padding: var(--ck-form-header-padding);
+	height: var(--ck-form-header-height);
+	border-bottom: var(--ck-border-divider);
+	background: var(--ck-form-header-background);
+	/* To prevent shrinking when placed in flexbox. */
+	flex-shrink: 0;
 	display: flex;
 	flex-direction: row;
 	flex-wrap: nowrap;
 	align-items: center;
 	justify-content: space-between;
 
-	& .ck-icon {
-		margin-right: var(--ck-spacing-medium);
+	& > .ck-icon {
+		margin-inline-end: var(--ck-spacing-control-icon-gap);
+		flex-shrink: 0;
+	}
+
+	& .ck-form__header__label {
+		--ck-font-size-base: var(--ck-form-header-label-font-size);
+		font-weight: var(--ck-font-weight-ui-heading);
+		color: var(--ck-form-header-text-color, var(--ck-color-text));
+	}
+
+	/* Padding when back button is visible */
+	&:has(.ck-button-back:not(.ck-hidden)) {
+		padding-inline-start: var(--ck-form-header-with-back-button-padding-inline-start, var(--ck-spacing-padding));
+	}
+
+	& > .ck-button-back {
+		margin-inline-end: var(--ck-spacing-gap-compact);
+	}
+
+	& > .ck.ck-button {
+		flex-shrink: 0;
+		/* To have button size to be 24pxx24px */
+		padding: 1px;
+
+		/* One line-height of the header label, so the button matches the header text line box (16px * 1.5 = 24px). */
+		--ck-size-control-min-height: calc(var(--ck-form-header-label-font-size) * var(--ck-line-height-base));
 	}
 
 	& h2.ck-form__header__label {
 		flex-grow: 1;
+		text-overflow: ellipsis;
+		overflow: hidden;
 	}
 }

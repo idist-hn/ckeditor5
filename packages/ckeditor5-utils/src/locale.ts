@@ -1,22 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/locale
  */
 
-/* globals console */
-
-import toArray from './toarray';
-import { _translate, type Message } from './translation-service';
-import { getLanguageDirection, type LanguageDirection } from './language';
+import { toArray, type ArrayOrItem } from './toarray.js';
+import { _translate, _unifyTranslations, type Message } from './translation-service.js';
+import { getLanguageDirection, type LanguageDirection } from './language.js';
 
 /**
  * Represents the localization services.
  */
-export default class Locale {
+export class Locale {
 	/**
 	 * The editor UI language code in the [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1) format.
 	 *
@@ -98,8 +96,13 @@ export default class Locale {
 	public readonly t: LocaleTranslate;
 
 	/**
+	 * Object that contains translations.
+	 */
+	public translations?: Translations;
+
+	/**
 	 * Creates a new instance of the locale class. Learn more about
-	 * {@glink features/ui-language configuring the language of the editor}.
+	 * {@glink getting-started/setup/ui-language configuring the language of the editor}.
 	 *
 	 * @param options Locale configuration.
 	 * @param options.uiLanguage The editor UI language code in the
@@ -107,38 +110,25 @@ export default class Locale {
 	 * @param options.contentLanguage The editor content language code in the
 	 * [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1) format. If not specified, the same as `options.language`.
 	 * See {@link #contentLanguage}.
+	 * @param options.translations Translations passed as a editor config parameter.
 	 */
-	constructor( { uiLanguage = 'en', contentLanguage }: { readonly uiLanguage?: string; readonly contentLanguage?: string } = {} ) {
+	constructor(
+		{
+			uiLanguage = 'en',
+			contentLanguage,
+			translations
+		}: {
+			readonly uiLanguage?: string;
+			readonly contentLanguage?: string;
+			readonly translations?: ArrayOrItem<Translations>;
+		} = {}
+	) {
 		this.uiLanguage = uiLanguage;
 		this.contentLanguage = contentLanguage || this.uiLanguage;
 		this.uiLanguageDirection = getLanguageDirection( this.uiLanguage );
 		this.contentLanguageDirection = getLanguageDirection( this.contentLanguage );
-
+		this.translations = _unifyTranslations( translations );
 		this.t = ( message, values ) => this._t( message, values );
-	}
-
-	/**
-	 * The editor UI language code in the [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1) format.
-	 *
-	 * **Note**: This property was deprecated. Please use {@link #uiLanguage} and {@link #contentLanguage}
-	 * properties instead.
-	 *
-	 * @deprecated
-	 */
-	public get language(): string {
-		/**
-		 * The {@link module:utils/locale~Locale#language `Locale#language`} property was deprecated and will
-		 * be removed in the near future. Please use the {@link module:utils/locale~Locale#uiLanguage `Locale#uiLanguage`} and
-		 * {@link module:utils/locale~Locale#contentLanguage `Locale#contentLanguage`} properties instead.
-		 *
-		 * @error locale-deprecated-language-property
-		 */
-		console.warn(
-			'locale-deprecated-language-property: ' +
-			'The Locale#language property has been deprecated and will be removed in the near future. ' +
-			'Please use #uiLanguage and #contentLanguage properties instead.' );
-
-		return this.uiLanguage;
 	}
 
 	/**
@@ -154,7 +144,7 @@ export default class Locale {
 		const hasPluralForm = !!message.plural;
 		const quantity = hasPluralForm ? values[ 0 ] as number : 1;
 
-		const translatedString = _translate( this.uiLanguage, message, quantity );
+		const translatedString = _translate( this.uiLanguage, message, quantity, this.translations );
 
 		return interpolateString( translatedString, values );
 	}
@@ -165,7 +155,10 @@ export default class Locale {
  * @param values A value or an array of values that will fill message placeholders.
  * For messages supporting plural forms the first value will determine the plural form.
  */
-export type LocaleTranslate = ( message: string | Message, values?: number | string | ReadonlyArray<number | string> ) => string;
+export type LocaleTranslate = (
+	message: string | Message,
+	values?: number | string | ReadonlyArray<number | string>
+) => string;
 
 /**
  * Fills the `%0, %1, ...` string placeholders with values.
@@ -175,3 +168,13 @@ function interpolateString( string: string, values: ReadonlyArray<any> ): string
 		return ( index < values.length ) ? values[ index ] : match;
 	} );
 }
+
+/**
+ * Translations object definition.
+ */
+export type Translations = {
+	[ language: string ]: {
+		dictionary: { [ messageId: string ]: string | ReadonlyArray<string> };
+		getPluralForm?: ( ( n: number ) => number | boolean ) | null;
+	};
+};

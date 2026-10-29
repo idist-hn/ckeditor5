@@ -1,11 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../../src/model/model';
-import NoOperation from '../../../src/model/operation/nooperation';
-import OperationFactory from '../../../src/model/operation/operationfactory';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model } from '../../../src/model/model.js';
+import { NoOperation } from '../../../src/model/operation/nooperation.js';
+import { OperationFactory } from '../../../src/model/operation/operationfactory.js';
 
 describe( 'OperationFactory', () => {
 	let model;
@@ -20,7 +21,7 @@ describe( 'OperationFactory', () => {
 			baseVersion: 0
 		}, model.doc );
 
-		expect( operation ).to.instanceof( NoOperation );
-		expect( operation.baseVersion ).to.equal( 0 );
+		expect( operation ).toBeInstanceOf( NoOperation );
+		expect( operation.baseVersion ).toBe( 0 );
 	} );
 } );

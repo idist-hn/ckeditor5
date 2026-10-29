@@ -2,6 +2,7 @@
 category: features
 menu-title: Horizontal line
 meta-title: Horizontal line | CKEditor 5 Documentation
+meta-description: Insert horizontal lines in CKEditor 5 to visually separate content, improve document structure, and enhance readability.
 ---
 
 # Horizontal line
@@ -10,43 +11,32 @@ The horizontal line feature lets you visually divide your content into sections 
 
 ## Demo
 
-To insert a horizontal line in the demo below, use the toolbar button {@icon @ckeditor/ckeditor5-horizontal-line/theme/icons/horizontalline.svg Horizontal line}. Alternatively, start a new line with `---`. The {@link features/autoformat autoformatting feature} will turn it into a horizontal line.
+To insert a horizontal line in the demo below, use the toolbar button {@icon @ckeditor/ckeditor5-icons/theme/icons/horizontal-line.svg Horizontal line}. Alternatively, start a new line with `---`. The {@link features/autoformat autoformatting feature} will turn it into a horizontal line.
 
 {@snippet features/horizontal-line}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Installation
 
-<info-box info>
-	The horizontal line feature is enabled by default in the {@link installation/getting-started/predefined-builds#superbuild superbuild} only.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your rich-text editor, install the [`@ckeditor/ckeditor5-horizontal-line`](https://www.npmjs.com/package/@ckeditor/ckeditor5-horizontal-line) package:
-
-```plaintext
-npm install --save @ckeditor/ckeditor5-horizontal-line
-```
-
-And add it to your plugin list configuration:
-
+<code-switcher>
 ```js
-import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
+import { ClassicEditor, HorizontalLine } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ HorizontalLine, /* ... */ ],
 		toolbar: [ 'horizontalLine', /* ... */ ],
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+</code-switcher>
 
 ## Related features
 
@@ -63,7 +53,7 @@ The {@link module:horizontal-line/horizontalline~HorizontalLine} plugin register
 * the UI button component (`'horizontalLine'`),
 * the `'horizontalLine'` command implemented by {@link module:horizontal-line/horizontallinecommand~HorizontalLineCommand}.
 
-The command can be executed using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
+You can execute the command using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
 
 ```js
 // Inserts a horizontal line into the selected content.

@@ -1,9 +1,35 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
+
 .ck.ck-character-info {
+	padding: var(--ck-dialog-actions-padding);
+	border-top: 1px solid var(--ck-color-base-border);
 	display: flex;
-	justify-content: space-between;
+
+	/*
+	 * A long character name would otherwise widen this row past the dialog width and, because the dialog
+	 * is a grid with a shared `1fr` column, push the character grid ~1px wider. That is enough to flip the
+	 * grid's `auto-fill` column count and reflow every tile ("jumping" grid). Clipping the overflow gives
+	 * this grid item an automatic minimum size of 0, so it no longer stretches the shared column.
+	 */
+	overflow: hidden;
+
+	& > * {
+		text-transform: uppercase;
+		font-size: var(--ck-font-size-small, var(--ck-font-size-sm));
+	}
+
+	& .ck-character-info__name {
+		max-width: 275px;
+		text-overflow: ellipsis;
+		overflow: hidden;
+	}
+
+	& .ck-character-info__code {
+		opacity: .6;
+	}
+	justify-content: space-between
 }

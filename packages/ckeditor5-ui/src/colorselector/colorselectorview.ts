@@ -1,25 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/colorselector/colorselectorview
  */
 
-import FocusCycler from '../focuscycler';
-import View from '../view';
-import ViewCollection from '../viewcollection';
-import { FocusTracker, KeystrokeHandler, type Locale } from '@ckeditor/ckeditor5-utils';
+import { FocusCycler, type FocusableView } from '../focuscycler.js';
+import { View } from '../view.js';
+import { ViewCollection } from '../viewcollection.js';
+import { FocusTracker, KeystrokeHandler, isTrustedTypesEnforced, logWarning, type Locale } from '@ckeditor/ckeditor5-utils';
 
-import type { ColorPickerViewConfig } from '../colorpicker/utils';
-import type { ColorDefinition } from '../colorgrid/colorgridview';
+import type { ColorPickerViewConfig } from '../colorpicker/utils.js';
+import type { ColorDefinition } from '../colorgrid/colorgridview.js';
 import type { Model } from '@ckeditor/ckeditor5-engine';
 
-import ColorGridsFragmentView from './colorgridsfragmentview';
-import ColorPickerFragmentView from './colorpickerfragmentview';
-
-import '../../theme/components/colorselector/colorselector.css';
+import { ColorGridsFragmentView } from './colorgridsfragmentview.js';
+import { ColorPickerFragmentView } from './colorpickerfragmentview.js';
 
 /**
  * The configurable color selector view class. It allows users to select colors from a predefined set of colors as well as from
@@ -69,7 +67,7 @@ import '../../theme/components/colorselector/colorselector.css';
  * document.body.appendChild( selectorView.element );
  * ```
  */
-export default class ColorSelectorView extends View {
+export class ColorSelectorView extends View {
 	/**
 	 * Tracks information about the DOM focus in the list.
 	 */
@@ -126,7 +124,7 @@ export default class ColorSelectorView extends View {
 	 *
 	 * @readonly
 	 */
-	protected _focusables: ViewCollection;
+	protected _focusables: ViewCollection<FocusableView>;
 
 	/**
 	 * The configuration of color picker sub-component.
@@ -137,13 +135,14 @@ export default class ColorSelectorView extends View {
 	 * Creates a view to be inserted as a child of {@link module:ui/dropdown/dropdownview~DropdownView}.
 	 *
 	 * @param locale The localization services instance.
-	 * @param colors An array with definitions of colors to be displayed in the table.
-	 * @param columns The number of columns in the color grid.
-	 * @param removeButtonLabel The label of the button responsible for removing the color.
-	 * @param colorPickerLabel The label of the button responsible for color picker appearing.
-	 * @param documentColorsLabel The label for the section with the document colors.
-	 * @param documentColorsCount The number of colors in the document colors section inside the color dropdown.
-	 * @param colorPickerViewConfig The configuration of color picker feature. If set to `false`, the color picker will be hidden.
+	 * @param options Constructor options.
+	 * @param options.colors An array with definitions of colors to be displayed in the table.
+	 * @param options.columns The number of columns in the color grid.
+	 * @param options.removeButtonLabel The label of the button responsible for removing the color.
+	 * @param options.colorPickerLabel The label of the button responsible for color picker appearing.
+	 * @param options.documentColorsLabel The label for the section with the document colors.
+	 * @param options.documentColorsCount The number of colors in the document colors section inside the color dropdown.
+	 * @param options.colorPickerViewConfig The configuration of color picker feature. If set to `false`, the color picker will be hidden.
 	 */
 	constructor(
 		locale: Locale,
@@ -166,6 +165,28 @@ export default class ColorSelectorView extends View {
 		}
 	) {
 		super( locale );
+
+		// The color picker cannot be rendered when the application enforces Trusted Types, because its markup does not
+		// go through the editor's Trusted Types policy. Turning it off leaves the color grids working.
+		if ( colorPickerViewConfig && isTrustedTypesEnforced() ) {
+			/**
+			 * The color picker is not available, because the application enforces Trusted Types with the
+			 * `require-trusted-types-for 'script'` CSP directive. The color picker cannot be rendered under that
+			 * directive, so the editor turns it off.
+			 *
+			 * The color palettes and the document colors are not affected. To turn the color picker off yourself, and
+			 * stop this warning, set the `colorPicker` option of the feature to `false`.
+			 *
+			 * For a detailed overview, check the {@glink getting-started/setup/csp#known-limitations Content Security
+			 * Policy} guide.
+			 *
+			 * @error color-picker-unavailable-with-trusted-types
+			 */
+			logWarning( 'color-picker-unavailable-with-trusted-types' );
+
+			colorPickerViewConfig = false;
+		}
+
 		this.items = this.createCollection();
 
 		this.focusTracker = new FocusTracker();
@@ -209,7 +230,7 @@ export default class ColorSelectorView extends View {
 
 		/**
 		 * This is kind of bindings. Unfortunately we could not use this.bind() method because the same property
-		 * can not be bound twice. So this is work around how to bind 'selectedColor' property between components.
+		 * cannot be bound twice. So this is work around how to bind 'selectedColor' property between components.
 		 */
 		this.on( 'change:selectedColor', ( evt, evtName, data ) => {
 			this.colorGridsFragmentView.set( 'selectedColor', data );
@@ -287,6 +308,7 @@ export default class ColorSelectorView extends View {
 
 		this._isColorPickerFragmentVisible = true;
 		this.colorPickerFragmentView.focus();
+		this.colorPickerFragmentView.resetValidationStatus();
 		this._isColorGridsFragmentVisible = false;
 	}
 

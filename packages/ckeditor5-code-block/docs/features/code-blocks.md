@@ -5,21 +5,41 @@ meta-title: Code blocks | CKEditor 5 Documentation
 
 # Code blocks
 
-{@snippet features/build-code-block-source}
-
 The code block feature lets you insert and edit blocks of pre-formatted code. It is perfect for presenting programming-related content in an attractive, easy-to-read form.
 
 ## Demo
 
-Use the code block toolbar button {@icon @ckeditor/ckeditor5-code-block/theme/icons/codeblock.svg Insert code block} and the type dropdown to insert a desired code block. Alternatively, start a line with `` ``` ``, and the {@link features/autoformat autoformatting feature} will format it as a code block. To add a paragraph under a code block, simply press <kbd>Enter</kbd> three times.
+Use the code block toolbar button {@icon @ckeditor/ckeditor5-icons/theme/icons/code-block.svg Insert code block} and the type dropdown to insert a desired code block. Alternatively, start a line with a backtick, and the {@link features/autoformat autoformatting feature} will format it as a code block. To add a paragraph under a code block, simply press <kbd>Enter</kbd> three times.
 
 {@snippet features/code-block}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
-Each code block has a [specific programming language assigned](#configuring-code-block-languages) (e.g. "Java" or "CSS"; this is configurable) and supports basic editing tools, for instance, [changing the line indentation](#changing-line-indentation) using the keyboard.
+Each code block has a [specific programming language assigned](#configuring-code-block-languages) (like "Java" or "CSS"; this is configurable) and supports basic editing tools, for instance, [changing the line indentation](#changing-line-indentation) using the keyboard.
+
+## Installation
+
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
+
+<code-switcher>
+```js
+import { ClassicEditor, CodeBlock } from 'ckeditor5';
+
+ClassicEditor
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
+		plugins: [ CodeBlock, /* ... */ ],
+		toolbar: [ 'codeBlock', /* ... */ ]
+		codeBlock: {
+			// Configuration.
+		}
+	} )
+	.then( /* ... */ )
+	.catch( /* ... */ );
+```
+</code-switcher>
 
 ## Configuring code block languages
 
@@ -33,7 +53,8 @@ It is possible to configure which languages are available to the users. You can 
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		// ... Other configuration options ...
 		codeBlock: {
 			languages: [
 				{ language: 'css', label: 'CSS' },
@@ -51,7 +72,8 @@ By default, the CSS class of the `<code>` element in the data and editing is gen
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		// ... Other configuration options ...
 		codeBlock: {
 			languages: [
 				// Do not render the CSS class for the plain text code blocks.
@@ -74,28 +96,28 @@ ClassicEditor
 ```
 
 <info-box>
-	The first language defined in the configuration is considered the default one. This means it will be applied to code blocks loaded from the data that have no CSS `class` specified (or no `class` matching the {@link module:code-block/codeblockconfig~CodeBlockConfig#languages configuration}). It will also be used when creating new code blocks using the toolbar button. By default it is "Plain text" (the `language-plaintext` CSS class).
+	The first language defined in the configuration is considered the default one. This means it will be applied to code blocks loaded from the data that have no CSS `class` specified (or no `class` matching the {@link module:code-block/codeblockconfig~CodeBlockConfig#languages configuration}). It will also be used when creating new code blocks using the toolbar button. By default, it is "Plain text" (the `language-plaintext` CSS class).
 </info-box>
 
 ### Integration with code highlighters
 
-Although live code block highlighting ***is impossible when editing*** in CKEditor&nbsp;5 ([learn more](https://github.com/ckeditor/ckeditor5/issues/436#issuecomment-548399675)), the content can be highlighted when displayed in the frontend (e.g. in blog posts, messages, etc.).
+Although live code block highlighting ***is impossible when editing*** in CKEditor&nbsp;5 ([learn more](https://github.com/ckeditor/ckeditor5/issues/436#issuecomment-548399675)), the content can be highlighted when displayed in the frontend (for example, in blog posts or website content).
 
-The code language {@link module:code-block/codeblockconfig~CodeBlockConfig#languages configuration} helps to integrate with external code highlighters (e.g. [highlight.js](https://highlightjs.org/) or [Prism](https://prismjs.com/)). Please refer to the documentation of the highlighter of your choice and make sure the CSS classes configured in `codeBlock.languages` correspond with the code syntax auto–detection feature of the highlighter.
+The code language {@link module:code-block/codeblockconfig~CodeBlockConfig#languages configuration} helps to integrate with external code highlighters (for example, [highlight.js](https://highlightjs.org/) or [Prism](https://prismjs.com/)). Refer to the documentation of the highlighter of your choice and make sure the CSS classes configured in `codeBlock.languages` correspond with the code syntax autodetection feature of the highlighter.
 
 ## Tips and tweaks
 
 ### Editing text around code blocks
 
-There could be situations when there is no obvious way to set the caret before or after a block of code and type. This can happen when the code block is preceded or followed by a widget (e.g. a table) or when the code block is the first or the last child of the document (or both).
+There could be situations when there is no obvious way to set the caret before or after a block of code and type. This can happen when the code block is preceded or followed by a widget (like a table) or when the code block is the first or the last child of the document (or both).
 
 * To type **before the code block**: Put the selection at the beginning of the first line of the code block and press <kbd>Enter</kbd>. Move the selection to the empty line that has been created and press <kbd>Enter</kbd> again. A new paragraph that you can type in will be created before the code block.
 
-	{@img assets/img/code-blocks-typing-before.gif 770 The animation shows typing before the code blocks in CKEditor&nbsp;5 rich text editor.}
+	{@img assets/img/code-blocks-typing-before.gif The animation shows typing before the code blocks in CKEditor&nbsp;5 rich text editor.}
 
 * To type **after the code block**: Put the selection at the end of the last line of the code block and press <kbd>Enter</kbd> three times. A new paragraph that you can type in will be created after the code block.
 
-	{@img assets/img/code-blocks-typing-after.gif 770 The animation shows typing after the code blocks in CKEditor&nbsp;5 rich text editor.}
+	{@img assets/img/code-blocks-typing-after.gif The animation shows typing after the code blocks in CKEditor&nbsp;5 rich text editor.}
 
 ### Changing line indentation
 
@@ -104,55 +126,32 @@ You can change the indentation of the code using keyboard shortcuts and toolbar 
 * To **increase** indentation: Select the line (or lines) you want to indent. Hit the <kbd>Tab</kbd> key or press the "Increase indent" button in the toolbar.
 * To **decrease** indentation: Select the line (or lines) the indent should decrease. Hit the <kbd>Shift</kbd>+<kbd>Tab</kbd> keys or press the "Decrease indent" button in the toolbar.
 
-{@img assets/img/code-blocks-outdent-indent.gif 770 The animation shows changing indentation inside code blocks in CKEditor&nbsp;5 rich text editor.}
+{@img assets/img/code-blocks-outdent-indent.gif The animation shows changing indentation inside code blocks in CKEditor&nbsp;5 rich text editor.}
 
 <info-box>
-	The indentation created this way can be changed. Use the {@link module:code-block/codeblockconfig~CodeBlockConfig#indentSequence `codeBlock.indentSequence`} configuration to choose some other character (or characters) of your preference (e.g. four spaces). By default, the indentation changes by a single tab (`\t`) character.
+	The indentation created this way can be changed. Use the {@link module:code-block/codeblockconfig~CodeBlockConfig#indentSequence `codeBlock.indentSequence`} configuration to choose some other character (or characters) of your preference (for example, four spaces). By default, the indentation changes by a single tab (`\t`) character.
 </info-box>
 
 <info-box>
-	You can disable the indentation tools and their associated keystrokes altogether by setting the {@link module:code-block/codeblockconfig~CodeBlockConfig#indentSequence `codeBlock.indentSequence`}  configuration to `false`.
+	You can turn off the indentation tools and their associated keystrokes altogether by setting the {@link module:code-block/codeblockconfig~CodeBlockConfig#indentSequence `codeBlock.indentSequence`}  configuration to `false`.
 </info-box>
+
+### Disabled features inside code blocks
+
+Code blocks are designed to contain plain code, so several editor features are automatically disabled when the cursor is inside a code block:
+
+* **Text formatting** &ndash; Attributes such as bold, italic, and other formatting styles cannot be applied.
+* **Mentions, slash commands, and emoji** &ndash; The {@link features/mentions mention} autocompletion (and features built on top of it, such as {@link features/slash-commands slash commands} and {@link features/emoji emoji}) will not trigger inside code blocks.
 
 ### Preserving line indentation
 
 To speed up the editing, when typing in a code block, the indentation of the current line is preserved when you hit <kbd>Enter</kbd> and create a new line. If you want to change the indentation of the new line, take a look at [some easy ways to do that](#changing-line-indentation).
 
-{@img assets/img/code-blocks-preserve-indentation.gif 770 The animation shows preserving indentation inside code blocks in CKEditor&nbsp;5 rich text editor.}
-
-## Installation
-
-<info-box info>
-	The code block feature is enabled by default in the {@link installation/getting-started/predefined-builds#superbuild superbuild} only.
-</info-box>
-
-To add the code blocks feature to your rich-text editor, install the [`@ckeditor/ckeditor5-code-block`](https://www.npmjs.com/package/@ckeditor/ckeditor5-code-block) package:
-
-```
-npm install --save @ckeditor/ckeditor5-code-block
-```
-
-Then add it to your plugin list and the toolbar configuration:
-
-```js
-import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
-
-ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		plugins: [ CodeBlock, /* ... */ ],
-		toolbar: [ 'codeBlock', /* ... */ ]
-	} )
-	.then( /* ... */ )
-	.catch( /* ... */ );
-```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+{@img assets/img/code-blocks-preserve-indentation.gif The animation shows preserving indentation inside code blocks in CKEditor&nbsp;5 rich text editor.}
 
 ## Related features
 
-Here are some CKEditor&nbsp;5 features that you may find helpfully similar:
+Here are some similar CKEditor&nbsp;5 features that you may find helpful:
 * {@link features/basic-styles Basic text styles} &ndash; Use the `code` formatting for short inline code chunks.
 * {@link features/block-quote Block quote} &ndash; Include block quotations or pull quotes in your rich-text content.
 * {@link features/indent Block indentation} &ndash; Set indentation for text blocks such as paragraphs or lists.
@@ -187,6 +186,7 @@ The {@link module:code-block/codeblock~CodeBlock} plugin registers:
 		{ language: 'cpp', label: 'C++' },
 		{ language: 'css', label: 'CSS' },
 		{ language: 'diff', label: 'Diff' },
+		{ language: 'go', label: 'Go' },
 		{ language: 'html', label: 'HTML' },
 		{ language: 'java', label: 'Java' },
 		{ language: 'javascript', label: 'JavaScript' },

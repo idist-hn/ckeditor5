@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import MediaEmbed from '../src/mediaembed';
-import MediaEmbedEditing from '../src/mediaembedediting';
-import MediaEmbedUI from '../src/mediaembedui';
-import AutoMediaEmbed from '../src/automediaembed';
-import Widget from '@ckeditor/ckeditor5-widget/src/widget';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { MediaEmbed } from '../src/mediaembed.js';
+import { MediaEmbedEditing } from '../src/mediaembedediting.js';
+import { MediaEmbedUI } from '../src/mediaembedui.js';
+import { AutoMediaEmbed } from '../src/automediaembed.js';
+import { Widget } from '@ckeditor/ckeditor5-widget';
+import { global } from '@ckeditor/ckeditor5-utils';
 
 describe( 'MediaEmbed', () => {
 	let editorElement, editor;
@@ -34,26 +35,34 @@ describe( 'MediaEmbed', () => {
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( MediaEmbed ) ).to.instanceOf( MediaEmbed );
+		expect( editor.plugins.get( MediaEmbed ) ).toBeInstanceOf( MediaEmbed );
 	} );
 
 	it( 'should load MediaEmbedEditing plugin', () => {
-		expect( editor.plugins.get( MediaEmbedEditing ) ).to.instanceOf( MediaEmbedEditing );
+		expect( editor.plugins.get( MediaEmbedEditing ) ).toBeInstanceOf( MediaEmbedEditing );
 	} );
 
 	it( 'should load Widget plugin', () => {
-		expect( editor.plugins.get( Widget ) ).to.instanceOf( Widget );
+		expect( editor.plugins.get( Widget ) ).toBeInstanceOf( Widget );
 	} );
 
 	it( 'should load MediaEmbedUI plugin', () => {
-		expect( editor.plugins.get( MediaEmbedUI ) ).to.instanceOf( MediaEmbedUI );
+		expect( editor.plugins.get( MediaEmbedUI ) ).toBeInstanceOf( MediaEmbedUI );
 	} );
 
 	it( 'should load AutoMediaEmbed plugin', () => {
-		expect( editor.plugins.get( AutoMediaEmbed ) ).to.instanceOf( AutoMediaEmbed );
+		expect( editor.plugins.get( AutoMediaEmbed ) ).toBeInstanceOf( AutoMediaEmbed );
 	} );
 
 	it( 'has proper name', () => {
-		expect( MediaEmbed.pluginName ).to.equal( 'MediaEmbed' );
+		expect( MediaEmbed.pluginName ).toBe( 'MediaEmbed' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( MediaEmbed.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( MediaEmbed.isPremiumPlugin ).toBe( false );
 	} );
 } );

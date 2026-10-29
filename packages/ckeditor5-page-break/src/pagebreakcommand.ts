@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module page-break/pagebreakcommand
  */
 
-import { Command } from 'ckeditor5/src/core';
-import { findOptimalInsertionRange } from 'ckeditor5/src/widget';
-import type { DocumentSelection, Element, Model, Schema } from 'ckeditor5/src/engine';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { findOptimalInsertionRange } from '@ckeditor/ckeditor5-widget';
+import type { ModelDocumentSelection, ModelElement, Model, ModelSchema } from '@ckeditor/ckeditor5-engine';
 
 /**
  * The page break command.
@@ -20,7 +20,7 @@ import type { DocumentSelection, Element, Model, Schema } from 'ckeditor5/src/en
  *
  *		editor.execute( 'pageBreak' );
  */
-export default class PageBreakCommand extends Command {
+export class PageBreakCommand extends Command {
 	/**
 	 * @inheritDoc
 	 */
@@ -53,7 +53,7 @@ export default class PageBreakCommand extends Command {
 /**
  * Checks if a page break is allowed by the schema in the optimal insertion parent.
  */
-function isPageBreakAllowedInParent( selection: DocumentSelection, schema: Schema, model: Model ): boolean {
+function isPageBreakAllowedInParent( selection: ModelDocumentSelection, schema: ModelSchema, model: Model ): boolean {
 	const parent = getInsertPageBreakParent( selection, model );
 
 	return schema.checkChild( parent, 'pageBreak' );
@@ -62,13 +62,13 @@ function isPageBreakAllowedInParent( selection: DocumentSelection, schema: Schem
 /**
  * Returns a node that will be used to insert a page break with `model.insertContent` to check if the page break can be placed there.
  */
-function getInsertPageBreakParent( selection: DocumentSelection, model: Model ): Element {
+function getInsertPageBreakParent( selection: ModelDocumentSelection, model: Model ): ModelElement {
 	const insertionRange = findOptimalInsertionRange( selection, model );
 	const parent = insertionRange.start.parent;
 
-	if ( parent.isEmpty && !parent.is( 'element', '$root' ) ) {
-		return parent.parent as Element;
+	if ( parent.isEmpty && !parent.is( 'rootElement' ) ) {
+		return parent.parent as ModelElement;
 	}
 
-	return parent as Element;
+	return parent as ModelElement;
 }

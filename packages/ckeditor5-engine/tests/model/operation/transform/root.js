@@ -1,7 +1,9 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { Client, syncClients, clearBuffer } from './utils.js';
 
@@ -29,10 +31,10 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'foo' ) ).not.to.be.null;
-				expect( john.document.getRoot( 'bar' ) ).not.to.be.null;
-				expect( kate.document.getRoot( 'foo' ) ).not.to.be.null;
-				expect( kate.document.getRoot( 'bar' ) ).not.to.be.null;
+				expect( john.document.getRoot( 'foo' ) ).not.toBeNull();
+				expect( john.document.getRoot( 'bar' ) ).not.toBeNull();
+				expect( kate.document.getRoot( 'foo' ) ).not.toBeNull();
+				expect( kate.document.getRoot( 'bar' ) ).not.toBeNull();
 			} );
 
 			it( 'with the same name', () => {
@@ -41,8 +43,8 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'new' ) ).not.to.be.null;
-				expect( kate.document.getRoot( 'new' ) ).not.to.be.null;
+				expect( john.document.getRoot( 'new' ) ).not.toBeNull();
+				expect( kate.document.getRoot( 'new' ) ).not.toBeNull();
 			} );
 		} );
 	} );
@@ -60,10 +62,10 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'foo' ).isAttached() ).to.be.false;
-				expect( john.document.getRoot( 'bar' ).isAttached() ).to.be.false;
-				expect( kate.document.getRoot( 'foo' ).isAttached() ).to.be.false;
-				expect( kate.document.getRoot( 'bar' ).isAttached() ).to.be.false;
+				expect( john.document.getRoot( 'foo' ).isAttached() ).toBe( false );
+				expect( john.document.getRoot( 'bar' ).isAttached() ).toBe( false );
+				expect( kate.document.getRoot( 'foo' ).isAttached() ).toBe( false );
+				expect( kate.document.getRoot( 'bar' ).isAttached() ).toBe( false );
 			} );
 
 			it( 'with the same name', () => {
@@ -77,8 +79,8 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'new' ).isAttached() ).to.be.false;
-				expect( kate.document.getRoot( 'new' ).isAttached() ).to.be.false;
+				expect( john.document.getRoot( 'new' ).isAttached() ).toBe( false );
+				expect( kate.document.getRoot( 'new' ).isAttached() ).toBe( false );
 			} );
 
 			it( 'with the same name, then undo one', () => {
@@ -94,8 +96,8 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'new' ).isAttached() ).to.be.true;
-				expect( kate.document.getRoot( 'new' ).isAttached() ).to.be.true;
+				expect( john.document.getRoot( 'new' ).isAttached() ).toBe( true );
+				expect( kate.document.getRoot( 'new' ).isAttached() ).toBe( true );
 			} );
 
 			it( 'with the same name, then undo both', () => {
@@ -112,8 +114,8 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'new' ).isAttached() ).to.be.true;
-				expect( kate.document.getRoot( 'new' ).isAttached() ).to.be.true;
+				expect( john.document.getRoot( 'new' ).isAttached() ).toBe( true );
+				expect( kate.document.getRoot( 'new' ).isAttached() ).toBe( true );
 			} );
 
 			it( 'with the same name, then undo both, then redo one', () => {
@@ -131,8 +133,8 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'new' ).isAttached() ).to.be.false;
-				expect( kate.document.getRoot( 'new' ).isAttached() ).to.be.false;
+				expect( john.document.getRoot( 'new' ).isAttached() ).toBe( false );
+				expect( kate.document.getRoot( 'new' ).isAttached() ).toBe( false );
 			} );
 
 			it( 'with the same name, then undo both, then redo both', () => {
@@ -151,8 +153,8 @@ describe( 'transform', () => {
 
 				syncClients();
 
-				expect( john.document.getRoot( 'new' ).isAttached() ).to.be.false;
-				expect( kate.document.getRoot( 'new' ).isAttached() ).to.be.false;
+				expect( john.document.getRoot( 'new' ).isAttached() ).toBe( false );
+				expect( kate.document.getRoot( 'new' ).isAttached() ).toBe( false );
 			} );
 		} );
 	} );

@@ -1,17 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import RemoveRowCommand from '../../src/commands/removerowcommand';
-import TableSelection from '../../src/tableselection';
-import { modelTable, viewTable } from '../_utils/utils';
-import TableEditing from '../../src/tableediting';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { _setModelData, _getModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
+
+import { RemoveRowCommand } from '../../src/commands/removerowcommand.js';
+import { TableSelection } from '../../src/tableselection.js';
+import { modelTable, viewTable } from '../_utils/utils.js';
+import { TableEditing } from '../../src/tableediting.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
 describe( 'RemoveRowCommand', () => {
 	let editor, model, command;
@@ -29,16 +30,16 @@ describe( 'RemoveRowCommand', () => {
 
 	describe( 'isEnabled', () => {
 		it( 'should be true if selection is inside table cell', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01' ],
 				[ '10', '11' ]
 			] ) );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be true if selection contains multiple cells', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ],
 				[ '20', '21' ]
@@ -51,19 +52,19 @@ describe( 'RemoveRowCommand', () => {
 				modelRoot.getNodeByPath( [ 0, 0, 1 ] )
 			);
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should be false if selection is inside table with one row only', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00[]', '01' ]
 			] ) );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if all the rows are selected', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '10', '11' ]
 			] ) );
@@ -75,18 +76,18 @@ describe( 'RemoveRowCommand', () => {
 				modelRoot.getNodeByPath( [ 0, 1, 0 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if selection is outside a table', () => {
-			setData( model, '<paragraph>11[]</paragraph>' );
+			_setModelData( model, '<paragraph>11[]</paragraph>' );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false when the first column with rowspan is selected', () => {
-			// (#6427)
-			setData( model, modelTable( [
+			// (https://github.com/ckeditor/ckeditor5/issues/6427)
+			_setModelData( model, modelTable( [
 				[ { rowspan: 2, contents: '00' }, '01' ],
 				[ '11' ],
 				[ '20', '21' ]
@@ -99,11 +100,11 @@ describe( 'RemoveRowCommand', () => {
 				modelRoot.getNodeByPath( [ 0, 2, 0 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should be false if all the rows are selected - table with more than 10 rows (array sort bug)', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '0' ],
 				[ '1' ],
 				[ '2' ],
@@ -126,13 +127,13 @@ describe( 'RemoveRowCommand', () => {
 				modelRoot.getNodeByPath( [ 0, 12, 0 ] )
 			);
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'should remove a given row', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '[]10', '11' ],
 				[ '20', '21' ]
@@ -140,7 +141,7 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '00', '01' ],
 				[ '[]20', '21' ]
 			] ) );
@@ -148,7 +149,7 @@ describe( 'RemoveRowCommand', () => {
 
 		describe( 'with multiple rows selected', () => {
 			it( 'should properly remove middle rows', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -164,14 +165,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '[]30', '31' ]
 				] ) );
 			} );
 
 			it( 'should properly remove middle rows in reversed order', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -187,14 +188,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '[]30', '31' ]
 				] ) );
 			} );
 
 			it( 'should properly remove tailing rows', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -210,14 +211,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '[]10', '11' ]
 				] ) );
 			} );
 
 			it( 'should properly remove beginning rows', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -233,14 +234,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '[]20', '21' ],
 					[ '30', '31' ]
 				] ) );
 			} );
 
 			it( 'should support removing multiple headings (removed rows in heading section)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -256,14 +257,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '[]20', '21' ],
 					[ '30', '31' ]
 				], { headingRows: 1 } ) );
 			} );
 
 			it( 'should support removing multiple headings (removed rows in heading and body section)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -281,20 +282,20 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '[]40', '41' ]
 				], { headingRows: 1 } ) );
 
 				// The editing view should also be properly downcasted.
-				expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equalMarkup( viewTable( [
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqualMarkup( viewTable( [
 					[ '00', '01' ],
 					[ '40', '41' ]
 				], { headingRows: 1, asWidget: true } ) );
 			} );
 
 			it( 'should support removing mixed heading and cell rows', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ]
@@ -309,13 +310,110 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '[]20', '21' ]
 				] ) );
 			} );
 
+			it( 'should support removing multiple footers (removed rows in footer section)', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ],
+					[ '20', '21' ],
+					[ '30', '31' ]
+				], { footerRows: 3 } ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 2, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
+					[ '00', '01' ],
+					[ '[]30', '31' ]
+				], { footerRows: 1 } ) );
+			} );
+
+			it( 'should support removing multiple footers (removed rows in footer and body section)', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ],
+					[ '20', '21' ],
+					[ '30', '31' ],
+					[ '40', '41' ]
+				], { footerRows: 3 } ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 3, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
+					[ '00', '01' ],
+					[ '[]40', '41' ]
+				], { footerRows: 1 } ) );
+
+				// The editing view should also be properly downcasted.
+				expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqualMarkup( viewTable( [
+					[ '00', '01' ],
+					[ '40', '41' ]
+				], { footerRows: 1, asWidget: true } ) );
+			} );
+
+			it( 'should support removing mixed footer and cell rows', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ],
+					[ '20', '21' ]
+				], { footerRows: 1 } ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 1, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 2, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
+					[ '[]00', '01' ]
+				] ) );
+			} );
+
+			it( 'should support removing mixed header, footer, and body rows', () => {
+				_setModelData( model, modelTable( [
+					[ '00', '01' ],
+					[ '10', '11' ],
+					[ '20', '21' ],
+					[ '30', '31' ]
+				], { headingRows: 1, footerRows: 2 } ) );
+
+				const tableSelection = editor.plugins.get( TableSelection );
+				const modelRoot = model.document.getRoot();
+				tableSelection.setCellSelection(
+					modelRoot.getNodeByPath( [ 0, 0, 0 ] ),
+					modelRoot.getNodeByPath( [ 0, 2, 0 ] )
+				);
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
+					[ '[]30', '31' ]
+				], { footerRows: 1 } ) );
+			} );
+
 			it( 'should properly calculate truncated rowspans', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', { contents: '01', rowspan: 3 } ],
 					[ '10' ],
 					[ '20' ]
@@ -330,13 +428,13 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '[]20', '01' ]
 				] ) );
 			} );
 
 			it( 'should create one undo step (1 batch)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ],
@@ -360,11 +458,11 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( createdBatches.size ).to.equal( 1 );
+				expect( createdBatches.size ).toEqual( 1 );
 			} );
 
 			it( 'should properly remove more than 10 rows selected (array sort bug)', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '0' ],
 					[ '1' ],
 					[ '2' ],
@@ -391,7 +489,7 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model, { withoutSelection: true } ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqualMarkup( modelTable( [
 					[ '0' ],
 					[ '13' ],
 					[ '14' ]
@@ -401,7 +499,7 @@ describe( 'RemoveRowCommand', () => {
 
 		describe( 'with entire row selected', () => {
 			it( 'should remove a row if all its cells are selected', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ],
 					[ '20', '21' ]
@@ -416,14 +514,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '00', '01' ],
 					[ '[]20', '21' ]
 				] ) );
 			} );
 
 			it( 'should properly remove row if reversed selection is made', () => {
-				setData( model, modelTable( [
+				_setModelData( model, modelTable( [
 					[ '00', '01' ],
 					[ '10', '11' ]
 				] ) );
@@ -437,14 +535,14 @@ describe( 'RemoveRowCommand', () => {
 
 				command.execute();
 
-				expect( getData( model ) ).to.equalMarkup( modelTable( [
+				expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 					[ '[]10', '11' ]
 				] ) );
 			} );
 		} );
 
 		it( 'should remove a given row from a table start', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]00', '01' ],
 				[ '10', '11' ],
 				[ '20', '21' ]
@@ -452,14 +550,14 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]10', '11' ],
 				[ '20', '21' ]
 			] ) );
 		} );
 
 		it( 'should remove a given row from a table start when selection is at the end', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01[]' ],
 				[ '10', '11' ],
 				[ '20', '21' ]
@@ -467,21 +565,21 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '10', '[]11' ],
 				[ '20', '21' ]
 			] ) );
 		} );
 
 		it( 'should remove last row', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '[]10', '11' ]
 			] ) );
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]00', '01' ]
 			] ) );
 		} );
@@ -498,7 +596,7 @@ describe( 'RemoveRowCommand', () => {
 				model: 'foo'
 			} );
 
-			setData( model,
+			_setModelData( model,
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell><paragraph>00</paragraph></tableCell>' +
@@ -514,7 +612,7 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup(
+			expect( _getModelData( model ) ).toEqualMarkup(
 				'<table>' +
 					'<tableRow>' +
 						'<tableCell><paragraph>[]00</paragraph></tableCell>' +
@@ -526,7 +624,7 @@ describe( 'RemoveRowCommand', () => {
 		} );
 
 		it( 'should change heading rows if removing a heading row', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', '01' ],
 				[ '[]10', '11' ],
 				[ '20', '21' ]
@@ -534,14 +632,29 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '00', '01' ],
 				[ '[]20', '21' ]
 			], { headingRows: 1 } ) );
 		} );
 
+		it( 'should change footer rows if removing a footer row', () => {
+			_setModelData( model, modelTable( [
+				[ '00', '01' ],
+				[ '[]10', '11' ],
+				[ '20', '21' ]
+			], { footerRows: 2 } ) );
+
+			command.execute();
+
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
+				[ '00', '01' ],
+				[ '[]20', '21' ]
+			], { footerRows: 1 } ) );
+		} );
+
 		it( 'should decrease rowspan of table cells from previous rows', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ { rowspan: 4, contents: '00' }, { rowspan: 3, contents: '01' }, { rowspan: 2, contents: '02' }, '03', '04' ],
 				[ { rowspan: 2, contents: '13' }, '14' ],
 				[ '22[]', '24' ],
@@ -550,7 +663,7 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { rowspan: 3, contents: '00' }, { rowspan: 2, contents: '01' }, { rowspan: 2, contents: '02' }, '03', '04' ],
 				[ '13', '14' ],
 				[ '31', '32', '[]33', '34' ]
@@ -558,7 +671,7 @@ describe( 'RemoveRowCommand', () => {
 		} );
 
 		it( 'should move rowspaned cells to row below removing it\'s row', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ { rowspan: 3, contents: '[]00' }, { rowspan: 2, contents: '01' }, '02' ],
 				[ '12' ],
 				[ '21', '22' ],
@@ -567,7 +680,7 @@ describe( 'RemoveRowCommand', () => {
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ { rowspan: 2, contents: '[]00' }, '01', '12' ],
 				[ '21', '22' ],
 				[ '30', '31', '32' ]
@@ -575,14 +688,14 @@ describe( 'RemoveRowCommand', () => {
 		} );
 
 		it( 'should remove empty columns after removing row', () => {
-			setData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '00', { contents: '01', colspan: 2 } ],
 				[ '[]10', '11', '12' ]
 			] ) );
 
 			command.execute();
 
-			expect( getData( model ) ).to.equalMarkup( modelTable( [
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]00', '01' ]
 			] ) );
 		} );

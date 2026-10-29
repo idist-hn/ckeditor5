@@ -1,10 +1,40 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/*
- * Note: This file should contain the wireframe styles only. But since there are no such styles,
- * it acts as a message to the builder telling that it should look for the corresponding styles
- * **in the theme** when compiling the editor.
- */
+:root,
+:host {
+	/* Radius */
+	/* Uniform (fully rounded) corners by default; set this to initial to restore the attached-corner (squared connecting edge) look, as the legacy theme does. */
+	--ck-list-dropdown-uniform-border-radius: var(--ck-border-radius-uniform);
+
+	/* Unifies every item button's border-radius (first, last, and middle) to a uniform radius by default;
+	set this to initial for the attached-corner partials on first/last items, as the legacy theme does. */
+	--ck-list-dropdown-button-border-radius: var(--ck-border-radius-control);
+}
+
+.ck.ck-dropdown > .ck-dropdown__panel > .ck-list {
+	/* Disabled radius of top-left border to be consistent with .dropdown__button
+	https://github.com/ckeditor/ckeditor5/issues/816 */
+	border-radius: var(--ck-list-dropdown-uniform-border-radius, 0 var(--ck-dropdown-panel-border-radius) var(--ck-dropdown-panel-border-radius) var(--ck-dropdown-panel-border-radius));
+
+	/* Make sure the button belonging to the first/last child of the list goes well with the
+	border radius of the entire panel. */
+	& .ck-list__item {
+		/* Optional "unify all items" knob. When set, every item button (first, last, middle)
+		gets this radius. When absent, first/last keep their partial radius below and middle
+		items stay flush per the listitembutton.css default. */
+		& > .ck-button {
+			border-radius: var(--ck-list-dropdown-button-border-radius, 0);
+		}
+
+		&:first-child > .ck-button {
+			border-radius: var(--ck-list-dropdown-button-border-radius, var(--ck-list-dropdown-uniform-border-radius, 0 var(--ck-dropdown-panel-border-radius) 0 0));
+		}
+
+		&:last-child > .ck-button {
+			border-radius: var(--ck-list-dropdown-button-border-radius, var(--ck-list-dropdown-uniform-border-radius, 0 0 var(--ck-dropdown-panel-border-radius) var(--ck-dropdown-panel-border-radius)));
+		}
+	}
+}

@@ -1,21 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/ui/stylegridbuttonview
  */
 
-import type { Locale } from 'ckeditor5/src/utils';
-import { ButtonView, View } from 'ckeditor5/src/ui';
+import type { Locale } from '@ckeditor/ckeditor5-utils';
+import { ButtonView, View } from '@ckeditor/ckeditor5-ui';
 
-import type { NormalizedStyleDefinition } from '../styleutils';
+import type { NormalizedStyleDefinition } from '../styleutils.js';
 
 /**
  * A class representing an individual button (style) in the grid. Renders a rich preview of the style.
+ *
+ * @internal
  */
-export default class StyleGridButtonView extends ButtonView {
+export class StyleGridButtonView extends ButtonView {
 	/**
 	 * Definition of the style the button will apply when executed.
 	 */

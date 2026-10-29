@@ -1,16 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageupload
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import ImageUploadUI from './imageupload/imageuploadui';
-import ImageUploadProgress from './imageupload/imageuploadprogress';
-import ImageUploadEditing from './imageupload/imageuploadediting';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { ImageUploadUI } from './imageupload/imageuploadui.js';
+import { ImageUploadProgress } from './imageupload/imageuploadprogress.js';
+import { ImageUploadEditing } from './imageupload/imageuploadediting.js';
 
 /**
  * The image upload plugin.
@@ -23,7 +23,7 @@ import ImageUploadEditing from './imageupload/imageuploadediting';
  * * {@link module:image/imageupload/imageuploadui~ImageUploadUI},
  * * {@link module:image/imageupload/imageuploadprogress~ImageUploadProgress}.
  */
-export default class ImageUpload extends Plugin {
+export class ImageUpload extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -34,7 +34,14 @@ export default class ImageUpload extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUploadEditing, ImageUploadUI, ImageUploadProgress ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ImageUploadEditing, ImageUploadUI, ImageUploadProgress ]> {
+		return [ ImageUploadEditing, ImageUploadUI, ImageUploadProgress ];
 	}
 }

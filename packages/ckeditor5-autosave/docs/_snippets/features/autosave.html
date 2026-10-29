@@ -3,16 +3,16 @@
 </div>
 
 <div class="ck ck-content" id="snippet-autosave-header">
-	<div class="ck ck-content" id="snippet-autosave-status">
-		<div class="ck ck-content" id="snippet-autosave-status_label">Status:</div>
-		<div class="ck ck-content" id="snippet-autosave-status_spinner">
+	<div id="snippet-autosave-status">
+		<div id="snippet-autosave-status_label">Status:</div>
+		<div id="snippet-autosave-status_spinner">
 			<span id="snippet-autosave-status_spinner-label"></span>
 			<span id="snippet-autosave-status_spinner-loader"></span>
 		</div>
 	</div>
 
-	<div class="ck ck-content" id="snippet-autosave-server">
-		<div class="ck ck-content" id="snippet-autosave-server_label">HTTP server lag (ms):</div>
+	<div id="snippet-autosave-server">
+		<div id="snippet-autosave-server_label">HTTP server lag (ms):</div>
 		<input id="snippet-autosave-lag" type="number" value="500" step="100" min="0" max="9000">
 	</div>
 </div>
@@ -26,10 +26,10 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		background: var(--ck-color-toolbar-background);
-		border: 1px solid var(--ck-color-toolbar-border);
+		background: var(--ck-toolbar-background-color);
+		border: 1px solid var(--ck-toolbar-border-color);
 		padding: 10px;
-		border-radius: var(--ck-border-radius);
+		border-radius: var(--ck-border-radius-surface);
 		margin-top: -1.5em;
 		margin-bottom: 1.5em;
 		border-top: 0;
@@ -50,7 +50,7 @@
 		content: 'Saved!';
 		color: green;
 		display: inline-block;
-		margin-right: var(--ck-spacing-medium);
+		margin-right: var(--ck-spacing-gap);
 	}
 
 	/* During "Saving" display spinner and change content of label. */
@@ -78,7 +78,7 @@
 	#snippet-autosave-server_label,
 	#snippet-autosave-status_label {
 		font-weight: bold;
-		margin-right: var(--ck-spacing-medium);
+		margin-right: var(--ck-spacing-gap);
 	}
 
 	#snippet-autosave + .ck.ck-editor .ck-editor__editable {
@@ -94,7 +94,10 @@
 		max-height: 300px;
 		overflow: auto;
 		white-space: normal;
-		background: #2b2c26;
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-gray-300);
+		background-color: var(--color-gray-200);
+		border-radius: var(--radius-1);
 		transition: background-color 500ms;
 	}
 

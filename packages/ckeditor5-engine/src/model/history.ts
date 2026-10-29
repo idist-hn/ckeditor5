@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type Operation from './operation/operation';
-
-import { CKEditorError } from '@ckeditor/ckeditor5-utils';
 
 /**
  * @module engine/model/history
  */
 
+import { type Operation } from './operation/operation.js';
+
+import { CKEditorError } from '@ckeditor/ckeditor5-utils';
+
 /**
- * `History` keeps the track of all the operations applied to the {@link module:engine/model/document~Document document}.
+ * `History` keeps the track of all the operations applied to the {@link module:engine/model/document~ModelDocument document}.
  */
-export default class History {
+export class History {
 	/**
 	 * Operations added to the history.
 	 */
@@ -92,7 +92,8 @@ export default class History {
 			 * Only operations with matching versions can be added to the history.
 			 *
 			 * @error model-document-history-addoperation-incorrect-version
-			 * @param errorData The operation and the current document history version.
+			 * @param {module:engine/model/operation/operation~Operation} operation The current operation.
+			 * @param {number} historyVersion The current document history version.
 			 */
 			throw new CKEditorError( 'model-document-history-addoperation-incorrect-version', this, {
 				operation,

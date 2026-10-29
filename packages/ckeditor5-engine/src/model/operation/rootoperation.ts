@@ -1,22 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/operation/rootoperation
  */
 
-import Operation from './operation';
+import { Operation } from './operation.js';
 
-import type Document from '../document';
-import { CKEditorError } from '@ckeditor/ckeditor5-utils';
-import type { Selectable } from '../selection';
+import { type ModelDocument } from '../document.js';
+import type { ModelSelectable } from '../selection.js';
 
 /**
  * Operation that creates (or attaches) or detaches a root element.
  */
-export default class RootOperation extends Operation {
+export class RootOperation extends Operation {
 	/**
 	 * Root name to create or detach.
 	 */
@@ -35,7 +34,7 @@ export default class RootOperation extends Operation {
 	/**
 	 * Document which owns the root.
 	 */
-	private readonly _document: Document;
+	private readonly _document: ModelDocument;
 
 	/**
 	 * Creates an operation that creates or removes a root element.
@@ -44,13 +43,13 @@ export default class RootOperation extends Operation {
 	 * @param elementName Root element name.
 	 * @param isAdd Specifies whether the operation adds (`true`) or detaches the root (`false`).
 	 * @param document Document which owns the root.
-	 * @param baseVersion Document {@link module:engine/model/document~Document#version} on which operation can be applied.
+	 * @param baseVersion Document {@link module:engine/model/document~ModelDocument#version} on which operation can be applied.
 	 */
 	constructor(
 		rootName: string,
 		elementName: string,
 		isAdd: boolean,
-		document: Document,
+		document: ModelDocument,
 		baseVersion: number
 	) {
 		super( baseVersion );
@@ -81,7 +80,7 @@ export default class RootOperation extends Operation {
 	/**
 	 * @inheritDoc
 	 */
-	public get affectedSelectable(): Selectable {
+	public get affectedSelectable(): ModelSelectable {
 		return this._document.getRoot( this.rootName );
 	}
 
@@ -130,7 +129,7 @@ export default class RootOperation extends Operation {
 	 * @param json Deserialized JSON object.
 	 * @param document Document on which this operation will be applied.
 	 */
-	public static override fromJSON( json: any, document: Document ): RootOperation {
+	public static override fromJSON( json: any, document: ModelDocument ): RootOperation {
 		return new RootOperation( json.rootName, json.elementName, json.isAdd, document, json.baseVersion );
 	}
 

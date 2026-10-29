@@ -1,36 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/integrations/mediaembed
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import DataFilter, { type DataFilterRegisterEvent } from '../datafilter';
-import DataSchema from '../dataschema';
-import { updateViewAttributes, type GHSViewAttributes, getHtmlAttributeName } from '../utils';
+import { DataFilter, type HtmlSupportDataFilterRegisterEvent } from '../datafilter.js';
+import { DataSchema } from '../dataschema.js';
+import { updateViewAttributes, type GHSViewAttributes, getHtmlAttributeName } from '../utils.js';
 import type {
 	DowncastAttributeEvent,
 	DowncastDispatcher,
-	Element,
+	ModelElement,
 	UpcastDispatcher,
 	UpcastElementEvent,
-	ViewElement } from 'ckeditor5/src/engine';
-import type { GetCallback } from 'ckeditor5/src/utils';
-import { getDescendantElement } from './integrationutils';
+	ViewElement } from '@ckeditor/ckeditor5-engine';
+import type { GetCallback } from '@ckeditor/ckeditor5-utils';
+import { getDescendantElement } from './integrationutils.js';
 
 /**
  * Provides the General HTML Support integration with {@link module:media-embed/mediaembed~MediaEmbed Media Embed} feature.
  */
-export default class MediaEmbedElementSupport extends Plugin {
+export class MediaEmbedElementSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ DataFilter ] as const;
+	public static get requires(): PluginDependenciesOf<[ DataFilter ]> {
+		return [ DataFilter ];
 	}
 
 	/**
@@ -38,6 +38,13 @@ export default class MediaEmbedElementSupport extends Plugin {
 	 */
 	public static get pluginName() {
 		return 'MediaEmbedElementSupport' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -64,11 +71,11 @@ export default class MediaEmbedElementSupport extends Plugin {
 			view: mediaElementName
 		} );
 
-		dataFilter.on<DataFilterRegisterEvent>( 'register:figure', ( ) => {
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( 'register:figure', ( ) => {
 			conversion.for( 'upcast' ).add( viewToModelFigureAttributesConverter( dataFilter ) );
 		} );
 
-		dataFilter.on<DataFilterRegisterEvent>( `register:${ mediaElementName }`, ( evt, definition ) => {
+		dataFilter.on<HtmlSupportDataFilterRegisterEvent>( `register:${ mediaElementName }`, ( evt, definition ) => {
 			if ( definition.model !== 'media' ) {
 				return;
 			}
@@ -143,7 +150,7 @@ function modelToViewMediaAttributeConverter( mediaElementName: string ) {
 				}
 
 				const { attributeOldValue, attributeNewValue } = data;
-				const containerElement = conversionApi.mapper.toViewElement( data.item as Element );
+				const containerElement = conversionApi.mapper.toViewElement( data.item as ModelElement );
 				const viewElement = getDescendantElement( conversionApi.writer, containerElement!, elementName );
 
 				updateViewAttributes(

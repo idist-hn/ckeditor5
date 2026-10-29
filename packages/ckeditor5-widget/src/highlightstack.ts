@@ -1,15 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module widget/highlightstack
  */
 
-import { EmitterMixin, type ArrayOrItem } from '@ckeditor/ckeditor5-utils';
+import { EmitterMixin, type ArrayOrItem, type EmitterMixinConstructor } from '@ckeditor/ckeditor5-utils';
 
-import type { DowncastWriter, HighlightDescriptor } from '@ckeditor/ckeditor5-engine';
+import type { ViewDowncastWriter, DowncastHighlightDescriptor } from '@ckeditor/ckeditor5-engine';
+
+const WidgetHighlightStackBase: EmitterMixinConstructor = /* #__PURE__ */ EmitterMixin();
 
 /**
  * Class used to handle the correct order of highlights on elements.
@@ -18,19 +20,19 @@ import type { DowncastWriter, HighlightDescriptor } from '@ckeditor/ckeditor5-en
  *
  * * highlight with highest priority should be applied,
  * * if two highlights have same priority - sort by CSS class provided in
- * {@link module:engine/conversion/downcasthelpers~HighlightDescriptor}.
+ * {@link module:engine/conversion/downcasthelpers~DowncastHighlightDescriptor}.
  *
  * This way, highlight will be applied with the same rules it is applied on texts.
  */
-export default class HighlightStack extends EmitterMixin() {
-	private readonly _stack: Array<HighlightDescriptor> = [];
+export class WidgetHighlightStack extends WidgetHighlightStackBase {
+	private readonly _stack: Array<DowncastHighlightDescriptor> = [];
 
 	/**
 	 * Adds highlight descriptor to the stack.
 	 *
 	 * @fires change:top
 	 */
-	public add( descriptor: HighlightDescriptor, writer: DowncastWriter ): void {
+	public add( descriptor: DowncastHighlightDescriptor, writer: ViewDowncastWriter ): void {
 		const stack = this._stack;
 
 		// Save top descriptor and insert new one. If top is changed - fire event.
@@ -40,7 +42,7 @@ export default class HighlightStack extends EmitterMixin() {
 
 		// When new object is at the top and stores different information.
 		if ( oldTop !== newTop && !compareDescriptors( oldTop, newTop ) ) {
-			this.fire<HighlightStackChangeEvent>( 'change:top', {
+			this.fire<WidgetHighlightStackChangeEvent>( 'change:top', {
 				oldDescriptor: oldTop,
 				newDescriptor: newTop,
 				writer
@@ -54,7 +56,7 @@ export default class HighlightStack extends EmitterMixin() {
 	 * @fires change:top
 	 * @param id Id of the descriptor to remove.
 	 */
-	public remove( id: string, writer: DowncastWriter ): void {
+	public remove( id: string, writer: ViewDowncastWriter ): void {
 		const stack = this._stack;
 
 		const oldTop = stack[ 0 ];
@@ -63,7 +65,7 @@ export default class HighlightStack extends EmitterMixin() {
 
 		// When new object is at the top and stores different information.
 		if ( oldTop !== newTop && !compareDescriptors( oldTop, newTop ) ) {
-			this.fire<HighlightStackChangeEvent>( 'change:top', {
+			this.fire<WidgetHighlightStackChangeEvent>( 'change:top', {
 				oldDescriptor: oldTop,
 				newDescriptor: newTop,
 				writer
@@ -75,7 +77,7 @@ export default class HighlightStack extends EmitterMixin() {
 	 * Inserts a given descriptor in correct place in the stack. It also takes care about updating information
 	 * when descriptor with same id is already present.
 	 */
-	private _insertDescriptor( descriptor: HighlightDescriptor ) {
+	private _insertDescriptor( descriptor: DowncastHighlightDescriptor ) {
 		const stack = this._stack;
 		const index = stack.findIndex( item => item.id === descriptor.id );
 
@@ -121,14 +123,14 @@ export default class HighlightStack extends EmitterMixin() {
  *
  * @returns Returns true if both descriptors are defined and have same priority and classes.
  */
-function compareDescriptors( a: HighlightDescriptor, b: HighlightDescriptor ) {
+function compareDescriptors( a: DowncastHighlightDescriptor, b: DowncastHighlightDescriptor ) {
 	return a && b && a.priority == b.priority && classesToString( a.classes ) == classesToString( b.classes );
 }
 
 /**
  * Checks whenever first descriptor should be placed in the stack before second one.
  */
-function shouldABeBeforeB( a: HighlightDescriptor, b: HighlightDescriptor ) {
+function shouldABeBeforeB( a: DowncastHighlightDescriptor, b: DowncastHighlightDescriptor ) {
 	if ( a.priority! > b.priority! ) {
 		return true;
 	} else if ( a.priority! < b.priority! ) {
@@ -140,7 +142,7 @@ function shouldABeBeforeB( a: HighlightDescriptor, b: HighlightDescriptor ) {
 }
 
 /**
- * Converts CSS classes passed with {@link module:engine/conversion/downcasthelpers~HighlightDescriptor} to
+ * Converts CSS classes passed with {@link module:engine/conversion/downcasthelpers~DowncastHighlightDescriptor} to
  * sorted string.
  */
 function classesToString( classes: ArrayOrItem<string> ) {
@@ -148,32 +150,32 @@ function classesToString( classes: ArrayOrItem<string> ) {
 }
 
 /**
- * Fired when top element on {@link module:widget/highlightstack~HighlightStack} has been changed
+ * Fired when top element on {@link module:widget/highlightstack~WidgetHighlightStack} has been changed
  *
- * @eventName ~HighlightStack#change:top
+ * @eventName ~WidgetHighlightStack#change:top
  */
-export type HighlightStackChangeEvent = {
+export type WidgetHighlightStackChangeEvent = {
 	name: 'change' | 'change:top';
-	args: [ HighlightStackChangeEventData ];
+	args: [ WidgetHighlightStackChangeEventData ];
 };
 
 /**
  * Additional information about the change.
  */
-export type HighlightStackChangeEventData = {
+export type WidgetHighlightStackChangeEventData = {
 
 	/**
 	 * Old highlight descriptor. It will be `undefined` when first descriptor is added to the stack.
 	 */
-	oldDescriptor: HighlightDescriptor;
+	oldDescriptor: DowncastHighlightDescriptor;
 
 	/**
 	 * New highlight descriptor. It will be `undefined` when last descriptor is removed from the stack.
 	 */
-	newDescriptor: HighlightDescriptor;
+	newDescriptor: DowncastHighlightDescriptor;
 
 	/**
 	 * View writer that can be used to modify element.
 	 */
-	writer: DowncastWriter;
+	writer: ViewDowncastWriter;
 };

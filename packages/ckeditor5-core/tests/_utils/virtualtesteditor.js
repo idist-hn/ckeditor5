@@ -1,12 +1,9 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* eslint-disable new-cap */
-
-import Editor from '../../src/editor/editor';
-import DataApiMixin from '../../src/editor/utils/dataapimixin';
+import { Editor } from '../../src/editor/editor.js';
 
 /**
  * A simple editor implementation useful for testing the engine part of the features.
@@ -16,12 +13,12 @@ import DataApiMixin from '../../src/editor/utils/dataapimixin';
  *
  * @memberOf tests.core._utils
  */
-export default class VirtualTestEditor extends DataApiMixin( Editor ) {
+export class VirtualTestEditor extends Editor {
 	constructor( config ) {
 		super( config );
 
 		// Create the ("main") root element of the model tree.
-		this.model.document.createRoot();
+		this.model.document.createRoot( config?.root?.modelElement ?? config?.roots?.main?.modelElement );
 	}
 
 	static create( config = {} ) {
@@ -30,7 +27,11 @@ export default class VirtualTestEditor extends DataApiMixin( Editor ) {
 
 			resolve(
 				editor.initPlugins()
-					.then( () => editor.data.init( config.initialData || '' ) )
+					.then( () => {
+						const initialData = config.initialData ?? config.root?.initialData ?? config.roots?.main?.initialData;
+
+						return editor.data.init( initialData || '' );
+					} )
 					.then( () => {
 						editor.fire( 'ready' );
 						return editor;

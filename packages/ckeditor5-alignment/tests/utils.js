@@ -1,27 +1,24 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console */
+import { describe, expect, it, vi } from 'vitest';
 
-import { CKEditorError } from 'ckeditor5/src/utils';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { isDefault, isSupported, supportedOptions, normalizeAlignmentOptions } from '../src/utils';
+import { CKEditorError } from '@ckeditor/ckeditor5-utils';
+import { isDefault, isSupported, supportedOptions, normalizeAlignmentOptions } from '../src/utils.js';
 
 describe( 'utils', () => {
-	testUtils.createSinonSandbox();
-
 	describe( 'isDefault()', () => {
 		it( 'should return true for "left" alignment only (LTR)', () => {
 			const locale = {
 				contentLanguageDirection: 'ltr'
 			};
 
-			expect( isDefault( 'left', locale ) ).to.be.true;
-			expect( isDefault( 'right', locale ) ).to.be.false;
-			expect( isDefault( 'center', locale ) ).to.be.false;
-			expect( isDefault( 'justify', locale ) ).to.be.false;
+			expect( isDefault( 'left', locale ) ).toBe( true );
+			expect( isDefault( 'right', locale ) ).toBe( false );
+			expect( isDefault( 'center', locale ) ).toBe( false );
+			expect( isDefault( 'justify', locale ) ).toBe( false );
 		} );
 
 		it( 'should return true for "right" alignment only (RTL)', () => {
@@ -29,28 +26,28 @@ describe( 'utils', () => {
 				contentLanguageDirection: 'rtl'
 			};
 
-			expect( isDefault( 'left', locale ) ).to.be.false;
-			expect( isDefault( 'right', locale ) ).to.be.true;
-			expect( isDefault( 'center', locale ) ).to.be.false;
-			expect( isDefault( 'justify', locale ) ).to.be.false;
+			expect( isDefault( 'left', locale ) ).toBe( false );
+			expect( isDefault( 'right', locale ) ).toBe( true );
+			expect( isDefault( 'center', locale ) ).toBe( false );
+			expect( isDefault( 'justify', locale ) ).toBe( false );
 		} );
 	} );
 
 	describe( 'isSupported()', () => {
 		it( 'should return true for supported alignments', () => {
-			expect( isSupported( 'left' ) ).to.be.true;
-			expect( isSupported( 'right' ) ).to.be.true;
-			expect( isSupported( 'center' ) ).to.be.true;
-			expect( isSupported( 'justify' ) ).to.be.true;
+			expect( isSupported( 'left' ) ).toBe( true );
+			expect( isSupported( 'right' ) ).toBe( true );
+			expect( isSupported( 'center' ) ).toBe( true );
+			expect( isSupported( 'justify' ) ).toBe( true );
 
-			expect( isSupported( '' ) ).to.be.false;
-			expect( isSupported( 'middle' ) ).to.be.false;
+			expect( isSupported( '' ) ).toBe( false );
+			expect( isSupported( 'middle' ) ).toBe( false );
 		} );
 	} );
 
 	describe( 'supportedOptions', () => {
 		it( 'should be set', () => {
-			expect( supportedOptions ).to.deep.equal( [ 'left', 'right', 'center', 'justify' ] );
+			expect( supportedOptions ).toEqual( [ 'left', 'right', 'center', 'justify' ] );
 		} );
 	} );
 
@@ -65,7 +62,7 @@ describe( 'utils', () => {
 
 			const result = normalizeAlignmentOptions( config );
 
-			expect( result ).to.deep.equal(
+			expect( result ).toEqual(
 				[
 					{ 'name': 'left' },
 					{ 'name': 'right' },
@@ -76,14 +73,14 @@ describe( 'utils', () => {
 		} );
 
 		it( 'warns if the name is not recognized', () => {
-			testUtils.sinon.stub( console, 'warn' );
+			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 
 			const config = [
 				'left',
 				{ name: 'center1' }
 			];
 
-			expect( normalizeAlignmentOptions( config ) ).to.deep.equal( [
+			expect( normalizeAlignmentOptions( config ) ).toEqual( [
 				{ name: 'left' }
 			] );
 
@@ -91,11 +88,11 @@ describe( 'utils', () => {
 				option: { name: 'center1' }
 			};
 
-			sinon.assert.calledOnce( console.warn );
-			sinon.assert.calledWithExactly( console.warn,
-				sinon.match( /^alignment-config-name-not-recognized/ ),
+			expect( console.warn ).toHaveBeenCalledOnce();
+			expect( console.warn ).toHaveBeenCalledWith(
+				expect.stringMatching( /^alignment-config-name-not-recognized/ ),
 				params,
-				sinon.match.string // Link to the documentation
+				expect.any( String ) // Link to the documentation
 			);
 		} );
 
@@ -112,8 +109,8 @@ describe( 'utils', () => {
 				error = err;
 			}
 
-			expect( error.constructor ).to.equal( CKEditorError );
-			expect( error ).to.match( /alignment-config-classnames-are-missing/ );
+			expect( error.constructor ).toBe( CKEditorError );
+			expect( error.message ).toMatch( /alignment-config-classnames-are-missing/ );
 		} );
 
 		it( 'throws when the name already exists', () => {
@@ -129,8 +126,8 @@ describe( 'utils', () => {
 				error = err;
 			}
 
-			expect( error.constructor ).to.equal( CKEditorError );
-			expect( error ).to.match( /alignment-config-name-already-defined/ );
+			expect( error.constructor ).toBe( CKEditorError );
+			expect( error.message ).toMatch( /alignment-config-name-already-defined/ );
 		} );
 
 		it( 'throws when the className already exists', () => {
@@ -152,8 +149,8 @@ describe( 'utils', () => {
 				error = err;
 			}
 
-			expect( error.constructor ).to.equal( CKEditorError );
-			expect( error ).to.match( /alignment-config-classname-already-defined/ );
+			expect( error.constructor ).toBe( CKEditorError );
+			expect( error.message ).toMatch( /alignment-config-classname-already-defined/ );
 		} );
 	} );
 } );

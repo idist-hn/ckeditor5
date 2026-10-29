@@ -1,10 +1,125 @@
 /*
- * Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/*
- * Note: This file should contain the wireframe styles only. But since there are no such styles,
- * it acts as a message to the builder telling that it should look for the corresponding styles
- * **in the theme** when compiling the editor.
- */
+:root,
+:host {
+	/* Size */
+	--ck-input-width: 18em;
+
+	/* Spacing */
+	--ck-input-padding: var(--ck-spacing-padding-compact) var(--ck-spacing-padding);
+
+	/* Typography */
+	--ck-input-font-size: var(--ck-font-size-control);
+
+	/* Radius */
+	--ck-input-border-radius: var(--ck-border-radius-control);
+
+	/* Color */
+	--ck-input-background-color: var(--ck-color-surface-control);
+	--ck-input-border-color: var(--ck-color-border-control);
+	--ck-input-error-border-color: var(--ck-color-feedback-error);
+	--ck-input-text-color: var(--ck-color-text-primary);
+	--ck-input-disabled-background-color: var(--ck-color-interactive-disabled-surface);
+	--ck-input-disabled-border-color: var(--ck-color-border-control);
+	--ck-input-disabled-text-color: var(--ck-color-text-disabled);
+
+	/* Border */
+	/* Override-only: the border is composed at the point of use, so a legacy color or a part set on a narrower selector applies. */
+	--ck-input-border: initial;
+
+	/* State / meta */
+	--ck-input-focus-border-color: var(--ck-interactive-focus-border-color);
+
+	/* Compatibility */
+	--ck-input-text-width: var(--ck-input-width);
+
+	/* Small variant (opt in with .ck-input_small). */
+	--ck-input-min-height-small: calc(1.75 * var(--ck-font-size-normal, var(--ck-font-size-base)));
+	--ck-input-padding-small: var(--ck-spacing-padding-tight) var(--ck-spacing-padding-snug);
+}
+
+.ck.ck-input {
+	border-radius: var(--ck-input-border-radius);
+	background: var(--ck-color-input-background, var(--ck-input-background-color));
+	border: var(--ck-input-border, var(--ck-border-width-control) solid var(--ck-color-input-border, var(--ck-input-border-color)));
+	padding: var(--ck-input-padding);
+	min-width: var(--ck-input-width);
+	color: var(--ck-color-input-text, var(--ck-input-text-color));
+	font-size: var(--ck-input-font-size);
+
+	/* `<input>` and `<textarea>` do not inherit the font family, so set it explicitly. Inside the `.ck-reset_all`
+	   scope this matches the reset; elsewhere the field would use the browser default.
+	   Backward compatibility: falls back to legacy --ck-font-face if overridden. */
+	font-family: var(--ck-font-face, var(--ck-font-family));
+
+	/* This is important to stay of the same height as surrounding buttons */
+	min-height: var(--ck-size-control-min-height);
+
+	/* Apply some smooth transition to the box-shadow and border. */
+	transition: var(--ck-transition-control-fast);
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: var(--ck-transition-none);
+	}
+
+	&:focus {
+		outline: none;
+		border-color: var(--ck-input-focus-border-color);
+		box-shadow: var(--ck-focus-outer-shadow, var(--ck-interactive-focus-shadow)), 0 0;
+	}
+
+	&[readonly] {
+		border: var(--ck-border-width-control) solid var(--ck-color-input-disabled-border, var(--ck-input-disabled-border-color));
+		background: var(--ck-color-input-disabled-background, var(--ck-input-disabled-background-color));
+		color: var(--ck-color-input-disabled-text, var(--ck-input-disabled-text-color));
+
+		&:focus {
+			/* The read-only input should have a slightly less visible shadow when focused. */
+			box-shadow: var(--ck-focus-disabled-outer-shadow, var(--ck-interactive-focus-disabled-shadow)), 0 0;
+		}
+	}
+
+	&.ck-error {
+		border-color: var(--ck-color-input-error-border, var(--ck-input-error-border-color));
+		animation: ck-input-shake var(--ck-animation-duration-feedback) var(--ck-animation-timing-function-feedback) var(--ck-animation-fill-mode-feedback);
+
+		@media (prefers-reduced-motion: reduce) {
+			animation: var(--ck-animation-none);
+		}
+
+		&:focus {
+			box-shadow: var(--ck-focus-error-outer-shadow, var(--ck-interactive-focus-error-shadow)), 0 0;
+		}
+	}
+
+	&.ck-input_small {
+		--ck-input-padding: var(--ck-input-padding-small);
+
+		min-height: var(--ck-input-min-height-small);
+	}
+}
+
+@keyframes ck-input-shake {
+	20% {
+		transform: translateX(-2px);
+	}
+
+	40% {
+		transform: translateX(2px);
+	}
+
+	60% {
+		transform: translateX(-1px);
+	}
+
+	80% {
+		transform: translateX(1px);
+	}
+
+	100% {
+		transform: translateX(0);
+	}
+}

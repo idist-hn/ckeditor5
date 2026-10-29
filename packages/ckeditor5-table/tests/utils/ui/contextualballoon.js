@@ -1,25 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import Table from '../../../src/table';
-import TableCellProperties from '../../../src/tablecellproperties';
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import View from '@ckeditor/ckeditor5-ui/src/view';
-import BalloonPanelView from '@ckeditor/ckeditor5-ui/src/panel/balloon/balloonpanelview';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { Table } from '../../../src/table.js';
+import { TableCellProperties } from '../../../src/tablecellproperties.js';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { View, BalloonPanelView } from '@ckeditor/ckeditor5-ui';
 
-import { setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { modelTable } from '../../_utils/utils';
-import { getBalloonCellPositionData, repositionContextualBalloon } from '../../../src/utils/ui/contextualballoon';
+import { _setModelData } from '@ckeditor/ckeditor5-engine';
+import { modelTable } from '../../_utils/utils.js';
+import { getBalloonCellPositionData, repositionContextualBalloon } from '../../../src/utils/ui/contextualballoon.js';
 
 describe( 'table utils', () => {
 	let editor, editingView, balloon, editorElement;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		editorElement = global.document.createElement( 'div' );
@@ -27,7 +25,7 @@ describe( 'table utils', () => {
 
 		return ClassicEditor
 			.create( editorElement, {
-				plugins: [ Table, TableCellProperties, Paragraph ]
+				plugins: [ Table, TableCellProperties, Paragraph, ClipboardPipeline ]
 			} )
 			.then( newEditor => {
 				editor = newEditor;
@@ -46,7 +44,7 @@ describe( 'table utils', () => {
 		describe( 'repositionContextualBalloon()', () => {
 			describe( 'with respect to the table cell', () => {
 				it( 'should re-position the ContextualBalloon when the table cell is selected', () => {
-					const spy = sinon.spy( balloon, 'updatePosition' );
+					const spy = vi.spyOn( balloon, 'updatePosition' );
 					const defaultPositions = BalloonPanelView.defaultPositions;
 					const view = new View();
 
@@ -59,7 +57,7 @@ describe( 'table utils', () => {
 						}
 					} );
 
-					setData( editor.model,
+					_setModelData( editor.model,
 						'<table><tableRow>' +
 						'<tableCell><paragraph>foo</paragraph></tableCell>' +
 						'<tableCell><paragraph>[bar]</paragraph></tableCell>' +
@@ -71,7 +69,7 @@ describe( 'table utils', () => {
 					const modelCell = tableUtils.getTableCellsContainingSelection( editor.model.document.selection )[ 0 ];
 					const viewCell = editor.editing.mapper.toViewElement( modelCell );
 
-					sinon.assert.calledWithExactly( spy, {
+					expect( spy ).toHaveBeenCalledWith( {
 						target: editingView.domConverter.mapViewToDom( viewCell ),
 						positions: [
 							defaultPositions.northArrowSouth,
@@ -86,18 +84,18 @@ describe( 'table utils', () => {
 				} );
 
 				it( 'should not engage with no table is selected', () => {
-					const spy = sinon.spy( balloon, 'updatePosition' );
+					const spy = vi.spyOn( balloon, 'updatePosition' );
 
-					setData( editor.model, '<paragraph>foo</paragraph>' );
+					_setModelData( editor.model, '<paragraph>foo</paragraph>' );
 
 					repositionContextualBalloon( editor, 'cell' );
-					sinon.assert.notCalled( spy );
+					expect( spy ).not.toHaveBeenCalled();
 				} );
 			} );
 
 			describe( 'with respect to the entire table', () => {
-				it( 'should re-position the ContextualBalloon when the table is selected', () => {
-					const spy = sinon.spy( balloon, 'updatePosition' );
+				it( 'should re-position the ContextualBalloon when the selection is in the table', () => {
+					const spy = vi.spyOn( balloon, 'updatePosition' );
 					const defaultPositions = BalloonPanelView.defaultPositions;
 					const view = new View();
 
@@ -110,7 +108,7 @@ describe( 'table utils', () => {
 						}
 					} );
 
-					setData( editor.model,
+					_setModelData( editor.model,
 						'<table><tableRow>' +
 						'<tableCell><paragraph>foo</paragraph></tableCell>' +
 						'<tableCell><paragraph>[bar]</paragraph></tableCell>' +
@@ -120,7 +118,45 @@ describe( 'table utils', () => {
 					const modelTable = editor.model.document.selection.getFirstPosition().findAncestor( 'table' );
 					const viewTable = editor.editing.mapper.toViewElement( modelTable );
 
-					sinon.assert.calledWithExactly( spy, {
+					expect( spy ).toHaveBeenCalledWith( {
+						target: editingView.domConverter.mapViewToDom( viewTable ),
+						positions: [
+							defaultPositions.northArrowSouth,
+							defaultPositions.northArrowSouthWest,
+							defaultPositions.northArrowSouthEast,
+							defaultPositions.southArrowNorth,
+							defaultPositions.southArrowNorthWest,
+							defaultPositions.southArrowNorthEast,
+							defaultPositions.viewportStickyNorth
+						]
+					} );
+				} );
+
+				it( 'should re-position the ContextualBalloon when the selection is over the table', () => {
+					const spy = vi.spyOn( balloon, 'updatePosition' );
+					const defaultPositions = BalloonPanelView.defaultPositions;
+					const view = new View();
+
+					view.element = global.document.createElement( 'div' );
+
+					balloon.add( {
+						view,
+						position: {
+							target: global.document.body
+						}
+					} );
+
+					_setModelData( editor.model,
+						'[<table><tableRow>' +
+						'<tableCell><paragraph>foo</paragraph></tableCell>' +
+						'<tableCell><paragraph>bar</paragraph></tableCell>' +
+						'</tableRow></table>]' );
+					repositionContextualBalloon( editor, 'table' );
+
+					const modelTable = editor.model.document.selection.getSelectedElement();
+					const viewTable = editor.editing.mapper.toViewElement( modelTable );
+
+					expect( spy ).toHaveBeenCalledWith( {
 						target: editingView.domConverter.mapViewToDom( viewTable ),
 						positions: [
 							defaultPositions.northArrowSouth,
@@ -135,12 +171,12 @@ describe( 'table utils', () => {
 				} );
 
 				it( 'should not engage with no table is selected', () => {
-					const spy = sinon.spy( balloon, 'updatePosition' );
+					const spy = vi.spyOn( balloon, 'updatePosition' );
 
-					setData( editor.model, '<paragraph>foo</paragraph>' );
+					_setModelData( editor.model, '<paragraph>foo</paragraph>' );
 
 					repositionContextualBalloon( editor, 'table' );
-					sinon.assert.notCalled( spy );
+					expect( spy ).not.toHaveBeenCalled();
 				} );
 			} );
 		} );
@@ -149,7 +185,7 @@ describe( 'table utils', () => {
 			let modelRoot;
 
 			beforeEach( () => {
-				setData( editor.model, modelTable( [
+				_setModelData( editor.model, modelTable( [
 					[ '11[]', '12', '13' ],
 					[ '21', '22', '23' ],
 					[ '31', '32', '33' ]
@@ -180,7 +216,7 @@ describe( 'table utils', () => {
 				const modelCell = tableUtils.getTableCellsContainingSelection( editor.model.document.selection )[ 0 ];
 				const viewCell = editor.editing.mapper.toViewElement( modelCell );
 
-				expect( data ).to.deep.equal( {
+				expect( data ).toEqual( {
 					target: editingView.domConverter.mapViewToDom( viewCell ),
 					positions: [
 						defaultPositions.northArrowSouth,
@@ -203,7 +239,7 @@ describe( 'table utils', () => {
 				const data = getBalloonCellPositionData( editor );
 				const targetData = data.target();
 
-				expect( targetData ).to.deep.equal( {
+				expect( targetData ).toEqual( {
 					top: 100,
 					left: 100,
 					right: 120,
@@ -222,7 +258,7 @@ describe( 'table utils', () => {
 				const data = getBalloonCellPositionData( editor );
 				const targetData = data.target();
 
-				expect( targetData ).to.deep.equal( {
+				expect( targetData ).toEqual( {
 					top: 100,
 					left: 110,
 					right: 120,
@@ -242,7 +278,7 @@ describe( 'table utils', () => {
 				const data = getBalloonCellPositionData( editor );
 				const targetData = data.target();
 
-				expect( targetData ).to.deep.equal( {
+				expect( targetData ).toEqual( {
 					top: 100,
 					left: 100,
 					right: 120,
@@ -259,7 +295,7 @@ describe( 'table utils', () => {
 			}
 
 			function mockBoundingBox( element, data ) {
-				testUtils.sinon.stub( element, 'getBoundingClientRect' ).returns( {
+				vi.spyOn( element, 'getBoundingClientRect' ).mockReturnValue( {
 					...data,
 					right: data.left + data.width,
 					bottom: data.top + data.height

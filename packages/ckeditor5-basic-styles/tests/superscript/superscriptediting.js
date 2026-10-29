@@ -1,24 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import SuperEditing from '../../src/superscript/superscriptediting';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import AttributeCommand from '../../src/attributecommand';
+import { SuperscriptEditing } from '../../src/superscript/superscriptediting.js';
 
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { AttributeCommand } from '../../src/attributecommand.js';
 
-describe( 'SuperEditing', () => {
+import { _getModelData, _setModelData, _getViewData } from '@ckeditor/ckeditor5-engine';
+
+describe( 'SuperscriptEditing', () => {
 	let editor, model;
 
 	beforeEach( () => {
 		return VirtualTestEditor
 			.create( {
-				plugins: [ Paragraph, SuperEditing ]
+				plugins: [ Paragraph, SuperscriptEditing ]
 			} )
 			.then( newEditor => {
 				editor = newEditor;
@@ -31,36 +32,44 @@ describe( 'SuperEditing', () => {
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( SuperEditing.pluginName ).to.equal( 'SuperscriptEditing' );
+		expect( SuperscriptEditing.pluginName ).toBe( 'SuperscriptEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( SuperscriptEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( SuperscriptEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( SuperEditing ) ).to.be.instanceOf( SuperEditing );
+		expect( editor.plugins.get( SuperscriptEditing ) ).toBeInstanceOf( SuperscriptEditing );
 	} );
 
 	it( 'should set proper schema rules', () => {
-		expect( model.schema.checkAttribute( [ '$root', '$block', '$text' ], 'superscript' ) ).to.be.true;
-		expect( model.schema.checkAttribute( [ '$clipboardHolder', '$text' ], 'superscript' ) ).to.be.true;
+		expect( model.schema.checkAttribute( [ '$root', '$block', '$text' ], 'superscript' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$clipboardHolder', '$text' ], 'superscript' ) ).toBe( true );
 	} );
 
 	it( 'should be marked with a formatting property', () => {
-		expect( model.schema.getAttributeProperties( 'superscript' ) ).to.include( {
+		expect( model.schema.getAttributeProperties( 'superscript' ) ).toEqual( expect.objectContaining( {
 			isFormatting: true
-		} );
+		} ) );
 	} );
 
 	it( 'its attribute is marked with a copOnEnter property', () => {
-		expect( model.schema.getAttributeProperties( 'superscript' ) ).to.include( {
+		expect( model.schema.getAttributeProperties( 'superscript' ) ).toEqual( expect.objectContaining( {
 			copyOnEnter: true
-		} );
+		} ) );
 	} );
 
 	describe( 'command', () => {
 		it( 'should register superscript command', () => {
 			const command = editor.commands.get( 'superscript' );
 
-			expect( command ).to.be.instanceOf( AttributeCommand );
-			expect( command ).to.have.property( 'attributeKey', 'superscript' );
+			expect( command ).toBeInstanceOf( AttributeCommand );
+			expect( command ).toHaveProperty( 'attributeKey', 'superscript' );
 		} );
 	} );
 
@@ -68,36 +77,36 @@ describe( 'SuperEditing', () => {
 		it( 'should convert <sup> to superscript attribute', () => {
 			editor.setData( '<p><sup>foo</sup>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toEqual( '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><sup>foo</sup>bar</p>' );
+			expect( editor.getData() ).toEqual( '<p><sup>foo</sup>bar</p>' );
 		} );
 
 		it( 'should convert vertical-align:super to super attribute', () => {
 			editor.setData( '<p><span style="vertical-align: super;">foo</span>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toEqual( '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><sup>foo</sup>bar</p>' );
+			expect( editor.getData() ).toEqual( '<p><sup>foo</sup>bar</p>' );
 		} );
 
 		it( 'should be integrated with autoparagraphing', () => {
 			editor.setData( '<sup>foo</sup>bar' );
 
-			expect( getModelData( model, { withoutSelection: true } ) )
-				.to.equal( '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
+			expect( _getModelData( model, { withoutSelection: true } ) )
+				.toEqual( '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
 
-			expect( editor.getData() ).to.equal( '<p><sup>foo</sup>bar</p>' );
+			expect( editor.getData() ).toEqual( '<p><sup>foo</sup>bar</p>' );
 		} );
 	} );
 
 	describe( 'editing pipeline conversion', () => {
 		it( 'should convert attribute', () => {
-			setModelData( model, '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
+			_setModelData( model, '<paragraph><$text superscript="true">foo</$text>bar</paragraph>' );
 
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal( '<p><sup>foo</sup>bar</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( '<p><sup>foo</sup>bar</p>' );
 		} );
 	} );
 } );

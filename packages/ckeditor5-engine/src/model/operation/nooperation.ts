@@ -1,14 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/operation/nooperation
  */
 
-import Operation from './operation';
-import type { Selectable } from '../selection';
+import { Operation } from './operation.js';
+import type { ModelSelectable } from '../selection.js';
 
 /**
  * Operation which is doing nothing ("empty operation", "do-nothing operation", "noop"). This is an operation,
@@ -18,7 +18,7 @@ import type { Selectable } from '../selection';
  * {@link module:engine/model/operation/nooperation~NoOperation} it means that changes done by the transformed operation
  * have already been applied.
  */
-export default class NoOperation extends Operation {
+export class NoOperation extends Operation {
 	public get type(): 'noop' {
 		return 'noop';
 	}
@@ -26,7 +26,7 @@ export default class NoOperation extends Operation {
 	/**
 	 * @inheritDoc
 	 */
-	public get affectedSelectable(): Selectable {
+	public get affectedSelectable(): ModelSelectable {
 		return null;
 	}
 

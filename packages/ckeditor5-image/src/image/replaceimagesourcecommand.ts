@@ -1,14 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import { Command } from 'ckeditor5/src/core';
-import type ImageUtils from '../imageutils';
 
 /**
  * @module image/image/replaceimagesourcecommand
  */
+
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import { type ImageUtils } from '../imageutils.js';
+import type { ModelWriter, ModelElement } from '@ckeditor/ckeditor5-engine';
 
 /**
  * Replace image source command.
@@ -19,8 +20,14 @@ import type ImageUtils from '../imageutils';
  * editor.execute( 'replaceImageSource', { source: 'http://url.to.the/image' } );
  * ```
  */
-export default class ReplaceImageSourceCommand extends Command {
+export class ReplaceImageSourceCommand extends Command {
 	declare public value: string | null;
+
+	constructor( editor: Editor ) {
+		super( editor );
+
+		this.decorate( 'cleanupImage' );
+	}
 
 	/**
 	 * @inheritDoc
@@ -43,10 +50,42 @@ export default class ReplaceImageSourceCommand extends Command {
 	 */
 	public override execute( options: { source: string } ): void {
 		const image = this.editor.model.document.selection.getSelectedElement()!;
+		const imageUtils: ImageUtils = this.editor.plugins.get( 'ImageUtils' );
+
 		this.editor.model.change( writer => {
 			writer.setAttribute( 'src', options.source, image );
-			writer.removeAttribute( 'srcset', image );
-			writer.removeAttribute( 'sizes', image );
+
+			this.cleanupImage( writer, image );
+
+			imageUtils.setImageNaturalSizeAttributes( image );
 		} );
+	}
+
+	/**
+	 * Cleanup image attributes that are not relevant to the new source.
+	 *
+	 * Removed attributes are: 'srcset', 'sizes', 'sources', 'width', 'height', 'alt'.
+	 *
+	 * This method is decorated, to allow custom cleanup logic.
+	 * For example, to remove 'myImageId' attribute after 'src' has changed:
+	 *
+	 * ```ts
+	 * replaceImageSourceCommand.on( 'cleanupImage', ( eventInfo, [ writer, image ] ) => {
+	 * 	writer.removeAttribute( 'myImageId', image );
+	 * } );
+	 * ```
+	 */
+	public cleanupImage( writer: ModelWriter, image: ModelElement ): void {
+		writer.removeAttribute( 'srcset', image );
+		writer.removeAttribute( 'sizes', image );
+
+		/**
+		 * In case responsive images some attributes should be cleaned up.
+		 * Check: https://github.com/ckeditor/ckeditor5/issues/15093
+		 */
+		writer.removeAttribute( 'sources', image );
+		writer.removeAttribute( 'width', image );
+		writer.removeAttribute( 'height', image );
+		writer.removeAttribute( 'alt', image );
 	}
 }

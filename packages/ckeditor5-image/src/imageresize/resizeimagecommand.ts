@@ -1,24 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imageresize/resizeimagecommand
  */
 
-import { Command } from 'ckeditor5/src/core';
-
-import type ImageUtils from '../imageutils';
+import { Command } from '@ckeditor/ckeditor5-core';
+import { type ImageUtils } from '../imageutils.js';
 
 /**
  * The resize image command. Currently, it only supports the width attribute.
  */
-export default class ResizeImageCommand extends Command {
+export class ResizeImageCommand extends Command {
 	/**
 	 * Desired image width and height.
 	 */
-	declare public value: null | {
+	declare public value: undefined | null | {
 		width: string | null;
 		height: string | null;
 	};

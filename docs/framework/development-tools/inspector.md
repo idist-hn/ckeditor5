@@ -2,6 +2,7 @@
 menu-title: Inspector
 category: development-tools
 meta-title: CKEditor 5 inspector | CKEditor 5 Framework Documentation
+meta-desccription: Explore the CKEditor 5 Inspector tool to debug and understand editor internals, including model, view, and conversion processes.
 order: 1
 modified_at: 2022-08-16
 ---
@@ -50,7 +51,7 @@ Now you can load CKEditor 5 inspector by using the newly created bookmark.
 
 ## Enabling the inspector
 
-Attach the inspector to the editor instance when {@link installation/getting-started/editor-lifecycle#creating-an-editor-with-create created} using the `CKEditorInspector.attach()` method:
+Attach the inspector to the editor instance when {@link getting-started/setup/editor-lifecycle#creating-an-editor-with-create created} using the `CKEditorInspector.attach()` method:
 
 ```js
 ClassicEditor
@@ -84,6 +85,8 @@ The editor switcher is in the upper–right corner of the inspector panel.
 Click the <b>"Inspect editor"</b> button below to attach the inspector to the editor:
 
 {@snippet framework/development-tools/inspector}
+
+<ck:button id="snippet-inspect-button">Inspect editor</ck:button>
 
 ### Compatibility
 

@@ -1,108 +1,110 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import DocumentFragment from '../../src/view/documentfragment';
-import Element from '../../src/view/element';
-import Node from '../../src/view/node';
-import Text from '../../src/view/text';
-import TextProxy from '../../src/view/textproxy';
-import Document from '../../src/view/document';
-import { StylesProcessor } from '../../src/view/stylesmap';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ViewDocumentFragment } from '../../src/view/documentfragment.js';
+import { ViewElement } from '../../src/view/element.js';
+import { ViewNode } from '../../src/view/node.js';
+import { ViewText } from '../../src/view/text.js';
+import { ViewTextProxy } from '../../src/view/textproxy.js';
+import { ViewDocument } from '../../src/view/document.js';
+import { StylesProcessor } from '../../src/view/stylesmap.js';
+import { ViewContainerElement } from '../../src/index.js';
 
 describe( 'DocumentFragment', () => {
 	let document;
 
 	beforeEach( () => {
-		document = new Document( new StylesProcessor() );
+		document = new ViewDocument( new StylesProcessor() );
 	} );
 
 	describe( 'constructor()', () => {
 		it( 'should create DocumentFragment without children', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 
-			expect( fragment ).to.be.an.instanceof( DocumentFragment );
-			expect( fragment.childCount ).to.equal( 0 );
+			expect( fragment ).toBeInstanceOf( ViewDocumentFragment );
+			expect( fragment.childCount ).toBe( 0 );
 		} );
 
 		it( 'should create DocumentFragment  document,with child node', () => {
-			const child = new Element( document, 'p' );
-			const fragment = new DocumentFragment( document, child );
+			const child = new ViewElement( document, 'p' );
+			const fragment = new ViewDocumentFragment( document, child );
 
-			expect( fragment.childCount ).to.equal( 1 );
-			expect( fragment.getChild( 0 ) ).to.have.property( 'name' ).that.equals( 'p' );
+			expect( fragment.childCount ).toBe( 1 );
+			expect( fragment.getChild( 0 ) ).toHaveProperty( 'name', 'p' );
 		} );
 
 		it( 'should create DocumentFragment  document,with multiple nodes', () => {
-			const children = [ new Element( document, 'p' ), new Element( document, 'div' ) ];
-			const fragment = new DocumentFragment( document, children );
+			const children = [ new ViewElement( document, 'p' ), new ViewElement( document, 'div' ) ];
+			const fragment = new ViewDocumentFragment( document, children );
 
-			expect( fragment.childCount ).to.equal( 2 );
-			expect( fragment.getChild( 0 ) ).to.have.property( 'name' ).that.equals( 'p' );
-			expect( fragment.getChild( 1 ) ).to.have.property( 'name' ).that.equals( 'div' );
+			expect( fragment.childCount ).toBe( 2 );
+			expect( fragment.getChild( 0 ) ).toHaveProperty( 'name', 'p' );
+			expect( fragment.getChild( 1 ) ).toHaveProperty( 'name', 'div' );
 		} );
 	} );
 
 	describe( 'iterator', () => {
 		it( 'should iterate over all nodes added to document fragment', () => {
-			const children = [ new Element( document, 'p' ), new Element( document, 'div' ) ];
-			const fragment = new DocumentFragment( document, children );
+			const children = [ new ViewElement( document, 'p' ), new ViewElement( document, 'div' ) ];
+			const fragment = new ViewDocumentFragment( document, children );
 
 			const arr = Array.from( fragment );
 
-			expect( arr.length ).to.equal( 2 );
-			expect( arr[ 0 ] ).to.have.property( 'name' ).that.equals( 'p' );
-			expect( arr[ 1 ] ).to.have.property( 'name' ).that.equals( 'div' );
+			expect( arr.length ).toBe( 2 );
+			expect( arr[ 0 ] ).toHaveProperty( 'name', 'p' );
+			expect( arr[ 1 ] ).toHaveProperty( 'name', 'div' );
 		} );
 	} );
 
 	describe( 'getRoot', () => {
 		it( 'should return document fragment', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 
-			expect( fragment.root ).to.equal( fragment );
+			expect( fragment.root ).toBe( fragment );
 		} );
 	} );
 
 	describe( 'isEmpty', () => {
 		it( 'should return true if there are no children in document fragment', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 
-			expect( fragment.isEmpty ).to.be.true;
+			expect( fragment.isEmpty ).toBe( true );
 		} );
 
 		it( 'should return false if there are children in document fragment', () => {
-			const fragment = new DocumentFragment( document, [ new Element( document, 'p' ) ] );
+			const fragment = new ViewDocumentFragment( document, [ new ViewElement( document, 'p' ) ] );
 
-			expect( fragment.isEmpty ).to.be.false;
+			expect( fragment.isEmpty ).toBe( false );
 		} );
 	} );
 
 	describe( 'is()', () => {
 		let frag;
 
-		before( () => {
-			frag = new DocumentFragment( document );
+		beforeEach( () => {
+			frag = new ViewDocumentFragment( document );
 		} );
 
 		it( 'should return true for documentFragment', () => {
-			expect( frag.is( 'documentFragment' ) ).to.be.true;
-			expect( frag.is( 'view:documentFragment' ) ).to.be.true;
+			expect( frag.is( 'documentFragment' ) ).toBe( true );
+			expect( frag.is( 'view:documentFragment' ) ).toBe( true );
 		} );
 
 		it( 'should return false for other accept values', () => {
-			expect( frag.is( 'node' ) ).to.be.false;
-			expect( frag.is( 'view:node' ) ).to.be.false;
-			expect( frag.is( '$text' ) ).to.be.false;
-			expect( frag.is( '$textProxy' ) ).to.be.false;
-			expect( frag.is( 'element' ) ).to.be.false;
-			expect( frag.is( 'view:element' ) ).to.be.false;
-			expect( frag.is( 'containerElement' ) ).to.be.false;
-			expect( frag.is( 'attributeElement' ) ).to.be.false;
-			expect( frag.is( 'uiElement' ) ).to.be.false;
-			expect( frag.is( 'emptyElement' ) ).to.be.false;
-			expect( frag.is( 'rootElement' ) ).to.be.false;
+			expect( frag.is( 'node' ) ).toBe( false );
+			expect( frag.is( 'view:node' ) ).toBe( false );
+			expect( frag.is( '$text' ) ).toBe( false );
+			expect( frag.is( '$textProxy' ) ).toBe( false );
+			expect( frag.is( 'element' ) ).toBe( false );
+			expect( frag.is( 'view:element' ) ).toBe( false );
+			expect( frag.is( 'containerElement' ) ).toBe( false );
+			expect( frag.is( 'attributeElement' ) ).toBe( false );
+			expect( frag.is( 'uiElement' ) ).toBe( false );
+			expect( frag.is( 'emptyElement' ) ).toBe( false );
+			expect( frag.is( 'rootElement' ) ).toBe( false );
 		} );
 	} );
 
@@ -110,11 +112,11 @@ describe( 'DocumentFragment', () => {
 		let fragment, el1, el2, el3, el4;
 
 		beforeEach( () => {
-			fragment = new DocumentFragment( document );
-			el1 = new Element( document, 'el1' );
-			el2 = new Element( document, 'el2' );
-			el3 = new Element( document, 'el3' );
-			el4 = new Element( document, 'el4' );
+			fragment = new ViewDocumentFragment( document );
+			el1 = new ViewElement( document, 'el1' );
+			el2 = new ViewElement( document, 'el2' );
+			el3 = new ViewElement( document, 'el3' );
+			el4 = new ViewElement( document, 'el4' );
 		} );
 
 		describe( 'insertion', () => {
@@ -122,25 +124,25 @@ describe( 'DocumentFragment', () => {
 				const count1 = fragment._insertChild( 0, [ el1, el3 ] );
 				const count2 = fragment._insertChild( 1, el2 );
 
-				expect( fragment.childCount ).to.equal( 3 );
-				expect( fragment.getChild( 0 ) ).to.have.property( 'name' ).that.equals( 'el1' );
-				expect( fragment.getChild( 1 ) ).to.have.property( 'name' ).that.equals( 'el2' );
-				expect( fragment.getChild( 2 ) ).to.have.property( 'name' ).that.equals( 'el3' );
-				expect( count1 ).to.equal( 2 );
-				expect( count2 ).to.equal( 1 );
+				expect( fragment.childCount ).toBe( 3 );
+				expect( fragment.getChild( 0 ) ).toHaveProperty( 'name', 'el1' );
+				expect( fragment.getChild( 1 ) ).toHaveProperty( 'name', 'el2' );
+				expect( fragment.getChild( 2 ) ).toHaveProperty( 'name', 'el3' );
+				expect( count1 ).toBe( 2 );
+				expect( count2 ).toBe( 1 );
 			} );
 
 			it( 'should accept strings', () => {
 				fragment._insertChild( 0, 'abc' );
 
-				expect( fragment.childCount ).to.equal( 1 );
-				expect( fragment.getChild( 0 ) ).to.have.property( 'data' ).that.equals( 'abc' );
+				expect( fragment.childCount ).toBe( 1 );
+				expect( fragment.getChild( 0 ) ).toHaveProperty( 'data', 'abc' );
 
 				fragment._removeChildren( 0, 1 );
-				fragment._insertChild( 0, [ new Element( document, 'p' ), 'abc' ] );
+				fragment._insertChild( 0, [ new ViewElement( document, 'p' ), 'abc' ] );
 
-				expect( fragment.childCount ).to.equal( 2 );
-				expect( fragment.getChild( 1 ) ).to.have.property( 'data' ).that.equals( 'abc' );
+				expect( fragment.childCount ).toBe( 2 );
+				expect( fragment.getChild( 1 ) ).toHaveProperty( 'data', 'abc' );
 			} );
 
 			it( 'should append children', () => {
@@ -148,43 +150,47 @@ describe( 'DocumentFragment', () => {
 				const count2 = fragment._appendChild( el2 );
 				const count3 = fragment._appendChild( el3 );
 
-				expect( fragment.childCount ).to.equal( 3 );
-				expect( fragment.getChild( 0 ) ).to.have.property( 'name' ).that.equals( 'el1' );
-				expect( fragment.getChild( 1 ) ).to.have.property( 'name' ).that.equals( 'el2' );
-				expect( fragment.getChild( 2 ) ).to.have.property( 'name' ).that.equals( 'el3' );
-				expect( count1 ).to.equal( 1 );
-				expect( count2 ).to.equal( 1 );
-				expect( count3 ).to.equal( 1 );
+				expect( fragment.childCount ).toBe( 3 );
+				expect( fragment.getChild( 0 ) ).toHaveProperty( 'name', 'el1' );
+				expect( fragment.getChild( 1 ) ).toHaveProperty( 'name', 'el2' );
+				expect( fragment.getChild( 2 ) ).toHaveProperty( 'name', 'el3' );
+				expect( count1 ).toBe( 1 );
+				expect( count2 ).toBe( 1 );
+				expect( count3 ).toBe( 1 );
 			} );
 
-			it( 'should fire change event when inserting', done => {
-				fragment.once( 'change:children', ( event, node ) => {
-					expect( node ).to.equal( fragment );
-					done();
-				} );
+			it( 'should fire change event when inserting', () => {
+				return new Promise( resolve => {
+					fragment.once( 'change:children', ( event, node ) => {
+						expect( node ).toBe( fragment );
+						resolve();
+					} );
 
-				fragment._insertChild( 0, el1 );
+					fragment._insertChild( 0, el1 );
+				} );
 			} );
 
-			it( 'should fire change event when appending', done => {
-				fragment.once( 'change:children', ( event, node ) => {
-					expect( node ).to.equal( fragment );
-					done();
-				} );
+			it( 'should fire change event when appending', () => {
+				return new Promise( resolve => {
+					fragment.once( 'change:children', ( event, node ) => {
+						expect( node ).toBe( fragment );
+						resolve();
+					} );
 
-				fragment._appendChild( el1 );
+					fragment._appendChild( el1 );
+				} );
 			} );
 
 			it( 'should accept and correctly handle text proxies', () => {
-				const frag = new DocumentFragment( document );
-				const text = new Text( document, 'abcxyz' );
-				const textProxy = new TextProxy( text, 2, 3 );
+				const frag = new ViewDocumentFragment( document );
+				const text = new ViewText( document, 'abcxyz' );
+				const textProxy = new ViewTextProxy( text, 2, 3 );
 
 				frag._insertChild( 0, textProxy );
 
-				expect( frag.childCount ).to.equal( 1 );
-				expect( frag.getChild( 0 ) ).to.be.instanceof( Text );
-				expect( frag.getChild( 0 ).data ).to.equal( 'cxy' );
+				expect( frag.childCount ).toBe( 1 );
+				expect( frag.getChild( 0 ) ).toBeInstanceOf( ViewText );
+				expect( frag.getChild( 0 ).data ).toBe( 'cxy' );
 			} );
 		} );
 
@@ -194,10 +200,10 @@ describe( 'DocumentFragment', () => {
 				fragment._appendChild( el2 );
 				fragment._appendChild( el3 );
 
-				expect( fragment.childCount ).to.equal( 3 );
-				expect( fragment.getChildIndex( el1 ) ).to.equal( 0 );
-				expect( fragment.getChildIndex( el2 ) ).to.equal( 1 );
-				expect( fragment.getChildIndex( el3 ) ).to.equal( 2 );
+				expect( fragment.childCount ).toBe( 3 );
+				expect( fragment.getChildIndex( el1 ) ).toBe( 0 );
+				expect( fragment.getChildIndex( el2 ) ).toBe( 1 );
+				expect( fragment.getChildIndex( el3 ) ).toBe( 2 );
 			} );
 		} );
 
@@ -211,11 +217,11 @@ describe( 'DocumentFragment', () => {
 				let i = 0;
 
 				for ( const child of fragment.getChildren() ) {
-					expect( child ).to.equal( expected[ i ] );
+					expect( child ).toBe( expected[ i ] );
 					i++;
 				}
 
-				expect( i ).to.equal( 3 );
+				expect( i ).toBe( 3 );
 			} );
 		} );
 
@@ -228,14 +234,14 @@ describe( 'DocumentFragment', () => {
 
 				fragment._removeChildren( 1, 2 );
 
-				expect( fragment.childCount ).to.equal( 2 );
-				expect( fragment.getChild( 0 ) ).to.have.property( 'name' ).that.equals( 'el1' );
-				expect( fragment.getChild( 1 ) ).to.have.property( 'name' ).that.equals( 'el4' );
+				expect( fragment.childCount ).toBe( 2 );
+				expect( fragment.getChild( 0 ) ).toHaveProperty( 'name', 'el1' );
+				expect( fragment.getChild( 1 ) ).toHaveProperty( 'name', 'el4' );
 
-				expect( el1.parent ).to.equal( fragment );
-				expect( el2.parent ).to.be.null;
-				expect( el3.parent ).to.be.null;
-				expect( el4.parent ).equal( fragment );
+				expect( el1.parent ).toBe( fragment );
+				expect( el2.parent ).toBeNull();
+				expect( el3.parent ).toBeNull();
+				expect( el4.parent ).toBe( fragment );
 			} );
 
 			it( 'should remove one child when second parameter is not specified', () => {
@@ -245,117 +251,119 @@ describe( 'DocumentFragment', () => {
 
 				const removed = fragment._removeChildren( 1 );
 
-				expect( fragment.childCount ).to.equal( 2 );
-				expect( fragment.getChild( 0 ) ).to.have.property( 'name' ).that.equals( 'el1' );
-				expect( fragment.getChild( 1 ) ).to.have.property( 'name' ).that.equals( 'el3' );
+				expect( fragment.childCount ).toBe( 2 );
+				expect( fragment.getChild( 0 ) ).toHaveProperty( 'name', 'el1' );
+				expect( fragment.getChild( 1 ) ).toHaveProperty( 'name', 'el3' );
 
-				expect( removed.length ).to.equal( 1 );
-				expect( removed[ 0 ] ).to.have.property( 'name' ).that.equals( 'el2' );
+				expect( removed.length ).toBe( 1 );
+				expect( removed[ 0 ] ).toHaveProperty( 'name', 'el2' );
 			} );
 
-			it( 'should fire change event', done => {
+			it( 'should fire change event', () => {
 				fragment._appendChild( el1 );
 
-				fragment.once( 'change:children', ( event, node ) => {
-					expect( node ).to.equal( fragment );
-					done();
-				} );
+				return new Promise( resolve => {
+					fragment.once( 'change:children', ( event, node ) => {
+						expect( node ).toBe( fragment );
+						resolve();
+					} );
 
-				fragment._removeChildren( 0 );
+					fragment._removeChildren( 0 );
+				} );
 			} );
 		} );
 	} );
 
 	describe( 'node methods when inserted to fragment', () => {
 		it( 'index should return proper value', () => {
-			const node1 = new Node( document );
-			const node2 = new Node( document );
-			const node3 = new Node( document );
-			const fragment = new DocumentFragment( document, [ node1, node2, node3 ] );
+			const node1 = new ViewNode( document );
+			const node2 = new ViewNode( document );
+			const node3 = new ViewNode( document );
+			const fragment = new ViewDocumentFragment( document, [ node1, node2, node3 ] );
 
-			expect( node1.index ).to.equal( 0 );
-			expect( node2.index ).to.equal( 1 );
-			expect( node3.index ).to.equal( 2 );
-			expect( node1.parent ).to.equal( fragment );
-			expect( node2.parent ).to.equal( fragment );
-			expect( node3.parent ).to.equal( fragment );
+			expect( node1.index ).toBe( 0 );
+			expect( node2.index ).toBe( 1 );
+			expect( node3.index ).toBe( 2 );
+			expect( node1.parent ).toBe( fragment );
+			expect( node2.parent ).toBe( fragment );
+			expect( node3.parent ).toBe( fragment );
 		} );
 
 		it( 'nextSibling should return proper node', () => {
-			const node1 = new Node( document );
-			const node2 = new Node( document );
-			const node3 = new Node( document );
-			new DocumentFragment( document, [ node1, node2, node3 ] ); // eslint-disable-line no-new
+			const node1 = new ViewNode( document );
+			const node2 = new ViewNode( document );
+			const node3 = new ViewNode( document );
+			new ViewDocumentFragment( document, [ node1, node2, node3 ] ); // eslint-disable-line no-new
 
-			expect( node1.nextSibling ).to.equal( node2 );
-			expect( node2.nextSibling ).to.equal( node3 );
-			expect( node3.nextSibling ).to.be.null;
+			expect( node1.nextSibling ).toBe( node2 );
+			expect( node2.nextSibling ).toBe( node3 );
+			expect( node3.nextSibling ).toBeNull();
 		} );
 
 		it( 'previousSibling should return proper node', () => {
-			const node1 = new Node( document );
-			const node2 = new Node( document );
-			const node3 = new Node( document );
-			new DocumentFragment( document, [ node1, node2, node3 ] ); // eslint-disable-line no-new
+			const node1 = new ViewNode( document );
+			const node2 = new ViewNode( document );
+			const node3 = new ViewNode( document );
+			new ViewDocumentFragment( document, [ node1, node2, node3 ] ); // eslint-disable-line no-new
 
-			expect( node1.previousSibling ).to.be.null;
-			expect( node2.previousSibling ).to.equal( node1 );
-			expect( node3.previousSibling ).to.equal( node2 );
+			expect( node1.previousSibling ).toBeNull();
+			expect( node2.previousSibling ).toBe( node1 );
+			expect( node3.previousSibling ).toBe( node2 );
 		} );
 
 		it( '_remove() should remove node from fragment', () => {
-			const node1 = new Node( document );
-			const node2 = new Node( document );
-			const node3 = new Node( document );
-			const fragment = new DocumentFragment( document, [ node1, node2, node3 ] );
+			const node1 = new ViewNode( document );
+			const node2 = new ViewNode( document );
+			const node3 = new ViewNode( document );
+			const fragment = new ViewDocumentFragment( document, [ node1, node2, node3 ] );
 
 			node1._remove();
 			node3._remove();
 
-			expect( fragment.childCount ).to.equal( 1 );
-			expect( node1.parent ).to.be.null;
-			expect( node3.parent ).to.be.null;
-			expect( fragment.getChild( 0 ) ).to.equal( node2 );
+			expect( fragment.childCount ).toBe( 1 );
+			expect( node1.parent ).toBeNull();
+			expect( node3.parent ).toBeNull();
+			expect( fragment.getChild( 0 ) ).toBe( node2 );
 		} );
 	} );
 
 	describe( 'custom properties', () => {
 		it( 'should allow to set and get custom properties', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 
 			fragment._setCustomProperty( 'foo', 'bar' );
 
-			expect( fragment.getCustomProperty( 'foo' ) ).to.equal( 'bar' );
+			expect( fragment.getCustomProperty( 'foo' ) ).toBe( 'bar' );
 		} );
 
 		it( 'should allow to add symbol property', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 			const symbol = Symbol( 'custom' );
 
 			fragment._setCustomProperty( symbol, 'bar' );
 
-			expect( fragment.getCustomProperty( symbol ) ).to.equal( 'bar' );
+			expect( fragment.getCustomProperty( symbol ) ).toBe( 'bar' );
 		} );
 
 		it( 'should allow to remove custom property', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 			const symbol = Symbol( 'quix' );
 
 			fragment._setCustomProperty( 'bar', 'baz' );
 			fragment._setCustomProperty( symbol, 'test' );
 
-			expect( fragment.getCustomProperty( 'bar' ) ).to.equal( 'baz' );
-			expect( fragment.getCustomProperty( symbol ) ).to.equal( 'test' );
+			expect( fragment.getCustomProperty( 'bar' ) ).toBe( 'baz' );
+			expect( fragment.getCustomProperty( symbol ) ).toBe( 'test' );
 
 			fragment._removeCustomProperty( 'bar' );
 			fragment._removeCustomProperty( symbol );
 
-			expect( fragment.getCustomProperty( 'bar' ) ).to.be.undefined;
-			expect( fragment.getCustomProperty( symbol ) ).to.be.undefined;
+			expect( fragment.getCustomProperty( 'bar' ) ).toBeUndefined();
+			expect( fragment.getCustomProperty( symbol ) ).toBeUndefined();
 		} );
 
 		it( 'should allow to iterate over custom properties', () => {
-			const fragment = new DocumentFragment( document );
+			const fragment = new ViewDocumentFragment( document );
 
 			fragment._setCustomProperty( 'foo', 1 );
 			fragment._setCustomProperty( 'bar', 2 );
@@ -363,12 +371,57 @@ describe( 'DocumentFragment', () => {
 
 			const properties = Array.from( fragment.getCustomProperties() );
 
-			expect( properties[ 0 ][ 0 ] ).to.equal( 'foo' );
-			expect( properties[ 0 ][ 1 ] ).to.equal( 1 );
-			expect( properties[ 1 ][ 0 ] ).to.equal( 'bar' );
-			expect( properties[ 1 ][ 1 ] ).to.equal( 2 );
-			expect( properties[ 2 ][ 0 ] ).to.equal( 'baz' );
-			expect( properties[ 2 ][ 1 ] ).to.equal( 3 );
+			expect( properties[ 0 ][ 0 ] ).toBe( 'foo' );
+			expect( properties[ 0 ][ 1 ] ).toBe( 1 );
+			expect( properties[ 1 ][ 0 ] ).toBe( 'bar' );
+			expect( properties[ 1 ][ 1 ] ).toBe( 2 );
+			expect( properties[ 2 ][ 0 ] ).toBe( 'baz' );
+			expect( properties[ 2 ][ 1 ] ).toBe( 3 );
+		} );
+	} );
+
+	it( 'name should return undefined', () => {
+		const fragment = new ViewDocumentFragment( document );
+
+		expect( fragment.name ).toBeUndefined();
+	} );
+
+	describe( 'toJSON()', () => {
+		it( 'should provide array of child nodes', () => {
+			const fragment = new ViewDocumentFragment( document, [
+				new ViewContainerElement( document, 'p', null, new ViewText( document, 'foo' ) ),
+				new ViewContainerElement( document, 'h2', null, new ViewText( document, 'bar' ) )
+			] );
+
+			const json = JSON.stringify( fragment );
+			const parsed = JSON.parse( json );
+
+			expect( parsed ).toEqual( [
+				{
+					name: 'p',
+					path: [ 0 ],
+					type: 'ContainerElement',
+					children: [
+						{
+							data: 'foo',
+							path: [ 0, 0 ],
+							type: 'Text'
+						}
+					]
+				},
+				{
+					name: 'h2',
+					path: [ 1 ],
+					type: 'ContainerElement',
+					children: [
+						{
+							data: 'bar',
+							path: [ 1, 0 ],
+							type: 'Text'
+						}
+					]
+				}
+			] );
 		} );
 	} );
 } );

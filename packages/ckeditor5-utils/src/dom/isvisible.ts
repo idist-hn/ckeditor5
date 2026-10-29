@@ -1,11 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module utils/dom/isvisible
  */
+
+import { isText } from './istext.js';
+import { getParentElement } from './getparentelement.js';
 
 /**
  * Checks whether the element is visible to the user in DOM:
@@ -16,7 +19,23 @@
  *
  * **Note**: This helper does not check whether the element is hidden by cropping, overflow, etc..
  * To check that, use {@link module:utils/dom/rect~Rect} instead.
+ *
+ * **Note**: The ancestor lookup crosses shadow DOM boundaries, so a text node sitting directly in a shadow root
+ * is resolved against that root's host rather than reported as invisible. Works for open and closed shadow roots
+ * alike.
  */
-export default function isVisible( element: HTMLElement | null | undefined ): boolean {
-	return !!( element && element.getClientRects && element.getClientRects().length );
+export function isVisible( element: Text | HTMLElement | null | undefined ): boolean {
+	if ( !element ) {
+		return false;
+	}
+
+	if ( isText( element ) ) {
+		return isVisible( getParentElement( element ) as HTMLElement | null );
+	}
+
+	if ( element.getClientRects ) {
+		return !!( element.getClientRects().length );
+	}
+
+	return false;
 }

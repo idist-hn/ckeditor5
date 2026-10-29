@@ -1,22 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import Typing from '../src/typing';
-import DeleteCommand from '../src/deletecommand';
-import ModelTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor';
-import ClassicEditor from '@ckeditor/ckeditor5-editor-classic/src/classiceditor';
-import BlockQuote from '@ckeditor/ckeditor5-block-quote/src/blockquote';
-import Heading from '@ckeditor/ckeditor5-heading/src/heading';
-import List from '@ckeditor/ckeditor5-list/src/list';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Image from '@ckeditor/ckeditor5-image/src/image';
-import ImageCaption from '@ckeditor/ckeditor5-image/src/imagecaption';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import { getData, setData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Typing } from '../src/typing.js';
+import { DeleteCommand } from '../src/deletecommand.js';
+import { ModelTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/modeltesteditor.js';
+import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
+import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { Heading } from '@ckeditor/ckeditor5-heading';
+import { List } from '@ckeditor/ckeditor5-list';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Image, ImageCaption } from '@ckeditor/ckeditor5-image';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Delete integration', () => {
 	let editor, model;
@@ -54,12 +52,12 @@ describe( 'Delete integration', () => {
 	} );
 
 	function assertOutput( output ) {
-		expect( getData( model ) ).to.equal( output );
+		expect( _getModelData( model ) ).toEqual( output );
 	}
 
 	describe( 'with undo', () => {
 		it( 'deletes characters (and group changes in batches) and rollbacks', () => {
-			setData( model, '<paragraph>123456789[]</paragraph>' );
+			_setModelData( model, '<paragraph>123456789[]</paragraph>' );
 
 			for ( let i = 0; i < 3; ++i ) {
 				editor.execute( 'delete' );
@@ -71,7 +69,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'deletes characters (and group changes in batches) and rollbacks - test step', () => {
-			setData( model, '<paragraph>123456789[]</paragraph>' );
+			_setModelData( model, '<paragraph>123456789[]</paragraph>' );
 
 			for ( let i = 0; i < 6; ++i ) {
 				editor.execute( 'delete' );
@@ -87,7 +85,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'deletes elements (and group changes in batches) and rollbacks', () => {
-			setData( model, '<paragraph><img>1</img><img>2</img><img>3</img><img>4</img><img>5</img><img>6</img>[]</paragraph>' );
+			_setModelData( model, '<paragraph><img>1</img><img>2</img><img>3</img><img>4</img><img>5</img><img>6</img>[]</paragraph>' );
 
 			for ( let i = 0; i < 3; ++i ) {
 				editor.execute( 'delete' );
@@ -99,7 +97,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'merges elements (and group changes in batches) and rollbacks', () => {
-			setData( model, '<paragraph>123456</paragraph><paragraph>[]78</paragraph>' );
+			_setModelData( model, '<paragraph>123456</paragraph><paragraph>[]78</paragraph>' );
 
 			for ( let i = 0; i < 6; ++i ) {
 				editor.execute( 'delete' );
@@ -119,7 +117,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'merges elements (and group changes in batches) and rollbacks - non-collapsed selection', () => {
-			setData( model, '<paragraph>12345[6</paragraph><paragraph>7]8</paragraph>' );
+			_setModelData( model, '<paragraph>12345[6</paragraph><paragraph>7]8</paragraph>' );
 
 			editor.execute( 'delete' );
 			editor.execute( 'delete' );
@@ -141,7 +139,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'should replace content with paragraph - if whole content is selected', () => {
-			setData( model, '<h1>[foo</h1><paragraph>bar]</paragraph>' );
+			_setModelData( model, '<h1>[foo</h1><paragraph>bar]</paragraph>' );
 
 			editor.execute( 'delete' );
 
@@ -149,7 +147,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'should not replace content with paragraph - if not whole content is selected', () => {
-			setData( model, '<h1>f[oo</h1><paragraph>bar]</paragraph>' );
+			_setModelData( model, '<h1>f[oo</h1><paragraph>bar]</paragraph>' );
 
 			editor.execute( 'delete' );
 
@@ -157,7 +155,7 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'should not replace content with paragraph - if selection was collapsed', () => {
-			setData( model, '<h1></h1><paragraph>[]</paragraph>' );
+			_setModelData( model, '<h1></h1><paragraph>[]</paragraph>' );
 
 			editor.execute( 'delete' );
 
@@ -189,27 +187,27 @@ describe( 'Delete integration', () => {
 		} );
 
 		it( 'should not throw an error if content with the image is being removed', () => {
-			setData( model,
-				'<listItem listIndent="0" listType="numbered">OL List i[tem 1</listItem>' +
-				'<listItem listIndent="0" listType="numbered">OL List item 2</listItem>]' +
-				'<imageBlock alt="bar" imageStyle="side" src="/assets/sample.png"><caption>[Caption</caption></imageBlock>' +
+			_setModelData( model,
+				'<paragraph listIndent="0" listItemId="000" listType="numbered">OL List i[tem 1</paragraph>' +
+				'<paragraph listIndent="0" listItemId="001" listType="numbered">OL List item 2</paragraph>]' +
+				'<imageBlock alt="bar" imageStyle="side" src="/sample.png"><caption>[Caption</caption></imageBlock>' +
 				'<blockQuote>' +
 					'<paragraph>Quote</paragraph>' +
-					'<listItem listIndent="0" listType="bulleted">Quoted UL List item 1</listItem>' +
-					'<listItem listIndent="0" listType="bulleted">Quote]d UL List item 2</listItem>' +
+					'<paragraph listIndent="0" listItemId="002" listType="bulleted">Quoted UL List item 1</paragraph>' +
+					'<paragraph listIndent="0" listItemId="003" listType="bulleted">Quote]d UL List item 2</paragraph>' +
 					'<paragraph>Quote</paragraph>' +
 				'</blockQuote>'
 			);
 
 			expect( () => {
 				editor.execute( 'delete' );
-			} ).to.not.throw();
+			} ).not.toThrow();
 		} );
 	} );
 
 	// See: https://github.com/ckeditor/ckeditor5/issues/1064
 	it( 'should remove entire word in a paragraph that contains the soft break', () => {
-		setData( model, '<paragraph>Foo.<softBreak></softBreak>Bar[]</paragraph>' );
+		_setModelData( model, '<paragraph>Foo.<softBreak></softBreak>Bar[]</paragraph>' );
 
 		editor.execute( 'delete', { unit: 'word' } );
 

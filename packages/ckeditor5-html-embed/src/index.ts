@@ -1,16 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-embed
  */
 
-export { default as HtmlEmbed } from './htmlembed';
-export { default as HtmlEmbedEditing } from './htmlembedediting';
-export { default as HtmlEmbedUI } from './htmlembedui';
-export type { default as HtmlEmbedCommand } from './htmlembedcommand';
-export type { HtmlEmbedConfig } from './htmlembedconfig';
+export { HtmlEmbed } from './htmlembed.js';
+export { HtmlEmbedEditing } from './htmlembedediting.js';
+export { HtmlEmbedUI } from './htmlembedui.js';
+export { HtmlEmbedCommand } from './htmlembedcommand.js';
+export type { HtmlEmbedConfig, HtmlEmbedSanitizeOutput } from './htmlembedconfig.js';
 
-import './augmentation';
+export type { RawHtmlApi as _RawHtmlEmbedApi } from './htmlembedediting.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

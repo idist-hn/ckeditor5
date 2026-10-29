@@ -1,0 +1,447 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+/**
+ * @module ckbox/ckboximageedit/ckboximageeditcommand
+ */
+
+import { Command, PendingActions, type Editor } from '@ckeditor/ckeditor5-core';
+import {
+	CKEditorError,
+	abortableDebounce,
+	retry,
+	delay,
+	isOffline,
+	type AbortableFunc
+} from '@ckeditor/ckeditor5-utils';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
+import { Notification } from '@ckeditor/ckeditor5-ui';
+import { isEqual } from 'es-toolkit/compat';
+
+import { sendHttpRequest, mountCKBoxDialog } from '../utils.js';
+import { prepareImageAssetAttributes } from '../ckboxcommand.js';
+import type { CKBoxRawAssetDefinition, CKBoxRawAssetDataDefinition } from '../ckboxconfig.js';
+
+import type { ImageUtils } from '@ckeditor/ckeditor5-image';
+import { createEditabilityChecker } from './utils.js';
+import { CKBoxUtils } from '../ckboxutils.js';
+
+/**
+ * The CKBox edit image command.
+ *
+ * Opens the CKBox dialog for editing the image.
+ */
+export class CKBoxImageEditCommand extends Command {
+	/**
+	 * Flag indicating whether the command is active, i.e. dialog is open.
+	 */
+	declare public value: boolean;
+
+	/**
+	 * A callback that unmounts the CKBox image editor dialog. `null` if the dialog is not open.
+	 */
+	private _unmountDialog: VoidFunction | null = null;
+
+	/**
+	 * The states of image processing in progress.
+	 */
+	private _processInProgress = new Set<ProcessingState>();
+
+	/**
+	 * Determines if the element can be edited.
+	 */
+	private _canEdit: ( element: ModelElement ) => boolean;
+
+	/**
+	 * A wrapper function to prepare mount options. Ensures that at most one preparation is in-flight.
+	 */
+	private _prepareOptions: AbortableFunc<[ ProcessingState ], Promise<Record<string, unknown>>>;
+
+	/**
+	* CKBox's onClose function runs before the final cleanup, potentially causing
+	* page layout changes after it finishes. To address this, we use a setTimeout hack
+	* to ensure that floating elements on the page maintain their correct position.
+	*
+	* See: https://github.com/ckeditor/ckeditor5/issues/16153.
+	*/
+	private _updateUiDelayed = delay( () => this.editor.ui.update(), 0 );
+
+	/**
+	 * @inheritDoc
+	 */
+	constructor( editor: Editor ) {
+		super( editor );
+
+		this.value = false;
+
+		this._canEdit = createEditabilityChecker( editor.config.get( 'ckbox.allowExternalImagesEditing' ) );
+		this._prepareOptions = abortableDebounce( ( signal, state ) => this._prepareOptionsAbortable( signal, state ) );
+
+		this._prepareListeners();
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public override refresh(): void {
+		const editor = this.editor;
+
+		this.value = this._getValue();
+
+		const selectedElement = editor.model.document.selection.getSelectedElement();
+
+		this.isEnabled =
+			!!selectedElement &&
+			this._canEdit( selectedElement ) &&
+			!this._checkIfElementIsBeingProcessed( selectedElement );
+	}
+
+	/**
+	 * Opens the CKBox Image Editor dialog for editing the image.
+	 */
+	public override execute(): void {
+		if ( this._getValue() ) {
+			return;
+		}
+
+		const unmountWhilePreparing = () => {};
+
+		this._unmountDialog = unmountWhilePreparing;
+		this.value = true;
+
+		const imageElement = this.editor.model.document.selection.getSelectedElement()!;
+
+		const processingState: ProcessingState = {
+			element: imageElement,
+			controller: new AbortController()
+		};
+
+		this._prepareOptions( processingState ).then(
+			options => {
+				// The dialog this request was made for is already gone (closed or the command destroyed).
+				if ( this._unmountDialog !== unmountWhilePreparing ) {
+					return;
+				}
+
+				this._unmountDialog = mountCKBoxDialog( this.editor, ( element, stylesTarget ) => {
+					window.CKBox.mountImageEditor( element, options, { stylesTarget } );
+				} );
+			},
+			error => {
+				// The dialog this request was made for is already gone (the command has been destroyed),
+				// so there is nobody left to notify and nothing of ours to clean up.
+				if ( this._unmountDialog !== unmountWhilePreparing ) {
+					return;
+				}
+
+				const editor = this.editor;
+				const t = editor.t;
+				const notification = editor.plugins.get( Notification );
+
+				// `CKBoxUtils` rejects with a ready, localized message (including the one about the lost connection).
+				// Reusing it keeps the notification consistent with the logged reason, which would not be the case
+				// if the connection state was sampled again here, after the failure.
+				notification.showWarning(
+					typeof error == 'string' ? error : t( 'Failed to determine category of edited image.' ),
+					{ namespace: 'ckbox' }
+				);
+
+				console.error( error );
+				this._handleImageEditorClose();
+			}
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public override destroy(): void {
+		this._handleImageEditorClose();
+
+		this._prepareOptions.abort();
+
+		this._updateUiDelayed.cancel();
+
+		for ( const state of this._processInProgress.values() ) {
+			state.controller.abort();
+		}
+
+		super.destroy();
+	}
+
+	/**
+	 * Indicates if the CKBox Image Editor dialog is already opened.
+	 */
+	private _getValue(): boolean {
+		return this._unmountDialog !== null;
+	}
+
+	/**
+	 * Creates the options object for the CKBox Image Editor dialog.
+	 */
+	private async _prepareOptionsAbortable( signal: AbortSignal, state: ProcessingState ) {
+		const editor = this.editor;
+		const ckboxConfig = editor.config.get( 'ckbox' )!;
+		const ckboxUtils = editor.plugins.get( CKBoxUtils );
+		const { element } = state;
+
+		let imageMountOptions;
+		const ckboxImageId = element.getAttribute( 'ckboxImageId' );
+
+		if ( ckboxImageId ) {
+			imageMountOptions = {
+				assetId: ckboxImageId
+			};
+		} else {
+			const imageUrl = new URL( element.getAttribute( 'src' ) as string, document.baseURI ).href;
+			const uploadCategoryId = await ckboxUtils.getCategoryIdForFile( imageUrl, { signal } );
+
+			imageMountOptions = {
+				imageUrl,
+				uploadCategoryId
+			};
+		}
+
+		return {
+			...imageMountOptions,
+			imageEditing: {
+				allowOverwrite: false
+			},
+			tokenUrl: ckboxConfig.tokenUrl,
+			language: ckboxConfig.language,
+			...( ckboxConfig.serviceOrigin && { serviceOrigin: ckboxConfig.serviceOrigin } ),
+			onClose: () => this._handleImageEditorClose(),
+			onSave: ( asset: CKBoxRawAssetDefinition ) => this._handleImageEditorSave( state, asset )
+		};
+	}
+
+	/**
+	 * Initializes event lister for an event of removing an image.
+	 */
+	private _prepareListeners(): void {
+		// Abort editing processing when the image has been removed.
+		this.listenTo( this.editor.model.document, 'change:data', () => {
+			const processingStates = this._getProcessingStatesOfDeletedImages();
+
+			processingStates.forEach( processingState => {
+				processingState.controller.abort();
+			} );
+		} );
+	}
+
+	/**
+	 * Gets processing states of images that have been deleted in the mean time.
+	 */
+	private _getProcessingStatesOfDeletedImages(): Array<ProcessingState> {
+		const states: Array<ProcessingState> = [];
+
+		for ( const state of this._processInProgress.values() ) {
+			if ( state.element.root.rootName == '$graveyard' ) {
+				states.push( state );
+			}
+		}
+
+		return states;
+	}
+
+	private _checkIfElementIsBeingProcessed( selectedElement: ModelElement ) {
+		for ( const { element } of this._processInProgress ) {
+			if ( isEqual( element, selectedElement ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Closes the CKBox Image Editor dialog.
+	 */
+	private _handleImageEditorClose() {
+		if ( !this._unmountDialog ) {
+			return;
+		}
+
+		this._unmountDialog();
+		this._unmountDialog = null;
+
+		this.editor.editing.view.focus();
+
+		this._updateUiDelayed();
+
+		this.refresh();
+	}
+
+	/**
+	 * Save edited image. In case server respond with "success" replace with edited image,
+	 * otherwise show notification error.
+	 */
+	private _handleImageEditorSave( state: ProcessingState, asset: CKBoxRawAssetDefinition ) {
+		const t = this.editor.locale.t;
+		const notification = this.editor.plugins.get( Notification );
+		const pendingActions = this.editor.plugins.get( PendingActions );
+		const action = pendingActions.add( t( 'Processing the edited image.' ) );
+
+		this._processInProgress.add( state );
+		this._showImageProcessingIndicator( state.element, asset );
+		this.refresh();
+
+		this._waitForAssetProcessed( asset.data.id, state.controller.signal )
+			.then(
+				asset => {
+					this._replaceImage( state.element, asset );
+				},
+				error => {
+					// Remove processing indicator. It was added only to ViewElement.
+					this.editor.editing.reconvertItem( state.element );
+
+					if ( state.controller.signal.aborted ) {
+						return;
+					}
+
+					if ( !error || error instanceof CKEditorError ) {
+						notification.showWarning(
+							isOffline() ?
+								t( 'No internet connection. Check your connection and try again.' ) :
+								t( 'Server failed to process the image.' ),
+							{ namespace: 'ckbox' }
+						);
+					} else {
+						console.error( error );
+					}
+				}
+			).finally( () => {
+				this._processInProgress.delete( state );
+				pendingActions.remove( action );
+				this.refresh();
+			} );
+	}
+
+	/**
+	 * Get asset's status on server. If server responds with "success" status then
+	 * image is already proceeded and ready for saving.
+	 */
+	private async _getAssetStatusFromServer( id: string, signal: AbortSignal ): Promise<CKBoxRawAssetDefinition> {
+		const ckboxUtils = this.editor.plugins.get( CKBoxUtils );
+
+		const url = new URL( 'assets/' + id, this.editor.config.get( 'ckbox.serviceOrigin' )! );
+		const response: CKBoxRawAssetDataDefinition = await sendHttpRequest( {
+			url,
+			signal,
+			authorization: ( await ckboxUtils.getToken() ).value
+		} );
+		const status = response.metadata!.metadataProcessingStatus;
+
+		if ( !status || status == 'queued' ) {
+			/**
+			 * Image has not been processed yet.
+			 *
+			 * @error ckbox-image-not-processed
+			 */
+			throw new CKEditorError( 'ckbox-image-not-processed' );
+		}
+
+		return { data: { ...response } };
+	}
+
+	/**
+	 * Waits for an asset to be processed.
+	 * It retries retrieving asset status from the server in case of failure.
+	 */
+	private async _waitForAssetProcessed( id: string, signal: AbortSignal ): Promise<CKBoxRawAssetDefinition> {
+		const result = await retry(
+			() => this._getAssetStatusFromServer( id, signal ),
+			{
+				signal,
+				maxAttempts: 5
+			}
+		);
+
+		if ( result.data.metadata!.metadataProcessingStatus != 'success' ) {
+			/**
+			 * The image processing failed.
+			 *
+			 * @error ckbox-image-processing-failed
+			 */
+			throw new CKEditorError( 'ckbox-image-processing-failed' );
+		}
+
+		return result;
+	}
+
+	/**
+	 * Shows processing indicator while image is processing.
+	 *
+	 * @param asset Data about certain asset.
+	 */
+	private _showImageProcessingIndicator( element: ModelElement, asset: CKBoxRawAssetDefinition ): void {
+		const editor = this.editor;
+
+		editor.editing.view.change( writer => {
+			const imageElementView = editor.editing.mapper.toViewElement( element )!;
+			const imageUtils: ImageUtils = this.editor.plugins.get( 'ImageUtils' );
+			const img = imageUtils.findViewImgElement( imageElementView )!;
+
+			writer.removeStyle( 'aspect-ratio', img );
+			writer.setAttribute( 'width', asset.data.metadata!.width, img );
+			writer.setAttribute( 'height', asset.data.metadata!.height, img );
+
+			writer.setStyle( 'width', `${ asset.data.metadata!.width }px`, img );
+			writer.setStyle( 'height', `${ asset.data.metadata!.height }px`, img );
+
+			writer.addClass( 'image-processing', imageElementView );
+		} );
+	}
+
+	/**
+	 * Replace the edited image with the new one.
+	 */
+	private _replaceImage( element: ModelElement, asset: CKBoxRawAssetDefinition ) {
+		const editor = this.editor;
+
+		const {
+			imageFallbackUrl,
+			imageSources,
+			imageWidth,
+			imageHeight,
+			imagePlaceholder
+		} = prepareImageAssetAttributes( asset );
+
+		const previousSelectionRanges = Array.from( editor.model.document.selection.getRanges() );
+
+		editor.model.change( writer => {
+			writer.setSelection( element, 'on' );
+
+			editor.execute( 'insertImage', {
+				imageType: element.is( 'element', 'imageInline' ) ? 'imageInline' : null,
+				source: {
+					src: imageFallbackUrl,
+					sources: imageSources,
+					width: imageWidth,
+					height: imageHeight,
+					...( imagePlaceholder ? { placeholder: imagePlaceholder } : null ),
+					...( element.hasAttribute( 'alt' ) ? { alt: element.getAttribute( 'alt' ) } : null )
+				}
+			} );
+
+			const previousChildren = element.getChildren();
+
+			element = editor.model.document.selection.getSelectedElement()!;
+
+			for ( const child of previousChildren ) {
+				writer.append( writer.cloneElement( child as ModelElement ), element );
+			}
+
+			writer.setAttribute( 'ckboxImageId', asset.data.id, element );
+
+			writer.setSelection( previousSelectionRanges );
+		} );
+	}
+}
+
+interface ProcessingState {
+	element: ModelElement;
+	controller: AbortController;
+}

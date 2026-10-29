@@ -1,18 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Paragraph from '../src/paragraph';
-import ClipboardPipeline from '@ckeditor/ckeditor5-clipboard/src/clipboardpipeline';
-import UndoEditing from '@ckeditor/ckeditor5-undo/src/undoediting';
-import HeadingEditing from '@ckeditor/ckeditor5-heading/src/headingediting';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
+import { describe, it, expect } from 'vitest';
+import { Paragraph } from '../src/paragraph.js';
+import { ClipboardPipeline } from '@ckeditor/ckeditor5-clipboard';
+import { UndoEditing } from '@ckeditor/ckeditor5-undo';
+import { HeadingEditing } from '@ckeditor/ckeditor5-heading';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
 import {
-	getData as getModelData,
-	setData as setModelData
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { parse as parseView } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
+	_getModelData,
+	_setModelData,
+	_parseView } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Paragraph feature – integration', () => {
 	describe( 'with clipboard', () => {
@@ -23,13 +23,13 @@ describe( 'Paragraph feature – integration', () => {
 					const editor = newEditor;
 					const clipboard = editor.plugins.get( 'ClipboardPipeline' );
 
-					setModelData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 					clipboard.fire( 'inputTransformation', {
-						content: parseView( '<h1>foo</h1><h2>bar</h2><p>bom</p>' )
+						content: _parseView( '<h1>foo</h1><h2>bar</h2><p>bom</p>' )
 					} );
 
-					expect( getModelData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toEqual(
 						'<paragraph>foo</paragraph><paragraph>bar</paragraph><paragraph>bom[]</paragraph>'
 					);
 				} );
@@ -43,13 +43,13 @@ describe( 'Paragraph feature – integration', () => {
 					const editor = newEditor;
 					const clipboard = editor.plugins.get( 'ClipboardPipeline' );
 
-					setModelData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 					clipboard.fire( 'inputTransformation', {
-						content: parseView( '<h1>foo</h1><h2>bar</h2><h5>baz</h5><p>bom</p>' )
+						content: _parseView( '<h1>foo</h1><h2>bar</h2><h5>baz</h5><p>bom</p>' )
 					} );
 
-					expect( getModelData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toEqual(
 						'<heading1>foo</heading1><heading1>bar</heading1><paragraph>baz</paragraph><paragraph>bom[]</paragraph>'
 					);
 				} );
@@ -62,13 +62,13 @@ describe( 'Paragraph feature – integration', () => {
 					const editor = newEditor;
 					const clipboard = editor.plugins.get( 'ClipboardPipeline' );
 
-					setModelData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 					clipboard.fire( 'inputTransformation', {
-						content: parseView( '<ul><li>foo</li><li>bar</li></ul>' )
+						content: _parseView( '<ul><li>foo</li><li>bar</li></ul>' )
 					} );
 
-					expect( getModelData( editor.model ) ).to.equal( '<paragraph>foo</paragraph><paragraph>bar[]</paragraph>' );
+					expect( _getModelData( editor.model ) ).toEqual( '<paragraph>foo</paragraph><paragraph>bar[]</paragraph>' );
 				} );
 		} );
 
@@ -81,13 +81,13 @@ describe( 'Paragraph feature – integration', () => {
 					const editor = newEditor;
 					const clipboard = editor.plugins.get( 'ClipboardPipeline' );
 
-					setModelData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 					clipboard.fire( 'inputTransformation', {
-						content: parseView( '<ul><li>x</li><li><h2>foo</h2><h3>bar</h3><p>bom</p></li><li>x</li></ul>' )
+						content: _parseView( '<ul><li>x</li><li><h2>foo</h2><h3>bar</h3><p>bom</p></li><li>x</li></ul>' )
 					} );
 
-					expect( getModelData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toEqual(
 						'<paragraph>x</paragraph>' +
 						'<heading1>foo</heading1><heading2>bar</heading2><paragraph>bom</paragraph>' +
 						'<paragraph>x[]</paragraph>'
@@ -103,13 +103,13 @@ describe( 'Paragraph feature – integration', () => {
 					const editor = newEditor;
 					const clipboard = editor.plugins.get( 'ClipboardPipeline' );
 
-					setModelData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 					clipboard.fire( 'inputTransformation', {
-						content: parseView( '<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>' )
+						content: _parseView( '<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>' )
 					} );
 
-					expect( getModelData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toEqual(
 						'<paragraph>a</paragraph>' +
 						'<paragraph>b</paragraph>' +
 						'<paragraph>c[]</paragraph>'
@@ -125,13 +125,13 @@ describe( 'Paragraph feature – integration', () => {
 					const editor = newEditor;
 					const clipboard = editor.plugins.get( 'ClipboardPipeline' );
 
-					setModelData( editor.model, '<paragraph>[]</paragraph>' );
+					_setModelData( editor.model, '<paragraph>[]</paragraph>' );
 
 					clipboard.fire( 'inputTransformation', {
-						content: parseView( '<ul><li><p>a</p>b</li></ul>' )
+						content: _parseView( '<ul><li><p>a</p>b</li></ul>' )
 					} );
 
-					expect( getModelData( editor.model ) ).to.equal(
+					expect( _getModelData( editor.model ) ).toEqual(
 						'<paragraph>a</paragraph>' +
 						'<paragraph>b[]</paragraph>'
 					);
@@ -148,8 +148,8 @@ describe( 'Paragraph feature – integration', () => {
 					const doc = editor.model.document;
 					const root = doc.getRoot();
 
-					expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
-					expect( editor.commands.get( 'undo' ).isEnabled ).to.be.false;
+					expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
+					expect( editor.commands.get( 'undo' ).isEnabled ).toBe( false );
 
 					editor.setData( '<p>Foobar.</p>' );
 
@@ -157,19 +157,19 @@ describe( 'Paragraph feature – integration', () => {
 						writer.remove( root.getChild( 0 ) );
 					} );
 
-					expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
+					expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
 
 					editor.execute( 'undo' );
 
-					expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>Foobar.</p>' );
+					expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>Foobar.</p>' );
 
 					editor.execute( 'redo' );
 
-					expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
+					expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
 
 					editor.execute( 'undo' );
 
-					expect( editor.getData( { trim: 'none' } ) ).to.equal( '<p>Foobar.</p>' );
+					expect( editor.getData( { trim: 'none' } ) ).toEqual( '<p>Foobar.</p>' );
 				} );
 		} );
 
@@ -193,18 +193,18 @@ describe( 'Paragraph feature – integration', () => {
 						writer.remove( otherRoot.getChild( 0 ) );
 					} );
 
-					expect( editor.data.get( { rootName: 'main', trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
-					expect( editor.data.get( { rootName: 'otherRoot', trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
+					expect( editor.data.get( { rootName: 'main', trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
+					expect( editor.data.get( { rootName: 'otherRoot', trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
 
 					editor.execute( 'undo' );
 
-					expect( editor.data.get( { rootName: 'main', trim: 'none' } ) ).to.equal( '<p>&nbsp;</p>' );
-					expect( editor.data.get( { rootName: 'otherRoot', trim: 'none' } ) ).to.equal( '<p>Foobar.</p>' );
+					expect( editor.data.get( { rootName: 'main', trim: 'none' } ) ).toEqual( '<p>&nbsp;</p>' );
+					expect( editor.data.get( { rootName: 'otherRoot', trim: 'none' } ) ).toEqual( '<p>Foobar.</p>' );
 
 					editor.execute( 'undo' );
 
-					expect( editor.data.get( { rootName: 'main', trim: 'none' } ) ).to.equal( '<p>Foobar.</p>' );
-					expect( editor.data.get( { rootName: 'otherRoot', trim: 'none' } ) ).to.equal( '<p>Foobar.</p>' );
+					expect( editor.data.get( { rootName: 'main', trim: 'none' } ) ).toEqual( '<p>Foobar.</p>' );
+					expect( editor.data.get( { rootName: 'otherRoot', trim: 'none' } ) ).toEqual( '<p>Foobar.</p>' );
 				} );
 		} );
 	} );

@@ -1,40 +1,42 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/documentfragment
  */
 
-import TypeCheckable from './typecheckable';
-import Text from './text';
-import TextProxy from './textproxy';
+import { ViewTypeCheckable } from './typecheckable.js';
+import { ViewText } from './text.js';
+import { ViewTextProxy } from './textproxy.js';
 
-import { EmitterMixin, isIterable } from '@ckeditor/ckeditor5-utils';
+import { EmitterMixin, isIterable, type EmitterMixinConstructor } from '@ckeditor/ckeditor5-utils';
 
-import type { default as Document, ChangeType } from './document';
+import type { ViewDocument, ViewDocumentChangeType } from './document.js';
 
-import type Item from './item';
-import type Node from './node';
+import { type ViewItem } from './item.js';
+import { type ViewNode } from './node.js';
+
+const ViewDocumentFragmentBase: EmitterMixinConstructor<typeof ViewTypeCheckable> = /* #__PURE__ */ EmitterMixin( ViewTypeCheckable );
 
 /**
  * Document fragment.
  *
  * To create a new document fragment instance use the
- * {@link module:engine/view/upcastwriter~UpcastWriter#createDocumentFragment `UpcastWriter#createDocumentFragment()`}
+ * {@link module:engine/view/upcastwriter~ViewUpcastWriter#createDocumentFragment `ViewUpcastWriter#createDocumentFragment()`}
  * method.
  */
-export default class DocumentFragment extends EmitterMixin( TypeCheckable ) implements Iterable<Node> {
+export class ViewDocumentFragment extends ViewDocumentFragmentBase implements Iterable<ViewNode> {
 	/**
 	 * The document to which this document fragment belongs.
 	 */
-	public readonly document: Document;
+	public readonly document: ViewDocument;
 
 	/**
 	 * Array of child nodes.
 	 */
-	private readonly _children: Array<Node> = [];
+	private readonly _children: Array<ViewNode> = [];
 
 	/**
 	 * Map of custom properties.
@@ -49,7 +51,7 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 * @param document The document to which this document fragment belongs.
 	 * @param children A list of nodes to be inserted into the created document fragment.
 	 */
-	constructor( document: Document, children?: Node | Iterable<Node> ) {
+	constructor( document: ViewDocument, children?: ViewNode | Iterable<ViewNode> ) {
 		super();
 
 		this.document = document;
@@ -64,7 +66,7 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 *
 	 * Iterates over nodes added to this document fragment.
 	 */
-	public [ Symbol.iterator ](): Iterator<Node> {
+	public [ Symbol.iterator ](): Iterator<ViewNode> {
 		return this._children[ Symbol.iterator ]();
 	}
 
@@ -104,6 +106,13 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	}
 
 	/**
+	 * Artificial element getFillerOffset. Returns `undefined`. Added for compatibility reasons.
+	 */
+	public get getFillerOffset(): undefined {
+		return undefined;
+	}
+
+	/**
 	 * Returns the custom property value for the given key.
 	 */
 	public getCustomProperty( key: string | symbol ): unknown {
@@ -119,14 +128,30 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	}
 
 	/**
-	 * {@link module:engine/view/documentfragment~DocumentFragment#_insertChild Insert} a child node or a list of child nodes at the end
+	 * Converts `ViewDocumentFragment` instance to plain object and returns it.
+	 * Takes care of converting all of this document fragment's children.
+	 *
+	 * @returns `ViewDocumentFragment` instance converted to plain object.
+	 */
+	public toJSON(): unknown {
+		const json = [];
+
+		for ( const node of this._children ) {
+			json.push( node.toJSON() );
+		}
+
+		return json;
+	}
+
+	/**
+	 * {@link module:engine/view/documentfragment~ViewDocumentFragment#_insertChild Insert} a child node or a list of child nodes at the end
 	 * and sets the parent of these nodes to this fragment.
 	 *
 	 * @internal
 	 * @param items Items to be inserted.
 	 * @returns Number of appended nodes.
 	 */
-	public _appendChild( items: Item | string | Iterable<Item | string> ): number {
+	public _appendChild( items: ViewItem | string | Iterable<ViewItem | string> ): number {
 		return this._insertChild( this.childCount, items );
 	}
 
@@ -136,7 +161,7 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 * @param index Index of child.
 	 * @returns Child node.
 	 */
-	public getChild( index: number ): Node {
+	public getChild( index: number ): ViewNode {
 		return this._children[ index ];
 	}
 
@@ -146,7 +171,7 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 * @param node Child node.
 	 * @returns Index of the child node.
 	 */
-	public getChildIndex( node: Node ): number {
+	public getChildIndex( node: ViewNode ): number {
 		return this._children.indexOf( node );
 	}
 
@@ -155,7 +180,7 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 *
 	 * @returns Child nodes iterator.
 	 */
-	public getChildren(): IterableIterator<Node> {
+	public getChildren(): IterableIterator<ViewNode> {
 		return this._children[ Symbol.iterator ]();
 	}
 
@@ -168,8 +193,8 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 * @param items Items to be inserted.
 	 * @returns Number of inserted nodes.
 	 */
-	public _insertChild( index: number, items: Item | string | Iterable<Item | string> ): number {
-		this._fireChange( 'children', this );
+	public _insertChild( index: number, items: ViewItem | string | Iterable<ViewItem | string> ): number {
+		this._fireChange( 'children', this, { index } );
 		let count = 0;
 
 		const nodes = normalize( this.document, items );
@@ -198,8 +223,8 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	 * @param howMany Number of nodes to remove.
 	 * @returns The array of removed nodes.
 	 */
-	public _removeChildren( index: number, howMany: number = 1 ): Array<Node> {
-		this._fireChange( 'children', this );
+	public _removeChildren( index: number, howMany: number = 1 ): Array<ViewNode> {
+		this._fireChange( 'children', this, { index } );
 
 		for ( let i = index; i < index + howMany; i++ ) {
 			( this._children[ i ] as any ).parent = null;
@@ -209,20 +234,20 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	}
 
 	/**
-	 * Fires `change` event with given type of the change.
-	 *
 	 * @internal
 	 * @param type Type of the change.
 	 * @param node Changed node.
+	 * @param data Additional data.
+	 * @fires module:engine/view/node~ViewNode#event:change
 	 */
-	public _fireChange( type: ChangeType, node: Node | DocumentFragment ): void {
-		this.fire( 'change:' + type, node );
+	public _fireChange( type: ViewDocumentChangeType, node: ViewNode | ViewDocumentFragment, data?: { index: number } ): void {
+		this.fire( `change:${ type }`, node, data );
 	}
 
 	/**
 	 * Sets a custom property. They can be used to add special data to elements.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#setCustomProperty
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#setCustomProperty
 	 * @internal
 	 */
 	public _setCustomProperty( key: string | symbol, value: unknown ): void {
@@ -232,7 +257,7 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 	/**
 	 * Removes the custom property stored under the given key.
 	 *
-	 * @see module:engine/view/downcastwriter~DowncastWriter#removeCustomProperty
+	 * @see module:engine/view/downcastwriter~ViewDowncastWriter#removeCustomProperty
 	 * @internal
 	 * @returns Returns true if property was removed.
 	 */
@@ -263,17 +288,17 @@ export default class DocumentFragment extends EmitterMixin( TypeCheckable ) impl
 
 // The magic of type inference using `is` method is centralized in `TypeCheckable` class.
 // Proper overload would interfere with that.
-DocumentFragment.prototype.is = function( type: string ): boolean {
+ViewDocumentFragment.prototype.is = function( type: string ): boolean {
 	return type === 'documentFragment' || type === 'view:documentFragment';
-};
+} as any;
 
 /**
  * Converts strings to Text and non-iterables to arrays.
  */
-function normalize( document: Document, nodes: Item | string | Iterable<Item | string> ): Array<Node> {
+function normalize( document: ViewDocument, nodes: ViewItem | string | Iterable<ViewItem | string> ): Array<ViewNode> {
 	// Separate condition because string is iterable.
 	if ( typeof nodes == 'string' ) {
-		return [ new Text( document, nodes ) ];
+		return [ new ViewText( document, nodes ) ];
 	}
 
 	if ( !isIterable( nodes ) ) {
@@ -284,11 +309,11 @@ function normalize( document: Document, nodes: Item | string | Iterable<Item | s
 	return Array.from( nodes )
 		.map( node => {
 			if ( typeof node == 'string' ) {
-				return new Text( document, node );
+				return new ViewText( document, node );
 			}
 
-			if ( node instanceof TextProxy ) {
-				return new Text( document, node.data );
+			if ( node instanceof ViewTextProxy ) {
+				return new ViewText( document, node.data );
 			}
 
 			return node;

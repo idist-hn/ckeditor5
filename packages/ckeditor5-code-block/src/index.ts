@@ -1,18 +1,40 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module code-block
  */
 
-export { default as CodeBlock } from './codeblock';
-export { default as CodeBlockEditing } from './codeblockediting';
-export { default as CodeBlockUI } from './codeblockui';
-export type { default as CodeBlockCommand } from './codeblockcommand';
-export type { default as IndentCodeBlockCommand } from './indentcodeblockcommand';
-export type { default as OutdentCodeBlockCommand } from './outdentcodeblockcommand';
-export type { CodeBlockConfig } from './codeblockconfig';
+export { CodeBlock } from './codeblock.js';
+export { CodeBlockEditing } from './codeblockediting.js';
+export { CodeBlockUI } from './codeblockui.js';
+export { CodeBlockCommand } from './codeblockcommand.js';
+export { IndentCodeBlockCommand } from './indentcodeblockcommand.js';
+export { OutdentCodeBlockCommand } from './outdentcodeblockcommand.js';
+export type { CodeBlockConfig, CodeBlockLanguageDefinition } from './codeblockconfig.js';
 
-import './augmentation';
+export {
+	modelToViewCodeBlockInsertion as _modelToViewCodeBlockInsertion,
+	modelToDataViewSoftBreakInsertion as _modelToDataViewCodeBlockSoftBreakInsertion,
+	dataViewToModelCodeBlockInsertion as _dataViewToModelCodeBlockInsertion,
+	dataViewToModelTextNewlinesInsertion as _dataViewToModelCodeBlockTextNewlinesInsertion,
+	dataViewToModelOrphanNodeConsumer as _dataViewToModelCodeBlockOrphanNodeConsumer
+} from './converters.js';
+
+export {
+	getNormalizedAndLocalizedLanguageDefinitions as _getNormalizedAndLocalizedCodeBlockLanguageDefinitions,
+	getPropertyAssociation as _getCodeBlockPropertyAssociation,
+	getLeadingWhiteSpaces as _getCodeBlockLeadingWhiteSpaces,
+	rawSnippetTextToViewDocumentFragment as _rawCodeBlockSnippetTextToViewDocumentFragment,
+	getIndentOutdentPositions as _getCodeBlockIndentOutdentPositions,
+	isModelSelectionInCodeBlock as _isModelSelectionInCodeBlock,
+	canBeCodeBlock as _canBeCodeBlock,
+	getCodeBlockAriaAnnouncement as _getCodeBlockAriaAnnouncement,
+	getTextNodeAtLineStart as _getCodeBlockTextNodeAtLineStart
+} from './utils.js';
+
+import '../theme/index-editor.css';
+import '../theme/index-content.css';
+import './augmentation.js';

@@ -1,0 +1,794 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { ListEditing } from '../../src/list/listediting.js';
+import { ListIndentCommand } from '../../src/list/listindentcommand.js';
+import { stubUid } from './_utils/uid.js';
+import { modelList } from './_utils/utils.js';
+
+import { _setModelData, _getModelData } from '@ckeditor/ckeditor5-engine';
+
+describe( 'ListIndentCommand (multiBlock=false)', () => {
+	let editor, model, root;
+
+	beforeEach( async () => {
+		editor = await VirtualTestEditor.create( {
+			plugins: [ ListEditing, Paragraph ],
+			list: {
+				multiBlock: false
+			}
+		} );
+
+		model = editor.model;
+		root = model.document.getRoot();
+
+		stubUid();
+		modelList.defaultBlock = 'listItem';
+	} );
+
+	afterEach( async () => {
+		modelList.defaultBlock = 'paragraph';
+		await editor.destroy();
+	} );
+
+	describe( 'forward (indent)', () => {
+		let command;
+
+		beforeEach( () => {
+			command = new ListIndentCommand( editor, 'forward' );
+		} );
+
+		afterEach( () => {
+			command.destroy();
+		} );
+
+		describe( 'isEnabled', () => {
+			it( 'should be true if selection starts in list item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * []5',
+					'* 6'
+				] ) );
+
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be false if selection starts in first list item', () => {
+				_setModelData( model, modelList( [
+					'* []0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false if selection starts in first list item at given indent', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  * 1',
+					'* 2',
+					'  * []3',
+					'    * 4'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false if selection starts in first list item (different list type)', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  * 1',
+					'# 2',
+					'  * 3',
+					'* []4'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false if selection is in first list item with different type than previous list', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'# []1'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false if selection starts in a list item that has higher indent than it\'s previous sibling', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * []2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be false if selection starts before a list item', () => {
+				_setModelData( model, modelList( [
+					'[]0',
+					'* 1',
+					'* 2'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+		} );
+
+		describe( 'execute()', () => {
+			it( 'should use parent batch', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * []5',
+					'* 6'
+				] ) );
+
+				model.change( writer => {
+					expect( writer.batch.operations.length ).toBe( 0 );
+
+					command.execute();
+
+					expect( writer.batch.operations.length ).toBeGreaterThan( 0 );
+				} );
+			} );
+
+			it( 'should increment indent attribute by 1', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * []5',
+					'* 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'    * []5',
+					'* 6'
+				] ) );
+			} );
+
+			it( 'should increment indent of all sub-items of indented item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* []1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'  * []1',
+					'    * 2',
+					'      * 3',
+					'      * 4',
+					'    * 5',
+					'* 6'
+				] ) );
+			} );
+
+			describe( 'mixed list types', () => {
+				it( 'should not change list item type if the indented list item is the first one in the nested list (bulleted)', () => {
+					_setModelData( model, modelList( [
+						'* 0',
+						'* 1[]',
+						'  # 2',
+						'* 3'
+					] ) );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* 0',
+						'  * 1[]',
+						'    # 2',
+						'* 3'
+					] ) );
+				} );
+
+				it( 'should not change list item type if the indented list item is the first one in the nested list (numbered)', () => {
+					_setModelData( model, modelList( [
+						'# 0',
+						'# 1[]',
+						'  * 2',
+						'# 3'
+					] ) );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'# 0',
+						'  # 1[]',
+						'    * 2',
+						'# 3'
+					] ) );
+				} );
+
+				it( 'should adjust list type to the previous list item (numbered)', () => {
+					_setModelData( model, modelList( [
+						'* 0',
+						'* 1',
+						'  # 2',
+						'* []3'
+					] ) );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* 0',
+						'* 1',
+						'  # 2',
+						'  # []3'
+					] ) );
+				} );
+
+				it( 'should not change list item type if the indented list item is the first one in the nested list', () => {
+					_setModelData( model, modelList( [
+						'* 0',
+						'* []1',
+						'  # 2',
+						'    * 3',
+						'  # 4'
+					] ) );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* 0',
+						'  * []1',
+						'    # 2',
+						'      * 3',
+						'    # 4'
+					] ) );
+				} );
+
+				it( 'should not change list item type if the first item in the nested list (has more items)', () => {
+					_setModelData( model, modelList( [
+						'* 0',
+						'* []1',
+						'  # 2',
+						'    * 3',
+						'  # 4',
+						'* 5',
+						'  # 6'
+					] ) );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* 0',
+						'  * []1',
+						'    # 2',
+						'      * 3',
+						'    # 4',
+						'* 5',
+						'  # 6'
+					] ) );
+				} );
+			} );
+
+			describe( 'non-collapsed selection', () => {
+				it( 'should increment indent of all selected item when multiple items are selected', () => {
+					_setModelData( model, modelList( [
+						'* 0',
+						'* [1',
+						'  * 2',
+						'    * 3]',
+						'    * 4',
+						'  * 5',
+						'* 6'
+					] ) );
+
+					command.execute();
+
+					expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+						'* 0',
+						'  * [1',
+						'    * 2',
+						'      * 3]',
+						'      * 4',
+						'    * 5',
+						'* 6'
+					] ) );
+				} );
+
+				describe( 'mixed list types', () => {
+					it( 'should not change list types for the first list items', () => {
+						_setModelData( model, modelList( [
+							'* 0',
+							'* [1',
+							'  # 2]',
+							'    * 3'
+						] ) );
+
+						command.execute();
+
+						expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+							'* 0',
+							'  * [1',
+							'    # 2]',
+							'      * 3'
+						] ) );
+					} );
+
+					it( 'should not change list types for the first list items (with nested lists)', () => {
+						_setModelData( model, modelList( [
+							'* 0',
+							'* [1',
+							'  # 2]',
+							'* 3'
+						] ) );
+
+						command.execute();
+
+						expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+							'* 0',
+							'  * [1',
+							'    # 2]',
+							'* 3'
+						] ) );
+					} );
+
+					it( 'should align the list type if become a part of other list (bulleted)', () => {
+						_setModelData( model, modelList( [
+							'* 0',
+							'* 1',
+							'  # 2',
+							'* [3',
+							'* 4]'
+						] ) );
+
+						command.execute();
+
+						expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+							'* 0',
+							'* 1',
+							'  # 2',
+							'  # [3',
+							'  # 4]'
+						] ) );
+					} );
+
+					it( 'should align the list type if become a part of other list (numbered)', () => {
+						_setModelData( model, modelList( [
+							'* 0',
+							'* 1',
+							'  # 2',
+							'  # [3',
+							'* 4]'
+						] ) );
+
+						command.execute();
+
+						expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+							'* 0',
+							'* 1',
+							'  # 2',
+							'    # [3',
+							'  # 4]'
+						] ) );
+					} );
+
+					it( 'should align the list type (bigger structure)', () => {
+						_setModelData( model, modelList( [
+							'* 0',
+							'* 1',
+							'  # 2',
+							'    * 3',
+							'    * [4',
+							'  # 5',
+							'    * 6',
+							'  # 7]'
+						] ) );
+
+						command.execute();
+
+						expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+							'* 0',
+							'* 1',
+							'  # 2',
+							'    * 3',
+							'      * [4',
+							'    * 5',
+							'      * 6',
+							'    * 7]'
+						] ) );
+					} );
+				} );
+			} );
+
+			it( 'should fire "afterExecute" event after finish all operations with all changed items', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* []1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				let afterExecuteData;
+
+				command.on( 'afterExecute', ( evt, data ) => {
+					afterExecuteData = data;
+				} );
+
+				command.execute();
+
+				expect( afterExecuteData ).toEqual( [
+					root.getChild( 1 ),
+					root.getChild( 2 ),
+					root.getChild( 3 ),
+					root.getChild( 4 ),
+					root.getChild( 5 )
+				] );
+			} );
+		} );
+	} );
+
+	describe( 'backward (outdent)', () => {
+		let command;
+
+		beforeEach( () => {
+			command = new ListIndentCommand( editor, 'backward' );
+		} );
+
+		afterEach( () => {
+			command.destroy();
+		} );
+
+		describe( 'isEnabled', () => {
+			it( 'should be true if selection starts in list item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * []5',
+					'* 6'
+				] ) );
+
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true if selection starts in first list item', () => {
+				_setModelData( model, modelList( [
+					'* []0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true if selection starts in a list item that has higher indent than it\'s previous sibling', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * []2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be false if selection starts before a list', () => {
+				_setModelData( model, modelList( [
+					'[0',
+					'* 1]',
+					'  * 2'
+				] ) );
+
+				expect( command.isEnabled ).toBe( false );
+			} );
+
+			it( 'should be true with selection in the middle block of a list item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  []1',
+					'  2'
+				] ) );
+
+				expect( command.isEnabled ).toBe( true );
+			} );
+
+			it( 'should be true with selection in the last block of a list item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  1',
+					'  []2'
+				] ) );
+
+				expect( command.isEnabled ).toBe( true );
+			} );
+		} );
+
+		describe( 'execute()', () => {
+			it( 'should decrement indent attribute by 1 (if it is higher than 0)', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * []5',
+					'* 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'* []5',
+					'* 6'
+				] ) );
+			} );
+
+			it( 'should remove list attributes (if indent is less than to 0)', () => {
+				_setModelData( model, modelList( [
+					'* []0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'[]0',
+					'* 1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+			} );
+
+			it( 'should decrement indent of all sub-items of outdented item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* []1',
+					'  * 2',
+					'    * 3',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'[]1',
+					'* 2',
+					'  * 3',
+					'  * 4',
+					'* 5',
+					'* 6'
+				] ) );
+			} );
+
+			it( 'should outdent all selected item when multiple items are selected', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* [1',
+					'  * 2',
+					'    * 3]',
+					'    * 4',
+					'  * 5',
+					'* 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'[1',
+					'* 2',
+					'  * 3]',
+					'  * 4',
+					'* 5',
+					'* 6'
+				] ) );
+			} );
+
+			it( 'should not merge item if parent has no more following blocks', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  * []1',
+					'* 2'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* []1',
+					'* 2'
+				] ) );
+			} );
+
+			it( 'should handle higher indent drop between items', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  * 1',
+					'    * 2',
+					'      * [3',
+					'  * 4]',
+					'  * 5'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'  * 1',
+					'    * 2',
+					'    * [3',
+					'* 4]',
+					'  * 5'
+				] ) );
+			} );
+
+			it( 'should align a list item type after outdenting item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  # 2[]',
+					'* 3'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'* 2[]',
+					'* 3'
+				] ) );
+			} );
+
+			it( 'should align a list item type after outdenting the last list item', () => {
+				_setModelData( model, modelList( [
+					'# 0',
+					'  * 1',
+					'  * 2[]',
+					'# 3'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'# 0',
+					'  * 1',
+					'# 2[]',
+					'# 3'
+				] ) );
+			} );
+
+			it( 'should align the list item type after the more indented item', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  # 2',
+					'    * 3',
+					'  # 4[]'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'  # 2',
+					'    * 3',
+					'* 4[]'
+				] ) );
+			} );
+
+			it( 'should outdent the whole nested list (and align appropriate list item types)', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'  # []1',
+					'    # 2',
+					'      * 3',
+					'    # 4',
+					'* 5',
+					'  # 6'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* []1',
+					'  # 2',
+					'    * 3',
+					'  # 4',
+					'* 5',
+					'  # 6'
+				] ) );
+			} );
+
+			it( 'should align list item typed after outdenting a bigger structure', () => {
+				_setModelData( model, modelList( [
+					'* 0',
+					'* 1',
+					'  # 2',
+					'    * 3',
+					'      # [4',
+					'    * 5',
+					'      # 6',
+					'    * 7]'
+				] ) );
+
+				command.execute();
+
+				expect( _getModelData( model ) ).toEqualMarkup( modelList( [
+					'* 0',
+					'* 1',
+					'  # 2',
+					'    * 3',
+					'    * [4',
+					'  # 5',
+					'    # 6',
+					'  # 7]'
+				] ) );
+			} );
+		} );
+	} );
+} );

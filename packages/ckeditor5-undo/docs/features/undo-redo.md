@@ -1,6 +1,7 @@
 ---
 category: features
 meta-title: Undo/Redo | CKEditor 5 Documentation
+meta-description: Use the Undo and Redo features in CKEditor 5 to revert or reapply changes, enhancing editing control and flexibility.
 modified_at: 2022-08-29
 ---
 
@@ -10,15 +11,15 @@ The undo feature lets you withdraw recent changes to your content as well as bri
 
 ## Demo
 
-Use the demo below to try out the undo and redo mechanism. Play around with the content. Try introducing some changes and then use the toolbar buttons to undo {@icon @ckeditor/ckeditor5-undo/theme/icons/undo.svg Undo} or redo {@icon @ckeditor/ckeditor5-undo/theme/icons/redo.svg Redo} them.
+Use the demo below to try out the undo and redo mechanism. Play around with the content. Try introducing some changes and then use the toolbar buttons to undo {@icon @ckeditor/ckeditor5-icons/theme/icons/undo.svg Undo} or redo {@icon @ckeditor/ckeditor5-icons/theme/icons/redo.svg Redo} them.
 
 Alternatively, use the well-known keyboard shortcut <kbd>Ctrl</kbd> + <kbd>Z</kbd> (this would be <kbd>Cmd</kbd> + <kbd>Z</kbd> on Mac) for undo. For redo, you can use either <kbd>Ctrl</kbd> + <kbd>Y</kbd> or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> (respectively with <kbd>Cmd</kbd> on Mac).
 
 {@snippet features/undo-redo}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Additional feature information
 
@@ -26,43 +27,29 @@ All operations of the undo feature are remembered and organized into batches tha
 
 The selective undo is heavily used in {@link features/real-time-collaboration real-time collaboration} environments. In such a scenario, a specific user should only be able to revert their changes, while keeping the changes made by other users intact (unless there is an editing conflict). By omitting some changes and going down the stack, it is possible to only revert selected changes.
 
-The feature supports both toolbar buttons and {@link features/keyboard-support keyboard shortcuts} for convenient and easy operation.
+The feature supports both toolbar buttons and {@link features/accessibility#keyboard-shortcuts keyboard shortcuts} for convenient and easy operation.
 
 ## Installation
 
-<info-box info>
-	This feature is enabled by default in all {@link installation/getting-started/predefined-builds predefined builds} (loaded by the {@link module:essentials/essentials~Essentials} plugin). The installation instructions are for developers interested in building their own, custom rich text editor or willing to configure the toolbar button.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-<info-box info>
-	This feature is enabled by default in all {@link installation/getting-started/predefined-builds predefined builds}.
-</info-box>
-
-To add this feature to your editor, install the [`@ckeditor/ckeditor5-undo`](https://www.npmjs.com/package/@ckeditor/ckeditor5-undo) package:
-
-```
-npm install --save @ckeditor/ckeditor5-undo
-```
-
-Then add the `Undo` plugin to your plugin list and to the toolbar:
-
+<code-switcher>
 ```js
-import { Undo } from '@ckeditor/ckeditor5-undo';
+import { ClassicEditor, Undo } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
-		// Load the plugin.
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ Undo, /* ... */ ],
-
-		// Display the "Undo" and "Redo" buttons in the toolbar.
 		toolbar: [ 'undo', 'redo', /* ... */ ],
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
+</code-switcher>
 
 <info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins} and {@link features/toolbar toolbar configuration}.
+	Read more about {@link getting-started/setup/configuration installing plugins} and {@link getting-started/setup/toolbar toolbar configuration}.
 </info-box>
 
 ## Common API
@@ -77,7 +64,7 @@ The `UndoEditing` feature registers the following commands:
 	editor.execute( 'undo');
 	```
 
-	It can be used to retrieve changes from the latest batch, or from some previous batch (e.g. changes made by a selected user in a collaborative environment):
+	You can use it to retrieve changes from the latest batch, or from some previous batch (for example, changes made by a selected user in a collaborative environment):
 
 	```js
 	editor.execute( 'undo', batchToUndo );

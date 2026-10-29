@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 import type {
@@ -26,6 +26,7 @@ import type {
 	ImageCaptionUtils,
 	ImageInsertUI,
 	ImageResizeEditing,
+	ImageCustomResizeUI,
 	ImageSizeAttributes,
 	ImageStyleEditing,
 	ImageStyleUI,
@@ -43,10 +44,10 @@ import type {
 	ImageStyleCommand,
 	ImageTextAlternativeCommand,
 	UploadImageCommand
-} from '.';
+} from './index.js';
 
 declare module '@ckeditor/ckeditor5-core' {
-  interface EditorConfig {
+	interface EditorConfig {
 
 		/**
 		 * The configuration of the image features. Used by the image features in the `@ckeditor/ckeditor5-image` package.
@@ -77,6 +78,7 @@ declare module '@ckeditor/ckeditor5-core' {
 		[ ImageCaptionUtils.pluginName ]: ImageCaptionUtils;
 		[ ImageInsertUI.pluginName ]: ImageInsertUI;
 		[ ImageResizeEditing.pluginName ]: ImageResizeEditing;
+		[ ImageCustomResizeUI.pluginName ]: ImageCustomResizeUI;
 		[ ImageSizeAttributes.pluginName ]: ImageSizeAttributes;
 		[ ImageStyleEditing.pluginName ]: ImageStyleEditing;
 		[ ImageStyleUI.pluginName ]: ImageStyleUI;
@@ -87,7 +89,7 @@ declare module '@ckeditor/ckeditor5-core' {
 		[ ImageUploadUI.pluginName ]: ImageUploadUI;
 	}
 
-  interface CommandsMap {
+	interface CommandsMap {
 		imageTypeBlock: ImageTypeCommand;
 		imageTypeInline: ImageTypeCommand;
 		insertImage: InsertImageCommand;

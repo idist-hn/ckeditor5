@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -12,10 +12,13 @@ import {
 	type EventInfo,
 	type ObservableChangeEvent,
 	type DecoratedMethodEvent,
-	type ObservableSetEvent
+	type ObservableSetEvent,
+	type ObservableMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
-import type Editor from './editor/editor';
+import { type Editor } from './editor/editor.js';
+
+const CommandBase: ObservableMixinConstructor = /* #__PURE__ */ ObservableMixin();
 
 /**
  * Base class for the CKEditor commands.
@@ -30,7 +33,7 @@ import type Editor from './editor/editor';
  * By default, commands are disabled when the editor is in the {@link module:core/editor/editor~Editor#isReadOnly read-only} mode
  * but commands with the {@link module:core/command~Command#affectsData `affectsData`} flag set to `false` will not be disabled.
  */
-export default class Command extends ObservableMixin() {
+export class Command extends CommandBase {
 	/**
 	 * The editor on which this command will be used.
 	 */
@@ -87,6 +90,17 @@ export default class Command extends ObservableMixin() {
 	 * Holds identifiers for {@link #forceDisabled} mechanism.
 	 */
 	private readonly _disableStack: Set<string>;
+
+	/**
+	 * `Command` class is commonly put in `config.plugins` array.
+	 *
+	 * This property helps with better error detection.
+	 *
+	 * @internal
+	 */
+	public static get _throwErrorWhenUsedAsAPlugin(): true {
+		return true;
+	};
 
 	/**
 	 * Creates a new `Command` instance.
@@ -166,7 +180,7 @@ export default class Command extends ObservableMixin() {
 	 * in this method.
 	 *
 	 * This method is automatically called when
-	 * {@link module:engine/model/document~Document#event:change any changes are applied to the document}.
+	 * {@link module:engine/model/document~ModelDocument#event:change any changes are applied to the document}.
 	 */
 	public refresh(): void {
 		this.isEnabled = true;
@@ -253,7 +267,7 @@ export default class Command extends ObservableMixin() {
 	 *
 	 * @fires execute
 	 */
-	public execute( ...args: Array<unknown> ): unknown { return undefined; }
+	public execute( ...args: Array<unknown> ): unknown { return undefined; } // eslint-disable-line @typescript-eslint/no-unused-vars
 
 	/**
 	 * Destroys the command.

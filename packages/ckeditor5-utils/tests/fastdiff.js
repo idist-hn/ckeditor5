@@ -1,24 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import fastDiff from '../src/fastdiff';
-import diff from '../src/diff';
-import diffToChanges from '../src/difftochanges';
+import { describe, expect, it } from 'vitest';
+import { fastDiff } from '../src/fastdiff.js';
+import { diff } from '../src/diff.js';
+import { diffToChanges } from '../src/difftochanges.js';
 
 describe( 'fastDiff', () => {
 	describe( 'input types', () => {
 		it( 'should correctly handle strings', () => {
 			const changes = fastDiff( '123', 'abc123' );
-			expect( changes ).to.deep.equal( [ { index: 0, type: 'insert', values: [ 'a', 'b', 'c' ] } ] );
+			expect( changes ).toEqual( [ { index: 0, type: 'insert', values: [ 'a', 'b', 'c' ] } ] );
 		} );
 
 		it( 'should correctly handle arrays', () => {
 			const changes = fastDiff( [ '1', '2', '3' ], [ 'a', 'b', 'c', '1', '2', '3' ] );
-			expect( changes ).to.deep.equal( [ { index: 0, type: 'insert', values: [ 'a', 'b', 'c' ] } ] );
+			expect( changes ).toEqual( [ { index: 0, type: 'insert', values: [ 'a', 'b', 'c' ] } ] );
 		} );
 
 		it( 'should correctly handle node lists', () => {
@@ -32,7 +31,7 @@ describe( 'fastDiff', () => {
 			el2.appendChild( document.createElement( 'strong' ) );
 
 			const changes = fastDiff( el1.childNodes, el2.childNodes );
-			expect( changes ).to.deep.equal( [
+			expect( changes ).toEqual( [
 				{ index: 0, type: 'insert', values: [ el2.childNodes[ 0 ], el2.childNodes[ 1 ] ] },
 				{ index: 2, type: 'delete', howMany: 2 }
 			] );
@@ -622,11 +621,10 @@ describe( 'fastDiff', () => {
 function expectDiff( oldText, newText, expected, checkDiffToChangesCompatibility = true, comparator = null ) {
 	const result = fastDiff( oldText, newText, comparator );
 
-	expect( result ).to.deep.equal( expected, 'fastDiff changes failed' );
+	expect( result, 'fastDiff changes failed' ).toEqual( expected );
 
 	if ( checkDiffToChangesCompatibility ) {
-		expect( result ).to.deep.equal(
-			diffToChanges( diff( oldText, newText, comparator ), newText ), 'diffToChanges compatibility failed' );
+		expect( result, 'diffToChanges compatibility failed' ).toEqual( diffToChanges( diff( oldText, newText, comparator ), newText ) );
 	}
 }
 
@@ -635,9 +633,9 @@ function expectDiffLinear( oldText, newText, expected, checkDiffCompatibility = 
 	const expectedArray = expected.split( '' ).map( item => actions[ item ] );
 	const result = fastDiff( oldText, newText, comparator, true );
 
-	expect( result ).to.deep.equal( expectedArray, 'fastDiff linear result failed' );
+	expect( result, 'fastDiff linear result failed' ).toEqual( expectedArray );
 
 	if ( checkDiffCompatibility ) {
-		expect( result ).to.deep.equal( diff( oldText, newText, comparator ), 'diff compatibility failed' );
+		expect( result, 'diff compatibility failed' ).toEqual( diff( oldText, newText, comparator ) );
 	}
 }

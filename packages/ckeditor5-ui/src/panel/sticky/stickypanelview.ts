@@ -1,38 +1,39 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/panel/sticky/stickypanelview
  */
 
-import View from '../../view';
-import Template from '../../template';
+import { View } from '../../view.js';
+import { Template } from '../../template.js';
 
-import type ViewCollection from '../../viewcollection';
+import { type ViewCollection } from '../../viewcollection.js';
 
 import {
 	type Locale,
 	type ObservableChangeEvent,
-	global,
+	Rect,
 	toUnit,
-	Rect
+	getVisualViewportOffset,
+	global,
+	getEventRoots,
+	DomTargetsListener
 } from '@ckeditor/ckeditor5-utils';
 
-// @if CK_DEBUG_STICKYPANEL // const {
-// @if CK_DEBUG_STICKYPANEL // 	default: RectDrawer,
+// @if CK_DEBUG_STICKYPANEL // import {
+// @if CK_DEBUG_STICKYPANEL // 	RectDrawer,
 // @if CK_DEBUG_STICKYPANEL // 	diagonalStylesBlack
-// @if CK_DEBUG_STICKYPANEL // } = require( '@ckeditor/ckeditor5-utils/tests/_utils/rectdrawer' );
+// @if CK_DEBUG_STICKYPANEL // } from '@ckeditor/ckeditor5-utils/tests/_utils/rectdrawer.js';
 
-import '../../../theme/components/panel/stickypanel.css';
-
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * The sticky panel view class.
  */
-export default class StickyPanelView extends View {
+export class StickyPanelView extends View {
 	/**
 	 * Collection of the child views which creates balloon panel contents.
 	 */
@@ -97,6 +98,12 @@ export default class StickyPanelView extends View {
 	declare public viewportTopOffset: number;
 
 	/**
+	 * The panel which accepts children into {@link #content} collection.
+	 * Also an element which is positioned when {@link #isSticky}.
+	 */
+	public contentPanelElement: HTMLElement;
+
+	/**
 	 * Controls the `margin-left` CSS style of the panel.
 	 *
 	 * @private
@@ -141,10 +148,11 @@ export default class StickyPanelView extends View {
 	private _contentPanelPlaceholder: HTMLElement;
 
 	/**
-	 * The panel which accepts children into {@link #content} collection.
-	 * Also an element which is positioned when {@link #isSticky}.
+	 * Keeps the `scroll` listener on `document` and on every event root of {@link #limiterElement}. `scroll` is not
+	 * `composed`, so it never crosses a shadow boundary: a listener on `document`, even with `useCapture: true`, never
+	 * sees a scrollable container inside a shadow root hosting the limiter. Created in {@link #render}.
 	 */
-	private _contentPanel: HTMLElement;
+	private _scrollListener: DomTargetsListener | null = null;
 
 	/**
 	 * @inheritDoc
@@ -184,7 +192,7 @@ export default class StickyPanelView extends View {
 			}
 		} ).render() as HTMLElement;
 
-		this._contentPanel = new Template( {
+		this.contentPanelElement = new Template( {
 			tag: 'div',
 
 			attributes: {
@@ -220,7 +228,7 @@ export default class StickyPanelView extends View {
 			},
 			children: [
 				this._contentPanelPlaceholder,
-				this._contentPanel
+				this.contentPanelElement
 			]
 		} );
 	}
@@ -231,18 +239,38 @@ export default class StickyPanelView extends View {
 	public override render(): void {
 		super.render();
 
+		// Update sticky state of the panel as the window and ancestors are being scrolled.
+		this._scrollListener = new DomTargetsListener( () => [ global.document, ...getEventRoots( this.limiterElement ) ], {
+			emitter: this,
+			event: 'scroll',
+			listenerOptions: { useCapture: true },
+			callback: () => this.checkIfShouldBeSticky()
+		} );
+
 		// Check if the panel should go into the sticky state immediately.
 		this.checkIfShouldBeSticky();
 
-		// Update sticky state of the panel as the window and ancestors are being scrolled.
-		this.listenTo( global.document, 'scroll', () => {
-			this.checkIfShouldBeSticky();
-		}, { useCapture: true } );
+		// #checkIfShouldBeSticky() re-derives the roots on its own, but it is not called when the limiter is
+		// swapped, so cover that case here too — otherwise the new limiter's tree would go unlistened until
+		// something else happened to trigger a check.
+		this.listenTo<ObservableChangeEvent>( this, 'change:limiterElement', () => {
+			this._scrollListener!.refresh();
+		} );
 
 		// Synchronize with `model.isActive` because sticking an inactive panel is pointless.
 		this.listenTo<ObservableChangeEvent>( this, 'change:isActive', () => {
 			this.checkIfShouldBeSticky();
 		} );
+
+		if ( global.window.visualViewport ) {
+			this.listenTo( global.window.visualViewport, 'scroll', () => {
+				this.checkIfShouldBeSticky();
+			} );
+
+			this.listenTo( global.window.visualViewport, 'resize', () => {
+				this.checkIfShouldBeSticky();
+			} );
+		}
 	}
 
 	/**
@@ -252,6 +280,13 @@ export default class StickyPanelView extends View {
 	public checkIfShouldBeSticky(): void {
 		// @if CK_DEBUG_STICKYPANEL // RectDrawer.clear();
 
+		// The limiter can be moved into (or out of) a shadow root long after this view was rendered, without
+		// #limiterElement itself ever changing — `ClassicEditor`, for instance, renders its UI first and only
+		// then replaces the source element, moving the whole tree. Re-deriving the roots here, rather than only
+		// when #limiterElement changes, keeps the listeners correct through such a move. The cost is negligible
+		// next to the rect math below, and this method is already the place where the environment is re-read.
+		this._scrollListener?.refresh();
+
 		if ( !this.limiterElement || !this.isActive ) {
 			this._unstick();
 
@@ -259,7 +294,6 @@ export default class StickyPanelView extends View {
 		}
 
 		const limiterRect = new Rect( this.limiterElement );
-
 		let visibleLimiterRect = limiterRect.getVisible();
 
 		if ( visibleLimiterRect ) {
@@ -271,32 +305,23 @@ export default class StickyPanelView extends View {
 			visibleLimiterRect = visibleLimiterRect.getIntersection( windowRect );
 		}
 
-		// @if CK_DEBUG_STICKYPANEL // if ( visibleLimiterRect ) {
-		// @if CK_DEBUG_STICKYPANEL // 	RectDrawer.draw( visibleLimiterRect,
-		// @if CK_DEBUG_STICKYPANEL // 		{ outlineWidth: '3px', opacity: '.8', outlineColor: 'red', outlineOffset: '-3px' },
-		// @if CK_DEBUG_STICKYPANEL // 		'Visible anc'
-		// @if CK_DEBUG_STICKYPANEL // 	);
-		// @if CK_DEBUG_STICKYPANEL // }
-		// @if CK_DEBUG_STICKYPANEL //
-		// @if CK_DEBUG_STICKYPANEL // RectDrawer.draw( limiterRect,
-		// @if CK_DEBUG_STICKYPANEL // 	{ outlineWidth: '3px', opacity: '.8', outlineColor: 'green', outlineOffset: '-3px' },
-		// @if CK_DEBUG_STICKYPANEL // 	'Limiter'
-		// @if CK_DEBUG_STICKYPANEL // );
+		const {
+			left: visualViewportOffsetLeft,
+			top: visualViewportOffsetTop
+		} = getVisualViewportOffset();
+
+		limiterRect.moveBy( visualViewportOffsetLeft, visualViewportOffsetTop );
+
+		if ( visibleLimiterRect ) {
+			visibleLimiterRect.moveBy( visualViewportOffsetLeft, visualViewportOffsetTop );
+		}
 
 		// Stick the panel only if
 		// * the limiter's ancestors are intersecting with each other so that some of their rects are visible,
 		// * and the limiter's top edge is above the visible ancestors' top edge.
 		if ( visibleLimiterRect && limiterRect.top < visibleLimiterRect.top ) {
-			// @if CK_DEBUG_STICKYPANEL // RectDrawer.draw( visibleLimiterRect,
-			// @if CK_DEBUG_STICKYPANEL // 	{ outlineWidth: '3px', opacity: '.8', outlineColor: 'fuchsia', outlineOffset: '-3px',
-			// @if CK_DEBUG_STICKYPANEL // 		backgroundColor: 'rgba(255, 0, 255, .3)' },
-			// @if CK_DEBUG_STICKYPANEL // 	'Visible limiter'
-			// @if CK_DEBUG_STICKYPANEL // );
-
-			const visibleLimiterTop = visibleLimiterRect.top;
-
 			// Check if there's a change the panel can be sticky to the bottom of the limiter.
-			if ( visibleLimiterTop + this._contentPanelRect.height + this.limiterBottomOffset > visibleLimiterRect.bottom ) {
+			if ( this._contentPanelRect.height + this.limiterBottomOffset > visibleLimiterRect.height ) {
 				const stickyBottomOffset = Math.max( limiterRect.bottom - visibleLimiterRect.bottom, 0 ) + this.limiterBottomOffset;
 				// @if CK_DEBUG_STICKYPANEL // const stickyBottomOffsetRect = new Rect( {
 				// @if CK_DEBUG_STICKYPANEL // 	top: limiterRect.bottom - stickyBottomOffset, left: 0, right: 2000,
@@ -304,22 +329,23 @@ export default class StickyPanelView extends View {
 				// @if CK_DEBUG_STICKYPANEL // } );
 				// @if CK_DEBUG_STICKYPANEL // RectDrawer.draw( stickyBottomOffsetRect,
 				// @if CK_DEBUG_STICKYPANEL // 	{ outlineWidth: '1px', opacity: '.8', outlineColor: 'black' },
-				// @if CK_DEBUG_STICKYPANEL // 	'Sticky bottom offset'
+				// @if CK_DEBUG_STICKYPANEL // 	'Sticky bottom offset',
+				// @if CK_DEBUG_STICKYPANEL // 	{ visualViewportOrigin: true }
 				// @if CK_DEBUG_STICKYPANEL // );
 
 				// Check if sticking the panel to the bottom of the limiter does not cause it to suddenly
 				// move upwards if there's not enough space for it.
-				if ( limiterRect.bottom - stickyBottomOffset > limiterRect.top + this._contentPanelRect.height ) {
+				// To avoid toolbar flickering we are adding 1 for potential style change (sticky has all borders set,
+				// non-sticky lacks bottom border).
+				if ( this._contentPanelRect.height + stickyBottomOffset + 1 < limiterRect.height ) {
 					this._stickToBottomOfLimiter( stickyBottomOffset );
 				} else {
 					this._unstick();
 				}
+			} else if ( this._contentPanelRect.height + this.limiterBottomOffset < limiterRect.height ) {
+				this._stickToTopOfAncestors( visibleLimiterRect.top );
 			} else {
-				if ( this._contentPanelRect.height + this.limiterBottomOffset < limiterRect.height ) {
-					this._stickToTopOfAncestors( visibleLimiterTop );
-				} else {
-					this._unstick();
-				}
+				this._unstick();
 			}
 		} else {
 			this._unstick();
@@ -334,8 +360,9 @@ export default class StickyPanelView extends View {
 		// @if CK_DEBUG_STICKYPANEL // 	RectDrawer.draw( visibleLimiterRect,
 		// @if CK_DEBUG_STICKYPANEL // 		{ ...diagonalStylesBlack,
 		// @if CK_DEBUG_STICKYPANEL // 			outlineWidth: '3px', opacity: '.8', outlineColor: 'orange', outlineOffset: '-3px',
-		// @if CK_DEBUG_STICKYPANEL // 			backgroundColor: 'rgba(0, 0, 255, .2)' },
-		// @if CK_DEBUG_STICKYPANEL // 		'visibleLimiterRect'
+		// @if CK_DEBUG_STICKYPANEL // 			backgroundColor: 'rgba(0, 0, 255, .2)', zIndex: 2000 },
+		// @if CK_DEBUG_STICKYPANEL // 		'visibleLimiterRect',
+		// @if CK_DEBUG_STICKYPANEL // 		{ visualViewportOrigin: true }
 		// @if CK_DEBUG_STICKYPANEL // 	);
 		// @if CK_DEBUG_STICKYPANEL // }
 	}
@@ -351,7 +378,7 @@ export default class StickyPanelView extends View {
 		this._isStickyToTheBottomOfLimiter = false;
 		this._stickyTopOffset = topOffset;
 		this._stickyBottomOffset = null;
-		this._marginLeft = toPx( -global.window.scrollX );
+		this._marginLeft = toPx( -global.window.scrollX + getVisualViewportOffset().left );
 	}
 
 	/**
@@ -365,7 +392,7 @@ export default class StickyPanelView extends View {
 		this._isStickyToTheBottomOfLimiter = true;
 		this._stickyTopOffset = null;
 		this._stickyBottomOffset = stickyBottomOffset;
-		this._marginLeft = toPx( -global.window.scrollX );
+		this._marginLeft = toPx( -global.window.scrollX + getVisualViewportOffset().left );
 	}
 
 	/**
@@ -374,19 +401,22 @@ export default class StickyPanelView extends View {
 	 * @private
 	 */
 	private _unstick() {
-		this.isSticky = false;
+		// Reset the offsets first so that `change:isSticky` listeners reading the layout see the panel back in the flow.
+		// Otherwise, the panel would still be absolutely positioned at the bottom of the limiter while the placeholder
+		// is already hidden, and the browser scroll anchoring would scroll the page back by the panel height.
 		this._isStickyToTheBottomOfLimiter = false;
 		this._stickyTopOffset = null;
 		this._stickyBottomOffset = null;
 		this._marginLeft = null;
+		this.isSticky = false;
 	}
 
 	/**
-	 * Returns the bounding rect of the {@link #_contentPanel}.
+	 * Returns the bounding rect of the {@link #contentPanelElement}.
 	 *
 	 * @private
 	 */
 	private get _contentPanelRect(): Rect {
-		return new Rect( this._contentPanel );
+		return new Rect( this.contentPanelElement );
 	}
 }

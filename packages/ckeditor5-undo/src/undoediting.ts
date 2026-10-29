@@ -1,16 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module undo/undoediting
  */
 
-import { Plugin, type Editor } from '@ckeditor/ckeditor5-core';
+import { Plugin } from '@ckeditor/ckeditor5-core';
 
-import UndoCommand, { type UndoCommandRevertEvent } from './undocommand';
-import RedoCommand from './redocommand';
+import { UndoCommand } from './undocommand.js';
+import { RedoCommand } from './redocommand.js';
+import { type UndoRedoBaseCommandRevertEvent } from './basecommand.js';
 
 import type {
 	Batch,
@@ -22,7 +23,7 @@ import type {
  *
  * It introduces the `'undo'` and `'redo'` commands to the editor.
  */
-export default class UndoEditing extends Plugin {
+export class UndoEditing extends Plugin {
 	/**
 	 * The command that manages the undo {@link module:engine/model/batch~Batch batches} stack (history).
 	 * Created and registered during the {@link #init feature initialization}.
@@ -50,8 +51,16 @@ export default class UndoEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public init(): void {
 		const editor = this.editor;
+		const t = editor.t;
 
 		// Create commands.
 		this._undoCommand = new UndoCommand( editor );
@@ -102,12 +111,26 @@ export default class UndoEditing extends Plugin {
 			}
 		}, { priority: 'highest' } );
 
-		this.listenTo<UndoCommandRevertEvent>( this._undoCommand, 'revert', ( evt, undoneBatch, undoingBatch ) => {
+		this.listenTo<UndoRedoBaseCommandRevertEvent>( this._undoCommand, 'revert', ( evt, undoneBatch, undoingBatch ) => {
 			this._redoCommand.addBatch( undoingBatch );
 		} );
 
 		editor.keystrokes.set( 'CTRL+Z', 'undo' );
 		editor.keystrokes.set( 'CTRL+Y', 'redo' );
 		editor.keystrokes.set( 'CTRL+SHIFT+Z', 'redo' );
+
+		// Add the information about the keystrokes to the accessibility database.
+		editor.accessibility.addKeystrokeInfos( {
+			keystrokes: [
+				{
+					label: t( 'Undo' ),
+					keystroke: 'CTRL+Z'
+				},
+				{
+					label: t( 'Redo' ),
+					keystroke: [ [ 'CTRL+Y' ], [ 'CTRL+SHIFT+Z' ] ]
+				}
+			]
+		} );
 	}
 }

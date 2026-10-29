@@ -1,13 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window */
+import {
+	Autosave,
+	CKBox,
+	CKBoxImageEdit,
+	PictureEditing,
+	ImageResize,
+	AutoImage
+} from 'ckeditor5';
+import { ClassicEditor } from '@snippets/index.js';
 
-import { Autosave } from '@ckeditor/ckeditor5-autosave';
-import ClassicEditor from '../../build-classic';
-
-ClassicEditor.builtinPlugins.push( Autosave );
-
-window.ClassicEditor = ClassicEditor;
+export class AutosaveEditor extends ClassicEditor {
+	static builtinPlugins = [
+		...ClassicEditor.builtinPlugins,
+		Autosave,
+		CKBox,
+		CKBoxImageEdit,
+		PictureEditing,
+		ImageResize,
+		AutoImage
+	];
+}

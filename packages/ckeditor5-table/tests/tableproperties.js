@@ -1,15 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import global from '@ckeditor/ckeditor5-utils/src/dom/global';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
 
-import TableEditing from '../src/tableediting';
-import TableProperties from '../src/tableproperties';
-import TablePropertiesEditing from '../src/tableproperties/tablepropertiesediting';
+import { TableEditing } from '../src/tableediting.js';
+import { TableProperties } from '../src/tableproperties.js';
+import { TablePropertiesEditing } from '../src/tableproperties/tablepropertiesediting.js';
 
 describe( 'table properties', () => {
 	describe( 'TableProperties', () => {
@@ -30,15 +31,23 @@ describe( 'table properties', () => {
 		} );
 
 		it( 'should be loaded', () => {
-			expect( editor.plugins.get( TableProperties ) ).to.instanceOf( TableProperties );
+			expect( editor.plugins.get( TableProperties ) ).toBeInstanceOf( TableProperties );
 		} );
 
 		it( 'should load TablePropertiesEditing plugin', () => {
-			expect( editor.plugins.get( TablePropertiesEditing ) ).to.instanceOf( TablePropertiesEditing );
+			expect( editor.plugins.get( TablePropertiesEditing ) ).toBeInstanceOf( TablePropertiesEditing );
 		} );
 
 		it( 'should have pluginName', () => {
-			expect( TableProperties.pluginName ).to.equal( 'TableProperties' );
+			expect( TableProperties.pluginName ).toBe( 'TableProperties' );
+		} );
+
+		it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+			expect( TableProperties.isOfficialPlugin ).toBe( true );
+		} );
+
+		it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+			expect( TableProperties.isPremiumPlugin ).toBe( false );
 		} );
 	} );
 } );

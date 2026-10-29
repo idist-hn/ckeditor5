@@ -1,21 +1,18 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Paragraph from '../src/paragraph';
-import ParagraphCommand from '../src/paragraphcommand';
-import InsertParagraphCommand from '../src/insertparagraphcommand';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Paragraph } from '../src/paragraph.js';
+import { ParagraphCommand } from '../src/paragraphcommand.js';
+import { InsertParagraphCommand } from '../src/insertparagraphcommand.js';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
 import {
-	getData as getModelData,
-	setData as setModelData,
-	stringify as stringifyModel
-} from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import { getData as getViewData } from '@ckeditor/ckeditor5-engine/src/dev-utils/view';
-
-import ModelDocumentFragment from '@ckeditor/ckeditor5-engine/src/model/documentfragment';
-import ModelText from '@ckeditor/ckeditor5-engine/src/model/text';
+	_getModelData,
+	_setModelData,
+	_stringifyModel,
+	_getViewData, ModelDocumentFragment, ModelText } from '@ckeditor/ckeditor5-engine';
 
 describe( 'Paragraph feature', () => {
 	let model, editor, doc, root;
@@ -32,47 +29,55 @@ describe( 'Paragraph feature', () => {
 	} );
 
 	it( 'should be loaded', () => {
-		expect( editor.plugins.get( Paragraph ) ).to.be.instanceOf( Paragraph );
+		expect( editor.plugins.get( Paragraph ) ).toBeInstanceOf( Paragraph );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( Paragraph.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( Paragraph.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should set proper schema rules', () => {
-		expect( model.schema.isRegistered( 'paragraph' ) ).to.be.true;
-		expect( model.schema.checkChild( [ '$root' ], 'paragraph' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'paragraph' ], '$text' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'paragraph' ) ).toBe( true );
+		expect( model.schema.checkChild( [ '$root' ], 'paragraph' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'paragraph' ], '$text' ) ).toBe( true );
 	} );
 
 	it( 'should have a static paragraphLikeElements property', () => {
-		expect( Paragraph ).to.have.property( 'paragraphLikeElements' );
+		expect( Paragraph ).toHaveProperty( 'paragraphLikeElements' );
 	} );
 
 	describe( 'data pipeline conversions', () => {
 		it( 'should convert paragraph', () => {
 			editor.setData( '<p>foobar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph>foobar</paragraph>' );
-			expect( editor.getData() ).to.equal( '<p>foobar</p>' );
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<paragraph>foobar</paragraph>' );
+			expect( editor.getData() ).toEqual( '<p>foobar</p>' );
 		} );
 
 		it( 'should convert paragraph only', () => {
 			editor.setData( '<p>foo<b>baz</b>bar</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph>foobazbar</paragraph>' );
-			expect( editor.getData() ).to.equal( '<p>foobazbar</p>' );
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<paragraph>foobazbar</paragraph>' );
+			expect( editor.getData() ).toEqual( '<p>foobazbar</p>' );
 		} );
 
 		it( 'should convert multiple paragraphs', () => {
 			editor.setData( '<p>foo</p><p>baz</p>' );
 
-			expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph>foo</paragraph><paragraph>baz</paragraph>' );
-			expect( editor.getData() ).to.equal( '<p>foo</p><p>baz</p>' );
+			expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<paragraph>foo</paragraph><paragraph>baz</paragraph>' );
+			expect( editor.getData() ).toEqual( '<p>foo</p><p>baz</p>' );
 		} );
 
 		describe( 'generic text converter (text autoparagraphing)', () => {
 			it( 'should autoparagraph text', () => {
 				editor.setData( 'foo' );
 
-				expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph>foo</paragraph>' );
-				expect( editor.getData() ).to.equal( '<p>foo</p>' );
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<paragraph>foo</paragraph>' );
+				expect( editor.getData() ).toEqual( '<p>foo</p>' );
 			} );
 
 			it( 'should autoparagraph any inline element', () => {
@@ -83,8 +88,8 @@ describe( 'Paragraph feature', () => {
 
 				editor.setData( '<span>foo</span>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph><inline>foo</inline></paragraph>' );
-				expect( editor.getData() ).to.equal( '<p><span>foo</span></p>' );
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<paragraph><inline>foo</inline></paragraph>' );
+				expect( editor.getData() ).toEqual( '<p><span>foo</span></p>' );
 			} );
 
 			it( 'should autoparagraph any inline element with children', () => {
@@ -95,15 +100,15 @@ describe( 'Paragraph feature', () => {
 
 				editor.setData( '<span>f<b>123</b>oo</span>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) ).to.equal( '<paragraph><inline>f123oo</inline></paragraph>' );
-				expect( editor.getData() ).to.equal( '<p><span>f123oo</span></p>' );
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<paragraph><inline>f123oo</inline></paragraph>' );
+				expect( editor.getData() ).toEqual( '<p><span>f123oo</span></p>' );
 			} );
 
 			it( 'should not autoparagraph text (in clipboard holder)', () => {
 				const modelFragment = editor.data.parse( 'foo', [ '$clipboardHolder' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( 'foo' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( 'foo' );
 			} );
 
 			it( 'should not autoparagraph text (in a context which does not allow paragraphs', () => {
@@ -111,8 +116,8 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( 'foo', [ 'specialRoot' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '' );
 			} );
 
 			it( 'should autoparagraph text next to allowed element', () => {
@@ -122,22 +127,22 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<h1>foo</h1>bar<p>bom</p>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<heading1>foo</heading1><paragraph>bar</paragraph><paragraph>bom</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<heading1>foo</heading1><paragraph>bar</paragraph><paragraph>bom</paragraph>' );
 			} );
 
 			it( 'should autoparagraph 3 inline nodes into one paragraph', () => {
 				const modelFragment = editor.data.parse( 'foo<b>bar</b>bom' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>foobarbom</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>foobarbom</paragraph>' );
 			} );
 
 			it( 'should not autoparagraph 3 inline nodes (in clipboardHolder)', () => {
 				const modelFragment = editor.data.parse( 'foo<b>bar</b>bom', [ '$clipboardHolder' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( 'foobarbom' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( 'foobarbom' );
 			} );
 
 			it( 'should autoparagraph text inside converted container', () => {
@@ -149,8 +154,8 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<div>foo</div><div>bom<p>bim</p></div>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal(
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual(
 						'<div><paragraph>foo</paragraph></div>' +
 						'<div><paragraph>bom</paragraph><paragraph>bim</paragraph></div>'
 					);
@@ -163,8 +168,8 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<div><h1>foo</h1>bar</div>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<heading1>foo</heading1><paragraph>bar</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<heading1>foo</heading1><paragraph>bar</paragraph>' );
 			} );
 
 			it( 'should not autoparagraph text in disallowed element', () => {
@@ -174,8 +179,8 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<h1><b>foo</b>bar</h1>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<heading1>foobar</heading1>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<heading1>foobar</heading1>' );
 			} );
 
 			it( 'should not fail when text is not allowed in paragraph', () => {
@@ -187,15 +192,15 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( 'foo' );
 
-				expect( stringifyModel( modelFragment ) ).to.equal( '' );
+				expect( _stringifyModel( modelFragment ) ).toEqual( '' );
 			} );
 
 			it( 'creates normalized model', () => {
 				const modelFragment = editor.data.parse( 'foo<b>bar</b>bom' );
 
-				expect( modelFragment ).to.be.instanceof( ModelDocumentFragment );
-				expect( modelFragment.getChild( 0 ).childCount ).to.equal( 1 );
-				expect( modelFragment.getChild( 0 ).getChild( 0 ) ).to.be.instanceOf( ModelText );
+				expect( modelFragment ).toBeInstanceOf( ModelDocumentFragment );
+				expect( modelFragment.getChild( 0 ).childCount ).toEqual( 1 );
+				expect( modelFragment.getChild( 0 ).getChild( 0 ) ).toBeInstanceOf( ModelText );
 			} );
 
 			// This test was taken from the list package.
@@ -206,7 +211,7 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<ul><li></li></ul>' );
 
-				expect( stringifyModel( modelFragment ) ).to.equal( '' );
+				expect( _stringifyModel( modelFragment ) ).toEqual( '' );
 			} );
 
 			describe( 'should not strip attribute elements when autoparagraphing texts', () => {
@@ -219,7 +224,7 @@ describe( 'Paragraph feature', () => {
 				it( 'inside document fragment', () => {
 					const modelFragment = editor.data.parse( 'foo<b>bar</b>bom' );
 
-					expect( stringifyModel( modelFragment ) ).to.equal( '<paragraph>foo<$text bold="true">bar</$text>bom</paragraph>' );
+					expect( _stringifyModel( modelFragment ) ).toEqual( '<paragraph>foo<$text bold="true">bar</$text>bom</paragraph>' );
 				} );
 
 				it( 'inside converted element', () => {
@@ -230,15 +235,15 @@ describe( 'Paragraph feature', () => {
 
 					const modelFragment = editor.data.parse( '<blockquote>foo<b>bar</b>bom</blockquote>' );
 
-					expect( stringifyModel( modelFragment ) )
-						.to.equal( '<blockQuote><paragraph>foo<$text bold="true">bar</$text>bom</paragraph></blockQuote>' );
+					expect( _stringifyModel( modelFragment ) )
+						.toEqual( '<blockQuote><paragraph>foo<$text bold="true">bar</$text>bom</paragraph></blockQuote>' );
 				} );
 
 				it( 'inside paragraph-like element', () => {
 					const modelFragment = editor.data.parse( '<h1>foo</h1><h2><b>bar</b>bom</h2>' );
 
-					expect( stringifyModel( modelFragment ) )
-						.to.equal( '<paragraph>foo</paragraph><paragraph><$text bold="true">bar</$text>bom</paragraph>' );
+					expect( _stringifyModel( modelFragment ) )
+						.toEqual( '<paragraph>foo</paragraph><paragraph><$text bold="true">bar</$text>bom</paragraph>' );
 				} );
 			} );
 		} );
@@ -247,15 +252,15 @@ describe( 'Paragraph feature', () => {
 			it( 'should convert h1+h2', () => {
 				const modelFragment = editor.data.parse( '<h1>foo</h1><h2>bar</h2>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
 			} );
 
 			it( 'should convert h1+h2 (in clipboard holder)', () => {
 				const modelFragment = editor.data.parse( '<h1>foo</h1><h2>bar</h2>', [ '$clipboardHolder' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
 			} );
 
 			it( 'should not convert h1+h2 (in a context which does not allow paragraphs)', () => {
@@ -268,29 +273,29 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<h1>foo</h1><h2>bar</h2><div>bom</div>', [ 'specialRoot' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<div>bom</div>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<div>bom</div>' );
 			} );
 
 			it( 'should convert ul,ol>li', () => {
 				const modelFragment = editor.data.parse( '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
 			} );
 
 			it( 'should convert ul,ol>li (in clipboard holder)', () => {
 				const modelFragment = editor.data.parse( '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>', [ '$clipboardHolder' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
 			} );
 
 			it( 'should convert ul>li>ul>li+li', () => {
 				const modelFragment = editor.data.parse( '<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
 			} );
 
 			// "b" is not autoparagraphed because clipboard holder allows text nodes.
@@ -298,22 +303,22 @@ describe( 'Paragraph feature', () => {
 			it( 'should convert ul>li>ul>li+li (in clipboard holder)', () => {
 				const modelFragment = editor.data.parse( '<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>', [ '$clipboardHolder' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph>' );
 			} );
 
 			it( 'should convert ul>li>p,text', () => {
 				const modelFragment = editor.data.parse( '<ul><li><p>a</p>b</li></ul>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph>' );
 			} );
 
 			it( 'should convert ul>li>p,text (in clipboard holder)', () => {
 				const modelFragment = editor.data.parse( '<ul><li><p>a</p>b</li></ul>', [ '$clipboardHolder' ] );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph>' );
 			} );
 
 			it( 'should convert td', () => {
@@ -321,8 +326,8 @@ describe( 'Paragraph feature', () => {
 					'<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>'
 				);
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph><paragraph>d</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph><paragraph>d</paragraph>' );
 			} );
 
 			it( 'should convert td (in clipboardHolder)', () => {
@@ -331,8 +336,8 @@ describe( 'Paragraph feature', () => {
 					[ '$clipboardHolder' ]
 				);
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph><paragraph>d</paragraph>' );
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual( '<paragraph>a</paragraph><paragraph>b</paragraph><paragraph>c</paragraph><paragraph>d</paragraph>' );
 			} );
 
 			it( 'should convert li inside converted container', () => {
@@ -344,8 +349,8 @@ describe( 'Paragraph feature', () => {
 
 				const modelFragment = editor.data.parse( '<div><ul><li>foo</li><li>bar</li></ul></div><div>bom<p>bim</p></div>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal(
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual(
 						'<div><paragraph>foo</paragraph><paragraph>bar</paragraph></div>' +
 						'<div><paragraph>bom</paragraph><paragraph>bim</paragraph></div>'
 					);
@@ -354,8 +359,8 @@ describe( 'Paragraph feature', () => {
 			it( 'should convert li inside disallowed container', () => {
 				const modelFragment = editor.data.parse( '<div><ul><li>foo</li><li>bar</li></ul></div><div>bom<p>bim</p></div>' );
 
-				expect( stringifyModel( modelFragment ) )
-					.to.equal(
+				expect( _stringifyModel( modelFragment ) )
+					.toEqual(
 						'<paragraph>foo</paragraph><paragraph>bar</paragraph>' +
 						'<paragraph>bom</paragraph><paragraph>bim</paragraph>'
 					);
@@ -364,26 +369,26 @@ describe( 'Paragraph feature', () => {
 			it( 'creates normalized model', () => {
 				const modelFragment = editor.data.parse( '<h1><span>foo</span><span>bar</span>' );
 
-				expect( stringifyModel( modelFragment ) ).to.equal( '<paragraph>foobar</paragraph>' );
+				expect( _stringifyModel( modelFragment ) ).toEqual( '<paragraph>foobar</paragraph>' );
 
-				expect( modelFragment ).to.be.instanceof( ModelDocumentFragment );
-				expect( modelFragment.getChild( 0 ).childCount ).to.equal( 1 );
-				expect( modelFragment.getChild( 0 ).getChild( 0 ) ).to.be.instanceOf( ModelText );
+				expect( modelFragment ).toBeInstanceOf( ModelDocumentFragment );
+				expect( modelFragment.getChild( 0 ).childCount ).toEqual( 1 );
+				expect( modelFragment.getChild( 0 ).getChild( 0 ) ).toBeInstanceOf( ModelText );
 			} );
 
 			it( 'should not convert empty elements', () => {
 				const modelFragment = editor.data.parse( '<ul><li></li><ul>' );
 
-				expect( stringifyModel( modelFragment ) ).to.equal( '' );
+				expect( _stringifyModel( modelFragment ) ).toEqual( '' );
 			} );
 		} );
 	} );
 
 	describe( 'editing pipeline conversion', () => {
 		it( 'should convert paragraph', () => {
-			setModelData( model, '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
+			_setModelData( model, '<paragraph>foo</paragraph><paragraph>bar</paragraph>' );
 
-			expect( getViewData( editor.editing.view, { withoutSelection: true } ) ).to.equal( '<p>foo</p><p>bar</p>' );
+			expect( _getViewData( editor.editing.view, { withoutSelection: true } ) ).toEqual( '<p>foo</p><p>bar</p>' );
 		} );
 	} );
 
@@ -391,14 +396,14 @@ describe( 'Paragraph feature', () => {
 		it( 'wraps text and place selection at the beginning of that paragraph', () => {
 			editor.setData( 'foo' );
 
-			expect( getModelData( model ) ).to.equal( '<paragraph>[]foo</paragraph>' );
+			expect( _getModelData( model ) ).toEqual( '<paragraph>[]foo</paragraph>' );
 		} );
 	} );
 
 	describe( 'post-fixing empty roots', () => {
 		it( 'should fix empty roots after editor is initialised', () => {
-			expect( doc.getRoot().childCount ).to.equal( 1 );
-			expect( doc.getRoot().getChild( 0 ).is( 'element', 'paragraph' ) ).to.be.true;
+			expect( doc.getRoot().childCount ).toEqual( 1 );
+			expect( doc.getRoot().getChild( 0 ).is( 'element', 'paragraph' ) ).toBe( true );
 		} );
 
 		it( 'should fix root if it becomes empty', () => {
@@ -407,14 +412,14 @@ describe( 'Paragraph feature', () => {
 			// Since `setData` first removes all contents from editor and then sets content during same enqueue
 			// change block, the line below checks whether fixing empty roots does not kick too early and does not
 			// fix root if it is not needed.
-			expect( editor.getData() ).to.equal( '<p>Foobar</p>' );
+			expect( editor.getData() ).toEqual( '<p>Foobar</p>' );
 
 			model.change( writer => {
 				writer.remove( writer.createRangeIn( root ) );
 			} );
 
-			expect( doc.getRoot().childCount ).to.equal( 1 );
-			expect( doc.getRoot().getChild( 0 ).is( 'element', 'paragraph' ) ).to.be.true;
+			expect( doc.getRoot().childCount ).toEqual( 1 );
+			expect( doc.getRoot().getChild( 0 ).is( 'element', 'paragraph' ) ).toBe( true );
 		} );
 
 		it( 'should not fix root which does not allow paragraph', () => {
@@ -428,7 +433,7 @@ describe( 'Paragraph feature', () => {
 				writer.remove( writer.createRangeIn( root ) );
 			} );
 
-			expect( editor.getData() ).to.equal( '' );
+			expect( editor.getData() ).toEqual( '' );
 		} );
 
 		it( 'should fix empty roots in the right batch', () => {
@@ -444,18 +449,20 @@ describe( 'Paragraph feature', () => {
 				} );
 			} );
 
-			expect( Array.from( removeBatch.operations, operation => operation.type ) ).to.include.members( [ 'insert' ] );
-			expect( Array.from( attributeBatch.operations, operation => operation.type ) ).to.not.include.members( [ 'insert' ] );
+			expect( Array.from( removeBatch.operations, operation => operation.type ) ).toEqual( expect.arrayContaining( [ 'insert' ] ) );
+			expect( Array.from( attributeBatch.operations, operation => operation.type ) ).toEqual(
+				expect.not.arrayContaining( [ 'insert' ] )
+			);
 		} );
 	} );
 
 	describe( 'commands', () => {
 		it( '"paragraph" command should be registered in the editor', () => {
-			expect( editor.commands.get( 'paragraph' ) ).to.be.instanceof( ParagraphCommand );
+			expect( editor.commands.get( 'paragraph' ) ).toBeInstanceOf( ParagraphCommand );
 		} );
 
 		it( '"insertParagraph" command should be registered in the editor', () => {
-			expect( editor.commands.get( 'insertParagraph' ) ).to.be.instanceof( InsertParagraphCommand );
+			expect( editor.commands.get( 'insertParagraph' ) ).toBeInstanceOf( InsertParagraphCommand );
 		} );
 	} );
 } );

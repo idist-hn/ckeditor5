@@ -1,20 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals console, window, document */
-
-import InlineEditor from '@ckeditor/ckeditor5-build-inline';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
+import {
+	TOKEN_URL,
+	InlineEditor,
+	getViewportTopOffsetConfig,
+	setViewportTopOffsetDynamically
+} from '@snippets/index.js';
 
 const inlineInjectElements = document.querySelectorAll( '#snippet-inline-editor [data-inline-inject]' );
 
 Array.from( inlineInjectElements ).forEach( inlineElement => {
 	const config = {
+		root: {
+			element: inlineElement
+		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
 		},
 		toolbar: {
@@ -26,7 +31,11 @@ Array.from( inlineInjectElements ).forEach( inlineElement => {
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 			]
 		},
-		cloudServices: CS_CONFIG
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			forceDemoLabel: true,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ]
+		}
 	};
 
 	if ( inlineElement.tagName.toLowerCase() == 'header' ) {
@@ -38,9 +47,7 @@ Array.from( inlineInjectElements ).forEach( inlineElement => {
 			'ImageToolbar',
 			'ImageUpload',
 			'List',
-			'EasyImage',
-			'CKFinder',
-			'CKFinderUploadAdapter'
+			'CKBox'
 		];
 		config.toolbar.items = [ 'heading', '|', 'bold', 'italic', 'link' ];
 	} else {
@@ -57,9 +64,11 @@ Array.from( inlineInjectElements ).forEach( inlineElement => {
 	}
 
 	InlineEditor
-		.create( inlineElement, config )
+		.create( config )
 		.then( editor => {
 			window.editor = editor;
+
+			setViewportTopOffsetDynamically( editor );
 		} )
 		.catch( err => {
 			console.error( err );

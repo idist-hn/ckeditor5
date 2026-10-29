@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import DocumentColorCollection from '../../src/colorselector/documentcolorcollection';
-import Collection from '@ckeditor/ckeditor5-utils/src/collection';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { DocumentColorCollection } from '../../src/colorselector/documentcolorcollection.js';
+import { Collection } from '@ckeditor/ckeditor5-utils';
 
 describe( 'DocumentColorCollection', () => {
 	let documentColorCollection;
@@ -33,29 +34,29 @@ describe( 'DocumentColorCollection', () => {
 	} );
 
 	it( 'constructor()', () => {
-		expect( documentColorCollection ).to.be.instanceOf( DocumentColorCollection );
-		expect( documentColorCollection ).to.be.instanceOf( Collection );
+		expect( documentColorCollection ).toBeInstanceOf( DocumentColorCollection );
+		expect( documentColorCollection ).toBeInstanceOf( Collection );
 	} );
 
 	it( 'has observable "isEmpty" parameter', () => {
-		expect( documentColorCollection.isEmpty ).to.be.false;
+		expect( documentColorCollection.isEmpty ).toBe( false );
 
 		documentColorCollection.clear();
-		expect( documentColorCollection.isEmpty ).to.be.true;
+		expect( documentColorCollection.isEmpty ).toBe( true );
 
 		documentColorCollection.add( colors[ 0 ] );
-		expect( documentColorCollection.isEmpty ).to.be.false;
+		expect( documentColorCollection.isEmpty ).toBe( false );
 	} );
 
 	it( 'prevent of adding duplicated colors', () => {
-		expect( documentColorCollection.length ).to.equal( 4 );
+		expect( documentColorCollection.length ).toBe( 4 );
 
 		documentColorCollection.add( { color: '111' } );
-		expect( documentColorCollection.length ).to.equal( 4 );
+		expect( documentColorCollection.length ).toBe( 4 );
 	} );
 
 	it( 'hasColor()', () => {
-		expect( documentColorCollection.hasColor( '111' ) ).to.be.true;
-		expect( documentColorCollection.hasColor( '555' ) ).to.be.false;
+		expect( documentColorCollection.hasColor( '111' ) ).toBe( true );
+		expect( documentColorCollection.hasColor( '555' ) ).toBe( false );
 	} );
 } );

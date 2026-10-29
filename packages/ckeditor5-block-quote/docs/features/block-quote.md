@@ -3,27 +3,26 @@ category: features
 menu-title: Block quote
 meta-title: Block quote | CKEditor 5 Documentation
 ---
-{@snippet features/block-quote-source}
 
 # Block quote
 
-The block quote feature lets you easily include block quotations or pull quotes in your content. It's also an attractive way to draw the readers' attention to selected parts of the text.
+The block quote feature lets you easily include block quotations or pull quotes in your content. It is also an attractive way to draw the readers' attention to selected parts of the text.
 
 ## Demo
 
-Use the block quote toolbar button {@icon @ckeditor/ckeditor5-core/theme/icons/quote.svg Insert block quote} in the editor below to see the feature in action. You can also type `>` followed by a space before the quotation to format it on the go thanks to the {@link features/autoformat autoformatting} feature.
+Use the block quote toolbar button {@icon @ckeditor/ckeditor5-icons/theme/icons/quote.svg Insert block quote} in the editor below to see the feature in action. You can also type `>` followed by a space before the quotation to format it on the go thanks to the {@link features/autoformat autoformatting} feature.
 
 {@snippet features/block-quote}
 
-<info-box info>
-	This demo only presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
-</info-box>
+<snippet-footer>
+	This demo presents a limited set of features. Visit the {@link examples/builds/full-featured-editor feature-rich editor example} to see more in action.
+</snippet-footer>
 
 ## Nested block quotes
 
 Starting from version 27.1.0, CKEditor&nbsp;5 will properly display a block quote nested in another block quote. This sort of structure is indispensable in email editors or discussion forums. The ability to cite previous messages and preserve a correct quotation structure is often crucial to maintain the flow of communication. Nested block quotes may also prove useful for scientific or academic papers, but articles citing sources and referring to previous writing would often use it, too.
 
-Support for nested block quotes is provided as backward compatibility for loading pre-existing content, for example created in CKEditor 4. Additionally, pasting content with nested block quotes is supported. You can also nest a block quote in another block quote using the {@link features/drag-drop drag and drop} mechanism &mdash; just select an existing block quote and drag it into another.
+Support for nested block quotes is provided as backward compatibility for loading pre-existing content, for example created in CKEditor 4. Additionally, pasting content with nested block quotes is supported. You can also nest a block quote in another block quote using the {@link features/drag-drop drag and drop} mechanism &ndash; just select an existing block quote and drag it into another.
 
 {@snippet features/nested-block-quote}
 
@@ -33,33 +32,22 @@ Support for nested block quotes is provided as backward compatibility for loadin
 
 ## Installation
 
-<info-box info>
-	This feature is enabled by default in all {@link installation/getting-started/predefined-builds predefined builds}. The installation instructions are for developers interested in building their own, custom editor.
-</info-box>
+After {@link getting-started/integrations-cdn/quick-start installing the editor}, add the feature to your plugin list and toolbar configuration:
 
-To add this feature to your rich-text editor, install the [`@ckeditor/ckeditor5-block-quote`](https://www.npmjs.com/package/@ckeditor/ckeditor5-block-quote) package:
-
-```plaintext
-npm install --save @ckeditor/ckeditor5-block-quote
-```
-
-And add it to your plugin list configuration:
-
+<code-switcher>
 ```js
-import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
+import { ClassicEditor, BlockQuote } from 'ckeditor5';
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
+		licenseKey: '<YOUR_LICENSE_KEY>', // Or 'GPL'.
 		plugins: [ BlockQuote, /* ... */ ],
 		toolbar: [ 'blockQuote', /* ... */ ]
 	} )
 	.then( /* ... */ )
 	.catch( /* ... */ );
 ```
-
-<info-box info>
-	Read more about {@link installation/plugins/installing-plugins installing plugins}.
-</info-box>
+</code-switcher>
 
 ## Configuration
 
@@ -81,7 +69,7 @@ function DisallowNestingBlockQuotes( editor ) {
 // Pass it via config.extraPlugins or config.plugins:
 
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
 		extraPlugins: [ DisallowNestingBlockQuotes ],
 
 		// The rest of the configuration.
@@ -111,7 +99,7 @@ The {@link module:block-quote/blockquote~BlockQuote} plugin registers:
 * the `'blockQuote'` UI button component implemented by the {@link module:block-quote/blockquoteui~BlockQuoteUI block quote UI feature},
 * the `'blockQuote'` command implemented by the {@link module:block-quote/blockquoteediting~BlockQuoteEditing block quote editing feature}.
 
-The command can be executed using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
+You can execute the command using the {@link module:core/editor/editor~Editor#execute `editor.execute()`} method:
 
 ```js
 // Applies block quote to the selected content.

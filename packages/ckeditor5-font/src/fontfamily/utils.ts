@@ -1,19 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { FontFamilyOption } from '../fontconfig';
 
 /**
  * @module font/fontfamily/utils
  */
+
+import type { FontFamilyOption } from '../fontconfig.js';
 
 /**
  * Normalizes the {@link module:font/fontconfig~FontFamilyConfig#options configuration options}
  * to the {@link module:font/fontconfig~FontFamilyOption} format.
  *
  * @param configuredOptions An array of options taken from the configuration.
+ * @internal
  */
 export function normalizeOptions( configuredOptions: Array<string | FontFamilyOption> ): Array<FontFamilyOption> {
 	// Convert options to objects.
@@ -21,6 +22,17 @@ export function normalizeOptions( configuredOptions: Array<string | FontFamilyOp
 		.map( getOptionDefinition )
 		// Filter out undefined values that `getOptionDefinition` might return.
 		.filter( option => option !== undefined ) as Array<FontFamilyOption>;
+}
+
+/**
+ * Normalizes the CSS `font-family` property value to an array of unquoted and trimmed font faces.
+ *
+ * @internal
+ */
+export function normalizeFontFamilies( fontDefinition: string ): Array<string> {
+	return fontDefinition
+		.replace( /["']/g, '' ).split( ',' )
+		.map( name => name.trim() );
 }
 
 /**
@@ -59,7 +71,7 @@ function getOptionDefinition( option: string | FontFamilyOption ): FontFamilyOpt
  */
 function generateFontPreset( fontDefinition: string ): FontFamilyOption {
 	// Remove quotes from font names. They will be normalized later.
-	const fontNames = fontDefinition.replace( /"|'/g, '' ).split( ',' );
+	const fontNames = normalizeFontFamilies( fontDefinition );
 
 	// The first matched font name will be used as dropdown list item title and as model value.
 	const firstFontName = fontNames[ 0 ];

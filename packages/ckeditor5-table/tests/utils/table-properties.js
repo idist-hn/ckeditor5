@@ -1,9 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { getNormalizedDefaultProperties } from '../../src/utils/table-properties';
+import { describe, it, expect } from 'vitest';
+
+import {
+	getNormalizedDefaultCellProperties,
+	getNormalizedDefaultProperties,
+	getNormalizedDefaultTableProperties
+} from '../../src/utils/table-properties.js';
 
 describe( 'table utils', () => {
 	describe( 'table-properties', () => {
@@ -11,7 +17,7 @@ describe( 'table utils', () => {
 			it( 'should return an object with default properties', () => {
 				const editorConfig = {};
 
-				expect( getNormalizedDefaultProperties( editorConfig ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig ) ).toEqual( {
 					borderStyle: 'none',
 					borderWidth: '',
 					borderColor: '',
@@ -28,7 +34,7 @@ describe( 'table utils', () => {
 					height: '300px'
 				};
 
-				expect( getNormalizedDefaultProperties( editorConfig ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig ) ).toEqual( {
 					backgroundColor: '',
 					borderColor: '',
 					borderStyle: 'dashed',
@@ -41,7 +47,7 @@ describe( 'table utils', () => {
 			it( 'should add the alignment property', () => {
 				const editorConfig = {};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includeAlignmentProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includeAlignmentProperty: true } ) ).toEqual( {
 					alignment: 'center',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -57,7 +63,7 @@ describe( 'table utils', () => {
 					alignment: 'left'
 				};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includeAlignmentProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includeAlignmentProperty: true } ) ).toEqual( {
 					alignment: 'left',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -71,7 +77,7 @@ describe( 'table utils', () => {
 			it( 'should add the horizontalAlignment property (left-to-right)', () => {
 				const editorConfig = {};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includeHorizontalAlignmentProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includeHorizontalAlignmentProperty: true } ) ).toEqual( {
 					horizontalAlignment: 'left',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -86,7 +92,7 @@ describe( 'table utils', () => {
 				const editorConfig = {};
 				const options = { includeHorizontalAlignmentProperty: true, isRightToLeftContent: true };
 
-				expect( getNormalizedDefaultProperties( editorConfig, options ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, options ) ).toEqual( {
 					horizontalAlignment: 'right',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -102,7 +108,7 @@ describe( 'table utils', () => {
 					horizontalAlignment: 'center'
 				};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includeHorizontalAlignmentProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includeHorizontalAlignmentProperty: true } ) ).toEqual( {
 					horizontalAlignment: 'center',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -116,7 +122,7 @@ describe( 'table utils', () => {
 			it( 'should add the verticalAlignment property', () => {
 				const editorConfig = {};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includeVerticalAlignmentProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includeVerticalAlignmentProperty: true } ) ).toEqual( {
 					verticalAlignment: 'middle',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -132,7 +138,7 @@ describe( 'table utils', () => {
 					verticalAlignment: 'top'
 				};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includeVerticalAlignmentProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includeVerticalAlignmentProperty: true } ) ).toEqual( {
 					verticalAlignment: 'top',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -146,7 +152,7 @@ describe( 'table utils', () => {
 			it( 'should add the alignment padding', () => {
 				const editorConfig = {};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includePaddingProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includePaddingProperty: true } ) ).toEqual( {
 					padding: '',
 					borderStyle: 'none',
 					borderWidth: '',
@@ -162,12 +168,38 @@ describe( 'table utils', () => {
 					padding: '10px'
 				};
 
-				expect( getNormalizedDefaultProperties( editorConfig, { includePaddingProperty: true } ) ).to.deep.equal( {
+				expect( getNormalizedDefaultProperties( editorConfig, { includePaddingProperty: true } ) ).toEqual( {
 					padding: '10px',
 					borderStyle: 'none',
 					borderWidth: '',
 					borderColor: '',
 					backgroundColor: '',
+					width: '',
+					height: ''
+				} );
+			} );
+		} );
+
+		describe( 'getNormalizedDefaultTableProperties()', () => {
+			it( 'should return proper default properties for table', () => {
+				expect( getNormalizedDefaultTableProperties() ).toEqual( {
+					backgroundColor: '',
+					borderStyle: 'double',
+					borderColor: 'hsl(0, 0%, 70%)',
+					borderWidth: '1px',
+					width: '',
+					height: ''
+				} );
+			} );
+		} );
+
+		describe( 'getNormalizedDefaultCellProperties()', () => {
+			it( 'should return proper default properties for cell', () => {
+				expect( getNormalizedDefaultCellProperties() ).toEqual( {
+					backgroundColor: '',
+					borderStyle: 'solid',
+					borderColor: 'hsl(0, 0%, 75%)',
+					borderWidth: '1px',
 					width: '',
 					height: ''
 				} );

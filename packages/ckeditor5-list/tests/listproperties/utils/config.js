@@ -1,0 +1,298 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect } from 'vitest';
+import { getNormalizedConfig } from '../../../src/listproperties/utils/config.js';
+
+describe( 'ListProperties - utils - config', () => {
+	describe( 'getNormalizedConfig()', () => {
+		it( 'should output all list types and enabled `useAttribute`', () => {
+			const config = {
+				styles: {
+					listTypes: [ 'numbered', 'bulleted' ],
+					useAttribute: true
+				}
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'numbered', 'bulleted' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ],
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: true
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `numbered` list type and enabled `useAttribute`', () => {
+			const config = {
+				styles: {
+					useAttribute: true,
+					listTypes: [ 'numbered' ]
+				}
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ]
+					},
+					useAttribute: true
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `bulleted` list type and enabled `useAttribute`', () => {
+			const config = {
+				styles: {
+					useAttribute: true,
+					listTypes: [ 'bulleted' ]
+				}
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted' ],
+					listStyleTypes: {
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: true
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output any list type and enabled `useAttribute`', () => {
+			const config = {
+				styles: {
+					useAttribute: true,
+					listTypes: []
+				}
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [],
+					listStyleTypes: {},
+					useAttribute: true
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `numbered` list type and disabled `useAttribute` (nested objects)', () => {
+			const config = {
+				styles: {
+					listTypes: 'numbered'
+				}
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output all list types when `styles` is `true`', () => {
+			const config = {
+				styles: true
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted', 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ],
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output any list type and disabled `useAttribute` when `styles` is `false`', () => {
+			const config = {
+				styles: false
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [],
+					listStyleTypes: {},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `numbered` list type and disabled `useAttribute` (string value)', () => {
+			const config = {
+				styles: 'numbered'
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `bulleted` list type and disabled `useAttribute` (string value)', () => {
+			const config = {
+				styles: 'bulleted'
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted' ],
+					listStyleTypes: {
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output all list types and enabled `useAttribute` (empty config)', () => {
+			const config = {
+				styles: {
+					useAttribute: true
+				}
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted', 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ],
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: true
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output any list type and disabled `useAttribute`', () => {
+			const config = {
+				styles: undefined
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [],
+					listStyleTypes: {},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output all list types and disabled `useAttribute`', () => {
+			const config = {
+				styles: [ 'bulleted', 'numbered' ]
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted', 'numbered' ],
+					listStyleTypes: {
+						bulleted: [ 'disc', 'circle', 'square' ],
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `bulleted` list type and disabled `useAttribute` (array values)', () => {
+			const config = {
+				styles: [ 'bulleted' ]
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted' ],
+					listStyleTypes: {
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should output `numbered` list type and disabled `useAttribute` (array value)', () => {
+			const config = {
+				styles: [ 'numbered' ]
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ]
+					},
+					useAttribute: false
+				},
+				startIndex: false,
+				reversed: false
+			} );
+		} );
+
+		it( 'should normalize list properties config with `startIndex` and `reversed`', () => {
+			const config = {
+				styles: true,
+				startIndex: true,
+				reversed: true
+			};
+
+			expect( getNormalizedConfig( config ) ).toEqual( {
+				styles: {
+					listTypes: [ 'bulleted', 'numbered' ],
+					listStyleTypes: {
+						numbered: [ 'decimal', 'decimal-leading-zero', 'lower-roman', 'upper-roman', 'lower-latin', 'upper-latin' ],
+						bulleted: [ 'disc', 'circle', 'square' ]
+					},
+					useAttribute: false
+				},
+				startIndex: true,
+				reversed: true
+			} );
+		} );
+	} );
+} );

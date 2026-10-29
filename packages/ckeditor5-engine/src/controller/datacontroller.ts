@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -11,40 +11,44 @@ import {
 	CKEditorError,
 	EmitterMixin,
 	ObservableMixin,
-	logWarning
+	logWarning,
+	type EmitterMixinConstructor
 } from '@ckeditor/ckeditor5-utils';
 
-import Mapper from '../conversion/mapper';
+import { Mapper } from '../conversion/mapper.js';
 
-import DowncastDispatcher, { type DowncastInsertEvent } from '../conversion/downcastdispatcher';
-import { insertAttributesAndChildren, insertText } from '../conversion/downcasthelpers';
+import { DowncastDispatcher, type DowncastInsertEvent } from '../conversion/downcastdispatcher.js';
+import { insertAttributesAndChildren, insertText } from '../conversion/downcasthelpers.js';
 
-import UpcastDispatcher, {
+import {
+	UpcastDispatcher,
 	type UpcastDocumentFragmentEvent,
 	type UpcastElementEvent,
 	type UpcastTextEvent
-} from '../conversion/upcastdispatcher';
-import { convertText, convertToModelFragment } from '../conversion/upcasthelpers';
+} from '../conversion/upcastdispatcher.js';
+import { convertText, convertToModelFragment } from '../conversion/upcasthelpers.js';
 
-import ViewDocumentFragment from '../view/documentfragment';
-import ViewDocument from '../view/document';
-import ViewDowncastWriter from '../view/downcastwriter';
-import type ViewElement from '../view/element';
-import type { StylesProcessor } from '../view/stylesmap';
-import type { MatcherPattern } from '../view/matcher';
+import { ViewDocumentFragment } from '../view/documentfragment.js';
+import { ViewDocument } from '../view/document.js';
+import { ViewDowncastWriter } from '../view/downcastwriter.js';
+import { type ViewElement } from '../view/element.js';
+import type { StylesProcessor } from '../view/stylesmap.js';
+import type { MatcherPattern } from '../view/matcher.js';
 
-import ModelRange from '../model/range';
-import type Model from '../model/model';
-import type ModelText from '../model/text';
-import type ModelElement from '../model/element';
-import type ModelTextProxy from '../model/textproxy';
-import type ModelDocumentFragment from '../model/documentfragment';
-import type { SchemaContextDefinition } from '../model/schema';
-import type { BatchType } from '../model/batch';
-import { autoParagraphEmptyRoots } from '../model/utils/autoparagraphing';
+import { ModelRange } from '../model/range.js';
+import { type Model } from '../model/model.js';
+import { type ModelText } from '../model/text.js';
+import { type ModelElement } from '../model/element.js';
+import { type ModelTextProxy } from '../model/textproxy.js';
+import { type ModelDocumentFragment } from '../model/documentfragment.js';
+import type { ModelSchemaContextDefinition } from '../model/schema.js';
+import type { BatchType } from '../model/batch.js';
+import { autoParagraphEmptyRoots } from '../model/utils/autoparagraphing.js';
 
-import HtmlDataProcessor from '../dataprocessor/htmldataprocessor';
-import type DataProcessor from '../dataprocessor/dataprocessor';
+import { HtmlDataProcessor } from '../dataprocessor/htmldataprocessor.js';
+import { type DataProcessor } from '../dataprocessor/dataprocessor.js';
+
+const DataControllerBase: EmitterMixinConstructor = /* #__PURE__ */ EmitterMixin();
 
 /**
  * Controller for the data pipeline. The data pipeline controls how data is retrieved from the document
@@ -63,7 +67,7 @@ import type DataProcessor from '../dataprocessor/dataprocessor';
  * editor.data.get( { rootName: 'customRoot' } ); // -> '<p>Hello!</p>'
  * ```
  */
-export default class DataController extends EmitterMixin() {
+export class DataController extends DataControllerBase {
 	/**
 	 * Data model.
 	 */
@@ -71,7 +75,7 @@ export default class DataController extends EmitterMixin() {
 
 	/**
 	 * Mapper used for the conversion. It has no permanent bindings, because these are created while getting data and
-	 * ae cleared directly after the data are converted. However, the mapper is defined as a class property, because
+	 * are cleared directly after the data are converted. However, the mapper is defined as a class property, because
 	 * it needs to be passed to the `DowncastDispatcher` as a conversion API.
 	 */
 	public readonly mapper: Mapper;
@@ -235,8 +239,8 @@ export default class DataController extends EmitterMixin() {
 	}
 
 	/**
-	 * Returns the content of the given {@link module:engine/model/element~Element model's element} or
-	 * {@link module:engine/model/documentfragment~DocumentFragment model document fragment} converted by the downcast converters
+	 * Returns the content of the given {@link module:engine/model/element~ModelElement model's element} or
+	 * {@link module:engine/model/documentfragment~ModelDocumentFragment model document fragment} converted by the downcast converters
 	 * attached to the {@link #downcastDispatcher} and formatted by the {@link #processor data processor}.
 	 *
 	 * @param modelElementOrFragment The element whose content will be stringified.
@@ -255,16 +259,16 @@ export default class DataController extends EmitterMixin() {
 	}
 
 	/**
-	 * Returns the content of the given {@link module:engine/model/element~Element model element} or
-	 * {@link module:engine/model/documentfragment~DocumentFragment model document fragment} converted by the downcast
+	 * Returns the content of the given {@link module:engine/model/element~ModelElement model element} or
+	 * {@link module:engine/model/documentfragment~ModelDocumentFragment model document fragment} converted by the downcast
 	 * converters attached to {@link #downcastDispatcher} into a
-	 * {@link module:engine/view/documentfragment~DocumentFragment view document fragment}.
+	 * {@link module:engine/view/documentfragment~ViewDocumentFragment view document fragment}.
 	 *
 	 * @fires toView
 	 * @param modelElementOrFragment Element or document fragment whose content will be converted.
 	 * @param options Additional configuration that will be available through the
 	 * {@link module:engine/conversion/downcastdispatcher~DowncastConversionApi#options} during the conversion process.
-	 * @returns Output view DocumentFragment.
+	 * @returns Output view ModelDocumentFragment.
 	 */
 	public toView(
 		modelElementOrFragment: ModelElement | ModelDocumentFragment,
@@ -299,7 +303,7 @@ export default class DataController extends EmitterMixin() {
 	/**
 	 * Sets the initial input data parsed by the {@link #processor data processor} and
 	 * converted by the {@link #upcastDispatcher view-to-model converters}.
-	 * Initial data can be only set to a document whose {@link module:engine/model/document~Document#version} is equal 0.
+	 * Initial data can be only set to a document whose {@link module:engine/model/document~ModelDocument#version} is equal 0.
 	 *
 	 * **Note** This method is {@link module:utils/observablemixin~Observable#decorate decorated} which is
 	 * used by e.g. collaborative editing plugin that syncs remote data on init.
@@ -324,9 +328,9 @@ export default class DataController extends EmitterMixin() {
 	public init( data: string | Record<string, string> ): Promise<void> {
 		if ( this.model.document.version ) {
 			/**
-			 * Cannot set initial data to a non-empty {@link module:engine/model/document~Document}.
+			 * Cannot set initial data to a non-empty {@link module:engine/model/document~ModelDocument}.
 			 * Initial data should be set once, during the {@link module:core/editor/editor~Editor} initialization,
-			 * when the {@link module:engine/model/document~Document#version} is equal 0.
+			 * when the {@link module:engine/model/document~ModelDocument#version} is equal 0.
 			 *
 			 * @error datacontroller-init-document-not-empty
 			 */
@@ -374,7 +378,7 @@ export default class DataController extends EmitterMixin() {
 	 * Sets the input data parsed by the {@link #processor data processor} and
 	 * converted by the {@link #upcastDispatcher view-to-model converters}.
 	 * This method can be used any time to replace existing editor data with the new one without clearing the
-	 * {@link module:engine/model/document~Document#history document history}.
+	 * {@link module:engine/model/document~ModelDocument#history document history}.
 	 *
 	 * This method also creates a batch with all the changes applied. If all you need is to parse data, use
 	 * the {@link #parse} method.
@@ -406,7 +410,13 @@ export default class DataController extends EmitterMixin() {
 	 * cleared after the new data is applied (all undo steps will be removed). If the batch type `isUndoable` flag is be set to `true`,
 	 * the undo stack will be preserved instead and not cleared when new data is applied.
 	 */
-	public set( data: string | Record<string, string>, options: { batchType?: BatchType } = {} ): void {
+	public set(
+		data: string | Record<string, string>,
+		options: {
+			batchType?: BatchType;
+			[ key: string ]: unknown;
+		} = {}
+	): void {
 		let newData: Record<string, string> = {};
 
 		if ( typeof data === 'string' ) {
@@ -451,13 +461,20 @@ export default class DataController extends EmitterMixin() {
 	 * Returns the data parsed by the {@link #processor data processor} and then converted by upcast converters
 	 * attached to the {@link #upcastDispatcher}.
 	 *
+	 * **Note:** The default `context` value is `'$root'`, which only matches the generic root. When the editor uses a
+	 * custom root {@link module:core/editor/editorconfig~RootConfig#modelElement `modelElement`}, pass the target
+	 * {@link module:engine/model/rootelement~ModelRootElement root element} (or its configured model element name)
+	 * explicitly, otherwise the conversion result may be wrong.
+	 * See the {@glink framework/deep-dive/schema#custom-root-elements Custom root elements} section of the
+	 * {@glink framework/deep-dive/schema Schema deep-dive} guide for more details.
+	 *
 	 * @see #set
 	 * @param data Data to parse.
 	 * @param context Base context in which the view will be converted to the model.
 	 * See: {@link module:engine/conversion/upcastdispatcher~UpcastDispatcher#convert}.
 	 * @returns Parsed data.
 	 */
-	public parse( data: string, context: SchemaContextDefinition = '$root' ): ModelDocumentFragment {
+	public parse( data: string, context: ModelSchemaContextDefinition = '$root' ): ModelDocumentFragment {
 		// data -> view
 		const viewDocumentFragment = this.processor.toView( data );
 
@@ -466,12 +483,19 @@ export default class DataController extends EmitterMixin() {
 	}
 
 	/**
-	 * Returns the result of the given {@link module:engine/view/element~Element view element} or
-	 * {@link module:engine/view/documentfragment~DocumentFragment view document fragment} converted by the
-	 * {@link #upcastDispatcher view-to-model converters}, wrapped by {@link module:engine/model/documentfragment~DocumentFragment}.
+	 * Returns the result of the given {@link module:engine/view/element~ViewElement view element} or
+	 * {@link module:engine/view/documentfragment~ViewDocumentFragment view document fragment} converted by the
+	 * {@link #upcastDispatcher view-to-model converters}, wrapped by {@link module:engine/model/documentfragment~ModelDocumentFragment}.
 	 *
 	 * When marker elements were converted during the conversion process, it will be set as a document fragment's
-	 * {@link module:engine/model/documentfragment~DocumentFragment#markers static markers map}.
+	 * {@link module:engine/model/documentfragment~ModelDocumentFragment#markers static markers map}.
+	 *
+	 * **Note:** The default `context` value is `'$root'`, which only matches the generic root. When the editor uses a
+	 * custom root {@link module:core/editor/editorconfig~RootConfig#modelElement `modelElement`}, pass the target
+	 * {@link module:engine/model/rootelement~ModelRootElement root element} (or its configured model element name)
+	 * explicitly, otherwise the conversion result may be wrong.
+	 * See the {@glink framework/deep-dive/schema#custom-root-elements Custom root elements} section of the
+	 * {@glink framework/deep-dive/schema Schema deep-dive} guide for more details.
 	 *
 	 * @fires toModel
 	 * @param viewElementOrFragment The element or document fragment whose content will be converted.
@@ -481,7 +505,7 @@ export default class DataController extends EmitterMixin() {
 	 */
 	public toModel(
 		viewElementOrFragment: ViewElement | ViewDocumentFragment,
-		context: SchemaContextDefinition = '$root'
+		context: ModelSchemaContextDefinition = '$root'
 	): ModelDocumentFragment {
 		return this.model.change( writer => {
 			return this.upcastDispatcher.convert( viewElementOrFragment, writer, context );
@@ -493,10 +517,10 @@ export default class DataController extends EmitterMixin() {
 	 *
 	 * You can implement your own rules as well as use one of the available processor rules:
 	 *
-	 * * background: {@link module:engine/view/styles/background~addBackgroundRules}
-	 * * border: {@link module:engine/view/styles/border~addBorderRules}
-	 * * margin: {@link module:engine/view/styles/margin~addMarginRules}
-	 * * padding: {@link module:engine/view/styles/padding~addPaddingRules}
+	 * * background: {@link module:engine/view/styles/background~addBackgroundStylesRules}
+	 * * border: {@link module:engine/view/styles/border~addBorderStylesRules}
+	 * * margin: {@link module:engine/view/styles/margin~addMarginStylesRules}
+	 * * padding: {@link module:engine/view/styles/padding~addPaddingStylesRules}
 	 */
 	public addStyleProcessorRules( callback: ( stylesProcessor: StylesProcessor ) => void ): void {
 		callback( this.stylesProcessor );
@@ -507,7 +531,8 @@ export default class DataController extends EmitterMixin() {
 	 * and a {@link #processor processor} for view elements whose content should be treated as raw data
 	 * and not processed during the conversion from DOM to view elements.
 	 *
-	 * The raw data can be later accessed by the {@link module:engine/view/element~Element#getCustomProperty view element custom property}
+	 * The raw data can be later accessed by the
+	 * {@link module:engine/view/element~ViewElement#getCustomProperty view element custom property}
 	 * `"$rawContent"`.
 	 *
 	 * @param pattern Pattern matching all view elements whose content should be treated as a raw data.
@@ -660,46 +685,6 @@ function _getMarkersRelativeToElement( element: ModelElement ): Map<string, Mode
 			}
 		}
 	}
-
-	// Sort the markers in a stable fashion to ensure that the order in which they are
-	// added to the model's marker collection does not affect how they are
-	// downcast. One particular use case that we are targeting here, is one where
-	// two markers are adjacent but not overlapping, such as an insertion/deletion
-	// suggestion pair representing the replacement of a range of text. In this
-	// case, putting the markers in DOM order causes the first marker's end to be
-	// serialized right after the second marker's start, while putting the markers
-	// in reverse DOM order causes it to be right before the second marker's
-	// start. So, we sort these in a way that ensures non-intersecting ranges are in
-	// reverse DOM order, and intersecting ranges are in something approximating
-	// reverse DOM order (since reverse DOM order doesn't have a precise meaning
-	// when working with intersecting ranges).
-	result.sort( ( [ n1, r1 ], [ n2, r2 ] ) => {
-		if ( r1.end.compareWith( r2.start ) !== 'after' ) {
-			// m1.end <= m2.start -- m1 is entirely <= m2
-			return 1;
-		} else if ( r1.start.compareWith( r2.end ) !== 'before' ) {
-			// m1.start >= m2.end -- m1 is entirely >= m2
-			return -1;
-		} else {
-			// they overlap, so use their start positions as the primary sort key and
-			// end positions as the secondary sort key
-			switch ( r1.start.compareWith( r2.start ) ) {
-				case 'before':
-					return 1;
-				case 'after':
-					return -1;
-				default:
-					switch ( r1.end.compareWith( r2.end ) ) {
-						case 'before':
-							return 1;
-						case 'after':
-							return -1;
-						default:
-							return n2.localeCompare( n1 );
-					}
-			}
-		}
-	} );
 
 	return new Map( result );
 }

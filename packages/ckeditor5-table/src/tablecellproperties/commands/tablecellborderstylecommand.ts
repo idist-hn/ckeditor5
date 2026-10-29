@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecellproperties/commands/tablecellborderstylecommand
  */
 
-import type { Editor } from 'ckeditor5/src/core';
-import type { Element } from 'ckeditor5/src/engine';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
 
-import TableCellPropertyCommand from './tablecellpropertycommand';
-import { getSingleValue } from '../../utils/table-properties';
+import { TableCellPropertyCommand } from './tablecellpropertycommand.js';
+import { getSingleValue } from '../../utils/table-properties.js';
 
 /**
  * The table cell border style command.
@@ -27,7 +27,7 @@ import { getSingleValue } from '../../utils/table-properties';
  * } );
  * ```
  */
-export default class TableCellBorderStyleCommand extends TableCellPropertyCommand {
+export class TableCellBorderStyleCommand extends TableCellPropertyCommand {
 	/**
 	 * Creates a new `TableCellBorderStyleCommand` instance.
 	 *
@@ -41,7 +41,7 @@ export default class TableCellBorderStyleCommand extends TableCellPropertyComman
 	/**
 	 * @inheritDoc
 	 */
-	protected override _getAttribute( tableCell: Element ): unknown {
+	protected override _getAttribute( tableCell: ModelElement ): unknown {
 		if ( !tableCell ) {
 			return;
 		}

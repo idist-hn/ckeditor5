@@ -1,0 +1,549 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ViewContainerElement, ViewDowncastWriter, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+
+import { LegacyListEditing } from '../../src/legacylist/legacylistediting.js';
+import { LegacyListPropertiesEditing } from '../../src/legacylistproperties/legacylistpropertiesediting.js';
+
+import {
+	createViewListItemElement,
+	getListTypeFromListStyleType,
+	getSiblingListItem,
+	getSiblingNodes
+} from '../../src/legacylist/legacyutils.js';
+
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { BlockQuoteEditing } from '@ckeditor/ckeditor5-block-quote';
+
+describe( 'legacy utils', () => {
+	let writer;
+
+	beforeEach( () => {
+		writer = new ViewDowncastWriter( {} );
+	} );
+
+	describe( 'createViewListItemElement()', () => {
+		it( 'should create ViewContainerElement', () => {
+			const item = createViewListItemElement( writer );
+
+			expect( item ).toBeInstanceOf( ViewContainerElement );
+		} );
+
+		it( 'should have li name', () => {
+			const item = createViewListItemElement( writer );
+
+			expect( item.name ).toBe( 'li' );
+		} );
+
+		describe( 'getFillerOffset', () => {
+			it( 'should return 0 if item is empty', () => {
+				const item = createViewListItemElement( writer );
+
+				expect( item.getFillerOffset() ).toBe( 0 );
+			} );
+
+			it( 'should return 0 if item has only lists as children', () => {
+				const innerListItem1 = createViewListItemElement( writer );
+
+				writer.insert(
+					writer.createPositionAt( innerListItem1, 0 ),
+					writer.createText( 'foo' )
+				);
+
+				const innerListItem2 = createViewListItemElement( writer );
+
+				writer.insert(
+					writer.createPositionAt( innerListItem2, 0 ),
+					writer.createText( 'bar' )
+				);
+
+				const innerList = writer.createContainerElement( 'ul' );
+				writer.insert( writer.createPositionAt( innerList, 0 ), innerListItem1 );
+				writer.insert( writer.createPositionAt( innerList, 0 ), innerListItem2 );
+
+				const outerListItem = createViewListItemElement( writer );
+				writer.insert( writer.createPositionAt( outerListItem, 0 ), innerList );
+
+				expect( outerListItem.getFillerOffset() ).toBe( 0 );
+			} );
+
+			it( 'should return null if item has non-list contents', () => {
+				const item = createViewListItemElement( writer );
+
+				writer.insert(
+					writer.createPositionAt( item, 0 ),
+					writer.createText( 'foo' )
+				);
+
+				expect( item.getFillerOffset() ).toBeNull();
+			} );
+
+			// Block filler is required after the `<br>` element if the element is the last child in the container.
+			// See: https://github.com/ckeditor/ckeditor5/issues/1312#issuecomment-436669045.
+			describe( 'for <br> elements in container', () => {
+				it( 'returns offset of the last child which is the <br> element (1)', () => {
+					const item = createViewListItemElement( writer );
+
+					writer.insert( writer.createPositionAt( item, 0 ), writer.createEmptyElement( 'br' ) );
+
+					expect( item.getFillerOffset() ).toBe( 1 );
+				} );
+
+				it( 'returns offset of the last child which is the <br> element (2)', () => {
+					const item = createViewListItemElement( writer );
+
+					writer.insert( writer.createPositionAt( item, 0 ), writer.createEmptyElement( 'br' ) );
+					writer.insert( writer.createPositionAt( item, 1 ), writer.createEmptyElement( 'br' ) );
+
+					expect( item.getFillerOffset() ).toBe( 2 );
+				} );
+
+				it( 'always returns the last <br> element in the container', () => {
+					const item = createViewListItemElement( writer );
+
+					writer.insert( writer.createPositionAt( item, 0 ), writer.createText( 'foo' ) );
+					writer.insert( writer.createPositionAt( item, 1 ), writer.createEmptyElement( 'br' ) );
+					writer.insert( writer.createPositionAt( item, 2 ), writer.createEmptyElement( 'br' ) );
+
+					expect( item.getFillerOffset() ).toBe( 3 );
+				} );
+
+				it( 'works fine with non-empty container with multi <br> elements', () => {
+					const item = createViewListItemElement( writer );
+
+					writer.insert( writer.createPositionAt( item, 0 ), writer.createText( 'foo' ) );
+					writer.insert( writer.createPositionAt( item, 1 ), writer.createEmptyElement( 'br' ) );
+					writer.insert( writer.createPositionAt( item, 2 ), writer.createText( 'bar' ) );
+					writer.insert( writer.createPositionAt( item, 3 ), writer.createEmptyElement( 'br' ) );
+
+					expect( item.getFillerOffset() ).toBe( 4 );
+				} );
+
+				it( 'ignores the ui elements', () => {
+					const item = createViewListItemElement( writer );
+
+					writer.insert( writer.createPositionAt( item, 0 ), writer.createUIElement( 'span' ) );
+					writer.insert( writer.createPositionAt( item, 1 ), writer.createEmptyElement( 'br' ) );
+
+					expect( item.getFillerOffset() ).toBe( 2 );
+				} );
+
+				it( 'empty element must be the <br> element', () => {
+					const item = createViewListItemElement( writer );
+
+					writer.insert(
+						writer.createPositionAt( item, 0 ),
+						writer.createEmptyElement( 'img' )
+					);
+
+					expect( item.getFillerOffset() ).toBeNull();
+				} );
+			} );
+		} );
+	} );
+
+	describe( 'getSiblingListItem()', () => {
+		let editor, model, document;
+
+		beforeEach( () => {
+			return VirtualTestEditor.create( { plugins: [ LegacyListEditing ] } )
+				.then( newEditor => {
+					editor = newEditor;
+					model = editor.model;
+					document = model.document;
+				} );
+		} );
+
+		afterEach( () => {
+			return editor.destroy();
+		} );
+
+		it( 'should return the passed element if it matches the criteria (sameIndent, listIndent=0)', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' + // Starting item, wanted item.
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>'
+			);
+
+			const listItem = document.getRoot().getChild( 1 );
+			const foundElement = getSiblingListItem( listItem, {
+				sameIndent: true,
+				listIndent: 0
+			} );
+
+			expect( foundElement ).toBe( document.getRoot().getChild( 1 ) );
+		} );
+
+		it( 'should return the passed element if it matches the criteria (sameIndent, listIndent=0, direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' + // Starting item, wanted item.
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>'
+			);
+
+			const listItem = document.getRoot().getChild( 1 );
+			const foundElement = getSiblingListItem( listItem, {
+				sameIndent: true,
+				listIndent: 0,
+				direction: 'forward'
+			} );
+
+			expect( foundElement ).toBe( document.getRoot().getChild( 1 ) );
+		} );
+
+		it( 'should return the first listItem that matches criteria (sameIndent, listIndent=1)', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">1.1</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">1.2</listItem>' + // Wanted item.
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' + // Starting item.
+				'<listItem listType="bulleted" listIndent="1">2.1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">2.2.</listItem>'
+			);
+
+			const listItem = document.getRoot().getChild( 5 );
+			const foundElement = getSiblingListItem( listItem.previousSibling, {
+				sameIndent: true,
+				listIndent: 1
+			} );
+
+			expect( foundElement ).toBe( document.getRoot().getChild( 3 ) );
+		} );
+
+		it( 'should return the first listItem that matches criteria (sameIndent, listIndent=1, direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' + // Starting item.
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">2.1.</listItem>' + // Wanted item.
+				'<listItem listType="bulleted" listIndent="1">2.2.</listItem>'
+			);
+
+			const listItem = document.getRoot().getChild( 1 );
+			const foundElement = getSiblingListItem( listItem.nextSibling, {
+				sameIndent: true,
+				listIndent: 1,
+				direction: 'forward'
+			} );
+
+			expect( foundElement ).toBe( document.getRoot().getChild( 3 ) );
+		} );
+
+		it( 'should return the first listItem that matches criteria (smallerIndent, listIndent=1)', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' + // Wanted item.
+				'<listItem listType="bulleted" listIndent="1">2.1.</listItem>' + // Starting item.
+				'<listItem listType="bulleted" listIndent="1">2.2.</listItem>'
+			);
+
+			const listItem = document.getRoot().getChild( 4 );
+			const foundElement = getSiblingListItem( listItem, {
+				smallerIndent: true,
+				listIndent: 1
+			} );
+
+			expect( foundElement ).toBe( document.getRoot().getChild( 2 ) );
+		} );
+
+		it( 'should return the first listItem that matches criteria (smallerIndent, listIndent=1, direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">0.1.</listItem>' + // Starting item.
+				'<listItem listType="bulleted" listIndent="1">0.2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">0.3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' // Wanted item.
+			);
+
+			const listItem = document.getRoot().getChild( 1 );
+			const foundElement = getSiblingListItem( listItem, {
+				smallerIndent: true,
+				listIndent: 1,
+				direction: 'forward'
+			} );
+
+			expect( foundElement ).toBe( document.getRoot().getChild( 4 ) );
+		} );
+	} );
+
+	describe( 'getSiblingNodes()', () => {
+		let editor, model, document;
+
+		beforeEach( () => {
+			return VirtualTestEditor.create( { plugins: [ Paragraph, BlockQuoteEditing, LegacyListPropertiesEditing ] } )
+				.then( newEditor => {
+					editor = newEditor;
+					model = editor.model;
+					document = model.document;
+				} );
+		} );
+
+		afterEach( () => {
+			return editor.destroy();
+		} );
+
+		it( 'should return all listItems above the current selection position (direction="backward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">[]2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				document.getRoot().getChild( 0 ),
+				document.getRoot().getChild( 1 ),
+				document.getRoot().getChild( 2 )
+			] );
+		} );
+
+		it( 'should return all listItems below the current selection position (direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">[]2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				document.getRoot().getChild( 2 ),
+				document.getRoot().getChild( 3 ),
+				document.getRoot().getChild( 4 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a non-listItem element (direction="backward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<paragraph>Foo</paragraph>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">4.[].</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				document.getRoot().getChild( 3 ),
+				document.getRoot().getChild( 4 ),
+				document.getRoot().getChild( 5 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a non-listItem element (direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">[]0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<paragraph>Foo</paragraph>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				document.getRoot().getChild( 0 ),
+				document.getRoot().getChild( 1 ),
+				document.getRoot().getChild( 2 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a different value for the `listType` attribute (direction="backward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<listItem listType="numbered" listIndent="0">Numbered item.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">[]4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				document.getRoot().getChild( 4 ),
+				document.getRoot().getChild( 5 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a different value for the `listType` attribute (direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">[]0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<listItem listType="numbered" listIndent="0">Numbered item.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				document.getRoot().getChild( 0 ),
+				document.getRoot().getChild( 1 ),
+				document.getRoot().getChild( 2 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a different value for the `listStyle` attribute (direction="backward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">2.</listItem>' +
+				'<listItem listType="bulleted" listStyle="square" listIndent="0">Broken item.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">[]4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				document.getRoot().getChild( 4 ),
+				document.getRoot().getChild( 5 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a different value for the `listStyle` attribute (direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">[]0.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">2.</listItem>' +
+				'<listItem listType="bulleted" listStyle="square" listIndent="0">Broken item.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listStyle="disc" listIndent="0">4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				document.getRoot().getChild( 0 ),
+				document.getRoot().getChild( 1 ),
+				document.getRoot().getChild( 2 )
+			] );
+		} );
+
+		it( 'should ignore nested items (looking for listIndent=0)', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">[]0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">2.1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">2.2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">3.1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="2">3.1.1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">4.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				document.getRoot().getChild( 0 ),
+				document.getRoot().getChild( 1 ),
+				document.getRoot().getChild( 2 ),
+				document.getRoot().getChild( 5 ),
+				document.getRoot().getChild( 8 )
+			] );
+		} );
+
+		it( 'should break when spotted an outer list (looking for listIndent=1)', () => {
+			_setModelData( model,
+				'<listItem listType="bulleted" listIndent="0">0.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">[]1.1.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">1.2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="1">1.3.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">2.</listItem>' +
+				'<listItem listType="bulleted" listIndent="0">3.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				document.getRoot().getChild( 2 ),
+				document.getRoot().getChild( 3 ),
+				document.getRoot().getChild( 4 )
+			] );
+		} );
+
+		it( 'should return only list items that are inside the same parent element (direction="backward")', () => {
+			_setModelData( model,
+				'<listItem listStart="0" listType="numbered" listIndent="0">0.</listItem>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">1.</listItem>' +
+				'<blockQuote>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">[]2.</listItem>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">3.</listItem>' +
+				'</blockQuote>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">4.</listItem>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">5.</listItem>'
+			);
+
+			const blockQuoteElement = document.getRoot().getChild( 2 );
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				blockQuoteElement.getChild( 0 )
+			] );
+		} );
+
+		it( 'should return only list items that are inside the same parent element (direction="forward")', () => {
+			_setModelData( model,
+				'<listItem listStart="0" listType="numbered" listIndent="0">0.</listItem>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">1.</listItem>' +
+				'<blockQuote>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">[]2.</listItem>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">3.</listItem>' +
+				'</blockQuote>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">4.</listItem>' +
+				'<listItem listStart="0" listType="numbered" listIndent="0">5.</listItem>'
+			);
+
+			const blockQuoteElement = document.getRoot().getChild( 2 );
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'forward' ) ).toEqual( [
+				blockQuoteElement.getChild( 0 ),
+				blockQuoteElement.getChild( 1 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a listItem with different listReversed attribute', () => {
+			_setModelData( model,
+				'<listItem listType="numbered" listIndent="0" listReversed="false">0.</listItem>' +
+				'<listItem listType="numbered" listIndent="0" listReversed="true">[]1.</listItem>' +
+				'<listItem listType="numbered" listIndent="0" listReversed="false">2.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				document.getRoot().getChild( 1 )
+			] );
+		} );
+
+		it( 'should break searching when spotted a listItem with different listStart attribute', () => {
+			_setModelData( model,
+				'<listItem listType="numbered" listIndent="0" listStart="1">0.</listItem>' +
+				'<listItem listType="numbered" listIndent="0" listStart="5">[]1.</listItem>' +
+				'<listItem listType="numbered" listIndent="0" listStart="5">2.</listItem>'
+			);
+
+			expect( getSiblingNodes( document.selection.getFirstPosition(), 'backward' ) ).toEqual( [
+				document.getRoot().getChild( 1 )
+			] );
+		} );
+	} );
+
+	describe( 'getListTypeFromListStyleType()', () => {
+		const testData = [
+			[ 'decimal', 'numbered' ],
+			[ 'decimal-leading-zero', 'numbered' ],
+			[ 'lower-roman', 'numbered' ],
+			[ 'upper-roman', 'numbered' ],
+			[ 'lower-latin', 'numbered' ],
+			[ 'upper-latin', 'numbered' ],
+			[ 'disc', 'bulleted' ],
+			[ 'circle', 'bulleted' ],
+			[ 'square', 'bulleted' ],
+			[ 'default', null ],
+			[ 'style-type-that-is-not-possibly-supported-by-css', null ]
+		];
+
+		for ( const [ style, type ] of testData ) {
+			it( `shoud return "${ type }" for "${ style }" style`, () => {
+				expect( getListTypeFromListStyleType( style ) ).toBe( type );
+			} );
+		}
+	} );
+} );

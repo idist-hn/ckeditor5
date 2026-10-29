@@ -1,9 +1,10 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import toUnit from '../../src/dom/tounit';
+import { describe, expect, it } from 'vitest';
+import { toUnit } from '../../src/dom/tounit.js';
 
 describe( 'toUnit', () => {
 	it( 'should be a function', () => {
@@ -16,9 +17,9 @@ describe( 'toUnit', () => {
 
 	describe( 'helper function', () => {
 		it( 'should always add a trailing unit to the value', () => {
-			expect( toUnit( 'rem' )( '10' ) ).to.equal( '10rem' );
-			expect( toUnit( 'rem' )( 10 ) ).to.equal( '10rem' );
-			expect( toUnit( '' )( 10 ) ).to.equal( '10' );
+			expect( toUnit( 'rem' )( '10' ) ).toEqual( '10rem' );
+			expect( toUnit( 'rem' )( 10 ) ).toEqual( '10rem' );
+			expect( toUnit( '' )( 10 ) ).toEqual( '10' );
 		} );
 	} );
 } );

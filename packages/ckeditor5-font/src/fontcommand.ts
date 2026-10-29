@@ -1,19 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontcommand
  */
 
-import { Command, type Editor } from 'ckeditor5/src/core';
-import { type Batch, type Writer } from 'ckeditor5/src/engine';
+import { Command, type Editor } from '@ckeditor/ckeditor5-core';
+import {
+	ModelDocumentSelection,
+	type Batch,
+	type ModelWriter,
+	type ModelRange,
+	type ModelElement
+} from '@ckeditor/ckeditor5-engine';
 
 /**
  * The base font command.
  */
-export default abstract class FontCommand extends Command {
+export abstract class FontCommand extends Command {
 	/**
 	 * When set, it reflects the {@link #attributeKey} value of the selection.
 	 *
@@ -66,7 +72,7 @@ export default abstract class FontCommand extends Command {
 		const value = options.value;
 		const batch = options.batch;
 
-		const updateAttribute = ( writer: Writer ) => {
+		const updateAttribute = ( writer: ModelWriter ) => {
 			if ( selection.isCollapsed ) {
 				if ( value ) {
 					writer.setSelectionAttribute( this.attributeKey, value );
@@ -74,13 +80,23 @@ export default abstract class FontCommand extends Command {
 					writer.removeSelectionAttribute( this.attributeKey );
 				}
 			} else {
-				const ranges = model.schema.getValidRanges( selection.getRanges(), this.attributeKey );
+				const ranges = model.schema.getValidRanges( selection.getRanges(), this.attributeKey, {
+					includeEmptyRanges: true
+				} );
 
 				for ( const range of ranges ) {
+					let itemOrRange: ModelRange | ModelElement = range;
+					let attributeKey = this.attributeKey;
+
+					if ( range.isCollapsed ) {
+						itemOrRange = range.start.parent as ModelElement;
+						attributeKey = ModelDocumentSelection._getStoreAttributeKey( this.attributeKey );
+					}
+
 					if ( value ) {
-						writer.setAttribute( this.attributeKey, value, range );
+						writer.setAttribute( attributeKey, value, itemOrRange );
 					} else {
-						writer.removeAttribute( this.attributeKey, range );
+						writer.removeAttribute( attributeKey, itemOrRange );
 					}
 				}
 			}

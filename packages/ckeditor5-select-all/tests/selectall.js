@@ -1,18 +1,28 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import SelectAll from '../src/selectall';
-import SelectAllEditing from '../src/selectallediting';
-import SelectAllUI from '../src/selectallui';
+import { describe, expect, it } from 'vitest';
+
+import { SelectAll } from '../src/selectall.js';
+import { SelectAllEditing } from '../src/selectallediting.js';
+import { SelectAllUI } from '../src/selectallui.js';
 
 describe( 'SelectAll', () => {
 	it( 'should require SelectAllEditing and SelectAllUI', () => {
-		expect( SelectAll.requires ).to.deep.equal( [ SelectAllEditing, SelectAllUI ] );
+		expect( SelectAll.requires ).toEqual( [ SelectAllEditing, SelectAllUI ] );
 	} );
 
 	it( 'should be named', () => {
-		expect( SelectAll.pluginName ).to.equal( 'SelectAll' );
+		expect( SelectAll.pluginName ).toBe( 'SelectAll' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( SelectAll.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( SelectAll.isPremiumPlugin ).toBe( false );
 	} );
 } );

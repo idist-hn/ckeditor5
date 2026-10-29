@@ -2,9 +2,12 @@
 category: framework-deep-dive-ui
 menu-title: Widget internals
 meta-title: Widget internals | CKEditor 5 Framework Documentation
+meta-description: Explore CKEditor 5 widget internals, including structure, behaviors, and how to create interactive, editable UI components.
 ---
 
 # Deep dive into widget internals
+
+Widgets are self-contained, object-like elements in the editor content (such as images, tables, or media embeds) that users select and move as a single unit. This guide covers advanced widget internals: configuring the type-around feature and excluding DOM events from a widget's default handlers.
 
 ## Disabling the widget type around feature
 
@@ -45,7 +48,7 @@ Use the {@link module:core/plugin~Plugin#forceDisabled `forceDisabled()`} method
 
 ```js
 ClassicEditor
-	.create( document.querySelector( '#editor' ), {
+	.create( {
 		// The editor's configuration.
 		// ...
 	} )

@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* global document */
-
-import FontColorEditing from './../../src/fontcolor/fontcolorediting';
-import FontColorUI from './../../src/fontcolor/fontcolorui';
-import ColorUI from './../../src/ui/colorui';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import fontColorIcon from '../../theme/icons/font-color.svg';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { IconFontColor } from '@ckeditor/ckeditor5-icons';
+import { FontColorEditing } from './../../src/fontcolor/fontcolorediting.js';
+import { FontColorUI } from './../../src/fontcolor/fontcolorui.js';
+import { FontColorUIBase } from './../../src/ui/colorui.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _DEFAULT_COLOR_GRID_COLUMNS as defaultColorGridColumns } from '@ckeditor/ckeditor5-ui';
 
 describe( 'FontColorUI', () => {
 	let element, editor;
@@ -33,17 +33,17 @@ describe( 'FontColorUI', () => {
 		return editor.destroy();
 	} );
 
-	it( 'is ColorUI', () => {
-		expect( FontColorUI.prototype ).to.be.instanceOf( ColorUI );
+	it( 'is FontColorUIBase', () => {
+		expect( FontColorUI.prototype ).toBeInstanceOf( FontColorUIBase );
 	} );
 
 	it( 'has properly set initial values', () => {
 		const fontColorUIPlugin = editor.plugins.get( 'FontColorUI' );
 
-		expect( fontColorUIPlugin.commandName ).to.equal( 'fontColor' );
-		expect( fontColorUIPlugin.componentName ).to.equal( 'fontColor' );
-		expect( fontColorUIPlugin.icon ).to.equal( fontColorIcon );
-		expect( fontColorUIPlugin.dropdownLabel ).to.equal( 'Font Color' );
-		expect( fontColorUIPlugin.columns ).to.equal( 5 );
+		expect( fontColorUIPlugin.commandName ).toEqual( 'fontColor' );
+		expect( fontColorUIPlugin.componentName ).toEqual( 'fontColor' );
+		expect( fontColorUIPlugin.icon ).toEqual( IconFontColor );
+		expect( fontColorUIPlugin.dropdownLabel ).toEqual( 'Font Color' );
+		expect( fontColorUIPlugin.columns ).toEqual( defaultColorGridColumns );
 	} );
 } );

@@ -1,17 +1,22 @@
 Software License Agreement
 ==========================
 
-**CKEditor&nbsp;5 headings feature** – https://github.com/ckeditor/ckeditor5-heading <br>
-Copyright (c) 2003-2023, [CKSource Holding sp. z o.o.](https://cksource.com) All rights reserved.
+**CKEditor&nbsp;5 Headings feature** (https://github.com/ckeditor/ckeditor5)<br>
+Copyright (c) 2003–2026, [CKSource Holding sp. z o.o.](https://cksource.com) All rights reserved.
 
-Licensed under the terms of [GNU General Public License Version 2 or later](http://www.gnu.org/licenses/gpl.html).
+Licensed under a dual-license model, this software is available under:
 
-Sources of Intellectual Property Included in CKEditor
------------------------------------------------------
+* the [GNU General Public License Version 2 or later](https://www.gnu.org/licenses/gpl.html),
+* or commercial license terms from CKSource Holding sp. z o.o.
 
-Where not otherwise indicated, all CKEditor content is authored by CKSource engineers and consists of CKSource-owned intellectual property. In some specific instances, CKEditor will incorporate work done by developers outside of CKSource with their express permission.
+For more information, see: [https://ckeditor.com/legal/ckeditor-licensing-options](https://ckeditor.com/legal/ckeditor-licensing-options).
+
+Sources of Intellectual Property Included in CKEditor&nbsp;5
+------------------------------------------------------------
+
+Where not otherwise indicated, all CKEditor&nbsp;5 content is authored by CKSource engineers and consists of CKSource-owned intellectual property. In some specific instances, CKEditor&nbsp;5 will incorporate work done by developers outside of CKSource with their express permission.
 
 Trademarks
 ----------
 
-**CKEditor** is a trademark of [CKSource Holding sp. z o.o.](https://cksource.com) All other brand and product names are trademarks, registered trademarks or service marks of their respective holders.
+**CKEditor** is a trademark of [CKSource Holding sp. z o.o.](https://cksource.com) All other brand and product names are trademarks, registered trademarks, or service marks of their respective holders.

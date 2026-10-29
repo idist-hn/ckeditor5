@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module font/fontcolor/fontcolorcommand
  */
 
-import type { Editor } from 'ckeditor5/src/core';
-import FontCommand from '../fontcommand';
-import { FONT_COLOR } from '../utils';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import { FontCommand } from '../fontcommand.js';
+import { FONT_COLOR } from '../utils.js';
 
 /**
  * The font color command. It is used by {@link module:font/fontcolor/fontcolorediting~FontColorEditing}
@@ -21,7 +21,7 @@ import { FONT_COLOR } from '../utils';
  *
  * **Note**: Executing the command with the `null` value removes the attribute from the model.
  */
-export default class FontColorCommand extends FontCommand {
+export class FontColorCommand extends FontCommand {
 	/**
 	 * @inheritDoc
 	 */

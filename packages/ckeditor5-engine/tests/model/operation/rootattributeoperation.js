@@ -1,13 +1,14 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../../src/model/model';
-import DocumentFragment from '../../../src/model/documentfragment';
-import Element from '../../../src/model/element';
-import RootAttributeOperation from '../../../src/model/operation/rootattributeoperation';
-import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Model } from '../../../src/model/model.js';
+import { ModelDocumentFragment } from '../../../src/model/documentfragment.js';
+import { ModelElement } from '../../../src/model/element.js';
+import { RootAttributeOperation } from '../../../src/model/operation/rootattributeoperation.js';
+import { expectToThrowCKEditorError } from '@ckeditor/ckeditor5-utils/tests/_utils/utils.js';
 
 describe( 'RootAttributeOperation', () => {
 	let model, doc, root;
@@ -28,7 +29,7 @@ describe( 'RootAttributeOperation', () => {
 				doc.version
 			);
 
-			expect( op.type ).to.equal( 'addRootAttribute' );
+			expect( op.type ).toBe( 'addRootAttribute' );
 		} );
 
 		it( 'should be removeRootAttribute for removing attribute', () => {
@@ -40,7 +41,7 @@ describe( 'RootAttributeOperation', () => {
 				doc.version
 			);
 
-			expect( op.type ).to.equal( 'removeRootAttribute' );
+			expect( op.type ).toBe( 'removeRootAttribute' );
 		} );
 
 		it( 'should be changeRootAttribute for removing attribute', () => {
@@ -52,7 +53,7 @@ describe( 'RootAttributeOperation', () => {
 				doc.version
 			);
 
-			expect( op.type ).to.equal( 'changeRootAttribute' );
+			expect( op.type ).toBe( 'changeRootAttribute' );
 		} );
 	} );
 
@@ -67,13 +68,13 @@ describe( 'RootAttributeOperation', () => {
 			)
 		);
 
-		expect( doc.version ).to.equal( 1 );
-		expect( root.hasAttribute( 'isNew' ) ).to.be.true;
+		expect( doc.version ).toBe( 1 );
+		expect( root.hasAttribute( 'isNew' ) ).toBe( true );
 	} );
 
 	it( 'should return rootElement on affectedSelectable', () => {
 		const op = new RootAttributeOperation( root, 'isNew', false, true, doc.version );
-		expect( op.affectedSelectable ).to.equal( root );
+		expect( op.affectedSelectable ).toBe( root );
 	} );
 
 	it( 'should change attribute on the root element', () => {
@@ -89,8 +90,25 @@ describe( 'RootAttributeOperation', () => {
 			)
 		);
 
-		expect( doc.version ).to.equal( 1 );
-		expect( root.getAttribute( 'isNew' ) ).to.be.true;
+		expect( doc.version ).toBe( 1 );
+		expect( root.getAttribute( 'isNew' ) ).toBe( true );
+	} );
+
+	it( 'should change attribute when old value is a deep-equal object (different reference)', () => {
+		root._setAttribute( 'data', { foo: [ 1, 2 ] } );
+
+		model.applyOperation(
+			new RootAttributeOperation(
+				root,
+				'data',
+				{ foo: [ 1, 2 ] },
+				{ foo: [ 3, 4 ] },
+				doc.version
+			)
+		);
+
+		expect( doc.version ).toBe( 1 );
+		expect( root.getAttribute( 'data' ) ).toEqual( { foo: [ 3, 4 ] } );
 	} );
 
 	it( 'should remove attribute from the root element', () => {
@@ -106,8 +124,8 @@ describe( 'RootAttributeOperation', () => {
 			)
 		);
 
-		expect( doc.version ).to.equal( 1 );
-		expect( root.hasAttribute( 'x' ) ).to.be.false;
+		expect( doc.version ).toBe( 1 );
+		expect( root.hasAttribute( 'x' ) ).toBe( false );
 	} );
 
 	it( 'should set oldValue and newValue to null if undefined was passed', () => {
@@ -119,20 +137,20 @@ describe( 'RootAttributeOperation', () => {
 			doc.version
 		);
 
-		expect( op.oldValue ).to.be.null;
-		expect( op.newValue ).to.be.null;
+		expect( op.oldValue ).toBeNull();
+		expect( op.newValue ).toBeNull();
 	} );
 
 	it( 'should create a RootAttributeOperation as a reverse', () => {
 		const operation = new RootAttributeOperation( root, 'x', 'old', 'new', doc.version );
 		const reverse = operation.getReversed();
 
-		expect( reverse ).to.be.an.instanceof( RootAttributeOperation );
-		expect( reverse.baseVersion ).to.equal( 1 );
-		expect( reverse.root ).to.equal( root );
-		expect( reverse.key ).to.equal( 'x' );
-		expect( reverse.oldValue ).to.equal( 'new' );
-		expect( reverse.newValue ).to.equal( 'old' );
+		expect( reverse ).toBeInstanceOf( RootAttributeOperation );
+		expect( reverse.baseVersion ).toBe( 1 );
+		expect( reverse.root ).toBe( root );
+		expect( reverse.key ).toBe( 'x' );
+		expect( reverse.oldValue ).toBe( 'new' );
+		expect( reverse.newValue ).toBe( 'old' );
 	} );
 
 	it( 'should undo adding attribute by applying reverse operation', () => {
@@ -149,8 +167,8 @@ describe( 'RootAttributeOperation', () => {
 		model.applyOperation( operation );
 		model.applyOperation( reverse );
 
-		expect( doc.version ).to.equal( 2 );
-		expect( root.hasAttribute( 'x' ) ).to.be.false;
+		expect( doc.version ).toBe( 2 );
+		expect( root.hasAttribute( 'x' ) ).toBe( false );
 	} );
 
 	it( 'should undo changing attribute by applying reverse operation', () => {
@@ -169,8 +187,8 @@ describe( 'RootAttributeOperation', () => {
 		model.applyOperation( operation );
 		model.applyOperation( reverse );
 
-		expect( doc.version ).to.equal( 2 );
-		expect( root.getAttribute( 'isNew' ) ).to.be.false;
+		expect( doc.version ).toBe( 2 );
+		expect( root.getAttribute( 'isNew' ) ).toBe( false );
 	} );
 
 	it( 'should undo remove attribute by applying reverse operation', () => {
@@ -189,14 +207,14 @@ describe( 'RootAttributeOperation', () => {
 		model.applyOperation( operation );
 		model.applyOperation( reverse );
 
-		expect( doc.version ).to.equal( 2 );
-		expect( root.getAttribute( 'foo' ) ).to.be.true;
+		expect( doc.version ).toBe( 2 );
+		expect( root.getAttribute( 'foo' ) ).toBe( true );
 	} );
 
 	describe( '_validate()', () => {
 		it( 'should throw an error when trying to change non-root element', () => {
-			const child = new Element( 'p' );
-			const parent = new Element( 'p' );
+			const child = new ModelElement( 'p' );
+			const parent = new ModelElement( 'p' );
 			parent._appendChild( child );
 
 			expectToThrowCKEditorError( () => {
@@ -215,7 +233,7 @@ describe( 'RootAttributeOperation', () => {
 		it( 'should throw an error when trying to change document fragment', () => {
 			expectToThrowCKEditorError( () => {
 				const op = new RootAttributeOperation(
-					new DocumentFragment(),
+					new ModelDocumentFragment(),
 					'foo',
 					null,
 					'bar',
@@ -233,6 +251,50 @@ describe( 'RootAttributeOperation', () => {
 					'foo',
 					true,
 					null,
+					doc.version
+				);
+
+				op._validate();
+			}, /rootattribute-operation-wrong-old-value/, model );
+		} );
+
+		it( 'should not throw when old value is a deep-equal object (different reference)', () => {
+			root._setAttribute( 'foo', { bar: 'baz', nested: { x: 1 } } );
+
+			const op = new RootAttributeOperation(
+				root,
+				'foo',
+				{ bar: 'baz', nested: { x: 1 } },
+				'newValue',
+				doc.version
+			);
+
+			expect( () => op._validate() ).not.toThrow();
+		} );
+
+		it( 'should not throw when old value is a deep-equal array (different reference)', () => {
+			root._setAttribute( 'foo', [ 1, { a: 2 }, [ 3 ] ] );
+
+			const op = new RootAttributeOperation(
+				root,
+				'foo',
+				[ 1, { a: 2 }, [ 3 ] ],
+				null,
+				doc.version
+			);
+
+			expect( () => op._validate() ).not.toThrow();
+		} );
+
+		it( 'should throw when old value is an object that is not deep-equal to current value', () => {
+			root._setAttribute( 'foo', { bar: 'baz' } );
+
+			expectToThrowCKEditorError( () => {
+				const op = new RootAttributeOperation(
+					root,
+					'foo',
+					{ bar: 'different' },
+					'newValue',
 					doc.version
 				);
 
@@ -265,14 +327,14 @@ describe( 'RootAttributeOperation', () => {
 		const clone = op.clone();
 
 		// New instance rather than a pointer to the old instance.
-		expect( clone ).not.to.equal( op );
+		expect( clone ).not.toBe( op );
 
-		expect( clone ).to.be.instanceof( RootAttributeOperation );
-		expect( clone.root ).to.equal( root );
-		expect( clone.key ).to.equal( 'foo' );
-		expect( clone.oldValue ).to.equal( 'old' );
-		expect( clone.newValue ).to.equal( 'new' );
-		expect( clone.baseVersion ).to.equal( baseVersion );
+		expect( clone ).toBeInstanceOf( RootAttributeOperation );
+		expect( clone.root ).toBe( root );
+		expect( clone.key ).toBe( 'foo' );
+		expect( clone.oldValue ).toBe( 'old' );
+		expect( clone.newValue ).toBe( 'new' );
+		expect( clone.baseVersion ).toBe( baseVersion );
 	} );
 
 	describe( 'toJSON', () => {
@@ -287,8 +349,8 @@ describe( 'RootAttributeOperation', () => {
 
 			const serialized = op.toJSON();
 
-			expect( serialized.__className ).to.equal( 'RootAttributeOperation' );
-			expect( serialized ).to.deep.equal( {
+			expect( serialized.__className ).toBe( 'RootAttributeOperation' );
+			expect( serialized ).toEqual( {
 				__className: 'RootAttributeOperation',
 				baseVersion: 0,
 				key: 'key',
@@ -306,7 +368,7 @@ describe( 'RootAttributeOperation', () => {
 			const serialized = op.toJSON();
 			const deserialized = RootAttributeOperation.fromJSON( serialized, doc );
 
-			expect( deserialized ).to.deep.equal( op );
+			expect( deserialized ).toEqual( op );
 		} );
 
 		it( 'should throw an error when root does not exists', () => {

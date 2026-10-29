@@ -1,14 +1,13 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import FontSize from './../src/fontsize';
-import FontSizeEditing from './../src/fontsize/fontsizeediting';
-import FontSizeUI from './../src/fontsize/fontsizeui';
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-
-/* global document */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { FontSize } from './../src/fontsize.js';
+import { FontSizeEditing } from './../src/fontsize/fontsizeediting.js';
+import { FontSizeUI } from './../src/fontsize/fontsizeui.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
 
 describe( 'FontSize', () => {
 	let element, editor;
@@ -26,16 +25,22 @@ describe( 'FontSize', () => {
 		await editor.destroy();
 
 		document.body.removeChild( element );
-
-		sinon.restore();
 	} );
 
 	it( 'requires FontSizeEditing & FontSizeUI', () => {
-		expect( FontSize.requires ).to.deep.equal( [ FontSizeEditing, FontSizeUI ] );
+		expect( FontSize.requires ).toEqual( [ FontSizeEditing, FontSizeUI ] );
 	} );
 
 	it( 'defines plugin name', () => {
-		expect( FontSize.pluginName ).to.equal( 'FontSize' );
+		expect( FontSize.pluginName ).toEqual( 'FontSize' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( FontSize.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( FontSize.isPremiumPlugin ).toBe( false );
 	} );
 
 	describe( 'normalizeSizeOptions()', () => {
@@ -45,7 +50,7 @@ describe( 'FontSize', () => {
 
 			const result = fontSize.normalizeSizeOptions( [ 'tiny', 'small', 'default', 'big', 'huge' ] );
 
-			expect( result ).to.deep.equal( [
+			expect( result ).toEqual( [
 				{ title: 'Tiny', model: 'tiny', view: { name: 'span', classes: 'text-tiny', priority: 7 } },
 				{ title: 'Small', model: 'small', view: { name: 'span', classes: 'text-small', priority: 7 } },
 				{ title: 'Default', model: undefined },

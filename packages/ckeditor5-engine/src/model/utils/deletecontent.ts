@@ -1,23 +1,23 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/utils/deletecontent
  */
 
-import DocumentSelection from '../documentselection';
-import LivePosition from '../liveposition';
-import Range from '../range';
+import { ModelDocumentSelection } from '../documentselection.js';
+import { ModelLivePosition } from '../liveposition.js';
+import { ModelRange } from '../range.js';
 
-import type DocumentFragment from '../documentfragment';
-import type Element from '../element';
-import type Model from '../model';
-import type Position from '../position';
-import type Schema from '../schema';
-import type Selection from '../selection';
-import type Writer from '../writer';
+import { ModelDocumentFragment } from '../documentfragment.js';
+import { type ModelElement } from '../element.js';
+import { type Model } from '../model.js';
+import { type ModelPosition } from '../position.js';
+import { type ModelSchema } from '../schema.js';
+import { type ModelSelection } from '../selection.js';
+import { type ModelWriter } from '../writer.js';
 
 /**
  * Deletes content of the selection and merge siblings. The resulting selection is always collapsed.
@@ -36,7 +36,7 @@ import type Writer from '../writer';
  * * `<heading>x^y</heading>` with the option disabled (`leaveUnmerged == false`)
  * * `<heading>x^</heading><paragraph>y</paragraph>` with enabled (`leaveUnmerged == true`).
  *
- * Note: {@link module:engine/model/schema~Schema#isObject object} and {@link module:engine/model/schema~Schema#isLimit limit}
+ * Note: {@link module:engine/model/schema~ModelSchema#isObject object} and {@link module:engine/model/schema~ModelSchema#isLimit limit}
  * elements will not be merged.
  *
  * @param options.doNotResetEntireContent Whether to skip replacing the entire content with a
@@ -61,14 +61,29 @@ import type Writer from '../writer';
  * **Note:** If there is no valid position for the selection, the paragraph will always be created:
  *
  * `[<imageBlock src="foo.jpg"></imageBlock>]` -> `<paragraph>[]</paragraph>`.
+ *
+ * @param options.doNotFixSelection Whether given selection-to-remove should be fixed if it ends at the beginning of an element.
+ *
+ * By default, `deleteContent()` will fix selection before performing a deletion, so that the selection does not end at the beginning of
+ * an element. For example, selection `<heading>[Heading</heading><paragraph>]Some text.</paragraph>` will be treated as it was
+ * `<heading>[Heading]</heading><paragraph>Some text.</paragraph>`. As a result, the elements will not get merged.
+ *
+ * If selection is as in example, visually, the next element (paragraph) is not selected and it may be confusing for the user that
+ * the elements got merged. Selection is set up like this by browsers when a user triple-clicks on some text.
+ *
+ * However, in some cases, it is expected to remove content exactly as selected in the selection, without any fixing. In these cases,
+ * this flag can be set to `true`, which will prevent fixing the selection.
+ *
+ * @internal
  */
-export default function deleteContent(
+export function deleteContent(
 	model: Model,
-	selection: Selection | DocumentSelection,
+	selection: ModelSelection | ModelDocumentSelection,
 	options: {
 		leaveUnmerged?: boolean;
 		doNotResetEntireContent?: boolean;
 		doNotAutoparagraph?: boolean;
+		doNotFixSelection?: boolean;
 	} = {}
 ): void {
 	if ( selection.isCollapsed ) {
@@ -83,6 +98,11 @@ export default function deleteContent(
 	}
 
 	const schema = model.schema;
+	const documentSelection = model.document.selection;
+
+	const selectionIsDocumentSelection = isRelatedToDocumentSelection( selection, documentSelection, selRange );
+	const selectionAttributes = Array.from( documentSelection.getAttributes() );
+	const selectionParentWasEmpty = !!documentSelection.getFirstRange()?.start.parent.isEmpty;
 
 	model.change( writer => {
 		// 1. Replace the entire content with paragraph.
@@ -105,7 +125,17 @@ export default function deleteContent(
 		}
 
 		// Get the live positions for the range adjusted to span only blocks selected from the user perspective.
-		const [ startPosition, endPosition ] = getLivePositionsForSelectedBlocks( selRange );
+		let startPosition, endPosition;
+
+		if ( selRange.root instanceof ModelDocumentFragment ) {
+			startPosition = ModelLivePosition._fromPositionInDocumentFragment( selRange.start, model, 'toPrevious' );
+			endPosition = ModelLivePosition._fromPositionInDocumentFragment( selRange.end, model, 'toNext' );
+		} else if ( !options.doNotFixSelection ) {
+			[ startPosition, endPosition ] = getLivePositionsForSelectedBlocks( selRange );
+		} else {
+			startPosition = ModelLivePosition.fromPosition( selRange.start, 'toPrevious' );
+			endPosition = ModelLivePosition.fromPosition( selRange.end, 'toNext' );
+		}
 
 		// 2. Remove the content if there is any.
 		if ( !startPosition.isTouching( endPosition ) ) {
@@ -141,6 +171,10 @@ export default function deleteContent(
 			insertParagraph( writer, startPosition, selection, attributesForAutoparagraph );
 		}
 
+		if ( selectionIsDocumentSelection ) {
+			restoreSelectionAttributesOnEmptyParent( writer, selectionAttributes, selectionParentWasEmpty );
+		}
+
 		startPosition.detach();
 		endPosition.detach();
 	} );
@@ -157,7 +191,7 @@ export default function deleteContent(
  *
  * This is the same behavior as in Selection#getSelectedBlocks() "special case".
  */
-function getLivePositionsForSelectedBlocks( range: Range ): [ startPosition: LivePosition, endPosition: LivePosition ] {
+function getLivePositionsForSelectedBlocks( range: ModelRange ): [ startPosition: ModelLivePosition, endPosition: ModelLivePosition ] {
 	const model = range.root.document!.model;
 
 	const startPosition = range.start;
@@ -194,8 +228,8 @@ function getLivePositionsForSelectedBlocks( range: Range ): [ startPosition: Liv
 	}
 
 	return [
-		LivePosition.fromPosition( startPosition, 'toPrevious' ),
-		LivePosition.fromPosition( endPosition, 'toNext' )
+		ModelLivePosition.fromPosition( startPosition, 'toPrevious' ),
+		ModelLivePosition.fromPosition( endPosition, 'toNext' )
 	];
 }
 
@@ -203,7 +237,7 @@ function getLivePositionsForSelectedBlocks( range: Range ): [ startPosition: Liv
  * Finds the lowest element in position's ancestors which is a block.
  * Returns null if a limit element is encountered before reaching a block element.
  */
-function getParentBlock( position: Position ): Element | null | undefined {
+function getParentBlock( position: ModelPosition ): ModelElement | null | undefined {
 	const element = position.parent;
 	const schema = element.root.document!.model.schema;
 	const ancestors = element.getAncestors( { parentFirst: true, includeSelf: true } );
@@ -214,7 +248,7 @@ function getParentBlock( position: Position ): Element | null | undefined {
 		}
 
 		if ( schema.isBlock( element ) ) {
-			return element as Element;
+			return element as ModelElement;
 		}
 	}
 }
@@ -223,7 +257,7 @@ function getParentBlock( position: Position ): Element | null | undefined {
  * This function is a result of reaching the Ballmer's peak for just the right amount of time.
  * Even I had troubles documenting it after a while and after reading it again I couldn't believe that it really works.
  */
-function mergeBranches( writer: Writer, startPosition: Position, endPosition: Position ) {
+function mergeBranches( writer: ModelWriter, startPosition: ModelPosition, endPosition: ModelPosition ) {
 	const model = writer.model;
 
 	// Verify if there is a need and possibility to merge.
@@ -298,13 +332,13 @@ function mergeBranches( writer: Writer, startPosition: Position, endPosition: Po
  * ```
  */
 function mergeBranchesLeft(
-	writer: Writer,
-	startPosition: Position,
-	endPosition: Position,
-	commonAncestor: Element | DocumentFragment | null
+	writer: ModelWriter,
+	startPosition: ModelPosition,
+	endPosition: ModelPosition,
+	commonAncestor: ModelElement | ModelDocumentFragment | null
 ) {
-	const startElement = startPosition.parent as Element;
-	const endElement = endPosition.parent as Element;
+	const startElement = startPosition.parent as ModelElement;
+	const endElement = endPosition.parent as ModelElement;
 
 	// Merging reached the common ancestor element, stop here.
 	if ( startElement == commonAncestor || endElement == commonAncestor ) {
@@ -352,7 +386,7 @@ function mergeBranchesLeft(
 	//     </blockBlock>                     ->
 	//
 	while ( endPosition.parent.isEmpty ) {
-		const parentToRemove = endPosition.parent as Element;
+		const parentToRemove = endPosition.parent as ModelElement;
 
 		endPosition = writer.createPositionBefore( parentToRemove );
 
@@ -389,13 +423,13 @@ function mergeBranchesLeft(
  * ```
  */
 function mergeBranchesRight(
-	writer: Writer,
-	startPosition: Position,
-	endPosition: Position,
-	commonAncestor: Element | DocumentFragment | null
+	writer: ModelWriter,
+	startPosition: ModelPosition,
+	endPosition: ModelPosition,
+	commonAncestor: ModelElement | ModelDocumentFragment | null
 ) {
-	const startElement = startPosition.parent as Element;
-	const endElement = endPosition.parent as Element;
+	const startElement = startPosition.parent as ModelElement;
+	const endElement = endPosition.parent as ModelElement;
 
 	// Merging reached the common ancestor element, stop here.
 	if ( startElement == commonAncestor || endElement == commonAncestor ) {
@@ -429,7 +463,7 @@ function mergeBranchesRight(
 	//     </blockBlock>                                            ->  </blockBlock>
 	//
 	while ( startPosition.parent.isEmpty ) {
-		const parentToRemove = startPosition.parent as Element;
+		const parentToRemove = startPosition.parent as ModelElement;
 
 		startPosition = writer.createPositionBefore( parentToRemove );
 
@@ -464,7 +498,7 @@ function mergeBranchesRight(
 /**
  * There is no right merge operation so we need to simulate it.
  */
-function mergeRight( writer: Writer, position: Position ) {
+function mergeRight( writer: ModelWriter, position: ModelPosition ) {
 	const startElement: any = position.nodeBefore;
 	const endElement: any = position.nodeAfter;
 
@@ -482,7 +516,7 @@ function mergeRight( writer: Writer, position: Position ) {
  * Verifies if merging is needed and possible. It's not needed if both positions are in the same element
  * and it's not possible if some element is a limit or the range crosses a limit element.
  */
-function checkShouldMerge( schema: Schema, startPosition: Position, endPosition: Position ): boolean {
+function checkShouldMerge( schema: ModelSchema, startPosition: ModelPosition, endPosition: ModelPosition ): boolean {
 	const startElement = startPosition.parent;
 	const endElement = endPosition.parent;
 
@@ -506,7 +540,7 @@ function checkShouldMerge( schema: Schema, startPosition: Position, endPosition:
 /**
  * Returns the elements that are the ancestors of the provided positions that are direct children of the common ancestor.
  */
-function getAncestorsJustBelowCommonAncestor( positionA: Position, positionB: Position ) {
+function getAncestorsJustBelowCommonAncestor( positionA: ModelPosition, positionB: ModelPosition ) {
 	const ancestorsA = positionA.getAncestors();
 	const ancestorsB = positionB.getAncestors();
 
@@ -519,7 +553,7 @@ function getAncestorsJustBelowCommonAncestor( positionA: Position, positionB: Po
 	return [ ancestorsA[ i ], ancestorsB[ i ] ];
 }
 
-function shouldAutoparagraph( schema: Schema, position: Position ) {
+function shouldAutoparagraph( schema: ModelSchema, position: ModelPosition ) {
 	const isTextAllowed = schema.checkChild( position, '$text' );
 	const isParagraphAllowed = schema.checkChild( position, 'paragraph' );
 
@@ -534,8 +568,8 @@ function shouldAutoparagraph( schema: Schema, position: Position ) {
  * we'll check <p>, <bQ>, <widget> and <caption>.
  * Usually, widget and caption are marked as objects/limits in the schema, so in this case merging will be blocked.
  */
-function isCrossingLimitElement( leftPos: Position, rightPos: Position, schema: Schema ) {
-	const rangeToCheck = new Range( leftPos, rightPos );
+function isCrossingLimitElement( leftPos: ModelPosition, rightPos: ModelPosition, schema: ModelSchema ) {
+	const rangeToCheck = new ModelRange( leftPos, rightPos );
 
 	for ( const value of rangeToCheck.getWalker() ) {
 		if ( schema.isLimit( value.item ) ) {
@@ -547,9 +581,9 @@ function isCrossingLimitElement( leftPos: Position, rightPos: Position, schema: 
 }
 
 function insertParagraph(
-	writer: Writer,
-	position: Position,
-	selection: Selection | DocumentSelection,
+	writer: ModelWriter,
+	position: ModelPosition,
+	selection: ModelSelection | ModelDocumentSelection,
 	attributes = {}
 ) {
 	const paragraph = writer.createElement( 'paragraph' );
@@ -561,7 +595,7 @@ function insertParagraph(
 	collapseSelectionAt( writer, selection, writer.createPositionAt( paragraph, 0 ) );
 }
 
-function replaceEntireContentWithParagraph( writer: Writer, selection: Selection | DocumentSelection ) {
+function replaceEntireContentWithParagraph( writer: ModelWriter, selection: ModelSelection | ModelDocumentSelection ) {
 	const limitElement = writer.model.schema.getLimitElement( selection );
 
 	writer.remove( writer.createRangeIn( limitElement ) );
@@ -574,7 +608,7 @@ function replaceEntireContentWithParagraph( writer: Writer, selection: Selection
  * * selection contains at least two elements,
  * * whether the paragraph is allowed in schema in the common ancestor.
  */
-function shouldEntireContentBeReplacedWithParagraph( schema: Schema, selection: Selection | DocumentSelection ) {
+function shouldEntireContentBeReplacedWithParagraph( schema: ModelSchema, selection: ModelSelection | ModelDocumentSelection ) {
 	const limitElement = schema.getLimitElement( selection );
 
 	if ( !selection.containsEntireContent( limitElement ) ) {
@@ -595,13 +629,87 @@ function shouldEntireContentBeReplacedWithParagraph( schema: Schema, selection: 
  * uses a different method to set it.
  */
 function collapseSelectionAt(
-	writer: Writer,
-	selection: Selection | DocumentSelection,
-	positionOrRange: Position | Range
+	writer: ModelWriter,
+	selection: ModelSelection | ModelDocumentSelection,
+	positionOrRange: ModelPosition | ModelRange
 ) {
-	if ( selection instanceof DocumentSelection ) {
+	if ( selection instanceof ModelDocumentSelection ) {
 		writer.setSelection( positionOrRange );
 	} else {
 		selection.setTo( positionOrRange );
 	}
+}
+
+/**
+ * Restores the document selection attributes after a deletion that leaves the selection in an empty parent block.
+ * This preserves the pre-delete formatting (e.g. bold, italic) so that subsequent typing continues in the same style.
+ *
+ * Attributes are only restored when:
+ * - There were attributes on the selection before the deletion.
+ * - The deletion left the document selection's parent block empty.
+ * - The parent block was **not** already empty before the deletion — this ensures that attributes are not
+ *   re-applied when `deleteContent()` was called on a completely unrelated block.
+ */
+function restoreSelectionAttributesOnEmptyParent(
+	writer: ModelWriter,
+	selectionAttributes: Array<[ string, unknown ]>,
+	selectionParentWasEmpty: boolean
+) {
+	if ( !selectionAttributes.length ) {
+		return;
+	}
+
+	const documentSelection = writer.model.document.selection;
+
+	const selectionParent = documentSelection.anchor!.parent as ModelElement;
+
+	if ( !selectionParent.isEmpty ) {
+		return;
+	}
+
+	// Preserve attributes only when the delete operation leaves the live selection in an empty parent
+	// that was not empty before the change. This avoids reasserting attributes on unrelated empty blocks
+	// when deleteContent() operates on a synthetic selection somewhere else in the document.
+	if ( selectionParentWasEmpty ) {
+		return;
+	}
+
+	// Setting document selection attributes here also persists them as `selection:*`
+	// on the empty parent, so future typing keeps the pre-delete formatting.
+	for ( const [ key, value ] of selectionAttributes ) {
+		if (
+			writer.model.schema.getAttributeProperties( key ).isFormatting &&
+			writer.model.schema.checkAttributeInSelection( documentSelection, key )
+		) {
+			writer.setSelectionAttribute( key, value );
+		}
+	}
+}
+
+/**
+ * Checks whether the provided selection is related to the document selection.
+ *
+ * Returns `true` when:
+ * - the selection is a `DocumentSelection` instance, or
+ * - the document selection is collapsed and sits at the start or end of the given range, or
+ * - the document selection is not collapsed and its range intersects the given range.
+ */
+function isRelatedToDocumentSelection(
+	selection: ModelSelection | ModelDocumentSelection,
+	documentSelection: ModelDocumentSelection,
+	selRange: ModelRange
+): boolean {
+	if ( selection instanceof ModelDocumentSelection ) {
+		return true;
+	}
+
+	if ( documentSelection.isCollapsed ) {
+		const position = documentSelection.getFirstPosition()!;
+
+		return position.isEqual( selRange.start ) || position.isEqual( selRange.end );
+	}
+
+	const docSelRange = documentSelection.getFirstRange();
+
+	return !!docSelRange?.isIntersecting( selRange );
 }

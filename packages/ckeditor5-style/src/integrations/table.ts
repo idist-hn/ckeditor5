@@ -1,26 +1,27 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module style/integrations/table
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { Element } from 'ckeditor5/src/engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ModelElement } from '@ckeditor/ckeditor5-engine';
 import type { TableUtils } from '@ckeditor/ckeditor5-table';
 
 import type { DataFilter } from '@ckeditor/ckeditor5-html-support';
 
-import StyleUtils, {
+import {
+	StyleUtils,
 	type BlockStyleDefinition,
 	type StyleUtilsGetAffectedBlocksEvent,
 	type StyleUtilsIsEnabledForBlockEvent,
 	type StyleUtilsConfigureGHSDataFilterEvent
-} from '../styleutils';
+} from '../styleutils.js';
 
-export default class TableStyleSupport extends Plugin {
+export class TableStyleSupport extends Plugin {
 	private _tableUtils!: TableUtils;
 	private _styleUtils!: StyleUtils;
 
@@ -34,8 +35,15 @@ export default class TableStyleSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ StyleUtils ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ StyleUtils ]> {
+		return [ StyleUtils ];
 	}
 
 	/**
@@ -87,12 +95,12 @@ export default class TableStyleSupport extends Plugin {
 	 * @param block Block element to check if should be styled.
 	 * @returns True if the defintion-block pair meet the plugin criteria, false otherwise.
 	 */
-	private _isApplicable( definition: BlockStyleDefinition, block: Element ): boolean {
+	private _isApplicable( definition: BlockStyleDefinition, block: ModelElement ): boolean {
 		if ( [ 'td', 'th' ].includes( definition.element ) ) {
 			return block.name == 'tableCell';
 		}
 
-		if ( [ 'thead', 'tbody' ].includes( definition.element ) ) {
+		if ( [ 'thead', 'tbody', 'tfoot' ].includes( definition.element ) ) {
 			return block.name == 'table';
 		}
 
@@ -106,12 +114,12 @@ export default class TableStyleSupport extends Plugin {
 	 * @param block Block element to check if should be styled.
 	 * @returns True if the block should be style with the style description, false otherwise.
 	 */
-	private _isStyleEnabledForBlock( definition: BlockStyleDefinition, block: Element ): boolean {
+	private _isStyleEnabledForBlock( definition: BlockStyleDefinition, block: ModelElement ): boolean {
 		if ( [ 'td', 'th' ].includes( definition.element ) ) {
 			const location = this._tableUtils.getCellLocation( block )!;
 
 			const tableRow = block.parent!;
-			const table = tableRow.parent as Element;
+			const table = tableRow.parent as ModelElement;
 
 			const headingRows = table.getAttribute( 'headingRows' ) as number || 0;
 			const headingColumns = table.getAttribute( 'headingColumns' ) as number || 0;
@@ -124,17 +132,21 @@ export default class TableStyleSupport extends Plugin {
 			}
 		}
 
-		if ( [ 'thead', 'tbody' ].includes( definition.element ) ) {
+		/* v8 ignore else -- @preserve */
+		if ( [ 'thead', 'tbody', 'tfoot' ].includes( definition.element ) ) {
 			const headingRows = block.getAttribute( 'headingRows' ) as number || 0;
+			const footerRows = block.getAttribute( 'footerRows' ) as number || 0;
 
 			if ( definition.element == 'thead' ) {
 				return headingRows > 0;
+			} else if ( definition.element == 'tfoot' ) {
+				return footerRows > 0;
 			} else {
-				return headingRows < this._tableUtils.getRows( block );
+				return headingRows + footerRows < this._tableUtils.getRows( block );
 			}
 		}
 
-		/* istanbul ignore next -- @preserve */
+		/* v8 ignore next -- @preserve */
 		return false;
 	}
 
@@ -145,7 +157,7 @@ export default class TableStyleSupport extends Plugin {
 	 * @param block A block element from selection.
 	 * @returns An array with the block that was passed as an argument if meets the criteria, null otherwise.
 	 */
-	private _getAffectedBlocks( definition: BlockStyleDefinition, block: Element ): Array<Element> | null {
+	private _getAffectedBlocks( definition: BlockStyleDefinition, block: ModelElement ): Array<ModelElement> | null {
 		if ( !this._isStyleEnabledForBlock( definition, block ) ) {
 			return null;
 		}

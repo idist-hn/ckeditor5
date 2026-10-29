@@ -1,10 +1,11 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Command from '../src/command';
-import ModelTestEditor from './_utils/modeltesteditor';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Command } from '../src/command.js';
+import { ModelTestEditor } from './_utils/modeltesteditor.js';
 
 describe( 'Command', () => {
 	let editor, command;
@@ -26,48 +27,48 @@ describe( 'Command', () => {
 
 	describe( 'constructor()', () => {
 		it( 'sets the editor property', () => {
-			expect( command.editor ).to.equal( editor );
+			expect( command.editor ).toBe( editor );
 		} );
 
 		it( 'sets the state properties', () => {
-			expect( command.value ).to.be.undefined;
-			expect( command.isEnabled ).to.be.false;
+			expect( command.value ).toBeUndefined();
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'sets the affectsData property', () => {
-			expect( command ).to.have.property( 'affectsData', true );
+			expect( command ).toHaveProperty( 'affectsData', true );
 		} );
 
 		it( 'adds a listener which refreshes the command on editor.model.Document#event:change', () => {
-			sinon.spy( command, 'refresh' );
+			const spy = vi.spyOn( command, 'refresh' );
 
 			editor.model.document.fire( 'change' );
 
-			expect( command.refresh.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
 	describe( 'value', () => {
 		it( 'fires change event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			command.on( 'change:value', spy );
 
 			command.value = 1;
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
 	describe( 'isEnabled', () => {
 		it( 'fires change event', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			command.on( 'change:isEnabled', spy );
 
 			command.isEnabled = true;
 
-			expect( spy.calledOnce ).to.be.true;
+			expect( spy ).toHaveBeenCalledOnce();
 		} );
 
 		it( 'is false when the editor is in read-only mode and command affects data', () => {
@@ -77,17 +78,17 @@ describe( 'Command', () => {
 			editor.enableReadOnlyMode( 'unit-test' );
 
 			// Is false.
-			expect( command.isEnabled ).to.false;
+			expect( command.isEnabled ).toBe( false );
 
 			command.refresh();
 
 			// Still false.
-			expect( command.isEnabled ).to.false;
+			expect( command.isEnabled ).toBe( false );
 
 			editor.disableReadOnlyMode( 'unit-test' );
 
 			// And is back to true.
-			expect( command.isEnabled ).to.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'doesn\'t depend on the editor read-only mode when command doesn\'t affect data', () => {
@@ -97,17 +98,17 @@ describe( 'Command', () => {
 			editor.enableReadOnlyMode( 'unit-test' );
 
 			// Is true.
-			expect( command.isEnabled ).to.true;
+			expect( command.isEnabled ).toBe( true );
 
 			command.refresh();
 
 			// Still true.
-			expect( command.isEnabled ).to.true;
+			expect( command.isEnabled ).toBe( true );
 
 			editor.disableReadOnlyMode( 'unit-test' );
 
 			// And is back to true.
-			expect( command.isEnabled ).to.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should disable command when selection is in non-editable place and `isEnabled` bases on selection', () => {
@@ -118,7 +119,7 @@ describe( 'Command', () => {
 			editor.model.document.isReadOnly = true;
 			command.refresh();
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should not disable command when selection is in non-editable place and `isEnabled` bases on selection', () => {
@@ -129,7 +130,7 @@ describe( 'Command', () => {
 			editor.model.document.isReadOnly = true;
 			command.refresh();
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'should disable command if the selection is in graveyard and and `isEnabled` bases on selection', () => {
@@ -141,7 +142,7 @@ describe( 'Command', () => {
 				writer.detachRoot( 'main' );
 			} );
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'should not disable command if the selection is in graveyard and and `isEnabled` bases on selection', () => {
@@ -153,7 +154,7 @@ describe( 'Command', () => {
 				writer.detachRoot( 'main' );
 			} );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'is observable when is overridden', () => {
@@ -161,16 +162,16 @@ describe( 'Command', () => {
 
 			editor.bind( 'something' ).to( command, 'isEnabled' );
 
-			expect( editor.something ).to.true;
+			expect( editor.something ).toBe( true );
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			expect( editor.something ).to.false;
+			expect( editor.something ).toBe( false );
 		} );
 
 		it( 'stops `set` event to force disabled and not affect `change` event', () => {
-			const setSpy = sinon.spy();
-			const changeSpy = sinon.spy();
+			const setSpy = vi.fn();
+			const changeSpy = vi.fn();
 
 			command.isEnabled = true;
 
@@ -179,14 +180,14 @@ describe( 'Command', () => {
 
 			editor.enableReadOnlyMode( 'unit-test' );
 
-			sinon.assert.notCalled( setSpy );
-			sinon.assert.calledOnce( changeSpy );
+			expect( setSpy ).not.toHaveBeenCalled();
+			expect( changeSpy ).toHaveBeenCalledOnce();
 		} );
 	} );
 
 	describe( 'execute()', () => {
 		it( 'is decorated', () => {
-			const spy = sinon.spy();
+			const spy = vi.fn();
 
 			command.on( 'execute', spy );
 
@@ -194,14 +195,14 @@ describe( 'Command', () => {
 
 			command.execute( 1, 2 );
 
-			expect( spy.calledOnce ).to.be.true;
-			expect( spy.args[ 0 ][ 1 ] ).to.deep.equal( [ 1, 2 ] );
+			expect( spy ).toHaveBeenCalledOnce();
+			expect( spy.mock.calls[ 0 ][ 1 ] ).toEqual( [ 1, 2 ] );
 		} );
 
 		it( 'is automatically blocked (with low priority listener) if command is disabled', () => {
-			const spyExecute = sinon.spy();
-			const spyHighest = sinon.spy();
-			const spyHigh = sinon.spy();
+			const spyExecute = vi.fn();
+			const spyHighest = vi.fn();
+			const spyHigh = vi.fn();
 
 			class SpyCommand extends Command {
 				execute() {
@@ -216,9 +217,9 @@ describe( 'Command', () => {
 
 			command.execute();
 
-			expect( spyExecute.called ).to.be.false;
-			expect( spyHighest.calledOnce ).to.be.true;
-			expect( spyHigh.called ).to.be.false;
+			expect( spyExecute ).not.toHaveBeenCalled();
+			expect( spyHighest ).toHaveBeenCalledOnce();
+			expect( spyHigh ).not.toHaveBeenCalled();
 		} );
 	} );
 
@@ -226,7 +227,7 @@ describe( 'Command', () => {
 		it( 'sets isEnabled to true', () => {
 			command.refresh();
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		// This is an acceptance test for the ability to override a command's state from outside
@@ -237,12 +238,12 @@ describe( 'Command', () => {
 			command.isEnabled = false;
 			command.refresh();
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 
 			command.off( 'change:isEnabled', callback );
 			command.refresh();
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 
 			function callback( evt ) {
 				command.isEnabled = false;
@@ -257,14 +258,14 @@ describe( 'Command', () => {
 			command.forceDisabled( 'foo' );
 			command.isEnabled = true;
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'clearForceDisabled() should enable the command', () => {
 			command.forceDisabled( 'foo' );
 			command.clearForceDisabled( 'foo' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'clearForceDisabled() used with wrong identifier should not enable the command', () => {
@@ -272,7 +273,7 @@ describe( 'Command', () => {
 			command.clearForceDisabled( 'bar' );
 			command.isEnabled = true;
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 
 		it( 'using forceDisabled() twice with the same identifier should not have any effect', () => {
@@ -280,7 +281,7 @@ describe( 'Command', () => {
 			command.forceDisabled( 'foo' );
 			command.clearForceDisabled( 'foo' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'command is enabled only after all disables were cleared', () => {
@@ -289,11 +290,11 @@ describe( 'Command', () => {
 			command.clearForceDisabled( 'foo' );
 			command.isEnabled = true;
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 
 			command.clearForceDisabled( 'bar' );
 
-			expect( command.isEnabled ).to.be.true;
+			expect( command.isEnabled ).toBe( true );
 		} );
 
 		it( 'command should remain disabled if isEnabled has a callback disabling it', () => {
@@ -306,7 +307,7 @@ describe( 'Command', () => {
 			command.clearForceDisabled( 'foo' );
 			command.isEnabled = true;
 
-			expect( command.isEnabled ).to.be.false;
+			expect( command.isEnabled ).toBe( false );
 		} );
 	} );
 } );

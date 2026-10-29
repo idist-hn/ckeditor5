@@ -1,23 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { Editor } from 'ckeditor5/src/core';
-import type { DocumentSelection, Marker, Position, Range } from 'ckeditor5/src/engine';
 
 /**
  * @module restricted-editing/restrictededitingmode/utils
  */
 
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelDocumentSelection, Marker, ModelPosition, ModelRange, Model } from '@ckeditor/ckeditor5-engine';
+
 /**
  * Returns a single "restricted-editing-exception" marker at a given position. Contrary to
- * {@link module:engine/model/markercollection~MarkerCollection#getMarkersAtPosition}, it returnd a marker also when the postion is
+ * {@link module:engine/model/markercollection~MarkerCollection#getMarkersAtPosition}, it returns a marker also when the position is
  * equal to one of the marker's start or end positions.
+ *
+ * @internal
  */
-export function getMarkerAtPosition( editor: Editor, position: Position ): Marker | undefined {
+export function getMarkerAtPosition( editor: Editor, position: ModelPosition ): Marker | undefined {
 	for ( const marker of editor.model.markers ) {
-		const markerRange = marker.getRange();
+		const markerRange = getExceptionRange( marker, editor.model );
 
 		if ( isPositionInRangeBoundaries( markerRange, position ) ) {
 			if ( marker.name.startsWith( 'restrictedEditingException:' ) ) {
@@ -29,8 +31,10 @@ export function getMarkerAtPosition( editor: Editor, position: Position ): Marke
 
 /**
  * Checks if the position is fully contained in the range. Positions equal to range start or end are considered "in".
+ *
+ * @internal
  */
-export function isPositionInRangeBoundaries( range: Range, position: Position ): boolean {
+export function isPositionInRangeBoundaries( range: ModelRange, position: ModelPosition ): boolean {
 	return (
 		range.containsPosition( position ) ||
 		range.end.isEqual( position ) ||
@@ -47,17 +51,35 @@ export function isPositionInRangeBoundaries( range: Range, position: Position ):
  * <marker>f[oo</marker> ba]r -> false
  * <marker>foo</marker> []bar -> false
  * ```
+ *
+ * @internal
  */
-export function isSelectionInMarker( selection: DocumentSelection, marker?: Marker ): boolean {
+export function isSelectionInMarker( selection: ModelDocumentSelection, model: Model, marker?: Marker ): boolean {
 	if ( !marker ) {
 		return false;
 	}
 
-	const markerRange = marker.getRange();
+	const markerRange = getExceptionRange( marker, model );
 
 	if ( selection.isCollapsed ) {
 		return isPositionInRangeBoundaries( markerRange, selection.focus! );
 	}
 
 	return markerRange.containsRange( selection.getFirstRange()!, true );
+}
+
+/**
+ * Returns the marker range asjusted to the inside of exception wrapper element if needed.
+ *
+ * @internal
+ */
+export function getExceptionRange( marker: Marker, model: Model ): ModelRange {
+	const markerRange = marker.getRange();
+	const wrapperElement = markerRange.getContainedElement();
+
+	if ( wrapperElement && wrapperElement.is( 'element', 'restrictedEditingException' ) ) {
+		return model.createRangeIn( wrapperElement );
+	}
+
+	return markerRange;
 }

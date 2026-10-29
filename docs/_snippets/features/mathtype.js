@@ -1,24 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals window, document, console */
-
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
-import { CS_CONFIG } from '@ckeditor/ckeditor5-cloud-services/tests/_utils/cloud-services-config';
-import ArticlePluginSet from '@ckeditor/ckeditor5-core/tests/_utils/articlepluginset';
-import { EasyImage } from '@ckeditor/ckeditor5-easy-image';
-import { ImageUpload } from '@ckeditor/ckeditor5-image';
-import MathType from '@wiris/mathtype-ckeditor5';
+import {
+	ClassicEditor,
+	CloudServices,
+	ImageInsert,
+	ImageUpload,
+	PictureEditing,
+	CKBox,
+	CKBoxImageEdit
+} from 'ckeditor5';
+import MathType from '@wiris/mathtype-ckeditor5/dist/index.js';
+import {
+	TOKEN_URL,
+	ArticlePluginSet,
+	getViewportTopOffsetConfig,
+	attachTourBalloon,
+	findToolbarItem
+} from '@snippets/index.js';
 
 ClassicEditor
-	.create( document.querySelector( '#mathtype-editor' ), {
+	.create( {
+		attachTo: document.querySelector( '#mathtype-editor' ),
 		plugins: [
 			ArticlePluginSet,
-			EasyImage,
+			CKBox,
+			CKBoxImageEdit,
+			PictureEditing,
 			ImageUpload,
+			ImageInsert,
 			CloudServices,
 			MathType
 		],
@@ -26,14 +38,19 @@ ClassicEditor
 			items: [
 				'undo', 'redo', '|', 'heading',
 				'|', 'bold', 'italic',
-				'|', 'link', 'uploadImage', 'insertTable', 'mediaEmbed', '|', 'MathType', 'ChemType',
+				'|', 'link', 'insertImage', 'insertTable', 'mediaEmbed', '|', 'MathType', 'ChemType',
 				'|', 'bulletedList', 'numberedList', 'outdent', 'indent'
 			]
 		},
 		ui: {
 			viewportOffset: {
-				top: window.getViewportTopOffsetConfig()
+				top: getViewportTopOffsetConfig()
 			}
+		},
+		ckbox: {
+			tokenUrl: TOKEN_URL,
+			forceDemoLabel: true,
+			allowExternalImagesEditing: [ /^data:/, 'origin', /ckbox/ ]
 		},
 		image: {
 			toolbar: [
@@ -42,21 +59,27 @@ ClassicEditor
 				'imageStyle:breakText',
 				'|',
 				'toggleImageCaption',
-				'imageTextAlternative'
+				'imageTextAlternative',
+				'|',
+				'ckboxImageEdit'
 			]
 		},
 		table: {
 			contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells' ]
 		},
-		cloudServices: CS_CONFIG
+		list: {
+			enableSkipLevelLists: true
+		}
 	} )
 
 	.then( editor => {
 		window.editor = editor;
 
-		window.attachTourBalloon( {
-			target: window.findToolbarItem( editor.ui.view.toolbar,
-				item => item.label && item.label === 'Insert a math equation - MathType' ),
+		attachTourBalloon( {
+			target: findToolbarItem(
+				editor.ui.view.toolbar,
+				item => item.label && item.label === 'Insert a math equation - MathType'
+			),
 			text: 'Click to insert mathematical or chemical formulas.',
 			editor
 		} );
@@ -64,3 +87,14 @@ ClassicEditor
 	.catch( err => {
 		console.error( err.stack );
 	} );
+
+// MathType has a WASM telemetry file that esbuild fails to generate. Because
+// the code works fine without it, then we accept the error during a scan.
+const metaElement = document.createElement( 'meta' );
+
+metaElement.name = 'x-cke-crawler-ignore-patterns';
+metaElement.content = JSON.stringify( {
+	'response-failure': 'wasm'
+} );
+
+document.head.appendChild( metaElement );

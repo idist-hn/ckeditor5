@@ -1,12 +1,12 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
+import { _getModelData } from '@ckeditor/ckeditor5-engine';
 
 /**
- * Writes the content of a model {@link module:engine/model/document~Document document} to an HTML-like string with
+ * Writes the content of a model {@link module:engine/model/document~ModelDocument document} to an HTML-like string with
  * indexed HTML Support attributes.
  *
  *		getModelDataWithAttributes( editor.model );
@@ -18,7 +18,7 @@ import { getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-util
  *		//			}
  *		//		}
  *
- * This function will index every attribute starting with `html*` keyword and return it's value in `result.attributes` property.
+ * This function will index every object attribute starting with `html*` keyword and return it's value in `result.attributes` property.
  *
  * @param {module:engine/model/model~Model} model
  * @param {Object} [options]
@@ -30,12 +30,12 @@ import { getData as getModelData } from '@ckeditor/ckeditor5-engine/src/dev-util
  * @param {Array} [options.excludeAttributes] Attributes to exclude from the result.
  * @returns {Object} result
  * @returns {String} result.data The stringified data.
- * @returns {Object} result.attributes Indexed data attributes.
+ * @returns {Object} result.attributes Indexed data object attributes.
  */
 export function getModelDataWithAttributes( model, options = {} ) {
 	// Simplify GHS attributes as they are not very readable at this point due to object structure.
 	let counter = 1;
-	const data = getModelData( model, options ).replace( /(html.*?)="{.*?}"/g, ( fullMatch, attributeName ) => {
+	const data = _getModelData( model, options ).replace( /(html.*?)="{.*?}"/g, ( fullMatch, attributeName ) => {
 		return `${ attributeName }="(${ counter++ })"`;
 	} );
 
@@ -45,7 +45,7 @@ export function getModelDataWithAttributes( model, options = {} ) {
 	let attributes = [];
 	for ( const item of range.getItems() ) {
 		for ( const [ key, value ] of sortAttributes( item.getAttributes() ) ) {
-			if ( key.startsWith( 'html' ) && !excludeAttributes.includes( key ) ) {
+			if ( key.startsWith( 'html' ) && !excludeAttributes.includes( key ) && value !== null && typeof value === 'object' ) {
 				attributes.push( value );
 			}
 		}

@@ -1,25 +1,25 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module restricted-editing/restrictededitingmode/converters
  */
 
-import type { Editor } from 'ckeditor5/src/core';
+import type { Editor } from '@ckeditor/ckeditor5-core';
 import {
 	Matcher,
-	type DowncastWriter,
+	type ViewDowncastWriter,
 	type MatcherPattern,
 	type ModelPostFixer,
-	type Position,
+	type ModelPosition,
 	type UpcastDispatcher,
-	type Writer,
+	type ModelWriter,
 	type ViewElement
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-engine';
 
-import { getMarkerAtPosition } from './utils';
+import { getMarkerAtPosition } from './utils.js';
 
 const HIGHLIGHT_CLASS = 'restricted-editing-exception_selected';
 
@@ -34,6 +34,8 @@ const HIGHLIGHT_CLASS = 'restricted-editing-exception_selected';
  * * The class is added in the view post-fixer, after other changes in the model tree are converted to the view.
  *
  * This way, adding and removing the highlight does not interfere with conversion.
+ *
+ * @internal
  */
 export function setupExceptionHighlighting( editor: Editor ): void {
 	const view = editor.editing.view;
@@ -41,7 +43,7 @@ export function setupExceptionHighlighting( editor: Editor ): void {
 	const highlightedMarkers = new Set<ViewElement>();
 
 	// Adding the class.
-	view.document.registerPostFixer( ( writer: DowncastWriter ): boolean => {
+	view.document.registerPostFixer( ( writer: ViewDowncastWriter ): boolean => {
 		const modelSelection = model.document.selection;
 
 		const marker = getMarkerAtPosition( editor, modelSelection.anchor! );
@@ -50,9 +52,18 @@ export function setupExceptionHighlighting( editor: Editor ): void {
 			return false;
 		}
 
-		for ( const viewElement of editor.editing.mapper.markerNameToElements( marker.name )! ) {
+		const modelWrapperElement = marker.getRange().getContainedElement();
+
+		if ( modelWrapperElement && modelWrapperElement.is( 'element', 'restrictedEditingException' ) ) {
+			const viewElement = editor.editing.mapper.toViewElement( modelWrapperElement )!;
+
 			writer.addClass( HIGHLIGHT_CLASS, viewElement );
 			highlightedMarkers.add( viewElement );
+		} else {
+			for ( const viewElement of editor.editing.mapper.markerNameToElements( marker.name )! ) {
+				writer.addClass( HIGHLIGHT_CLASS, viewElement );
+				highlightedMarkers.add( viewElement );
+			}
 		}
 
 		return false;
@@ -79,6 +90,8 @@ export function setupExceptionHighlighting( editor: Editor ): void {
 
 /**
  * A post-fixer that prevents removing a collapsed marker from the document.
+ *
+ * @internal
  */
 export function resurrectCollapsedMarkerPostFixer( editor: Editor ): ModelPostFixer {
 	// This post-fixer shouldn't be necessary after https://github.com/ckeditor/ckeditor5/issues/5778.
@@ -101,14 +114,17 @@ export function resurrectCollapsedMarkerPostFixer( editor: Editor ): ModelPostFi
 
 /**
  * A post-fixer that extends a marker when the user types on its boundaries.
+ *
+ * @internal
  */
 export function extendMarkerOnTypingPostFixer( editor: Editor ): ModelPostFixer {
 	// This post-fixer shouldn't be necessary after https://github.com/ckeditor/ckeditor5/issues/5778.
 	return writer => {
 		let changeApplied = false;
+		const schema = editor.model.schema;
 
 		for ( const change of editor.model.document.differ.getChanges() ) {
-			if ( change.type == 'insert' && change.name == '$text' ) {
+			if ( change.type == 'insert' && schema.checkChild( '$block', change.name ) ) {
 				changeApplied = _tryExtendMarkerStart( editor, change.position, change.length, writer ) || changeApplied;
 				changeApplied = _tryExtendMarkedEnd( editor, change.position, change.length, writer ) || changeApplied;
 			}
@@ -122,9 +138,10 @@ export function extendMarkerOnTypingPostFixer( editor: Editor ): ModelPostFixer 
  * A view highlight-to-marker conversion helper.
  *
  * @param config Conversion configuration.
+ * @internal
  */
-export function upcastHighlightToMarker( config: { view: MatcherPattern; model: () => string } ) {
-	return ( dispatcher: UpcastDispatcher ): void => dispatcher.on( 'element:span', ( evt, data, conversionApi ) => {
+export function upcastHighlightToMarker( config: { view: MatcherPattern; model: () => string; useWrapperElement?: boolean } ) {
+	return ( dispatcher: UpcastDispatcher ): void => dispatcher.on( 'element', ( evt, data, conversionApi ) => {
 		const { writer } = conversionApi;
 
 		const matcher = new Matcher( config.view );
@@ -140,16 +157,39 @@ export function upcastHighlightToMarker( config: { view: MatcherPattern; model: 
 		// Force consuming element's name (taken from upcast helpers elementToElement converter).
 		match.name = true;
 
-		const { modelRange: convertedChildrenRange } = conversionApi.convertChildren( data.viewItem, data.modelCursor );
+		if ( !conversionApi.consumable.test( data.viewItem, match ) ) {
+			return;
+		}
+
+		let position = data.modelCursor;
+		let wrapperElement = null;
+
+		if ( config.useWrapperElement ) {
+			if ( !conversionApi.schema.checkChild( position, 'restrictedEditingException' ) ) {
+				return;
+			}
+
+			wrapperElement = writer.createElement( 'restrictedEditingException' );
+			writer.insert( wrapperElement, position );
+			position = writer.createPositionAt( wrapperElement, 0 );
+		}
+
+		const { modelRange: convertedChildrenRange } = conversionApi.convertChildren( data.viewItem, position );
+
 		conversionApi.consumable.consume( data.viewItem, match );
 
 		const markerName = config.model();
 		const fakeMarkerStart = writer.createElement( '$marker', { 'data-name': markerName } );
 		const fakeMarkerEnd = writer.createElement( '$marker', { 'data-name': markerName } );
 
-		// Insert in reverse order to use converter content positions directly (without recalculating).
-		writer.insert( fakeMarkerEnd, convertedChildrenRange.end );
-		writer.insert( fakeMarkerStart, convertedChildrenRange.start );
+		if ( wrapperElement ) {
+			writer.insert( fakeMarkerStart, writer.createPositionBefore( wrapperElement ) );
+			writer.insert( fakeMarkerEnd, writer.createPositionAfter( wrapperElement ) );
+		} else {
+			// Insert in reverse order to use converter content positions directly (without recalculating).
+			writer.insert( fakeMarkerEnd, convertedChildrenRange.end );
+			writer.insert( fakeMarkerStart, convertedChildrenRange.start );
+		}
 
 		data.modelRange = writer.createRange(
 			writer.createPositionBefore( fakeMarkerStart ),
@@ -162,7 +202,7 @@ export function upcastHighlightToMarker( config: { view: MatcherPattern; model: 
 /**
  * Extend marker if change detected on marker's start position.
  */
-function _tryExtendMarkerStart( editor: Editor, position: Position, length: number, writer: Writer ): boolean {
+function _tryExtendMarkerStart( editor: Editor, position: ModelPosition, length: number, writer: ModelWriter ): boolean {
 	const markerAtStart = getMarkerAtPosition( editor, position.getShiftedBy( length ) );
 
 	if ( markerAtStart && markerAtStart.getStart().isEqual( position.getShiftedBy( length ) ) ) {
@@ -179,7 +219,7 @@ function _tryExtendMarkerStart( editor: Editor, position: Position, length: numb
 /**
  * Extend marker if change detected on marker's end position.
  */
-function _tryExtendMarkedEnd( editor: Editor, position: Position, length: number, writer: Writer ): boolean {
+function _tryExtendMarkedEnd( editor: Editor, position: ModelPosition, length: number, writer: ModelWriter ): boolean {
 	const markerAtEnd = getMarkerAtPosition( editor, position );
 
 	if ( markerAtEnd && markerAtEnd.getEnd().isEqual( position ) ) {

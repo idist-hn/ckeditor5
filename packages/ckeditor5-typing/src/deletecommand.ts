@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -9,15 +9,17 @@
 
 import { Command, type Editor } from '@ckeditor/ckeditor5-core';
 import { count } from '@ckeditor/ckeditor5-utils';
-import type { DocumentSelection, Element, Selection, Writer } from '@ckeditor/ckeditor5-engine';
+import type { ModelDocumentSelection, ModelElement, ModelSelection, ModelWriter } from '@ckeditor/ckeditor5-engine';
 
-import ChangeBuffer from './utils/changebuffer';
+import { TypingChangeBuffer } from './utils/changebuffer.js';
+
+// @if CK_DEBUG_TYPING // import { _buildLogMessage } from '@ckeditor/ckeditor5-engine/src/dev-utils/utils.js';
 
 /**
  * The delete command. Used by the {@link module:typing/delete~Delete delete feature} to handle the <kbd>Delete</kbd> and
  * <kbd>Backspace</kbd> keys.
  */
-export default class DeleteCommand extends Command {
+export class DeleteCommand extends Command {
 	/**
 	 * The directionality of the delete describing in what direction it should
 	 * consume the content when the selection is collapsed.
@@ -27,7 +29,7 @@ export default class DeleteCommand extends Command {
 	/**
 	 * Delete's change buffer used to group subsequent changes into batches.
 	 */
-	private readonly _buffer: ChangeBuffer;
+	private readonly _buffer: TypingChangeBuffer;
 
 	/**
 	 * Creates an instance of the command.
@@ -39,7 +41,7 @@ export default class DeleteCommand extends Command {
 		super( editor );
 
 		this.direction = direction;
-		this._buffer = new ChangeBuffer( editor.model, editor.config.get( 'typing.undoStep' ) );
+		this._buffer = new TypingChangeBuffer( editor.model, editor.config.get( 'typing.undoStep' ) );
 
 		// Since this command may execute on different selectable than selection, it should be checked directly in execute block.
 		this._isEnabledBasedOnSelection = false;
@@ -48,7 +50,7 @@ export default class DeleteCommand extends Command {
 	/**
 	 * The current change buffer.
 	 */
-	public get buffer(): ChangeBuffer {
+	public get buffer(): TypingChangeBuffer {
 		return this._buffer;
 	}
 
@@ -60,13 +62,13 @@ export default class DeleteCommand extends Command {
 	 * @param options The command options.
 	 * @param options.unit See {@link module:engine/model/utils/modifyselection~modifySelection}'s options.
 	 * @param options.sequence A number describing which subsequent delete event it is without the key being released.
-	 * See the {@link module:engine/view/document~Document#event:delete} event data.
+	 * See the {@link module:engine/view/document~ViewDocument#event:delete} event data.
 	 * @param options.selection Selection to remove. If not set, current model selection will be used.
 	 */
 	public override execute( options: {
 		unit?: 'character' | 'codePoint' | 'word';
 		sequence?: number;
-		selection?: Selection | DocumentSelection;
+		selection?: ModelSelection | ModelDocumentSelection;
 	} = {} ): void {
 		const model = this.editor.model;
 		const doc = model.document;
@@ -99,7 +101,7 @@ export default class DeleteCommand extends Command {
 				} );
 			}
 
-			// Check if deleting in an empty editor. See #61.
+			// Check if deleting in an empty editor. See https://github.com/ckeditor/ckeditor5-typing/issues/61.
 			if ( this._shouldEntireContentBeReplacedWithParagraph( sequence ) ) {
 				this._replaceEntireContentWithParagraph( writer );
 
@@ -128,10 +130,11 @@ export default class DeleteCommand extends Command {
 			} );
 
 			// @if CK_DEBUG_TYPING // if ( ( window as any ).logCKETyping ) {
-			// @if CK_DEBUG_TYPING // 	console.log( '%c[DeleteCommand]%c Delete content',
-			// @if CK_DEBUG_TYPING // 		'font-weight: bold; color: green;', '',
-			// @if CK_DEBUG_TYPING // 		`[${ selection.getFirstPosition()!.path }]-[${ selection.getLastPosition()!.path }]`, options
-			// @if CK_DEBUG_TYPING // 	);
+			// @if CK_DEBUG_TYPING // 	console.log( ..._buildLogMessage( this, 'DeleteCommand',
+			// @if CK_DEBUG_TYPING // 		'Delete content',
+			// @if CK_DEBUG_TYPING // 		`[${ selection.getFirstPosition()!.path }]-[${ selection.getLastPosition()!.path }]`,
+			// @if CK_DEBUG_TYPING // 		options
+			// @if CK_DEBUG_TYPING // 	) );
 			// @if CK_DEBUG_TYPING // }
 
 			model.deleteContent( selection, {
@@ -203,7 +206,7 @@ export default class DeleteCommand extends Command {
 	 *
 	 * @param writer The model writer.
 	 */
-	private _replaceEntireContentWithParagraph( writer: Writer ): void {
+	private _replaceEntireContentWithParagraph( writer: ModelWriter ): void {
 		const model = this.editor.model;
 		const doc = model.document;
 		const selection = doc.selection;
@@ -223,7 +226,7 @@ export default class DeleteCommand extends Command {
 	 * @param selection The selection.
 	 * @param sequence A number describing which subsequent delete event it is without the key being released.
 	 */
-	private _shouldReplaceFirstBlockWithParagraph( selection: Selection, sequence: number ): boolean {
+	private _shouldReplaceFirstBlockWithParagraph( selection: ModelSelection, sequence: number ): boolean {
 		const model = this.editor.model;
 
 		// Does nothing if user pressed and held the "Backspace" key or it was a "Delete" button.
@@ -237,7 +240,7 @@ export default class DeleteCommand extends Command {
 
 		const position = selection.getFirstPosition()!;
 		const limitElement = model.schema.getLimitElement( position );
-		const limitElementFirstChild = limitElement.getChild( 0 ) as Element;
+		const limitElementFirstChild = limitElement.getChild( 0 ) as ModelElement;
 
 		// Only elements that are direct children of the limit element can be replaced.
 		// Unwrapping from a block quote should be handled in a dedicated feature.

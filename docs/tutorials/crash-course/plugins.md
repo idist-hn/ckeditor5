@@ -3,20 +3,24 @@ category: crash-course
 order: 20
 menu-title: Plugins
 meta-title: CKEditor 5 crash course - Plugins | CKEditor 5 Documentation
+meta-description: Create custom plugins in CKEditor 5 with this crash course, covering the basics of extending editor functionality step by step.
 modified_at: 2023-08-16
 ---
 
 # Plugins
+
+In this part of the crash course, you will learn how plugins provide the editor's functionality and create the `highlight` plugin that the rest of the course builds on.
 
 ## Dependencies
 
 In the previous chapter of this tutorial, we learned that the editor is just an empty shell, and what gives the editor almost all of its functionality are the plugins. We also installed two plugins to be able to type in the editor.
 
 ```js
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Essentials, Paragraph } from 'ckeditor5';
 
-const editor = await ClassicEditor.create( element, {
+const editor = await ClassicEditor.create( {
+	attachTo: element,
+	licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 	plugins: [
 		Essentials,
 		Paragraph
@@ -43,11 +47,8 @@ Since the `Essentials` plugin does not define block-level containers, we also in
 
 The editor we created so far still lacks many features, such as support for headings, tables, block quotes, and much more. You can add them using plugins, of course.
 
-For a list of plugins, usage examples, installation, and configuration options, see the {@link installation/plugins/features-html-output-overview Plugins and HTML output} guide.
+For a list of plugins, usage examples, installation, and configuration options, see the {@link framework/architecture/plugins#plugins-and-html-output Plugins and HTML output} guide.
 
-## Predefined builds
-
-The fact that individual plugins add support for such minor features as typing, <kbd>Enter</kbd>, or `<p>` does not mean that you have to browse through the long list of plugins and painstakingly install the ones you need to get a good typing experience. You can do that if you want to have full control over the editor. But if that's not your thing, you can use one of the {@link installation/getting-started/predefined-builds predefined builds} with the most important and popular plugins already installed and configured.
 
 ## Creating custom plugins
 
@@ -72,7 +73,9 @@ Then, in the `src/main.js` file, import and register this function as an editor 
 ```js
 import { Highlight } from './plugin';
 
-const editor = await ClassicEditor.create( element, {
+const editor = await ClassicEditor.create( {
+	attachTo: element,
+	licenseKey: 'GPL', // Or '<YOUR_LICENSE_KEY>'.
 	plugins: [
 		// Other plugins are omitted for readability - do not remove them.
 		Highlight

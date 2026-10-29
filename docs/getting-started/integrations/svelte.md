@@ -1,0 +1,208 @@
+---
+menu-title: Svelte
+meta-title: Using the CKEditor 5 WYSIWYG editor with Svelte from npm | CKEditor 5 Documentation
+meta-description: Integrate the CKEditor 5 rich-text editor with Svelte using npm. Follow step-by-step instructions for fast installation and setup.
+category: self-hosted
+order: 110
+modified_at: 2025-04-24
+---
+
+# Integrating CKEditor&nbsp;5 with Svelte from npm
+
+You can integrate the CKEditor&nbsp;5 rich-text editor into a [Svelte](https://svelte.dev/) application by installing the CKEditor&nbsp;5 npm packages and initializing the editor inside your own Svelte component. There is no dedicated Svelte component for CKEditor&nbsp;5, so you create the editor when the component mounts and destroy it when it unmounts.
+
+{@snippet getting-started/use-builder}
+
+## Quick start
+
+This guide will show you how to integrate CKEditor&nbsp;5 into a Svelte application using the npm distribution. If you are new to Svelte, check out their [official tutorial](https://svelte.dev/docs/svelte/getting-started).
+
+### Setting up a Svelte project
+
+First, create a new Svelte project using Vite:
+
+```bash
+npm create vite@latest ckeditor-svelte -- --template svelte
+cd ckeditor-svelte
+npm install
+```
+
+### Installing CKEditor&nbsp;5
+
+Next, install the `ckeditor5` and the `ckeditor5-premium-features` packages:
+
+```bash
+npm install ckeditor5 ckeditor5-premium-features
+```
+
+<info-box>
+	The premium features package is optional and used in this guide to demonstrate a complete integration. You can use just the open-source features if you prefer.
+</info-box>
+
+### Project structure
+
+When completed, the folder structure of your project should resemble this one:
+
+```plain
+├── node_modules/
+├── public/
+├── src/
+│   ├── lib/
+│   │   └── Editor.svelte
+│   ├── App.svelte
+│   ├── main.js
+│   └── ...
+├── index.html
+├── package.json
+├── vite.config.js
+├── svelte.config.js
+└── ...
+```
+
+The integration requires two key Svelte components:
+
+* `src/lib/Editor.svelte` &ndash; the component that wraps CKEditor functionality
+* `src/App.svelte` &ndash; the main application component that uses the Editor component
+
+Let's implement these components next.
+
+### Implementing the Editor component
+
+Create a new file `src/lib/Editor.svelte` with the following content:
+
+```html
+<script>
+	import { onMount, onDestroy } from 'svelte';
+
+	import { ClassicEditor, Essentials, Bold, Italic, Font, Paragraph } from 'ckeditor5';
+	import { FormatPainter } from 'ckeditor5-premium-features';
+
+	import 'ckeditor5/ckeditor5.css';
+	import 'ckeditor5-premium-features/ckeditor5-premium-features.css';
+
+	let { value = $bindable('') } = $props();
+
+	let editorContainer;
+	let editorInstance = $state(null);
+	let isDestroyed = false;
+
+	// Sync external value changes to the editor.
+	$effect(() => {
+		if (editorInstance && editorInstance.getData() !== value) {
+			editorInstance.setData(value);
+		}
+	});
+
+	onMount( async () => {
+		// Capture value before async initialization.
+		let initialData = value;
+
+		editorInstance = await ClassicEditor.create( {
+			attachTo: editorContainer,
+			root: {
+				initialData
+			},
+			licenseKey: '<YOUR_LICENSE_KEY>', // Replace with your license key
+			plugins: [ Essentials, Bold, Italic, Font, Paragraph, FormatPainter ],
+			toolbar: [
+				'undo', 'redo', '|', 'bold', 'italic', '|',
+				'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', '|',
+				'formatPainter'
+			]
+		} );
+
+		// Prevent memory leaks if unmounted during creation.
+		if (isDestroyed) {
+			await editorInstance.destroy();
+			return;
+		}
+
+		// Update the bound value when editor content changes.
+		editorInstance.model.document.on( 'change:data', () => {
+			value = editorInstance.getData();
+		} );
+	} );
+
+	onDestroy( () => {
+		// Clean up editor instance on unmount.
+		editorInstance?.destroy().catch( err => console.error( err ) );
+		editorInstance = null;
+		isDestroyed = true;
+	} );
+</script>
+
+<div bind:this={editorContainer}></div>
+```
+
+<info-box>
+	To listen for editor content changes, use the `change:data` event on `editor.model.document` as shown above. Do not use `editor.on( 'change:data', ... )` directly on the editor instance &ndash; that listens for observable property changes on the editor object, not for content edits made by the user.
+</info-box>
+
+### Using the Editor component
+
+Now, modify the main `App.svelte` file to use our editor component:
+
+```html
+<script>
+	import Editor from './lib/Editor.svelte';
+
+	let content = $state('<p>Enter your content here...</p>');
+</script>
+
+<main>
+	<h1>CKEditor 5 + Svelte</h1>
+
+	<div class="editor-wrapper">
+		<Editor bind:value={content} />
+	</div>
+</main>
+
+<style>
+	.editor-wrapper {
+		width: 800px;
+	}
+
+	:global(.ck.ck-editor__editable) {
+		height: 200px;
+		background-color: white;
+		color: #333;
+	}
+</style>
+```
+
+You can now run the dev server to see the editor in action:
+
+```bash
+npm run dev
+```
+
+### Component structure
+
+The Svelte HTML editor integration follows these key steps:
+
+1. **Import dependencies**: The required CKEditor&nbsp;5 modules and styles are imported.
+2. **Editor initialization**: The editor is created with the specified configuration when the component mounts.
+3. **Two-way data binding**: The editor listens to `change:data` events on `editor.model.document` to update the bound value, while a Svelte `$effect` syncs external value changes back to the editor.
+4. **Cleanup**: Resources are properly released when the component is destroyed.
+
+### Styling
+
+Basic styling is provided in the `App.svelte` component to ensure proper display in various environments, especially when using dark themes:
+
+```css
+.editor-wrapper {
+	width: 800px;
+}
+
+:global(.ck.ck-editor__editable) {
+	height: 200px;
+	background-color: white;
+	color: #333;
+}
+```
+
+## Next steps
+
+* Explore the {@link getting-started/setup/getting-and-setting-data Getting and setting data} guide to learn how to handle content.
+* Learn more about {@link getting-started/setup/configuration configuration options} to customize your editor.
+* Check the {@link features/index features documentation} to add more functionality to your editor.

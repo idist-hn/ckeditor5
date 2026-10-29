@@ -4,8 +4,6 @@ category: api-reference
 
 # CKEditor&nbsp;5 remove format feature
 
-[![npm version](https://badge.fury.io/js/%40ckeditor%2Fckeditor5-remove-format.svg)](https://www.npmjs.com/package/@ckeditor/ckeditor5-remove-format)
-
 This package implements the remove format feature for CKEditor&nbsp;5.
 
 ## Demo
@@ -18,8 +16,10 @@ See the {@link features/remove-format remove format feature guide} and the {@lin
 
 ## Installation
 
+This package is part of our open-source aggregate package.
+
 ```bash
-npm install --save @ckeditor/ckeditor5-remove-format
+npm install ckeditor5
 ```
 
 ## Contribute

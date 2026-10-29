@@ -1,21 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module table/tablecolumnresize/utils
  */
 
-import type { Editor } from 'ckeditor5/src/core';
-import type { Element, Model, ViewElement, ViewNode, Writer } from 'ckeditor5/src/engine';
-import { global } from 'ckeditor5/src/utils';
-import type TableUtils from '../tableutils';
+import type { Editor } from '@ckeditor/ckeditor5-core';
+import type { ModelElement, Model, ViewElement, ViewNode, ModelWriter } from '@ckeditor/ckeditor5-engine';
+import { global } from '@ckeditor/ckeditor5-utils';
+import { type TableUtils } from '../tableutils.js';
 import {
 	COLUMN_WIDTH_PRECISION,
 	COLUMN_MIN_WIDTH_AS_PERCENTAGE,
 	COLUMN_MIN_WIDTH_IN_PIXELS
-} from './constants';
+} from './constants.js';
 
 /**
  * Returns all the inserted or changed table model elements in a given change set. Only the tables
@@ -23,11 +23,12 @@ import {
  *
  * Most notably if an entire table is removed it will not be included in returned set.
  *
+ * @internal
  * @param model The model to collect the affected elements from.
  * @returns A set of table model elements.
  */
-export function getChangedResizedTables( model: Model ): Set<Element> {
-	const affectedTables: Set<Element> = new Set();
+export function getChangedResizedTables( model: Model ): Set<ModelElement> {
+	const affectedTables: Set<ModelElement> = new Set();
 
 	for ( const change of model.document.differ.getChanges() ) {
 		let referencePosition = null;
@@ -44,7 +45,8 @@ export function getChangedResizedTables( model: Model ): Set<Element> {
 				break;
 
 			case 'remove':
-				// If the whole table is removed, there's no need to update its column widths (#12201).
+				// If the whole table is removed, there's no need to update its column widths.
+				// See https://github.com/ckeditor/ckeditor5/issues/12201.
 				referencePosition = [ 'tableRow', 'tableCell' ].includes( change.name ) ?
 					change.position :
 					null;
@@ -53,7 +55,9 @@ export function getChangedResizedTables( model: Model ): Set<Element> {
 
 			case 'attribute':
 				if ( change.range.start.nodeAfter ) {
-					referencePosition = [ 'table', 'tableRow', 'tableCell' ].includes( ( change.range.start.nodeAfter as Element ).name ) ?
+					referencePosition = [ 'table', 'tableRow', 'tableCell' ].includes(
+						( change.range.start.nodeAfter as ModelElement ).name
+					) ?
 						change.range.start :
 						null;
 				}
@@ -88,24 +92,30 @@ export function getChangedResizedTables( model: Model ): Set<Element> {
 /**
  * Calculates the percentage of the minimum column width given in pixels for a given table.
  *
+ * @internal
  * @param modelTable A table model element.
  * @param editor The editor instance.
  * @returns The minimal column width in percentage.
  */
-export function getColumnMinWidthAsPercentage( modelTable: Element, editor: Editor ): number {
+export function getColumnMinWidthAsPercentage( modelTable: ModelElement, editor: Editor ): number {
 	return COLUMN_MIN_WIDTH_IN_PIXELS * 100 / getTableWidthInPixels( modelTable, editor );
 }
 
 /**
  * Calculates the table width in pixels.
  *
+ * @internal
  * @param modelTable A table model element.
  * @param editor The editor instance.
  * @returns The width of the table in pixels.
  */
-export function getTableWidthInPixels( modelTable: Element, editor: Editor ): number {
-	// It is possible for a table to not have a <tbody> element - see #11878.
-	const referenceElement = getChildrenViewElement( modelTable, 'tbody', editor ) || getChildrenViewElement( modelTable, 'thead', editor );
+export function getTableWidthInPixels( modelTable: ModelElement, editor: Editor ): number {
+	// It is possible for a table to not have a <tbody> element - see https://github.com/ckeditor/ckeditor5/issues/11878.
+	const referenceElement =
+		getChildrenViewElement( modelTable, 'tbody', editor ) ||
+		getChildrenViewElement( modelTable, 'thead', editor ) ||
+		getChildrenViewElement( modelTable, 'tfoot', editor );
+
 	const domReferenceElement = editor.editing.view.domConverter.mapViewToDom( referenceElement! )!;
 
 	return getElementWidthInPixels( domReferenceElement );
@@ -118,7 +128,7 @@ export function getTableWidthInPixels( modelTable: Element, editor: Editor ): nu
  * @param elementName Name of a view to be looked for, e.g. `'colgroup`', `'thead`'.
  * @returns Matched view or `undefined` otherwise.
  */
-function getChildrenViewElement( modelTable: Element, elementName: string, editor: Editor ) {
+function getChildrenViewElement( modelTable: ModelElement, elementName: string, editor: Editor ) {
 	const viewFigure = editor.editing.mapper.toViewElement( modelTable )!;
 	const viewTable = [ ...viewFigure.getChildren() ]
 		.find( ( node: ViewNode ): node is ViewElement & { name: 'table' } => node.is( 'element', 'table' ) )!;
@@ -130,6 +140,7 @@ function getChildrenViewElement( modelTable: Element, elementName: string, edito
 /**
  * Returns the computed width (in pixels) of the DOM element without padding and borders.
  *
+ * @internal
  * @param domElement A DOM element.
  * @returns The width of the DOM element in pixels.
  */
@@ -137,7 +148,7 @@ export function getElementWidthInPixels( domElement: HTMLElement ): number {
 	const styles = global.window.getComputedStyle( domElement );
 
 	// In the 'border-box' box sizing algorithm, the element's width
-	// already includes the padding and border width (#12335).
+	// already includes the padding and border width (https://github.com/ckeditor/ckeditor5/issues/12335).
 	if ( styles.boxSizing === 'border-box' ) {
 		return parseFloat( styles.width ) -
 			parseFloat( styles.paddingLeft ) -
@@ -150,14 +161,58 @@ export function getElementWidthInPixels( domElement: HTMLElement ): number {
 }
 
 /**
+ * Returns the width (in pixels) of a given DOM element's content that's actually available to its children -
+ * with the element's own vertical scrollbar subtracted where that's still needed.
+ *
+ * @internal
+ * @param domElement A DOM element.
+ * @returns The width available to the element's children, in pixels.
+ */
+export function getContainerContentWidth( domElement: HTMLElement ): number {
+	const styles = global.window.getComputedStyle( domElement );
+	const width = getElementWidthInPixels( domElement );
+
+	if ( styles.boxSizing !== 'border-box' ) {
+		return width;
+	}
+
+	const scrollbarWidth = Math.max(
+		domElement.offsetWidth -
+			domElement.clientWidth -
+			parseFloat( styles.borderLeftWidth ) -
+			parseFloat( styles.borderRightWidth ),
+		0
+	);
+
+	return width - scrollbarWidth;
+}
+
+/**
+ * Returns the inner pixel width of a given editing root, or `null` if the root has no
+ * DOM element attached yet (e.g. it hasn't been rendered for the first time).
+ *
+ * @internal
+ */
+export function getEditableContentWidth( editor: Editor, rootName: string ): number | null {
+	const domRoot = editor.editing.view.getDomRoot( rootName ) as HTMLElement | undefined;
+
+	if ( !domRoot ) {
+		return null;
+	}
+
+	return getContainerContentWidth( domRoot );
+}
+
+/**
  * Returns the column indexes on the left and right edges of a cell. They differ if the cell spans
  * across multiple columns.
  *
+ * @internal
  * @param cell A table cell model element.
  * @param tableUtils The Table Utils plugin instance.
  * @returns An object containing the indexes of the left and right edges of the cell.
  */
-export function getColumnEdgesIndexes( cell: Element, tableUtils: TableUtils ): { leftEdge: number; rightEdge: number } {
+export function getColumnEdgesIndexes( cell: ModelElement, tableUtils: TableUtils ): { leftEdge: number; rightEdge: number } {
 	const cellColumnIndex = tableUtils.getCellLocation( cell ).column;
 	const cellWidth = cell.getAttribute( 'colspan' ) as number || 1;
 
@@ -170,6 +225,7 @@ export function getColumnEdgesIndexes( cell: Element, tableUtils: TableUtils ): 
 /**
  * Rounds the provided value to a fixed-point number with defined number of digits after the decimal point.
  *
+ * @internal
  * @param value A number to be rounded.
  * @returns The rounded number.
  */
@@ -184,6 +240,7 @@ export function toPrecision( value: number | string ): number {
  * Clamps the number within the inclusive lower (min) and upper (max) bounds. Returned number is rounded using the
  * {@link ~toPrecision `toPrecision()`} function.
  *
+ * @internal
  * @param number A number to be clamped.
  * @param min A lower bound.
  * @param max An upper bound.
@@ -204,6 +261,7 @@ export function clamp( number: number, min: number, max: number ): number {
 /**
  * Creates an array with defined length and fills all elements with defined value.
  *
+ * @internal
  * @param length The length of the array.
  * @param value The value to fill the array with.
  * @returns An array with defined length and filled with defined value.
@@ -215,6 +273,7 @@ export function createFilledArray<T>( length: number, value: T ): Array<T> {
 /**
  * Sums all array values that can be parsed to a float.
  *
+ * @internal
  * @param array An array of numbers.
  * @returns The sum of all array values.
  */
@@ -230,13 +289,27 @@ export function sumArray( array: Array<number | string> ): number {
  * changed proportionally so that they all sum back to 100%. If there are columns without specified width, the amount remaining
  * after assigning the known widths will be distributed equally between them.
  *
+ * @internal
  * @param columnWidths An array of column widths.
  * @returns An array of column widths guaranteed to sum up to 100%.
  */
 export function normalizeColumnWidths( columnWidths: Array<string> ): Array<string> {
+	// In the pixel mode the "sum must equal 100%" invariant does not apply - pixel widths are absolute.
+	// Keep them as-is (only rounded), so the column group can round-trip pixels. The pixel branch is taken
+	// only when there are no percentage values, so a stray '%' never gets a 'px' suffix slapped onto its
+	// numeric value (which would silently reinterpret e.g. '20%' as '20px').
+	const hasPixels = columnWidths.some( width => typeof width === 'string' && width.endsWith( 'px' ) );
+	const hasPercentages = columnWidths.some( width => typeof width === 'string' && width.endsWith( '%' ) );
+
+	if ( hasPixels && !hasPercentages ) {
+		// Coerce `undefined` to `'auto'` (like the percentage path below) so a widthless column is not later
+		// treated as missing and removed by `updateColumnElements`.
+		return columnWidths.map( width => width === 'auto' || width === undefined ? 'auto' : `${ toPrecision( width ) }px` );
+	}
+
 	const widths: Array<number | 'auto'> = columnWidths.map( width => {
-		if ( width === 'auto' ) {
-			return width;
+		if ( width === 'auto' || width === undefined ) {
+			return 'auto';
 		}
 
 		return parseFloat( width.replace( '%', '' ) );
@@ -304,6 +377,7 @@ function calculateMissingColumnWidths( columnWidths: Array<number | string> ): A
  *  * left and red padding,
  *  * border width.
  *
+ * @internal
  * @param domCell A DOM cell element.
  * @returns Width in pixels without `px` at the end.
  */
@@ -311,7 +385,7 @@ export function getDomCellOuterWidth( domCell: HTMLElement ): number {
 	const styles = global.window.getComputedStyle( domCell );
 
 	// In the 'border-box' box sizing algorithm, the element's width
-	// already includes the padding and border width (#12335).
+	// already includes the padding and border width (https://github.com/ckeditor/ckeditor5/issues/12335).
 	if ( styles.boxSizing === 'border-box' ) {
 		return parseInt( styles.width );
 	} else {
@@ -325,16 +399,17 @@ export function getDomCellOuterWidth( domCell: HTMLElement ): number {
 /**
  * Updates column elements to match columns widths.
  *
+ * @internal
  * @param columns
  * @param tableColumnGroup
  * @param normalizedWidths
  * @param writer
  */
 export function updateColumnElements(
-	columns: Array<Element>,
-	tableColumnGroup: Element,
+	columns: Array<ModelElement>,
+	tableColumnGroup: ModelElement,
 	normalizedWidths: Array<string>,
-	writer: Writer
+	writer: ModelWriter
 ): void {
 	for ( let i = 0; i < Math.max( normalizedWidths.length, columns.length ); i++ ) {
 		const column = columns[ i ];
@@ -360,7 +435,7 @@ export function updateColumnElements(
  * @param element A 'table' or 'tableColumnGroup' element.
  * @returns A 'tableColumnGroup' element.
  */
-export function getColumnGroupElement( element: Element ): Element {
+export function getColumnGroupElement( element: ModelElement ): ModelElement {
 	if ( element.is( 'element', 'tableColumnGroup' ) ) {
 		return element;
 	}
@@ -369,7 +444,7 @@ export function getColumnGroupElement( element: Element ): Element {
 
 	return Array
 		.from( children )
-		.find( element => element.is( 'element', 'tableColumnGroup' ) )! as Element;
+		.find( element => element.is( 'element', 'tableColumnGroup' ) )! as ModelElement;
 }
 
 /**
@@ -379,14 +454,14 @@ export function getColumnGroupElement( element: Element ): Element {
  * @param element A 'table' or 'tableColumnGroup' element.
  * @returns An array of 'tableColumn' elements.
  */
-export function getTableColumnElements( element: Element ): Array<Element> {
+export function getTableColumnElements( element: ModelElement ): Array<ModelElement> {
 	const columnGroupElement = getColumnGroupElement( element );
 
 	if ( !columnGroupElement ) {
 		return [];
 	}
 
-	return Array.from( columnGroupElement.getChildren() as IterableIterator<Element> );
+	return Array.from( columnGroupElement.getChildren() as IterableIterator<ModelElement> );
 }
 
 /**
@@ -396,8 +471,31 @@ export function getTableColumnElements( element: Element ): Array<Element> {
  * @param element A 'table' or 'tableColumnGroup' element.
  * @returns An array of table column widths.
  */
-export function getTableColumnsWidths( element: Element ): Array<string> {
+export function getTableColumnsWidths( element: ModelElement ): Array<string> {
 	return getTableColumnElements( element ).map( column => column.getAttribute( 'columnWidth' ) as string );
+}
+
+/**
+ * Tells whether a table is in the pixel width mode, that is, its `tableWidth` attribute is expressed in pixels.
+ * The `tableWidth` unit is the single source of truth for the whole table's width mode.
+ *
+ * @internal
+ * @param table A 'table' model element.
+ */
+export function isTableWidthInPixels( table: ModelElement ): boolean {
+	const tableWidth = table.getAttribute( 'tableWidth' ) as string | undefined;
+
+	return typeof tableWidth === 'string' && tableWidth.trim().endsWith( 'px' );
+}
+
+/**
+ * Tells whether the given column widths are expressed in pixels.
+ *
+ * @internal
+ * @param columnWidths An array of column widths.
+ */
+export function isColumnWidthsInPixels( columnWidths: Array<string> ): boolean {
+	return columnWidths.some( width => typeof width === 'string' && width.endsWith( 'px' ) );
 }
 
 /**
@@ -408,7 +506,7 @@ export function getTableColumnsWidths( element: Element ): Array<string> {
  * @param writer A writer instance.
  * @returns An array of table column widths.
  */
-export function translateColSpanAttribute( element: Element, writer: Writer ): Array<string> {
+export function translateColSpanAttribute( element: ModelElement, writer: ModelWriter ): Array<string> {
 	const tableColumnElements = getTableColumnElements( element );
 
 	return tableColumnElements.reduce( ( acc: Array<string>, element ) => {
@@ -431,4 +529,23 @@ export function translateColSpanAttribute( element: Element, writer: Writer ): A
 
 		return acc;
 	}, [] );
+}
+
+/**
+ * Removes the `tableCellWidth` attribute from every cell of the given table. Once a column is resized (with the resize
+ * handler or the column-width command), a per-cell width is obsolete - the column width governs the layout - so it is
+ * dropped to keep the model clean.
+ *
+ * @internal
+ */
+export function removeCellWidthsFromTable( writer: ModelWriter, table: ModelElement ): void {
+	for ( const row of table.getChildren() ) {
+		if ( !row.is( 'element', 'tableRow' ) ) {
+			continue;
+		}
+
+		for ( const cell of row.getChildren() ) {
+			writer.removeAttribute( 'tableCellWidth', cell );
+		}
+	}
 }

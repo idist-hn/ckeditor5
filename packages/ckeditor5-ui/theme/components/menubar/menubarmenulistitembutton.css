@@ -1,0 +1,38 @@
+/*
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+:root,
+:host {
+	/* Radius */
+	--ck-menu-bar-list-item-button-border-radius: var(--ck-border-radius-control);
+}
+
+.ck.ck-menu-bar__menu {
+	/*
+	 * List item buttons.
+	 */
+	& .ck-button.ck-menu-bar__menu__item__button {
+		border-radius: var(--ck-menu-bar-list-item-button-border-radius);
+
+		& > .ck-spinner-container,
+		& > .ck-spinner-container .ck-spinner {
+			/* These styles correspond to .ck-icon so that the spinner seamlessly replaces the icon. */
+			--ck-toolbar-spinner-size: 20px;
+		}
+
+		& > .ck-spinner-container {
+			/* This ensures margins corresponding to the .ck-icon. */
+			font-size: .8333350694em;
+
+			[dir="ltr"] & {
+				margin-right: var(--ck-spacing-control-icon-gap);
+			}
+
+			[dir="rtl"] & {
+				margin-left: var(--ck-spacing-control-icon-gap);
+			}
+		}
+	}
+}

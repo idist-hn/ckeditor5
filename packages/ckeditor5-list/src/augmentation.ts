@@ -1,52 +1,62 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 import type {
-	DocumentList,
-	DocumentListEditing,
-	DocumentListProperties,
-	DocumentListPropertiesEditing,
-	DocumentListPropertiesUtils,
-	AdjacentListsSupport,
-	DocumentListUtils,
-	ListConfig,
 	List,
 	ListEditing,
+	ListUtils,
+	ListUI,
+	ListCommand,
+	ListIndentCommand,
+	ListMergeCommand,
+	ListSplitCommand,
+
 	ListProperties,
+	ListPropertiesUtils,
 	ListPropertiesEditing,
 	ListPropertiesUI,
-	ListStyle,
-	ListUI,
-	ListUtils,
+	ListStyleCommand,
+	ListStartCommand,
+	ListReversedCommand,
+
 	TodoList,
 	TodoListEditing,
 	TodoListUI,
-	TodoDocumentList,
-	TodoDocumentListEditing,
-
-	ListCommand,
-	DocumentListCommand,
-	IndentCommand,
-	DocumentListIndentCommand,
-	DocumentListMergeCommand,
-	DocumentListSplitCommand,
-	ListStyleCommand,
-	DocumentListStyleCommand,
-	ListStartCommand,
-	DocumentListStartCommand,
-	ListReversedCommand,
-	DocumentListReversedCommand,
 	CheckTodoListCommand,
-	CheckTodoDocumentListCommand
-} from '.';
+
+	ListFormatting,
+	ListItemBoldIntegration,
+	ListItemItalicIntegration,
+	ListItemFontSizeIntegration,
+	ListItemFontColorIntegration,
+	ListItemFontFamilyIntegration,
+
+	LegacyList,
+	LegacyListEditing,
+	LegacyListUtils,
+	LegacyListCommand,
+	LegacyIndentCommand,
+
+	LegacyListProperties,
+	LegacyListPropertiesEditing,
+	LegacyListStyleCommand,
+	LegacyListStartCommand,
+	LegacyListReversedCommand,
+
+	LegacyTodoList,
+	LegacyTodoListEditing,
+	LegacyCheckTodoListCommand,
+
+	ListConfig
+} from './index.js';
 
 declare module '@ckeditor/ckeditor5-core' {
-  interface EditorConfig {
+	interface EditorConfig {
 
 		/**
-		 * The configuration of the {@link module:list/list~List} feature and the {@link module:list/documentlist~DocumentList} feature.
+		 * The configuration of the {@link module:list/list~List} feature and the {@link module:list/legacylist~LegacyList} feature.
 		 *
 		 * Read more in {@link module:list/listconfig~ListConfig}.
 		 */
@@ -54,41 +64,46 @@ declare module '@ckeditor/ckeditor5-core' {
 	}
 
 	interface PluginsMap {
-		[ DocumentList.pluginName ]: DocumentList;
-		[ DocumentListEditing.pluginName ]: DocumentListEditing;
-		[ DocumentListProperties.pluginName ]: DocumentListProperties;
-		[ DocumentListPropertiesEditing.pluginName ]: DocumentListPropertiesEditing;
-		[ DocumentListPropertiesUtils.pluginName ]: DocumentListPropertiesUtils;
-		[ DocumentListUtils.pluginName ]: DocumentListUtils;
-		[ AdjacentListsSupport.pluginName ]: AdjacentListsSupport;
 		[ List.pluginName ]: List;
 		[ ListEditing.pluginName ]: ListEditing;
+		[ ListUtils.pluginName ]: ListUtils;
+		[ ListUI.pluginName ]: ListUI;
 		[ ListProperties.pluginName ]: ListProperties;
 		[ ListPropertiesEditing.pluginName ]: ListPropertiesEditing;
+		[ ListPropertiesUtils.pluginName ]: ListPropertiesUtils;
 		[ ListPropertiesUI.pluginName ]: ListPropertiesUI;
-		[ ListStyle.pluginName ]: ListStyle;
-		[ ListUI.pluginName ]: ListUI;
-		[ ListUtils.pluginName ]: ListUtils;
 		[ TodoList.pluginName ]: TodoList;
 		[ TodoListEditing.pluginName ]: TodoListEditing;
 		[ TodoListUI.pluginName ]: TodoListUI;
-		[ TodoDocumentList.pluginName ]: TodoDocumentList;
-		[ TodoDocumentListEditing.pluginName ]: TodoDocumentListEditing;
+		[ ListFormatting.pluginName ]: ListFormatting;
+		[ ListItemBoldIntegration.pluginName ]: ListItemBoldIntegration;
+		[ ListItemItalicIntegration.pluginName ]: ListItemItalicIntegration;
+		[ ListItemFontSizeIntegration.pluginName ]: ListItemFontSizeIntegration;
+		[ ListItemFontColorIntegration.pluginName ]: ListItemFontColorIntegration;
+		[ ListItemFontFamilyIntegration.pluginName ]: ListItemFontFamilyIntegration;
+
+		[ LegacyList.pluginName ]: LegacyList;
+		[ LegacyListEditing.pluginName ]: LegacyListEditing;
+		[ LegacyListUtils.pluginName ]: LegacyListUtils;
+		[ LegacyListProperties.pluginName ]: LegacyListProperties;
+		[ LegacyListPropertiesEditing.pluginName ]: LegacyListPropertiesEditing;
+		[ LegacyTodoList.pluginName ]: LegacyTodoList;
+		[ LegacyTodoListEditing.pluginName ]: LegacyTodoListEditing;
 	}
 
-  interface CommandsMap {
-		numberedList: ListCommand | DocumentListCommand;
-		bulletedList: ListCommand | DocumentListCommand;
-		indentList: IndentCommand | DocumentListIndentCommand;
-		outdentList: IndentCommand | DocumentListIndentCommand;
-		mergeListItemBackward: DocumentListMergeCommand;
-		mergeListItemForward: DocumentListMergeCommand;
-		splitListItemBefore: DocumentListSplitCommand;
-		splitListItemAfter: DocumentListSplitCommand;
-		listStyle: ListStyleCommand | DocumentListStyleCommand;
-		listStart: ListStartCommand | DocumentListStartCommand;
-		listReversed: ListReversedCommand | DocumentListReversedCommand;
-		todoList: ListCommand | DocumentListCommand;
-		checkTodoList: CheckTodoListCommand | CheckTodoDocumentListCommand;
+	interface CommandsMap {
+		numberedList: LegacyListCommand | ListCommand;
+		bulletedList: LegacyListCommand | ListCommand;
+		indentList: LegacyIndentCommand | ListIndentCommand;
+		outdentList: LegacyIndentCommand | ListIndentCommand;
+		mergeListItemBackward: ListMergeCommand;
+		mergeListItemForward: ListMergeCommand;
+		splitListItemBefore: ListSplitCommand;
+		splitListItemAfter: ListSplitCommand;
+		listStyle: LegacyListStyleCommand | ListStyleCommand;
+		listStart: LegacyListStartCommand | ListStartCommand;
+		listReversed: LegacyListReversedCommand | ListReversedCommand;
+		todoList: LegacyListCommand | ListCommand;
+		checkTodoList: LegacyCheckTodoListCommand | CheckTodoListCommand;
 	}
 }

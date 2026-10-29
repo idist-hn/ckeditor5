@@ -1,0 +1,91 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import upath from 'upath';
+import fs from 'fs-extra';
+import { build } from '@ckeditor/ckeditor5-dev-build-tools';
+import { CKEDITOR5_ROOT_PATH, CKEDITOR5_MAIN_PACKAGE_PATH, CKEDITOR5_INDEX } from '../constants.mjs';
+
+const tsconfig = upath.resolve( CKEDITOR5_MAIN_PACKAGE_PATH, 'tsconfig.build.json' );
+const banner = upath.resolve( CKEDITOR5_ROOT_PATH, 'scripts/nim/banner.mjs' );
+
+export function dist( path ) {
+	return upath.join( CKEDITOR5_MAIN_PACKAGE_PATH, 'dist', path );
+}
+
+export function initializeCKEditor5NpmBuild( overrides = {} ) {
+	return build( {
+		input: CKEDITOR5_INDEX,
+		output: dist( 'ckeditor5.js' ),
+		tsconfig,
+		banner,
+		sourceMap: true,
+		external: [],
+		declarations: true,
+		stripInternal: false,
+
+		/**
+		 * Because this build runs first, it cleans up the old output folder
+		 * and generates TypeScript declarations and translation files.
+		 * We don't want to repeat this in other steps.
+		 */
+		clean: true,
+		translations: upath.join( CKEDITOR5_ROOT_PATH, 'packages', '**', 'lang', 'translations', '*.ts' ),
+		...overrides
+	} );
+}
+
+export function generateCKEditor5NpmBuild( overrides = {} ) {
+	return build( {
+		input: CKEDITOR5_INDEX,
+		output: dist( 'tmp/ckeditor5.js' ),
+		tsconfig,
+		banner,
+		sourceMap: true,
+		external: [
+			'ckeditor5'
+		],
+		...overrides
+	} );
+}
+
+export function generateCKEditor5BrowserBuild( overrides = {} ) {
+	return build( {
+		input: CKEDITOR5_INDEX,
+		output: dist( 'browser/ckeditor5.js' ),
+		tsconfig,
+		banner,
+		sourceMap: true,
+		minify: true,
+		browser: true,
+		name: 'CKEDITOR',
+		external: [],
+		...overrides
+	} );
+}
+
+export async function generateCKEditor5PackageBuild( packagePath, overrides = {} ) {
+	const pkg = await fs.readJson( upath.join( packagePath, 'package.json' ) );
+
+	return build( {
+		input: 'src/index.ts',
+		output: upath.resolve( packagePath, 'dist/index.js' ),
+		tsconfig: 'tsconfig.build.json',
+		declarations: true,
+		stripInternal: false,
+		banner,
+		external: [
+			'ckeditor5',
+			...Object.keys( {
+				...pkg.dependencies,
+				...pkg.peerDependencies
+			} )
+		],
+		clean: true,
+		sourceMap: true,
+		translations: '**/lang/translations/*.ts',
+		...overrides
+	} );
+}

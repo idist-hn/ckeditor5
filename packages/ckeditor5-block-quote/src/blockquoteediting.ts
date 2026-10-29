@@ -1,17 +1,17 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module block-quote/blockquoteediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { Enter, type ViewDocumentEnterEvent } from 'ckeditor5/src/enter';
-import { Delete, type ViewDocumentDeleteEvent } from 'ckeditor5/src/typing';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { Enter, type ViewDocumentEnterEvent } from '@ckeditor/ckeditor5-enter';
+import { Delete, type ViewDocumentDeleteEvent } from '@ckeditor/ckeditor5-typing';
 
-import BlockQuoteCommand from './blockquotecommand';
+import { BlockQuoteCommand } from './blockquotecommand.js';
 
 /**
  * The block quote editing.
@@ -20,7 +20,7 @@ import BlockQuoteCommand from './blockquotecommand';
  *
  * @extends module:core/plugin~Plugin
  */
-export default class BlockQuoteEditing extends Plugin {
+export class BlockQuoteEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -31,8 +31,15 @@ export default class BlockQuoteEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ Enter, Delete ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ Enter, Delete ]> {
+		return [ Enter, Delete ];
 	}
 
 	/**

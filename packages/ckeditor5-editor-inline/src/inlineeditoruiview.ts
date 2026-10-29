@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -11,29 +11,29 @@ import {
 	BalloonPanelView,
 	EditorUIView,
 	InlineEditableUIView,
+	MenuBarView,
 	ToolbarView
-} from 'ckeditor5/src/ui';
+} from '@ckeditor/ckeditor5-ui';
 import {
 	Rect,
 	ResizeObserver,
 	toUnit,
 	type PositioningFunction,
 	type Locale
-} from 'ckeditor5/src/utils';
-import type {
-	View
-} from 'ckeditor5/src/engine';
+} from '@ckeditor/ckeditor5-utils';
+import type { EditingView } from '@ckeditor/ckeditor5-engine';
+import type { ViewRootElementDefinition } from '@ckeditor/ckeditor5-core';
 
-const toPx = toUnit( 'px' );
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 /**
  * Inline editor UI view. Uses an nline editable and a floating toolbar.
  */
-export default class InlineEditorUIView extends EditorUIView {
+export class InlineEditorUIView extends EditorUIView {
 	/**
 	 * A floating toolbar view instance.
 	 */
-	public readonly toolbar: ToolbarView;
+	public override readonly toolbar: ToolbarView;
 
 	/**
 	 * The offset from the top edge of the web browser's viewport which makes the
@@ -105,7 +105,7 @@ export default class InlineEditorUIView extends EditorUIView {
 	 *            [ Panel ]
 	 * ```
 	 *
-	 * See: {@link module:utils/dom/position~Options#positions}.
+	 * See: {@link module:utils/dom/position~DomOptimalPositionOptions#positions}.
 	 */
 	public readonly panelPositions: Array<PositioningFunction>;
 
@@ -133,23 +133,29 @@ export default class InlineEditorUIView extends EditorUIView {
 	 * @param options.shouldToolbarGroupWhenFull When set `true` enables automatic items grouping
 	 * in the main {@link module:editor-inline/inlineeditoruiview~InlineEditorUIView#toolbar toolbar}.
 	 * See {@link module:ui/toolbar/toolbarview~ToolbarOptions#shouldGroupWhenFull} to learn more.
+	 * @param options.label When set, this value will be used as an accessible `aria-label` of the
+	 * {@link module:ui/editableui/editableuiview~EditableUIView editable view}.
 	 */
 	constructor(
 		locale: Locale,
-		editingView: View,
-		editableElement?: HTMLElement,
+		editingView: EditingView,
+		editableElement?: HTMLElement | ViewRootElementDefinition,
 		options: {
 			shouldToolbarGroupWhenFull?: boolean;
+			useMenuBar?: boolean;
+			label?: string | Record<string, string>;
 		} = {}
 	) {
 		super( locale );
-
-		const t = locale.t;
 
 		this.toolbar = new ToolbarView( locale, {
 			shouldGroupWhenFull: options.shouldToolbarGroupWhenFull,
 			isFloating: true
 		} );
+
+		if ( options.useMenuBar ) {
+			this.menuBarView = new MenuBarView( locale );
+		}
 
 		this.set( 'viewportTopOffset', 0 );
 
@@ -163,9 +169,7 @@ export default class InlineEditorUIView extends EditorUIView {
 		} );
 
 		this.editable = new InlineEditableUIView( locale, editingView, editableElement, {
-			label: editableView => {
-				return t( 'Rich Text Editor. Editing area: %0', editableView.name! );
-			}
+			label: options.label
 		} );
 
 		this._resizeObserver = null;
@@ -179,7 +183,13 @@ export default class InlineEditorUIView extends EditorUIView {
 
 		this.body.add( this.panel );
 		this.registerChild( this.editable );
-		this.panel.content.add( this.toolbar );
+
+		if ( this.menuBarView ) {
+			// Set toolbar as a child of a stickyPanel and makes toolbar sticky.
+			this.panel.content.addMany( [ this.menuBarView, this.toolbar ] );
+		} else {
+			this.panel.content.add( this.toolbar );
+		}
 
 		const options = this.toolbar.options;
 
@@ -228,7 +238,7 @@ export default class InlineEditorUIView extends EditorUIView {
 	/**
 	 * Returns the positions for {@link #panelPositions}.
 	 *
-	 * See: {@link module:utils/dom/position~Options#positions}.
+	 * See: {@link module:utils/dom/position~DomOptimalPositionOptions#positions}.
 	 */
 	private _getPanelPositions(): Array<PositioningFunction> {
 		const positions: Array<PositioningFunction> = [

@@ -1,27 +1,30 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import VirtualTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor';
-import { getData as getModelData, setData as setModelData } from '@ckeditor/ckeditor5-engine/src/dev-utils/model';
-import ImageBlockEditing from '@ckeditor/ckeditor5-image/src/image/imageblockediting';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { VirtualTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/virtualtesteditor.js';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { _getModelData, _setModelData } from '@ckeditor/ckeditor5-engine';
+import { ImageBlockEditing } from '@ckeditor/ckeditor5-image';
 
-import TableEditing from '../src/tableediting';
-import { modelTable } from './_utils/utils';
-import InsertRowCommand from '../src/commands/insertrowcommand';
-import InsertTableCommand from '../src/commands/inserttablecommand';
-import InsertColumnCommand from '../src/commands/insertcolumncommand';
-import RemoveRowCommand from '../src/commands/removerowcommand';
-import RemoveColumnCommand from '../src/commands/removecolumncommand';
-import SelectRowCommand from '../src/commands/selectrowcommand';
-import SelectColumnCommand from '../src/commands/selectcolumncommand';
-import SplitCellCommand from '../src/commands/splitcellcommand';
-import MergeCellCommand from '../src/commands/mergecellcommand';
-import SetHeaderRowCommand from '../src/commands/setheaderrowcommand';
-import SetHeaderColumnCommand from '../src/commands/setheadercolumncommand';
-import MediaEmbedEditing from '@ckeditor/ckeditor5-media-embed/src/mediaembedediting';
+import { TableEditing } from '../src/tableediting.js';
+import { modelTable } from './_utils/utils.js';
+import { InsertRowCommand } from '../src/commands/insertrowcommand.js';
+import { InsertTableCommand } from '../src/commands/inserttablecommand.js';
+import { InsertColumnCommand } from '../src/commands/insertcolumncommand.js';
+import { RemoveRowCommand } from '../src/commands/removerowcommand.js';
+import { RemoveColumnCommand } from '../src/commands/removecolumncommand.js';
+import { SelectRowCommand } from '../src/commands/selectrowcommand.js';
+import { SelectColumnCommand } from '../src/commands/selectcolumncommand.js';
+import { SplitCellCommand } from '../src/commands/splitcellcommand.js';
+import { MergeCellCommand } from '../src/commands/mergecellcommand.js';
+import { SetHeaderRowCommand } from '../src/commands/setheaderrowcommand.js';
+import { SetHeaderColumnCommand } from '../src/commands/setheadercolumncommand.js';
+import { SetFooterRowCommand } from '../src/commands/setfooterrowcommand.js';
+import { MediaEmbedEditing } from '@ckeditor/ckeditor5-media-embed';
 
 describe( 'TableEditing', () => {
 	let editor, model;
@@ -38,50 +41,94 @@ describe( 'TableEditing', () => {
 			} );
 	} );
 
-	afterEach( () => {
-		editor.destroy();
+	afterEach( async () => {
+		await editor.destroy();
 	} );
 
 	it( 'should have pluginName', () => {
-		expect( TableEditing.pluginName ).to.equal( 'TableEditing' );
+		expect( TableEditing.pluginName ).toEqual( 'TableEditing' );
+	} );
+
+	it( 'should have `isOfficialPlugin` static flag set to `true`', () => {
+		expect( TableEditing.isOfficialPlugin ).toBe( true );
+	} );
+
+	it( 'should have `isPremiumPlugin` static flag set to `false`', () => {
+		expect( TableEditing.isPremiumPlugin ).toBe( false );
 	} );
 
 	it( 'should set proper schema rules', () => {
 		// Table:
-		expect( model.schema.isRegistered( 'table' ) ).to.be.true;
-		expect( model.schema.isObject( 'table' ) ).to.be.true;
-		expect( model.schema.isBlock( 'table' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'table' ) ).toBe( true );
+		expect( model.schema.isObject( 'table' ) ).toBe( true );
+		expect( model.schema.isBlock( 'table' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root' ], 'table' ) ).to.be.true;
-		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'headingRows' ) ).to.be.true;
-		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'headingColumns' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root' ], 'table' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'headingRows' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'headingColumns' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ '$root', 'table' ], 'footerRows' ) ).toBe( false );
 
 		// Table row:
-		expect( model.schema.isRegistered( 'tableRow' ) ).to.be.true;
-		expect( model.schema.isLimit( 'tableRow' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'tableRow' ) ).toBe( true );
+		expect( model.schema.isLimit( 'tableRow' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root' ], 'tableRow' ) ).to.be.false;
-		expect( model.schema.checkChild( [ 'table' ], 'tableRow' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root' ], 'tableRow' ) ).toBe( false );
+		expect( model.schema.checkChild( [ 'table' ], 'tableRow' ) ).toBe( true );
 
 		// Table cell:
-		expect( model.schema.isRegistered( 'tableCell' ) ).to.be.true;
-		expect( model.schema.isLimit( 'tableCell' ) ).to.be.true;
-		expect( model.schema.isObject( 'tableCell' ) ).to.be.false;
-		expect( model.schema.isSelectable( 'tableCell' ) ).to.be.true;
+		expect( model.schema.isRegistered( 'tableCell' ) ).toBe( true );
+		expect( model.schema.isLimit( 'tableCell' ) ).toBe( true );
+		expect( model.schema.isObject( 'tableCell' ) ).toBe( false );
+		expect( model.schema.isSelectable( 'tableCell' ) ).toBe( true );
 
-		expect( model.schema.checkChild( [ '$root' ], 'tableCell' ) ).to.be.false;
-		expect( model.schema.checkChild( [ 'table' ], 'tableCell' ) ).to.be.false;
-		expect( model.schema.checkChild( [ 'tableRow' ], 'tableCell' ) ).to.be.true;
-		expect( model.schema.checkChild( [ 'tableCell' ], 'tableCell' ) ).to.be.false;
+		expect( model.schema.checkChild( [ '$root' ], 'tableCell' ) ).toBe( false );
+		expect( model.schema.checkChild( [ 'table' ], 'tableCell' ) ).toBe( false );
+		expect( model.schema.checkChild( [ 'tableRow' ], 'tableCell' ) ).toBe( true );
+		expect( model.schema.checkChild( [ 'tableCell' ], 'tableCell' ) ).toBe( false );
 
-		expect( model.schema.checkAttribute( [ 'tableCell' ], 'colspan' ) ).to.be.true;
-		expect( model.schema.checkAttribute( [ 'tableCell' ], 'rowspan' ) ).to.be.true;
+		expect( model.schema.checkAttribute( [ 'tableCell' ], 'colspan' ) ).toBe( true );
+		expect( model.schema.checkAttribute( [ 'tableCell' ], 'rowspan' ) ).toBe( true );
 
 		// Table cell contents:
-		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], '$text' ) ).to.be.false;
-		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], '$block' ) ).to.be.true;
-		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], 'table' ) ).to.be.true;
-		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], 'imageBlock' ) ).to.be.true;
+		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], '$text' ) ).toBe( false );
+		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], '$block' ) ).toBe( true );
+		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], 'table' ) ).toBe( true );
+		expect( model.schema.checkChild( [ '$root', 'table', 'tableRow', 'tableCell' ], 'imageBlock' ) ).toBe( true );
+	} );
+
+	it( 'should define table.showHiddenBorders config', async () => {
+		const editorElement = document.createElement( 'div' );
+
+		document.body.appendChild( editorElement );
+
+		const editor = await ClassicTestEditor.create( editorElement, {
+			plugins: [ TableEditing, Paragraph ]
+		} );
+
+		expect( editor.config.get( 'table.showHiddenBorders' ) ).toBe( true );
+		expect( editor.editing.view.getDomRoot().classList.contains( 'ck-table-show-hidden-borders' ) ).toBe( true );
+
+		editorElement.remove();
+		await editor.destroy();
+	} );
+
+	it( 'should get `table.showHiddenBorders` config set to false', async () => {
+		const editorElement = document.createElement( 'div' );
+
+		document.body.appendChild( editorElement );
+
+		const editor = await ClassicTestEditor.create( editorElement, {
+			plugins: [ TableEditing, Paragraph ],
+			table: {
+				showHiddenBorders: false
+			}
+		} );
+
+		expect( editor.config.get( 'table.showHiddenBorders' ) ).toBe( false );
+		expect( editor.editing.view.getDomRoot().classList.contains( 'ck-table-show-hidden-borders' ) ).toBe( false );
+
+		editorElement.remove();
+		await editor.destroy();
 	} );
 
 	it( 'inherits attributes from $blockObject', () => {
@@ -89,7 +136,7 @@ describe( 'TableEditing', () => {
 			allowAttributes: 'foo'
 		} );
 
-		expect( model.schema.checkAttribute( 'table', 'foo' ) ).to.be.true;
+		expect( model.schema.checkAttribute( 'table', 'foo' ) ).toBe( true );
 	} );
 
 	it( 'adds insertTable command', () => {
@@ -160,37 +207,82 @@ describe( 'TableEditing', () => {
 		expect( editor.commands.get( 'setTableRowHeader' ) ).to.be.instanceOf( SetHeaderRowCommand );
 	} );
 
+	it( 'does not add setFooterRow command by default', () => {
+		expect( editor.commands.get( 'setTableFooterRow' ) ).toBeUndefined();
+	} );
+
+	describe( 'config', () => {
+		it( 'disables table footers by default', () => {
+			expect( editor.config.get( 'table.enableFooters' ) ).toBe( false );
+		} );
+
+		it( 'sets proper default heading rows and columns', () => {
+			expect( editor.config.get( 'table.defaultHeadings.rows' ) ).toEqual( 0 );
+			expect( editor.config.get( 'table.defaultHeadings.columns' ) ).toEqual( 0 );
+		} );
+
+		it( 'sets proper default footer rows', () => {
+			expect( editor.config.get( 'table.defaultFooters' ) ).toEqual( 0 );
+		} );
+	} );
+
+	describe( 'when footers are enabled', () => {
+		let footerEditor, footerModel;
+
+		beforeEach( () => {
+			return VirtualTestEditor
+				.create( {
+					plugins: [ TableEditing, Paragraph, ImageBlockEditing, MediaEmbedEditing ],
+					table: {
+						enableFooters: true
+					}
+				} )
+				.then( newEditor => {
+					footerEditor = newEditor;
+					footerModel = newEditor.model;
+				} );
+		} );
+
+		afterEach( async () => {
+			await footerEditor.destroy();
+		} );
+
+		it( 'allows footerRows table attribute', () => {
+			expect( footerModel.schema.checkAttribute( [ '$root', 'table' ], 'footerRows' ) ).toBe( true );
+		} );
+
+		it( 'adds setFooterRow command', () => {
+			expect( footerEditor.commands.get( 'setTableFooterRow' ) ).to.be.instanceOf( SetFooterRowCommand );
+		} );
+	} );
+
 	describe( 'conversion in data pipeline', () => {
 		describe( 'model to view', () => {
 			it( 'should create tbody section', () => {
-				setModelData( model, '<table><tableRow><tableCell><paragraph>foo[]</paragraph></tableCell></tableRow></table>' );
+				_setModelData( model, '<table><tableRow><tableCell><paragraph>foo[]</paragraph></tableCell></tableRow></table>' );
 
-				expect( editor.getData() ).to.equal(
-					'<figure class="table">' +
+				expect( editor.getData() ).toEqual( '<figure class="table">' +
 						'<table>' +
 							'<tbody>' +
 								'<tr><td>foo</td></tr>' +
 							'</tbody>' +
 						'</table>' +
-					'</figure>'
-				);
+					'</figure>' );
 			} );
 
 			it( 'should create thead section', () => {
-				setModelData(
+				_setModelData(
 					model,
 					'<table headingRows="1"><tableRow><tableCell><paragraph>foo[]</paragraph></tableCell></tableRow></table>'
 				);
 
-				expect( editor.getData() ).to.equal(
-					'<figure class="table">' +
+				expect( editor.getData() ).toEqual( '<figure class="table">' +
 						'<table>' +
 							'<thead>' +
 								'<tr><th>foo</th></tr>' +
 							'</thead>' +
 						'</table>' +
-					'</figure>'
-				);
+					'</figure>' );
 			} );
 		} );
 
@@ -198,15 +290,15 @@ describe( 'TableEditing', () => {
 			it( 'should convert table', () => {
 				editor.setData( '<table><tbody><tr><td>foo</td></tr></tbody></table>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toEqual( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
 			} );
 
 			it( 'should convert table with image', () => {
-				editor.setData( '<table><tbody><tr><td><img src="sample.png"></td></tr></tbody></table>' );
+				editor.setData( '<table><tbody><tr><td><img src="/sample.png"></td></tr></tbody></table>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell><imageBlock src="sample.png"></imageBlock></tableCell></tableRow></table>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toEqual( '<table><tableRow><tableCell><imageBlock src="/sample.png"></imageBlock></tableCell></tableRow></table>' );
 			} );
 
 			it( 'should insert a paragraph when the cell content is unsupported', () => {
@@ -214,8 +306,8 @@ describe( 'TableEditing', () => {
 					'<table><tbody><tr><td><foo></foo></td></tr></tbody></table>'
 				);
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell><paragraph></paragraph></tableCell></tableRow></table>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toEqual( '<table><tableRow><tableCell><paragraph></paragraph></tableCell></tableRow></table>' );
 			} );
 
 			it( 'should convert a table with media', () => {
@@ -223,8 +315,7 @@ describe( 'TableEditing', () => {
 					'<table><tbody><tr><td><oembed url="https://www.youtube.com/watch?v=H08tGjXNHO4"></oembed></td></tr></tbody></table>'
 				);
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell>' +
+				expect( _getModelData( model, { withoutSelection: true } ) ).toEqual( '<table><tableRow><tableCell>' +
 						'<media url="https://www.youtube.com/watch?v=H08tGjXNHO4"></media>' +
 					'</tableCell></tableRow></table>' );
 			} );
@@ -232,22 +323,22 @@ describe( 'TableEditing', () => {
 			it( 'should convert table when colspan is string', () => {
 				editor.setData( '<table><tbody><tr><td colspan="abc">foo</td></tr></tbody></table>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toEqual( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
 			} );
 
 			it( 'should convert table with colspan 0', () => {
 				editor.setData( '<table><tbody><tr><td colspan="0">foo</td></tr></tbody></table>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toEqual( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
 			} );
 
 			it( 'should convert table with negative rowspan and colspan', () => {
 				editor.setData( '<table><tbody><tr><td colspan="-1" rowspan="-1">foo</td></tr></tbody></table>' );
 
-				expect( getModelData( model, { withoutSelection: true } ) )
-					.to.equal( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
+				expect( _getModelData( model, { withoutSelection: true } ) )
+					.toEqual( '<table><tableRow><tableCell><paragraph>foo</paragraph></tableCell></tableRow></table>' );
 			} );
 		} );
 	} );
@@ -257,8 +348,8 @@ describe( 'TableEditing', () => {
 
 		beforeEach( () => {
 			evtDataStub = {
-				preventDefault: sinon.spy(),
-				stopPropagation: sinon.spy(),
+				preventDefault: vi.fn(),
+				stopPropagation: vi.fn(),
 				isSoft: false
 			};
 
@@ -269,7 +360,7 @@ describe( 'TableEditing', () => {
 				.then( newEditor => {
 					editor = newEditor;
 
-					sinon.stub( editor, 'execute' );
+					vi.spyOn( editor, 'execute' ).mockImplementation( () => {} );
 
 					viewDocument = editor.editing.view.document;
 					model = editor.model;
@@ -277,50 +368,50 @@ describe( 'TableEditing', () => {
 		} );
 
 		it( 'should do nothing if not in table cell', () => {
-			setModelData( model, '<paragraph>[]foo</paragraph>' );
+			_setModelData( model, '<paragraph>[]foo</paragraph>' );
 
 			viewDocument.fire( 'enter', evtDataStub );
 
-			sinon.assert.notCalled( editor.execute );
-			expect( getModelData( model ) ).to.equalMarkup( '<paragraph>[]foo</paragraph>' );
+			expect( editor.execute ).not.toHaveBeenCalled();
+			expect( _getModelData( model ) ).toEqualMarkup( '<paragraph>[]foo</paragraph>' );
 		} );
 
 		it( 'should do nothing if table cell has already a block content', () => {
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '<paragraph>[]11</paragraph>' ]
 			] ) );
 
 			viewDocument.fire( 'enter', evtDataStub );
 
-			sinon.assert.notCalled( editor.execute );
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( editor.execute ).not.toHaveBeenCalled();
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '<paragraph>[]11</paragraph>' ]
 			] ) );
 		} );
 
 		it( 'should do nothing if table cell with a block content is selected as a whole', () => {
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '<paragraph>[1</paragraph><paragraph>1]</paragraph>' ]
 			] ) );
 
 			viewDocument.fire( 'enter', evtDataStub );
 
-			sinon.assert.notCalled( editor.execute );
-			setModelData( model, modelTable( [
+			expect( editor.execute ).not.toHaveBeenCalled();
+			_setModelData( model, modelTable( [
 				[ '<paragraph>[1</paragraph><paragraph>1]</paragraph>' ]
 			] ) );
 		} );
 
 		it( 'should allow default behavior of Shift+Enter pressed', () => {
-			setModelData( model, modelTable( [
+			_setModelData( model, modelTable( [
 				[ '[]11' ]
 			] ) );
 
 			evtDataStub.isSoft = true;
 			viewDocument.fire( 'enter', evtDataStub );
 
-			sinon.assert.notCalled( editor.execute );
-			expect( getModelData( model ) ).to.equalMarkup( modelTable( [
+			expect( editor.execute ).not.toHaveBeenCalled();
+			expect( _getModelData( model ) ).toEqualMarkup( modelTable( [
 				[ '[]11' ]
 			] ) );
 		} );

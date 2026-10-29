@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module image/imagestyle/imagestyleediting
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import type { Element, UpcastElementEvent } from 'ckeditor5/src/engine';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import type { ModelBlockAlignmentAttributesMapping, ModelElement, UpcastElementEvent } from '@ckeditor/ckeditor5-engine';
 
-import ImageStyleCommand from './imagestylecommand';
-import ImageUtils from '../imageutils';
-import utils from './utils';
-import { viewToModelStyleAttribute, modelToViewStyleAttribute } from './converters';
-import type { ImageStyleOptionDefinition } from '../imageconfig';
+import { ImageStyleCommand } from './imagestylecommand.js';
+import { ImageUtils } from '../imageutils.js';
+import { getStyleDefinitionByName, utils } from './utils.js';
+import { viewToModelStyleAttribute, modelToViewStyleAttribute } from './converters.js';
+import type { ImageStyleOptionDefinition } from '../imageconfig.js';
 
 /**
  * The image style engine plugin. It sets the default configuration, creates converters and registers
  * {@link module:image/imagestyle/imagestylecommand~ImageStyleCommand ImageStyleCommand}.
  */
-export default class ImageStyleEditing extends Plugin {
+export class ImageStyleEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -31,8 +31,15 @@ export default class ImageStyleEditing extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ ImageUtils ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ ImageUtils ]> {
+		return [ ImageUtils ];
 	}
 
 	/**
@@ -52,14 +59,13 @@ export default class ImageStyleEditing extends Plugin {
 	 * @inheritDoc
 	 */
 	public init(): void {
-		const { normalizeStyles, getDefaultStylesConfiguration } = utils;
 		const editor = this.editor;
 		const isBlockPluginLoaded = editor.plugins.has( 'ImageBlockEditing' );
 		const isInlinePluginLoaded = editor.plugins.has( 'ImageInlineEditing' );
 
-		editor.config.define( 'image.styles', getDefaultStylesConfiguration( isBlockPluginLoaded, isInlinePluginLoaded ) );
+		editor.config.define( 'image.styles', utils.getDefaultStylesConfiguration( isBlockPluginLoaded, isInlinePluginLoaded ) );
 
-		this.normalizedStyles = normalizeStyles( {
+		this.normalizedStyles = utils.normalizeStyles( {
 			configuredStyles: editor.config.get( 'image.styles' )!,
 			isBlockPluginLoaded,
 			isInlinePluginLoaded
@@ -91,6 +97,10 @@ export default class ImageStyleEditing extends Plugin {
 		// We could call it 'style' but https://github.com/ckeditor/ckeditor5-engine/issues/559.
 		if ( isBlockPluginLoaded ) {
 			schema.extend( 'imageBlock', { allowAttributes: 'imageStyle' } );
+			schema.setAttributeProperties( 'imageStyle', {
+				isFormatting: true,
+				blockAlignment: getBlockAlignmentAttributeProperty( this.normalizedStyles! )
+			} );
 
 			// Converter for figure element from view to model.
 			editor.data.upcastDispatcher.on<UpcastElementEvent>( 'element:figure', viewToModelConverter, { priority: 'low' } );
@@ -98,6 +108,7 @@ export default class ImageStyleEditing extends Plugin {
 
 		if ( isInlinePluginLoaded ) {
 			schema.extend( 'imageInline', { allowAttributes: 'imageStyle' } );
+			schema.setAttributeProperties( 'imageStyle', { isFormatting: true } );
 
 			// Converter for the img element from view to model.
 			editor.data.upcastDispatcher.on( 'element:img', viewToModelConverter, { priority: 'low' } );
@@ -126,7 +137,7 @@ export default class ImageStyleEditing extends Plugin {
 						element = element.getChild( 0 )!;
 					}
 
-					if ( !imageUtils.isImage( element as Element ) ) {
+					if ( !imageUtils.isImage( element as ModelElement ) ) {
 						continue;
 					}
 
@@ -138,7 +149,7 @@ export default class ImageStyleEditing extends Plugin {
 
 					const imageStyleDefinition = stylesMap.get( imageStyle );
 
-					if ( !imageStyleDefinition || !imageStyleDefinition.modelElements.includes( ( element as Element ).name ) ) {
+					if ( !imageStyleDefinition || !imageStyleDefinition.modelElements.includes( ( element as ModelElement ).name ) ) {
 						writer.removeAttribute( 'imageStyle', element );
 						changed = true;
 					}
@@ -148,4 +159,45 @@ export default class ImageStyleEditing extends Plugin {
 			return changed;
 		} );
 	}
+}
+
+/**
+ * Returns a mapping of generic alignment values ('left', 'right', 'center') to their corresponding
+ * block image alignment style names.
+ *
+ * This function is particularly useful for scenarios like `td[align]` conversion, which needs to know
+ * exactly how to map a generic `align` attribute to the correct alignment value. This mapping is necessary
+ * because the actual alignment value can differ depending on the target element type (e.g., block images
+ * vs. tables).
+ *
+ * @param styles An array of available image style option definitions.
+ * @returns A record mapping basic alignments to their valid, block-specific style names.
+ */
+function getBlockAlignmentAttributeProperty( styles: Array<ImageStyleOptionDefinition> ): ModelBlockAlignmentAttributesMapping {
+	const pickFirstSupported = ( ...names: Array<string> ) => {
+		const found = names
+			.map( name => getStyleDefinitionByName( name, styles ) )
+			.find( definition => definition?.modelElements.includes( 'imageBlock' ) );
+
+		if ( !found ) {
+			return;
+		}
+
+		return {
+			isDefault: !!found.isDefault,
+			value: found.name
+		};
+	};
+
+	const candidates: Record<string, Array<string>> = {
+		left: [ 'alignBlockLeft', 'alignLeft' ],
+		right: [ 'alignBlockRight', 'alignRight' ],
+		center: [ 'block', 'alignCenter' ]
+	};
+
+	return Object.fromEntries(
+		Object.entries( candidates )
+			.map( ( [ align, names ] ) => [ align, pickFirstSupported( ...names ) ] )
+			.filter( ( [ , resolved ] ) => resolved !== undefined )
+	);
 }

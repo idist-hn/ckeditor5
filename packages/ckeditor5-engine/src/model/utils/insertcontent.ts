@@ -1,26 +1,26 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/model/utils/insertcontent
  */
 
-import DocumentSelection from '../documentselection';
-import Element from '../element';
-import LivePosition from '../liveposition';
-import LiveRange from '../liverange';
-import Position from '../position';
-import Range from '../range';
+import { ModelDocumentSelection } from '../documentselection.js';
+import { ModelElement } from '../element.js';
+import { ModelLivePosition } from '../liveposition.js';
+import { ModelLiveRange } from '../liverange.js';
+import { ModelPosition } from '../position.js';
+import { ModelRange } from '../range.js';
 
-import type DocumentFragment from '../documentfragment';
-import type Item from '../item';
-import type Model from '../model';
-import type Schema from '../schema';
-import type Writer from '../writer';
-import type Node from '../node';
-import type Selection from '../selection';
+import { type ModelDocumentFragment } from '../documentfragment.js';
+import { type ModelItem } from '../item.js';
+import { type Model } from '../model.js';
+import { type ModelSchema } from '../schema.js';
+import { type ModelWriter } from '../writer.js';
+import { type ModelNode } from '../node.js';
+import { type ModelSelection } from '../selection.js';
 
 import { CKEditorError } from '@ckeditor/ckeditor5-utils';
 
@@ -39,7 +39,7 @@ import { CKEditorError } from '@ckeditor/ckeditor5-utils';
  * <p>x</p>[<img />]<p>z</p> + <p>y</p> => <p>x</p>^<p>z</p> + <p>y</p> => <p>x</p><p>y[]</p><p>z</p>
  * ```
  *
- * If an instance of {@link module:engine/model/selection~Selection} is passed as `selectable` it will be modified
+ * If an instance of {@link module:engine/model/selection~ModelSelection} is passed as `selectable` it will be modified
  * to the insertion selection (equal to a range to be selected after insertion).
  *
  * If `selectable` is not passed, the content will be inserted using the current selection of the model document.
@@ -51,18 +51,18 @@ import { CKEditorError } from '@ckeditor/ckeditor5-utils';
  * @param model The model in context of which the insertion should be performed.
  * @param content The content to insert.
  * @param selectable Selection into which the content should be inserted.
- * @param placeOrOffset Sets place or offset of the selection.
  * @returns Range which contains all the performed changes. This is a range that, if removed,
  * would return the model to the state before the insertion. If no changes were preformed by `insertContent`, returns a range collapsed
  * at the insertion position.
+ * @internal
  */
-export default function insertContent(
+export function insertContent(
 	model: Model,
-	content: Item | DocumentFragment,
-	selectable?: Selection | DocumentSelection
-): Range {
+	content: ModelItem | ModelDocumentFragment,
+	selectable?: ModelSelection | ModelDocumentSelection
+): ModelRange {
 	return model.change( writer => {
-		const selection: Selection | DocumentSelection = selectable ? selectable : model.document.selection;
+		const selection: ModelSelection | ModelDocumentSelection = selectable ? selectable : model.document.selection;
 
 		if ( !selection.isCollapsed ) {
 			model.deleteContent( selection, { doNotAutoparagraph: true } );
@@ -137,10 +137,10 @@ export default function insertContent(
 			// After insertion was done, the selection was set but the model contains fake <$marker> elements.
 			// These <$marker> elements will be now removed. Because of that, we will need to fix the selection.
 			// We will create a live range that will automatically be update as <$marker> elements are removed.
-			const selectionLiveRange = newRange ? LiveRange.fromRange( newRange ) : null;
+			const selectionLiveRange = newRange ? ModelLiveRange.fromRange( newRange ) : null;
 
 			// Marker name -> [ start position, end position ].
-			const markersData: Record<string, Array<Position>> = {};
+			const markersData: Record<string, Array<ModelPosition>> = {};
 
 			// Note: `fakeMarkerElements` are sorted backwards. However, now, we want to handle the markers
 			// from the beginning, so that existing <$marker> elements do not affect markers positions.
@@ -188,11 +188,11 @@ export default function insertContent(
 			for ( const [ name, [ start, end ] ] of Object.entries( markersData ) ) {
 				// For now, we ignore markers if they are included in the filtered-out content.
 				// In the future implementation we will improve that case to create markers that are not filtered out completely.
-				if ( start && end && start.root === end.root ) {
+				if ( start && end && start.root === end.root && start.root.document && !writer.model.markers.has( name ) ) {
 					writer.addMarker( name, {
 						usingOperation: true,
 						affectsData: true,
-						range: new Range( start, end )
+						range: new ModelRange( start, end )
 					} );
 				}
 			}
@@ -203,16 +203,14 @@ export default function insertContent(
 			}
 		}
 
-		/* istanbul ignore else -- @preserve */
 		if ( newRange ) {
-			if ( selection instanceof DocumentSelection ) {
+			if ( selection instanceof ModelDocumentSelection ) {
 				writer.setSelection( newRange );
 			} else {
 				selection.setTo( newRange );
 			}
 		} else {
-			// We are not testing else because it's a safe check for unpredictable edge cases:
-			// an insertion without proper range to select.
+			// A safe check for unpredictable edge cases: an insertion without a proper range to select.
 			//
 			// @if CK_DEBUG // console.warn( 'Cannot determine a proper selection range after insertion.' );
 		}
@@ -237,12 +235,12 @@ class Insertion {
 	/**
 	 * Batch to which operations will be added.
 	 */
-	public readonly writer: Writer;
+	public readonly writer: ModelWriter;
 
 	/**
 	 * The position at which (or near which) the next node will be inserted.
 	 */
-	public position: Position;
+	public position: ModelPosition;
 
 	/**
 	 * Elements with which the inserted elements can be merged.
@@ -254,56 +252,56 @@ class Insertion {
 	 * 						so both its pieces will be added to this set)
 	 * ```
 	 */
-	public readonly canMergeWith: Set<Node | DocumentFragment | null>;
+	public readonly canMergeWith: Set<ModelNode | ModelDocumentFragment | null>;
 
 	/**
 	 * Schema of the model.
 	 */
-	public readonly schema: Schema;
+	public readonly schema: ModelSchema;
 
 	/**
-	 * The temporary DocumentFragment used for grouping multiple nodes for single insert operation.
+	 * The temporary ModelDocumentFragment used for grouping multiple nodes for single insert operation.
 	 */
-	private readonly _documentFragment: DocumentFragment;
+	private readonly _documentFragment: ModelDocumentFragment;
 
 	/**
-	 * The current position in the temporary DocumentFragment.
+	 * The current position in the temporary ModelDocumentFragment.
 	 */
-	private _documentFragmentPosition: Position;
+	private _documentFragmentPosition: ModelPosition;
 
 	/**
 	 * The reference to the first inserted node.
 	 */
-	private _firstNode: Node | null = null;
+	private _firstNode: ModelNode | null = null;
 
 	/**
 	 * The reference to the last inserted node.
 	 */
-	private _lastNode: Node | null = null;
+	private _lastNode: ModelNode | null = null;
 
 	/**
 	 * The reference to the last auto paragraph node.
 	 */
-	private _lastAutoParagraph: Element | null = null;
+	private _lastAutoParagraph: ModelElement | null = null;
 
 	/**
-	 * The array of nodes that should be cleaned of not allowed attributes.
+	 * The array of nodes that should be cleaned of not allowed attributes and sub-nodes.
 	 */
-	private _filterAttributesOf: Array<Node> = [];
+	private _filterAttributesAndChildrenOf: Array<ModelNode> = [];
 
 	/**
 	 * Beginning of the affected range. See {@link module:engine/model/utils/insertcontent~Insertion#getAffectedRange}.
 	 */
-	private _affectedStart: LivePosition | null = null;
+	private _affectedStart: ModelLivePosition | null = null;
 
 	/**
 	 * End of the affected range. See {@link module:engine/model/utils/insertcontent~Insertion#getAffectedRange}.
 	 */
-	private _affectedEnd: LivePosition | null = null;
+	private _affectedEnd: ModelLivePosition | null = null;
 
-	private _nodeToSelect: Node | null = null;
+	private _nodeToSelect: ModelNode | null = null;
 
-	constructor( model: Model, writer: Writer, position: Position ) {
+	constructor( model: Model, writer: ModelWriter, position: ModelPosition ) {
 		this.model = model;
 		this.writer = writer;
 		this.position = position;
@@ -319,12 +317,15 @@ class Insertion {
 	 *
 	 * @param nodes Nodes to insert.
 	 */
-	public handleNodes( nodes: Iterable<Node> ): void {
+	public handleNodes( nodes: Iterable<ModelNode> ): void {
 		for ( const node of Array.from( nodes ) ) {
-			this._handleNode( node );
+			// Ignore empty nodes, especially empty text nodes.
+			if ( node.offsetSize > 0 ) {
+				this._handleNode( node );
+			}
 		}
 
-		// Insert nodes collected in temporary DocumentFragment.
+		// Insert nodes collected in temporary ModelDocumentFragment.
 		this._insertPartialFragment();
 
 		// If there was an auto paragraph then we might need to adjust the end of insertion.
@@ -337,8 +338,61 @@ class Insertion {
 		this._mergeOnRight();
 
 		// TMP this will become a post-fixer.
-		this.schema.removeDisallowedAttributes( this._filterAttributesOf, this.writer );
-		this._filterAttributesOf = [];
+		this.schema.removeDisallowedAttributes( this._filterAttributesAndChildrenOf, this.writer );
+
+		if ( this.model._config?.get( 'experimentalFlags.modelInsertContentDeepSchemaVerification' ) !== false ) {
+			this._removeDisallowedChildren( this._filterAttributesAndChildrenOf );
+		}
+
+		this._filterAttributesAndChildrenOf = [];
+	}
+
+	/**
+	 * Removes disallowed children from nodes that were inserted or modified during insertion.
+	 */
+	private _removeDisallowedChildren( nodes: Iterable<ModelNode> ): void {
+		// Make sure we do not modify the original iterable.
+		const nodesArray = Array.from( nodes );
+
+		// Check all sub-nodes of top level inserted nodes.
+		// We do it at this point so node is already in the model tree and schema checks will be correct.
+		for ( const node of nodesArray ) {
+			if ( !node.is( 'element' ) ) {
+				continue;
+			}
+
+			const remove = [];
+			const unwrap = [];
+			const walker = this.writer.createRangeIn( node ).getWalker( { ignoreElementEnd: true } );
+
+			for ( const { item } of walker ) {
+				const itemParent = item.parent as ModelElement;
+
+				if ( !this.schema.checkChild( itemParent, item as ModelNode ) ) {
+					if ( item.is( 'element' ) && !this.schema.isObject( item ) ) {
+						// Unwrap non-object element.
+						unwrap.push( item );
+
+						// Store the parent for re-checking children after unwrap.
+						nodesArray.push( itemParent );
+					} else {
+						// Remove object with children, or text.
+						remove.push( item );
+					}
+
+					// Skip the whole subtree as it will be removed or processed later.
+					walker.jumpTo( this.writer.createPositionAfter( item ) );
+				}
+			}
+
+			for ( const item of unwrap ) {
+				this.writer.unwrap( item );
+			}
+
+			for ( const item of remove ) {
+				this.writer.remove( item );
+			}
+		}
 	}
 
 	/**
@@ -346,7 +400,7 @@ class Insertion {
 	 *
 	 * @param node The last auto paragraphing node.
 	 */
-	private _updateLastNodeFromAutoParagraph( node: Node ): void {
+	private _updateLastNodeFromAutoParagraph( node: ModelNode ): void {
 		const positionAfterLastNode = this.writer.createPositionAfter( this._lastNode! );
 		const positionAfterNode = this.writer.createPositionAfter( node );
 
@@ -354,7 +408,7 @@ class Insertion {
 		if ( positionAfterNode.isAfter( positionAfterLastNode ) ) {
 			this._lastNode = node;
 
-			/* istanbul ignore if -- @preserve */
+			/* v8 ignore if -- @preserve */
 			if ( this.position.parent != node || !this.position.isAtEnd ) {
 				// Algorithm's correctness check. We should never end up here but it's good to know that we did.
 				// At this point the insertion position should be at the end of the last auto paragraph.
@@ -371,9 +425,9 @@ class Insertion {
 	 * Returns range to be selected after insertion.
 	 * Returns `null` if there is no valid range to select after insertion.
 	 */
-	public getSelectionRange(): Range | null {
+	public getSelectionRange(): ModelRange | null {
 		if ( this._nodeToSelect ) {
-			return Range._createOn( this._nodeToSelect );
+			return ModelRange._createOn( this._nodeToSelect );
 		}
 
 		return this.model.schema.getNearestSelectionRange( this.position );
@@ -383,12 +437,12 @@ class Insertion {
 	 * Returns a range which contains all the performed changes. This is a range that, if removed, would return the model to the state
 	 * before the insertion. Returns `null` if no changes were done.
 	 */
-	public getAffectedRange(): Range | null {
+	public getAffectedRange(): ModelRange | null {
 		if ( !this._affectedStart ) {
 			return null;
 		}
 
-		return new Range( this._affectedStart, this._affectedEnd );
+		return new ModelRange( this._affectedStart, this._affectedEnd );
 	}
 
 	/**
@@ -407,36 +461,20 @@ class Insertion {
 	/**
 	 * Handles insertion of a single node.
 	 */
-	private _handleNode( node: Node ): void {
-		// Let's handle object in a special way.
-		// * They should never be merged with other elements.
-		// * If they are not allowed in any of the selection ancestors, they could be either autoparagraphed or totally removed.
-		if ( this.schema.isObject( node ) ) {
-			this._handleObject( node as Element );
+	private _handleNode( node: ModelNode ): void {
+		// Split the position.parent's branch up to a point where the node can be inserted.
+		// If it isn't allowed in the whole branch, then of course don't split anything.
+		if ( !this._checkAndSplitToAllowedPosition( node ) ) {
+			// Handle element children if it's not an object (strip container).
+			if ( !this.schema.isObject( node ) ) {
+				this._handleDisallowedNode( node );
+			}
 
 			return;
 		}
 
-		// Try to find a place for the given node.
-
-		// Check if a node can be inserted in the given position or it would be accepted if a paragraph would be inserted.
-		// Inserts the auto paragraph if it would allow for insertion.
-		let isAllowed = this._checkAndAutoParagraphToAllowedPosition( node );
-
-		if ( !isAllowed ) {
-			// Split the position.parent's branch up to a point where the node can be inserted.
-			// If it isn't allowed in the whole branch, then of course don't split anything.
-			isAllowed = this._checkAndSplitToAllowedPosition( node );
-
-			if ( !isAllowed ) {
-				this._handleDisallowedNode( node );
-
-				return;
-			}
-		}
-
-		// Add node to the current temporary DocumentFragment.
-		this._appendToFragment( node );
+		// Add node to the current temporary ModelDocumentFragment.
+		node = this._appendToFragment( node );
 
 		// Store the first and last nodes for easy access for merging with sibling nodes.
 		if ( !this._firstNode ) {
@@ -447,14 +485,14 @@ class Insertion {
 	}
 
 	/**
-	 * Inserts the temporary DocumentFragment into the model.
+	 * Inserts the temporary ModelDocumentFragment into the model.
 	 */
 	private _insertPartialFragment(): void {
 		if ( this._documentFragment.isEmpty ) {
 			return;
 		}
 
-		const livePosition = LivePosition.fromPosition( this.position, 'toNext' );
+		const livePosition = ModelLivePosition.fromPosition( this.position, 'toNext' );
 
 		this._setAffectedBoundaries( this.position );
 
@@ -483,40 +521,22 @@ class Insertion {
 	}
 
 	/**
-	 * @param node The object element.
-	 */
-	private _handleObject( node: Element ): void {
-		// Try finding it a place in the tree.
-		if ( this._checkAndSplitToAllowedPosition( node ) ) {
-			this._appendToFragment( node );
-		}
-		// Try autoparagraphing.
-		else {
-			this._tryAutoparagraphing( node );
-		}
-	}
-
-	/**
 	 * @param node The disallowed node which needs to be handled.
 	 */
-	private _handleDisallowedNode( node: Node ): void {
+	private _handleDisallowedNode( node: ModelNode ): void {
 		// If the node is an element, try inserting its children (strip the parent).
 		if ( node.is( 'element' ) ) {
 			this.handleNodes( node.getChildren() );
 		}
-		// If text is not allowed, try autoparagraphing it.
-		else {
-			this._tryAutoparagraphing( node );
-		}
 	}
 
 	/**
-	 * Append a node to the temporary DocumentFragment.
+	 * Append a node to the temporary ModelDocumentFragment.
 	 *
 	 * @param node The node to insert.
 	 */
-	private _appendToFragment( node: Node ): void {
-		/* istanbul ignore if -- @preserve */
+	private _appendToFragment( node: ModelNode ): ModelNode {
+		/* v8 ignore if -- @preserve */
 		if ( !this.schema.checkChild( this.position, node ) ) {
 			// Algorithm's correctness check. We should never end up here but it's good to know that we did.
 			// Note that it would often be a silent issue if we insert node in a place where it's not allowed.
@@ -525,8 +545,8 @@ class Insertion {
 			 * Given node cannot be inserted on the given position.
 			 *
 			 * @error insertcontent-wrong-position
-			 * @param node Node to insert.
-			 * @param position Position to insert the node at.
+			 * @param {module:engine/model/node~ModelNode} node Node to insert.
+			 * @param {module:engine/model/position~ModelPosition} position Position to insert the node at.
 			 */
 			throw new CKEditorError(
 				'insertcontent-wrong-position',
@@ -538,6 +558,12 @@ class Insertion {
 		this.writer.insert( node, this._documentFragmentPosition );
 		this._documentFragmentPosition = this._documentFragmentPosition.getShiftedBy( node.offsetSize );
 
+		// In case text node was merged with already inserted text node, we need to get the actual node that is in the document.
+		// This happens when there is a non-allowed object between text nodes.
+		if ( !node.parent ) {
+			node = this._documentFragmentPosition.nodeBefore as ModelNode;
+		}
+
 		// The last inserted object should be selected because we can't put a collapsed selection after it.
 		if ( this.schema.isObject( node ) && !this.schema.checkChild( this.position, '$text' ) ) {
 			this._nodeToSelect = node;
@@ -545,7 +571,9 @@ class Insertion {
 			this._nodeToSelect = null;
 		}
 
-		this._filterAttributesOf.push( node );
+		this._filterAttributesAndChildrenOf.push( node );
+
+		return node;
 	}
 
 	/**
@@ -555,12 +583,12 @@ class Insertion {
 	 * This method is used before inserting a node or splitting a parent node. `_affectedStart` and `_affectedEnd` are also changed
 	 * during merging, but the logic there is more complicated so it is left out of this function.
 	 */
-	private _setAffectedBoundaries( position: Position ): void {
+	private _setAffectedBoundaries( position: ModelPosition ): void {
 		// Set affected boundaries stickiness so that those position will "expand" when something is inserted in between them:
 		// <paragraph>Foo][bar</paragraph> -> <paragraph>Foo]xx[bar</paragraph>
 		// This is why it cannot be a range but two separate positions.
 		if ( !this._affectedStart ) {
-			this._affectedStart = LivePosition.fromPosition( position, 'toPrevious' );
+			this._affectedStart = ModelLivePosition.fromPosition( position, 'toPrevious' );
 		}
 
 		// If `_affectedEnd` is before the new boundary position, expand `_affectedEnd`. This can happen if first inserted node was
@@ -572,7 +600,7 @@ class Insertion {
 				this._affectedEnd.detach();
 			}
 
-			this._affectedEnd = LivePosition.fromPosition( position, 'toNext' );
+			this._affectedEnd = ModelLivePosition.fromPosition( position, 'toNext' );
 		}
 	}
 
@@ -585,7 +613,7 @@ class Insertion {
 	private _mergeOnLeft(): void {
 		const node = this._firstNode;
 
-		if ( !( node instanceof Element ) ) {
+		if ( !( node instanceof ModelElement ) ) {
 			return;
 		}
 
@@ -593,13 +621,13 @@ class Insertion {
 			return;
 		}
 
-		const mergePosLeft = LivePosition._createBefore( node );
+		const mergePosLeft = ModelLivePosition._createBefore( node );
 		mergePosLeft.stickiness = 'toNext';
 
-		const livePosition = LivePosition.fromPosition( this.position, 'toNext' );
+		const livePosition = ModelLivePosition.fromPosition( this.position, 'toNext' );
 
 		// If `_affectedStart` is sames as merge position, it means that the element "marked" by `_affectedStart` is going to be
-		// removed and its contents will be moved. This won't transform `LivePosition` so `_affectedStart` needs to be moved
+		// removed and its contents will be moved. This won't transform `ModelLivePosition` so `_affectedStart` needs to be moved
 		// by hand to properly reflect affected range. (Due to `_affectedStart` and `_affectedEnd` stickiness, the "range" is
 		// shown as `][`).
 		//
@@ -612,7 +640,7 @@ class Insertion {
 		// Note, that if we are here then something must have been inserted, so `_affectedStart` and `_affectedEnd` have to be set.
 		if ( this._affectedStart!.isEqual( mergePosLeft ) ) {
 			this._affectedStart!.detach();
-			this._affectedStart = LivePosition._createAt( mergePosLeft.nodeBefore!, 'end', 'toPrevious' );
+			this._affectedStart = ModelLivePosition._createAt( mergePosLeft.nodeBefore!, 'end', 'toPrevious' );
 		}
 
 		// We need to update the references to the first and last nodes if they will be merged into the previous sibling node
@@ -641,7 +669,7 @@ class Insertion {
 		// <paragraph>Foo]Abc[</paragraph><paragraph>Bar</paragraph>
 		if ( mergePosLeft.isEqual( this._affectedEnd! ) && this._firstNode === this._lastNode ) {
 			this._affectedEnd!.detach();
-			this._affectedEnd = LivePosition._createAt( mergePosLeft.nodeBefore!, 'end', 'toNext' );
+			this._affectedEnd = ModelLivePosition._createAt( mergePosLeft.nodeBefore!, 'end', 'toNext' );
 		}
 
 		this.position = livePosition.toPosition();
@@ -649,7 +677,7 @@ class Insertion {
 
 		// After merge elements that were marked by _insert() to be filtered might be gone so
 		// we need to mark the new container.
-		this._filterAttributesOf.push( this.position.parent as any );
+		this._filterAttributesAndChildrenOf.push( this.position.parent as any );
 
 		mergePosLeft.detach();
 	}
@@ -663,7 +691,7 @@ class Insertion {
 	private _mergeOnRight(): void {
 		const node = this._lastNode;
 
-		if ( !( node instanceof Element ) ) {
+		if ( !( node instanceof ModelElement ) ) {
 			return;
 		}
 
@@ -671,10 +699,10 @@ class Insertion {
 			return;
 		}
 
-		const mergePosRight = LivePosition._createAfter( node );
+		const mergePosRight = ModelLivePosition._createAfter( node );
 		mergePosRight.stickiness = 'toNext';
 
-		/* istanbul ignore if -- @preserve */
+		/* v8 ignore if -- @preserve */
 		if ( !this.position.isEqual( mergePosRight ) ) {
 			// Algorithm's correctness check. We should never end up here but it's good to know that we did.
 			// At this point the insertion position should be after the node we'll merge. If it isn't,
@@ -693,17 +721,17 @@ class Insertion {
 
 		// Move the position to the previous node, so it isn't moved to the graveyard on merge.
 		// <p>x</p>[]<p>y</p> => <p>x[]</p><p>y</p>
-		this.position = Position._createAt( mergePosRight.nodeBefore!, 'end' );
+		this.position = ModelPosition._createAt( mergePosRight.nodeBefore!, 'end' );
 
 		// Explanation of setting position stickiness to `'toPrevious'`:
 		// OK:  <p>xx[]</p> + <p>yy</p> => <p>xx[]yy</p> (when sticks to previous)
 		// NOK: <p>xx[]</p> + <p>yy</p> => <p>xxyy[]</p> (when sticks to next)
-		const livePosition = LivePosition.fromPosition( this.position, 'toPrevious' );
+		const livePosition = ModelLivePosition.fromPosition( this.position, 'toPrevious' );
 
 		// See comment in `_mergeOnLeft()` on moving `_affectedStart`.
 		if ( this._affectedEnd!.isEqual( mergePosRight ) ) {
 			this._affectedEnd!.detach();
-			this._affectedEnd = LivePosition._createAt( mergePosRight.nodeBefore!, 'end', 'toNext' );
+			this._affectedEnd = ModelLivePosition._createAt( mergePosRight.nodeBefore!, 'end', 'toNext' );
 		}
 
 		// We need to update the references to the first and last nodes if they will be merged into the previous sibling node
@@ -725,7 +753,7 @@ class Insertion {
 		// See comment in `_mergeOnLeft()` on moving `_affectedStart`.
 		if ( mergePosRight.getShiftedBy( -1 ).isEqual( this._affectedStart! ) && this._firstNode === this._lastNode ) {
 			this._affectedStart!.detach();
-			this._affectedStart = LivePosition._createAt( mergePosRight.nodeBefore!, 0, 'toPrevious' );
+			this._affectedStart = ModelLivePosition._createAt( mergePosRight.nodeBefore!, 0, 'toPrevious' );
 		}
 
 		this.position = livePosition.toPosition();
@@ -733,7 +761,7 @@ class Insertion {
 
 		// After merge elements that were marked by _insert() to be filtered might be gone so
 		// we need to mark the new container.
-		this._filterAttributesOf.push( this.position.parent as any );
+		this._filterAttributesAndChildrenOf.push( this.position.parent as any );
 
 		mergePosRight.detach();
 	}
@@ -743,10 +771,10 @@ class Insertion {
 	 *
 	 * @param node The node which could potentially be merged.
 	 */
-	private _canMergeLeft( node: Element ): boolean {
+	private _canMergeLeft( node: ModelElement ): boolean {
 		const previousSibling = node.previousSibling;
 
-		return ( previousSibling instanceof Element ) &&
+		return ( previousSibling instanceof ModelElement ) &&
 			this.canMergeWith.has( previousSibling ) &&
 			this.model.schema.checkMerge( previousSibling, node );
 	}
@@ -756,51 +784,19 @@ class Insertion {
 	 *
 	 * @param node The node which could potentially be merged.
 	 */
-	private _canMergeRight( node: Element ): boolean {
+	private _canMergeRight( node: ModelElement ): boolean {
 		const nextSibling = node.nextSibling;
 
-		return ( nextSibling instanceof Element ) &&
+		return ( nextSibling instanceof ModelElement ) &&
 			this.canMergeWith.has( nextSibling ) &&
 			this.model.schema.checkMerge( node, nextSibling );
 	}
 
 	/**
-	 * Tries wrapping the node in a new paragraph and inserting it this way.
-	 *
-	 * @param node The node which needs to be autoparagraphed.
+	 * Inserts a paragraph and moves the insertion position into it.
 	 */
-	private _tryAutoparagraphing( node: Node ): void {
-		const paragraph = this.writer.createElement( 'paragraph' );
-
-		// Do not autoparagraph if the paragraph won't be allowed there,
-		// cause that would lead to an infinite loop. The paragraph would be rejected in
-		// the next _handleNode() call and we'd be here again.
-		if ( this._getAllowedIn( this.position.parent as any, paragraph ) && this.schema.checkChild( paragraph, node ) ) {
-			paragraph._appendChild( node );
-			this._handleNode( paragraph );
-		}
-	}
-
-	/**
-	 * Checks if a node can be inserted in the given position or it would be accepted if a paragraph would be inserted.
-	 * It also handles inserting the paragraph.
-	 *
-	 * @returns Whether an allowed position was found.
-	 * `false` is returned if the node isn't allowed at the current position or in auto paragraph, `true` if was.
-	 */
-	private _checkAndAutoParagraphToAllowedPosition( node: Node ): boolean {
-		if ( this.schema.checkChild( this.position.parent as any, node ) ) {
-			return true;
-		}
-
-		// Do not auto paragraph if the paragraph won't be allowed there,
-		// cause that would lead to an infinite loop. The paragraph would be rejected in
-		// the next _handleNode() call and we'd be here again.
-		if ( !this.schema.checkChild( this.position.parent as any, 'paragraph' ) || !this.schema.checkChild( 'paragraph', node ) ) {
-			return false;
-		}
-
-		// Insert nodes collected in temporary DocumentFragment if the position parent needs change to process further nodes.
+	private _insertAutoParagraph(): void {
+		// Insert nodes collected in temporary ModelDocumentFragment if the position parent needs change to process further nodes.
 		this._insertPartialFragment();
 
 		// Insert a paragraph and move insertion position to it.
@@ -811,22 +807,20 @@ class Insertion {
 
 		this._lastAutoParagraph = paragraph;
 		this.position = this.writer.createPositionAt( paragraph, 0 );
-
-		return true;
 	}
 
 	/**
 	 * @returns Whether an allowed position was found.
 	 * `false` is returned if the node isn't allowed at any position up in the tree, `true` if was.
 	 */
-	private _checkAndSplitToAllowedPosition( node: Node ): boolean {
+	private _checkAndSplitToAllowedPosition( node: ModelNode ): boolean {
 		const allowedIn = this._getAllowedIn( this.position.parent as any, node );
 
 		if ( !allowedIn ) {
 			return false;
 		}
 
-		// Insert nodes collected in temporary DocumentFragment if the position parent needs change to process further nodes.
+		// Insert nodes collected in temporary ModelDocumentFragment if the position parent needs change to process further nodes.
 		if ( allowedIn != this.position.parent ) {
 			this._insertPartialFragment();
 		}
@@ -835,7 +829,7 @@ class Insertion {
 			if ( this.position.isAtStart ) {
 				// If insertion position is at the beginning of the parent, move it out instead of splitting.
 				// <p>^Foo</p> -> ^<p>Foo</p>
-				const parent: Element = this.position.parent as Element;
+				const parent: ModelElement = this.position.parent as ModelElement;
 
 				this.position = this.writer.createPositionBefore( parent );
 
@@ -854,9 +848,9 @@ class Insertion {
 			} else if ( this.position.isAtEnd ) {
 				// If insertion position is at the end of the parent, move it out instead of splitting.
 				// <p>Foo^</p> -> <p>Foo</p>^
-				this.position = this.writer.createPositionAfter( this.position.parent as Element );
+				this.position = this.writer.createPositionAfter( this.position.parent as ModelElement );
 			} else {
-				const tempPos = this.writer.createPositionAfter( this.position.parent as Element );
+				const tempPos = this.writer.createPositionAfter( this.position.parent as ModelElement );
 
 				this._setAffectedBoundaries( this.position );
 				this.writer.split( this.position );
@@ -867,17 +861,37 @@ class Insertion {
 			}
 		}
 
+		// At this point, we split elements up to the parent in which `node` is allowed.
+		// Note that `_getAllowedIn()` checks if the `node` is allowed either directly, or when auto-paragraphed.
+		// So, let's check if the `node` is allowed directly. If not, we need to auto-paragraph it.
+		if ( !this.schema.checkChild( this.position.parent, node ) ) {
+			this._insertAutoParagraph();
+		}
+
 		return true;
 	}
 
 	/**
 	 * Gets the element in which the given node is allowed. It checks the passed element and all its ancestors.
 	 *
+	 * It also verifies if auto-paragraphing could help.
+	 *
 	 * @param contextElement The element in which context the node should be checked.
 	 * @param childNode The node to check.
 	 */
-	private _getAllowedIn( contextElement: Element, childNode: Node ): Element | null {
-		if ( this.schema.checkChild( contextElement, childNode ) ) {
+	private _getAllowedIn( contextElement: ModelElement, childNode: ModelNode ): ModelElement | null {
+		const context = this.schema.createContext( contextElement );
+
+		// Check if a node can be inserted in the given context...
+		if ( this.schema.checkChild( context, childNode ) ) {
+			return contextElement;
+		}
+
+		// ...or it would be accepted if a paragraph would be inserted.
+		if (
+			this.schema.checkChild( context, 'paragraph' ) &&
+			this.schema.checkChild( context.push( 'paragraph' ), childNode )
+		) {
 			return contextElement;
 		}
 

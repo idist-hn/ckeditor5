@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/button/buttonview
  */
 
-import View from '../view';
-import IconView from '../icon/iconview';
+import { View } from '../view.js';
+import { IconView } from '../icon/iconview.js';
 
-import type { TemplateDefinition } from '../template';
-import type ViewCollection from '../viewcollection';
-import type { default as Button, ButtonExecuteEvent } from './button';
-import type ButtonLabel from './buttonlabel';
-import ButtonLabelView from './buttonlabelview';
+import type { TemplateDefinition } from '../template.js';
+import { type ViewCollection } from '../viewcollection.js';
+import type { Button, ButtonExecuteEvent } from './button.js';
+import { type ButtonLabel } from './buttonlabel.js';
+import { ButtonLabelView } from './buttonlabelview.js';
 
 import {
 	env,
@@ -24,8 +24,6 @@ import {
 	type Locale,
 	type DelayedFunc
 } from '@ckeditor/ckeditor5-utils';
-
-import '../../theme/components/button/button.css';
 
 /**
  * The button view class.
@@ -45,7 +43,7 @@ import '../../theme/components/button/button.css';
  * document.body.append( view.element );
  * ```
  */
-export default class ButtonView extends View<HTMLButtonElement> implements Button {
+export class ButtonView extends View<HTMLButtonElement> implements Button {
 	/**
 	 * Collection of the child views inside of the button {@link #element}.
 	 */
@@ -155,17 +153,30 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 	/**
 	 * @inheritDoc
 	 */
-	declare public ariaChecked: boolean | undefined;
-
-	/**
-	 * @inheritDoc
-	 */
 	declare public ariaLabel?: string | undefined;
 
 	/**
 	 * @inheritDoc
 	 */
 	declare public ariaLabelledBy: string | undefined;
+
+	/**
+	 * Aria-pressed attribute of element. It is calculated based on {@link #isToggleable isToggleable} and {@link #role}.
+	 * It's set to true if the button is on and the role is not checkable.
+	 *
+	 * @readonly
+	 * @internal
+	 */
+	declare public _ariaPressed: string | false;
+
+	/**
+	 * Aria-checked attribute of element. It is calculated based on {@link #isToggleable isToggleable} and {@link #role}.
+	 * It's set to true if the button is on and the role is checkable.
+	 *
+	 * @readonly
+	 * @internal
+	 */
+	declare public _ariaChecked: string | false;
 
 	/**
 	 * Tooltip of the button bound to the template.
@@ -196,7 +207,8 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 		const ariaLabelUid = uid();
 
 		// Implement the Button interface.
-		this.set( 'ariaChecked', undefined );
+		this.set( '_ariaPressed', false );
+		this.set( '_ariaChecked', false );
 		this.set( 'ariaLabel', undefined );
 		this.set( 'ariaLabelledBy', `ck-editor__aria-label_${ ariaLabelUid }` );
 		this.set( 'class', undefined );
@@ -225,6 +237,7 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 				class: 'ck-button__icon'
 			}
 		} );
+		this.iconView.bind( 'content' ).to( this, 'icon' );
 
 		this.keystrokeView = this._createKeystrokeView();
 
@@ -252,11 +265,11 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 				role: bind.to( 'role' ),
 				type: bind.to( 'type', value => value ? value : 'button' ),
 				tabindex: bind.to( 'tabindex' ),
+				'aria-checked': bind.to( '_ariaChecked' ),
+				'aria-pressed': bind.to( '_ariaPressed' ),
 				'aria-label': bind.to( 'ariaLabel' ),
 				'aria-labelledby': bind.to( 'ariaLabelledBy' ),
 				'aria-disabled': bind.if( 'isEnabled', true, value => !value ),
-				'aria-checked': bind.to( 'isOn' ),
-				'aria-pressed': bind.to( 'isOn', value => this.isToggleable ? String( !!value ) : false ),
 				'data-cke-tooltip-text': bind.to( '_tooltipString' ),
 				'data-cke-tooltip-position': bind.to( 'tooltipPosition' )
 			},
@@ -278,9 +291,32 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 			}
 		};
 
+		this.bind( '_ariaPressed' ).to(
+			this, 'isOn', this, 'isToggleable', this, 'role',
+			( isOn, isToggleable, role ) => {
+				if ( !isToggleable || isCheckableRole( role ) ) {
+					return false;
+				}
+
+				return String( !!isOn );
+			}
+		);
+
+		this.bind( '_ariaChecked' ).to(
+			this, 'isOn', this, 'isToggleable', this, 'role',
+			( isOn, isToggleable, role ) => {
+				if ( !isToggleable || !isCheckableRole( role ) ) {
+					return false;
+				}
+
+				return String( !!isOn );
+			}
+		);
+
 		// On Safari we have to force the focus on a button on click as it's the only browser
-		// that doesn't do that automatically. See #12115.
+		// that doesn't do that automatically. See https://github.com/ckeditor/ckeditor5/issues/12115.
 		if ( env.isSafari ) {
+			/* v8 ignore else -- @preserve */
 			if ( !this._focusDelayed ) {
 				this._focusDelayed = delay( () => this.focus(), 0 );
 			}
@@ -304,9 +340,16 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 		super.render();
 
 		if ( this.icon ) {
-			this.iconView.bind( 'content' ).to( this, 'icon' );
 			this.children.add( this.iconView );
 		}
+
+		this.on( 'change:icon', ( evt, prop, newIcon, oldIcon ) => {
+			if ( newIcon && !oldIcon ) {
+				this.children.add( this.iconView, 0 );
+			} else if ( !newIcon && oldIcon ) {
+				this.children.remove( this.iconView );
+			}
+		} );
 
 		this.children.add( this.labelView );
 
@@ -401,5 +444,23 @@ export default class ButtonView extends View<HTMLButtonElement> implements Butto
 		}
 
 		return '';
+	}
+}
+
+/**
+ * Checks if `aria-checkbox` can be used with specified role.
+ */
+function isCheckableRole( role: string | undefined ) {
+	switch ( role ) {
+		case 'radio':
+		case 'checkbox':
+		case 'option':
+		case 'switch':
+		case 'menuitemcheckbox':
+		case 'menuitemradio':
+			return true;
+
+		default:
+			return false;
 	}
 }

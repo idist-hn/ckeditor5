@@ -1,16 +1,15 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-/* globals document */
-
-import ClassicTestEditor from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor';
-import Paragraph from '@ckeditor/ckeditor5-paragraph/src/paragraph';
-import Bold from '@ckeditor/ckeditor5-basic-styles/src/bold';
-import Position from '../../src/model/position';
-import Range from '../../src/model/range';
-import { setData as setModelData, getData as getModelData } from '../../src/dev-utils/model';
+import { ClassicTestEditor } from '@ckeditor/ckeditor5-core/tests/_utils/classictesteditor.js';
+import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
+import { Bold } from '@ckeditor/ckeditor5-basic-styles';
+import { ModelPosition } from '../../src/model/position.js';
+import { ModelRange } from '../../src/model/range.js';
+import { _setModelData, _getModelData } from '../../src/dev-utils/model.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe( 'Bug ckeditor5-engine#1267', () => {
 	let element, editor, model;
@@ -34,21 +33,21 @@ describe( 'Bug ckeditor5-engine#1267', () => {
 	} );
 
 	it( 'selection should not retain attributes after external change removal', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>foo bar baz</paragraph>' +
 			'<paragraph>foo <$text bold="true">bar{}</$text> baz</paragraph>'
 		);
 
 		// Remove second paragraph where selection is placed.
 		model.enqueueChange( { isUndoable: false }, writer => {
-			writer.remove( Range._createFromPositionAndShift( new Position( model.document.getRoot(), [ 1 ] ), 1 ) );
+			writer.remove( ModelRange._createFromPositionAndShift( new ModelPosition( model.document.getRoot(), [ 1 ] ), 1 ) );
 		} );
 
-		expect( getModelData( model ) ).to.equal( '<paragraph>foo bar baz[]</paragraph>' );
+		expect( _getModelData( model ) ).toBe( '<paragraph>foo bar baz[]</paragraph>' );
 	} );
 
 	it( 'selection should retain attributes set manually', () => {
-		setModelData( model,
+		_setModelData( model,
 			'<paragraph>foo bar baz</paragraph>' +
 			'<paragraph>foo bar baz</paragraph>' +
 			'<paragraph>[]</paragraph>'
@@ -56,7 +55,7 @@ describe( 'Bug ckeditor5-engine#1267', () => {
 
 		// Execute bold command when selection is inside empty paragraph.
 		editor.execute( 'bold' );
-		expect( getModelData( model ) ).to.equal(
+		expect( _getModelData( model ) ).toBe(
 			'<paragraph>foo bar baz</paragraph>' +
 			'<paragraph>foo bar baz</paragraph>' +
 			'<paragraph selection:bold="true"><$text bold="true">[]</$text></paragraph>'
@@ -64,11 +63,11 @@ describe( 'Bug ckeditor5-engine#1267', () => {
 
 		// Remove second paragraph.
 		model.enqueueChange( { isUndoable: false }, writer => {
-			writer.remove( Range._createFromPositionAndShift( new Position( model.document.getRoot(), [ 1 ] ), 1 ) );
+			writer.remove( ModelRange._createFromPositionAndShift( new ModelPosition( model.document.getRoot(), [ 1 ] ), 1 ) );
 		} );
 
 		// Selection attributes set by command should stay as they were.
-		expect( getModelData( model ) ).to.equal(
+		expect( _getModelData( model ) ).toBe(
 			'<paragraph>foo bar baz</paragraph>' +
 			'<paragraph selection:bold="true"><$text bold="true">[]</$text></paragraph>' );
 	} );

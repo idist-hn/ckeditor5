@@ -1,27 +1,38 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/view/stylesmap
  */
 
-import { get, isObject, merge, set, unset } from 'lodash-es';
+import { get, isObject, merge, set } from 'es-toolkit/compat';
+import type { ViewElementAttributeValue } from './element.js';
+import { type ArrayOrItem, toArray } from '@ckeditor/ckeditor5-utils';
+import { isPatternMatched } from './matcher.js';
 
 /**
  * Styles map. Allows handling (adding, removing, retrieving) a set of style rules (usually, of an element).
- *
- * The styles map is capable of normalizing style names so e.g. the following operations are possible:
  */
-export default class StylesMap {
+export class StylesMap implements ViewElementAttributeValue {
 	/**
 	 * Keeps an internal representation of styles map. Normalized styles are kept as object tree to allow unified modification and
 	 * value access model using lodash's get, set, unset, etc methods.
 	 *
 	 * When no style processor rules are defined it acts as simple key-value storage.
 	 */
-	private _styles: Record<string, string>;
+	private _styles: Styles;
+
+	/**
+	 * Cached list of style names for faster access.
+	 */
+	private _cachedStyleNames: Array<string> | null = null;
+
+	/**
+	 * Cached list of expanded style names for faster access.
+	 */
+	private _cachedExpandedStyleNames: Array<string> | null = null;
 
 	/**
 	 * An instance of the {@link module:engine/view/stylesmap~StylesProcessor}.
@@ -41,9 +52,8 @@ export default class StylesMap {
 	 */
 	public get isEmpty(): boolean {
 		const entries = Object.entries( this._styles );
-		const from = Array.from( entries );
 
-		return !from.length;
+		return !entries.length;
 	}
 
 	/**
@@ -64,14 +74,16 @@ export default class StylesMap {
 	 * styles.setTo( 'border:1px solid blue;margin-top:1px;' );
 	 * ```
 	 */
-	public setTo( inlineStyle: string ): void {
+	public setTo( inlineStyle: string ): this {
 		this.clear();
 
-		const parsedStyles = Array.from( parseInlineStyles( inlineStyle ).entries() );
+		const parsedStyles = parseInlineStyles( inlineStyle );
 
 		for ( const [ key, value ] of parsedStyles ) {
 			this._styleProcessor.toNormalizedForm( key, value, this._styles );
 		}
+
+		return this;
 	}
 
 	/**
@@ -88,7 +100,7 @@ export default class StylesMap {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * styles.setTo( 'margin:2px;' );
 	 *
@@ -133,7 +145,7 @@ export default class StylesMap {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * styles.set( 'margin', '2px' );
 	 * ```
@@ -199,6 +211,9 @@ export default class StylesMap {
 	public set( styles: Styles ): void;
 
 	public set( nameOrObject: string | Styles, valueOrObject?: StyleValue ): void {
+		this._cachedStyleNames = null;
+		this._cachedExpandedStyleNames = null;
+
 		if ( isObject( nameOrObject ) ) {
 			for ( const [ key, value ] of Object.entries( nameOrObject ) ) {
 				this._styleProcessor.toNormalizedForm( key, value, this._styles );
@@ -224,7 +239,7 @@ export default class StylesMap {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * styles.setTo( 'margin:1px' );
 	 *
@@ -234,15 +249,34 @@ export default class StylesMap {
 	 * styles.toString(); // -> 'margin-bottom:1px;margin-left:1px;'
 	 * ```
 	 *
-	 * @param name Style name.
+	 * @param names Style name or an array of names.
 	 */
-	public remove( name: string ): void {
-		const path = toPath( name );
+	public remove( names: ArrayOrItem<string> ): void {
+		const normalizedStylesToRemove = {};
 
-		unset( this._styles, path );
-		delete this._styles[ name ];
+		for ( const name of toArray( names ) ) {
+			// First, try the easy path, when the path reflects normalized styles structure.
+			const path = toPath( name );
+			const pathValue = get( this._styles, path );
 
-		this._cleanEmptyObjectsOnPath( path );
+			if ( pathValue ) {
+				appendStyleValue( normalizedStylesToRemove, path, pathValue );
+			} else {
+				// Easy path did not work, so try to get the value from the styles map.
+				const value = this.getAsString( name );
+
+				if ( value !== undefined ) {
+					this._styleProcessor.toNormalizedForm( name, value, normalizedStylesToRemove );
+				}
+			}
+		}
+
+		if ( Object.keys( normalizedStylesToRemove ).length ) {
+			removeStyles( this._styles, normalizedStylesToRemove );
+
+			this._cachedStyleNames = null;
+			this._cachedExpandedStyleNames = null;
+		}
 	}
 
 	/**
@@ -250,7 +284,7 @@ export default class StylesMap {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * const styles = new Styles();
 	 * styles.setTo( 'margin:1px 2px 3em;' );
@@ -271,7 +305,7 @@ export default class StylesMap {
 	 *
 	 * @param name Style name.
 	 */
-	public getNormalized( name?: string ): StyleValue {
+	public getNormalized( name?: string ): StyleValue | undefined {
 		return this._styleProcessor.getNormalized( name, this._styles );
 	}
 
@@ -289,7 +323,7 @@ export default class StylesMap {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * styles.set( 'margin' , '1px' );
 	 * styles.set( 'background', '#f00' );
@@ -304,7 +338,7 @@ export default class StylesMap {
 			return '';
 		}
 
-		return this._getStylesEntries()
+		return this.getStylesEntries()
 			.map( arr => arr.join( ':' ) )
 			.sort()
 			.join( ';' ) + ';';
@@ -315,7 +349,7 @@ export default class StylesMap {
 	 *
 	 * ```ts
 	 * // Enable 'margin' shorthand processing:
-	 * editor.data.addStyleProcessorRules( addMarginRules );
+	 * editor.data.addStyleProcessorRules( addMarginStylesRules );
 	 *
 	 * const styles = new Styles();
 	 * styles.setTo( 'margin:1px;' );
@@ -373,7 +407,7 @@ export default class StylesMap {
 
 		if ( this._styles[ propertyName ] && !isObject( this._styles[ propertyName ] ) ) {
 			// Try return styles set directly - values that are not parsed.
-			return this._styles[ propertyName ];
+			return this._styles[ propertyName ] as string;
 		}
 
 		const styles = this._styleProcessor.getReducedForm( propertyName, this._styles );
@@ -409,12 +443,21 @@ export default class StylesMap {
 		}
 
 		if ( expand ) {
-			return this._styleProcessor.getStyleNames( this._styles );
+			this._cachedExpandedStyleNames ||= this._styleProcessor.getStyleNames( this._styles );
+
+			return this._cachedExpandedStyleNames;
 		}
 
-		const entries = this._getStylesEntries();
+		this._cachedStyleNames ||= this.getStylesEntries().map( ( [ key ] ) => key );
 
-		return entries.map( ( [ key ] ) => key );
+		return this._cachedStyleNames;
+	}
+
+	/**
+	 * Alias for {@link #getStyleNames}.
+	 */
+	public keys(): Array<string> {
+		return this.getStyleNames();
 	}
 
 	/**
@@ -422,13 +465,32 @@ export default class StylesMap {
 	 */
 	public clear(): void {
 		this._styles = {};
+		this._cachedStyleNames = null;
+		this._cachedExpandedStyleNames = null;
+	}
+
+	/**
+	 * Returns `true` if both attributes have the same styles.
+	 */
+	public isSimilar( other: StylesMap ): boolean {
+		if ( this.size !== other.size ) {
+			return false;
+		}
+
+		for ( const property of this.getStyleNames() ) {
+			if ( !other.has( property ) || other.getAsString( property ) !== this.getAsString( property ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
 	 * Returns normalized styles entries for further processing.
 	 */
-	private _getStylesEntries(): Array<PropertyDescriptor> {
-		const parsed: Array<PropertyDescriptor> = [];
+	public getStylesEntries(): Array<StylePropertyDescriptor> {
+		const parsed: Array<StylePropertyDescriptor> = [];
 
 		const keys = Object.keys( this._styles );
 
@@ -440,29 +502,135 @@ export default class StylesMap {
 	}
 
 	/**
-	 * Removes empty objects upon removing an entry from internal object.
+	 * Clones the attribute value.
+	 *
+	 * @internal
 	 */
-	private _cleanEmptyObjectsOnPath( path: string ): void {
-		const pathParts = path.split( '.' );
-		const isChildPath = pathParts.length > 1;
+	public _clone(): this {
+		const clone = new ( this.constructor as any )( this._styleProcessor );
 
-		if ( !isChildPath ) {
-			return;
+		clone.set( this.getNormalized() );
+
+		return clone;
+	}
+
+	/**
+	 * Used by the {@link module:engine/view/matcher~Matcher Matcher} to collect matching styles.
+	 *
+	 * @internal
+	 * @param tokenPattern The matched style name pattern.
+	 * @param valuePattern The matched style value pattern.
+	 * @returns An array of matching tokens (style names).
+	 */
+	public _getTokensMatch(
+		tokenPattern: true | string | RegExp,
+		valuePattern: true | string | RegExp
+	): Array<string> | undefined {
+		const match: Array<string> = [];
+
+		for ( const styleName of this.getStyleNames( true ) ) {
+			if ( isPatternMatched( tokenPattern, styleName ) ) {
+				if ( valuePattern === true ) {
+					match.push( styleName );
+					continue;
+				}
+
+				// For now, the reducers are not returning the full tree of properties.
+				// Casting to string preserves the old behavior until the root cause is fixed.
+				// More can be found in https://github.com/ckeditor/ckeditor5/issues/10399.
+				const value = this.getAsString( styleName );
+
+				if ( isPatternMatched( valuePattern, value! ) ) {
+					match.push( styleName );
+				}
+			}
 		}
 
-		const parentPath = pathParts.splice( 0, pathParts.length - 1 ).join( '.' );
+		return match.length ? match : undefined;
+	}
 
-		const parentObject = get( this._styles, parentPath );
+	/**
+	 * Returns a list of consumables for the attribute. This includes related styles.
+	 *
+	 * Could be filtered by the given style name.
+	 *
+	 * @internal
+	 */
+	public _getConsumables( name?: string ): Array<string> {
+		const result = [];
 
-		if ( !parentObject ) {
-			return;
+		if ( name ) {
+			result.push( name );
+
+			for ( const relatedName of this._styleProcessor.getRelatedStyles( name ) ) {
+				result.push( relatedName );
+			}
+		}
+		else {
+			for ( const name of this.getStyleNames() ) {
+				for ( const relatedName of this._styleProcessor.getRelatedStyles( name ) ) {
+					result.push( relatedName );
+				}
+
+				result.push( name );
+			}
 		}
 
-		const isParentEmpty = !Array.from( Object.keys( parentObject ) ).length;
+		return result;
+	}
 
-		if ( isParentEmpty ) {
-			this.remove( parentPath );
+	/**
+	 * Used by {@link module:engine/view/element~ViewElement#_canMergeAttributesFrom} to verify if the given attribute can be merged without
+	 * conflicts into the attribute.
+	 *
+	 * This method is indirectly used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to merge it with other ViewAttributeElement.
+	 *
+	 * @internal
+	 */
+	public _canMergeFrom( other: StylesMap ): boolean {
+		for ( const key of other.getStyleNames() ) {
+			if ( this.has( key ) && this.getAsString( key ) !== other.getAsString( key ) ) {
+				return false;
+			}
 		}
+
+		return true;
+	}
+
+	/**
+	 * Used by {@link module:engine/view/element~ViewElement#_mergeAttributesFrom} to merge a given attribute into the attribute.
+	 *
+	 * This method is indirectly used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to merge it with other ViewAttributeElement.
+	 *
+	 * @internal
+	 */
+	public _mergeFrom( other: StylesMap ): void {
+		for ( const prop of other.getStyleNames() ) {
+			if ( !this.has( prop ) ) {
+				this.set( prop, other.getAsString( prop )! );
+			}
+		}
+	}
+
+	/**
+	 * Used by {@link module:engine/view/element~ViewElement#_canSubtractAttributesOf} to verify if the given attribute can be fully
+	 * subtracted from the attribute.
+	 *
+	 * This method is indirectly used by the {@link module:engine/view/downcastwriter~ViewDowncastWriter} while down-casting
+	 * an {@link module:engine/view/attributeelement~ViewAttributeElement} to unwrap the ViewAttributeElement.
+	 *
+	 * @internal
+	 */
+	public _isMatching( other: StylesMap ): boolean {
+		for ( const key of other.getStyleNames() ) {
+			if ( !this.has( key ) || this.getAsString( key ) !== other.getAsString( key ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
 
@@ -470,9 +638,9 @@ export default class StylesMap {
  * Style processor is responsible for writing and reading a normalized styles object.
  */
 export class StylesProcessor {
-	private readonly _normalizers: Map<string, Normalizer>;
-	private readonly _extractors: Map<string, Extractor>;
-	private readonly _reducers: Map<string, Reducer>;
+	private readonly _normalizers: Map<string, StylesNormalizer>;
+	private readonly _extractors: Map<string, StylesExtractor>;
+	private readonly _reducers: Map<string, StylesReducer>;
 	private readonly _consumables: Map<string, Array<string>>;
 
 	/**
@@ -543,7 +711,7 @@ export class StylesProcessor {
 	 * @param name Name of style property.
 	 * @param styles Object holding normalized styles.
 	 */
-	public getNormalized( name: string | undefined, styles: Styles ): StyleValue {
+	public getNormalized( name: string | undefined, styles: Styles ): StyleValue | undefined {
 		if ( !name ) {
 			return merge( {}, styles );
 		}
@@ -604,7 +772,7 @@ export class StylesProcessor {
 	 *
 	 * @param name Name of style property.
 	 */
-	public getReducedForm( name: string, styles: Styles ): Array<PropertyDescriptor> {
+	public getReducedForm( name: string, styles: Styles ): Array<StylePropertyDescriptor> {
 		const normalizedValue = this.getNormalized( name, styles );
 
 		// Might be empty string.
@@ -627,25 +795,24 @@ export class StylesProcessor {
 	 * @param styles Object holding normalized styles.
 	 */
 	public getStyleNames( styles: Styles ): Array<string> {
+		const styleNamesKeysSet = new Set<string>();
+
 		// Find all extractable styles that have a value.
-		const expandedStyleNames = Array.from( this._consumables.keys() ).filter( name => {
+		for ( const name of this._consumables.keys() ) {
 			const style = this.getNormalized( name, styles );
 
-			if ( style && typeof style == 'object' ) {
-				return Object.keys( style ).length;
+			if ( style && ( typeof style != 'object' || Object.keys( style ).length ) ) {
+				styleNamesKeysSet.add( name );
 			}
-
-			return style;
-		} );
+		}
 
 		// For simple styles (for example `color`) we don't have a map of those styles
 		// but they are 1 to 1 with normalized object keys.
-		const styleNamesKeysSet = new Set( [
-			...expandedStyleNames,
-			...Object.keys( styles )
-		] );
+		for ( const name of Object.keys( styles ) ) {
+			styleNamesKeysSet.add( name );
+		}
 
-		return Array.from( styleNamesKeysSet.values() );
+		return Array.from( styleNamesKeysSet );
 	}
 
 	/**
@@ -720,7 +887,7 @@ export class StylesProcessor {
 	 * } );
 	 * ```
 	 */
-	public setNormalizer( name: string, callback: Normalizer ): void {
+	public setNormalizer( name: string, callback: StylesNormalizer ): void {
 		this._normalizers.set( name, callback );
 	}
 
@@ -768,7 +935,7 @@ export class StylesProcessor {
 	 *
 	 * @param callbackOrPath Callback that return a requested value or path string for single values.
 	 */
-	public setExtractor( name: string, callbackOrPath: Extractor ): void {
+	public setExtractor( name: string, callbackOrPath: StylesExtractor ): void {
 		this._extractors.set( name, callbackOrPath );
 	}
 
@@ -808,7 +975,7 @@ export class StylesProcessor {
 	 * } );
 	 * ```
 	 */
-	public setReducer( name: string, callback: Reducer ): void {
+	public setReducer( name: string, callback: StylesReducer ): void {
 		this._reducers.set( name, callback );
 	}
 
@@ -945,7 +1112,9 @@ function toPath( name: string ): string {
 function appendStyleValue( stylesObject: Styles, nameOrPath: string, valueOrObject: StyleValue ) {
 	let valueToSet = valueOrObject;
 
-	if ( isObject( valueOrObject ) ) {
+	// We don't want to merge it with existing value when it's array. It's because some styles can be defined
+	// as array of layers (e.g. background-image) and in such case we want to override whole array instead of merging it with existing one.
+	if ( isObject( valueOrObject ) && !Array.isArray( valueOrObject ) ) {
 		valueToSet = merge( {}, get( stylesObject, nameOrPath ), valueOrObject );
 	}
 
@@ -953,7 +1122,29 @@ function appendStyleValue( stylesObject: Styles, nameOrPath: string, valueOrObje
 }
 
 /**
- * A CSS style property descriptor that contains tuplet of two strings:
+ * Modifies the `styles` deeply nested object by removing properties defined in `toRemove`.
+ */
+function removeStyles( styles: Styles, toRemove: Styles ) {
+	for ( const key of Object.keys( toRemove ) ) {
+		if (
+			styles[ key ] !== null &&
+			!Array.isArray( styles[ key ] ) &&
+			typeof styles[ key ] == 'object' &&
+			typeof toRemove[ key ] == 'object'
+		) {
+			removeStyles( styles[ key ] as Styles, toRemove[ key ] as Styles );
+
+			if ( !Object.keys( styles[ key ] ).length ) {
+				delete styles[ key ];
+			}
+		} else {
+			delete styles[ key ];
+		}
+	}
+}
+
+/**
+ * A CSS style property descriptor that contains tuple of two strings:
  *
  * - first string describes property name
  * - second string describes property value
@@ -963,7 +1154,7 @@ function appendStyleValue( stylesObject: Styles, nameOrPath: string, valueOrObje
  * const marginTopDescriptor = [ 'margin-top', '2px' ];
  * ```
  */
-export type PropertyDescriptor = [ name: string, value: string ];
+export type StylePropertyDescriptor = [ name: string, value: string ];
 
 /**
  * An object describing values associated with the sides of a box, for instance margins, paddings,
@@ -985,7 +1176,7 @@ export type PropertyDescriptor = [ name: string, value: string ];
  * };
  * ```
  */
-export type BoxSides = {
+export type BoxStyleSides = {
 
 	/**
 	 * Top side value.
@@ -1018,25 +1209,25 @@ export interface Styles {
 /**
  * The value of style.
  */
-export type StyleValue = string | Array<string> | Styles | BoxSides;
+export type StyleValue = string | Array<string> | Styles | BoxStyleSides;
 
 /**
  * A normalizer method for a style property.
  *
  * @see ~StylesProcessor#setNormalizer
  */
-export type Normalizer = ( name: string ) => { path: string; value: StyleValue };
+export type StylesNormalizer = ( name: string ) => { path: string; value: StyleValue };
 
 /**
  * An extractor callback for a style property or path string for single values.
  *
  * @see ~StylesProcessor#setExtractor
  */
-export type Extractor = string | ( ( name: string, styles: Styles ) => StyleValue | undefined );
+export type StylesExtractor = string | ( ( name: string, styles: Styles ) => StyleValue | undefined );
 
 /**
  * A reducer callback for a style property.
  *
  * @see ~StylesProcessor#setReducer
  */
-export type Reducer = ( value: StyleValue ) => Array<PropertyDescriptor>;
+export type StylesReducer = ( value: StyleValue ) => Array<StylePropertyDescriptor>;

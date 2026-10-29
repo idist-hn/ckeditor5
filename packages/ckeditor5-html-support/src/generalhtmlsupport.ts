@@ -1,31 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module html-support/generalhtmlsupport
  */
 
-import { Plugin } from 'ckeditor5/src/core';
-import { toArray, type ArrayOrItem } from 'ckeditor5/src/utils';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
+import { toArray, type ArrayOrItem } from '@ckeditor/ckeditor5-utils';
+import type { RemoveFormatCommand } from '@ckeditor/ckeditor5-remove-format';
 
-import DataFilter from './datafilter';
-import CodeBlockElementSupport from './integrations/codeblock';
-import DualContentModelElementSupport from './integrations/dualcontent';
-import HeadingElementSupport from './integrations/heading';
-import ImageElementSupport from './integrations/image';
-import MediaEmbedElementSupport from './integrations/mediaembed';
-import ScriptElementSupport from './integrations/script';
-import TableElementSupport from './integrations/table';
-import StyleElementSupport from './integrations/style';
-import DocumentListElementSupport from './integrations/documentlist';
-import CustomElementSupport from './integrations/customelement';
-import type { DataSchemaInlineElementDefinition } from './dataschema';
-import type { DocumentSelection, Item, Model, Range, Selectable } from 'ckeditor5/src/engine';
-import { getHtmlAttributeName, modifyGhsAttribute } from './utils';
+import { DataFilter } from './datafilter.js';
+import { CodeBlockElementSupport } from './integrations/codeblock.js';
+import { DualContentModelElementSupport } from './integrations/dualcontent.js';
+import { HeadingElementSupport } from './integrations/heading.js';
+import { ImageElementSupport } from './integrations/image.js';
+import { MediaEmbedElementSupport } from './integrations/mediaembed.js';
+import { ScriptElementSupport } from './integrations/script.js';
+import { TableElementSupport } from './integrations/table.js';
+import { StyleElementSupport } from './integrations/style.js';
+import { ListElementSupport } from './integrations/list.js';
+import { HorizontalLineElementSupport } from './integrations/horizontalline.js';
+import { IframeElementSupport } from './integrations/iframe.js';
+import { CustomElementSupport } from './integrations/customelement.js';
+import type { HtmlSupportDataSchemaInlineElementDefinition } from './dataschema.js';
+import type { ModelDocumentSelection, ModelItem, Model, ModelRange, ModelSelectable } from '@ckeditor/ckeditor5-engine';
+import { getHtmlAttributeName, modifyGhsAttribute, removeFormatting } from './utils.js';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { GeneralHtmlSupportConfig } from './generalhtmlsupportconfig';
+import type { GeneralHtmlSupportConfig } from './generalhtmlsupportconfig.js';
 
 /**
  * The General HTML Support feature.
@@ -33,7 +36,7 @@ import type { GeneralHtmlSupportConfig } from './generalhtmlsupportconfig';
  * This is a "glue" plugin which initializes the {@link module:html-support/datafilter~DataFilter data filter} configuration
  * and features integration with the General HTML Support.
  */
-export default class GeneralHtmlSupport extends Plugin {
+export class GeneralHtmlSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -44,7 +47,28 @@ export default class GeneralHtmlSupport extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[
+		DataFilter,
+		CodeBlockElementSupport,
+		DualContentModelElementSupport,
+		HeadingElementSupport,
+		ImageElementSupport,
+		MediaEmbedElementSupport,
+		ScriptElementSupport,
+		TableElementSupport,
+		StyleElementSupport,
+		ListElementSupport,
+		HorizontalLineElementSupport,
+		IframeElementSupport,
+		CustomElementSupport
+	]> {
 		return [
 			DataFilter,
 			CodeBlockElementSupport,
@@ -55,9 +79,11 @@ export default class GeneralHtmlSupport extends Plugin {
 			ScriptElementSupport,
 			TableElementSupport,
 			StyleElementSupport,
-			DocumentListElementSupport,
+			ListElementSupport,
+			HorizontalLineElementSupport,
+			IframeElementSupport,
 			CustomElementSupport
-		] as const;
+		];
 	}
 
 	/**
@@ -77,6 +103,18 @@ export default class GeneralHtmlSupport extends Plugin {
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public afterInit(): void {
+		const removeFormatCommand: RemoveFormatCommand | undefined = this.editor.commands.get( 'removeFormat' );
+
+		removeFormatCommand?.registerCustomAttribute(
+			attributeName => attributeName.startsWith( 'html' ) && attributeName.endsWith( 'Attributes' ),
+			removeFormatting
+		);
+	}
+
+	/**
 	 * Returns a GHS model attribute name related to a given view element name.
 	 *
 	 * @internal
@@ -87,7 +125,7 @@ export default class GeneralHtmlSupport extends Plugin {
 		const definitions = Array.from( dataSchema.getDefinitionsForView( viewElementName, false ) );
 
 		const inlineDefinition = definitions.find( definition => (
-			( definition as DataSchemaInlineElementDefinition ).isInline && !definitions[ 0 ].isObject
+			( definition as HtmlSupportDataSchemaInlineElementDefinition ).isInline && !definitions[ 0 ].isObject
 		) );
 
 		if ( inlineDefinition ) {
@@ -105,7 +143,7 @@ export default class GeneralHtmlSupport extends Plugin {
 	 * @param className The css class to add.
 	 * @param selectable The selection or element to update.
 	 */
-	public addModelHtmlClass( viewElementName: string, className: ArrayOrItem<string>, selectable: Selectable ): void {
+	public addModelHtmlClass( viewElementName: string, className: ArrayOrItem<string>, selectable: ModelSelectable ): void {
 		const model = this.editor.model;
 		const ghsAttributeName = this.getGhsAttributeNameForElement( viewElementName );
 
@@ -128,7 +166,7 @@ export default class GeneralHtmlSupport extends Plugin {
 	 * @param className The css class to remove.
 	 * @param selectable The selection or element to update.
 	 */
-	public removeModelHtmlClass( viewElementName: string, className: ArrayOrItem<string>, selectable: Selectable ): void {
+	public removeModelHtmlClass( viewElementName: string, className: ArrayOrItem<string>, selectable: ModelSelectable ): void {
 		const model = this.editor.model;
 		const ghsAttributeName = this.getGhsAttributeNameForElement( viewElementName );
 
@@ -150,7 +188,7 @@ export default class GeneralHtmlSupport extends Plugin {
 	 * @param attributes The object with attributes to set.
 	 * @param selectable The selection or element to update.
 	 */
-	private setModelHtmlAttributes( viewElementName: string, attributes: Record<string, unknown>, selectable: Selectable ) {
+	private setModelHtmlAttributes( viewElementName: string, attributes: Record<string, unknown>, selectable: ModelSelectable ) {
 		const model = this.editor.model;
 		const ghsAttributeName = this.getGhsAttributeNameForElement( viewElementName );
 
@@ -172,7 +210,7 @@ export default class GeneralHtmlSupport extends Plugin {
 	 * @param attributeName The attribute name (or names) to remove.
 	 * @param selectable The selection or element to update.
 	 */
-	private removeModelHtmlAttributes( viewElementName: string, attributeName: ArrayOrItem<string>, selectable: Selectable ) {
+	private removeModelHtmlAttributes( viewElementName: string, attributeName: ArrayOrItem<string>, selectable: ModelSelectable ) {
 		const model = this.editor.model;
 		const ghsAttributeName = this.getGhsAttributeNameForElement( viewElementName );
 
@@ -194,7 +232,7 @@ export default class GeneralHtmlSupport extends Plugin {
 	 * @param styles The object with styles to set.
 	 * @param selectable The selection or element to update.
 	 */
-	private setModelHtmlStyles( viewElementName: string, styles: Record<string, string>, selectable: Selectable ) {
+	private setModelHtmlStyles( viewElementName: string, styles: Record<string, string>, selectable: ModelSelectable ) {
 		const model = this.editor.model;
 		const ghsAttributeName = this.getGhsAttributeNameForElement( viewElementName );
 
@@ -216,7 +254,7 @@ export default class GeneralHtmlSupport extends Plugin {
 	 * @param properties The style (or styles list) to remove.
 	 * @param selectable The selection or element to update.
 	 */
-	private removeModelHtmlStyles( viewElementName: string, properties: ArrayOrItem<string>, selectable: Selectable ) {
+	private removeModelHtmlStyles( viewElementName: string, properties: ArrayOrItem<string>, selectable: ModelSelectable ) {
 		const model = this.editor.model;
 		const ghsAttributeName = this.getGhsAttributeNameForElement( viewElementName );
 
@@ -237,9 +275,9 @@ export default class GeneralHtmlSupport extends Plugin {
  */
 function* getItemsToUpdateGhsAttribute(
 	model: Model,
-	selectable: Selectable,
+	selectable: ModelSelectable,
 	ghsAttributeName: string
-): IterableIterator<Item | DocumentSelection> {
+): IterableIterator<ModelItem | ModelDocumentSelection> {
 	if ( !selectable ) {
 		return;
 	}
@@ -260,9 +298,9 @@ function* getItemsToUpdateGhsAttribute(
  */
 function getValidRangesForSelectable(
 	model: Model,
-	selectable: NonNullable<Selectable>,
+	selectable: NonNullable<ModelSelectable>,
 	ghsAttributeName: string
-): Iterable<Range> {
+): Iterable<ModelRange> {
 	if (
 		!( Symbol.iterator in selectable ) &&
 		(

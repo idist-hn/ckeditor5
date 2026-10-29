@@ -1,20 +1,20 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module link/linkconfig
  */
 
-import type { ArrayOrItem } from 'ckeditor5/src/utils';
+import type { ArrayOrItem } from '@ckeditor/ckeditor5-utils';
 
 /**
  * The configuration of the {@link module:link/link~Link link feature}.
  *
  * ```ts
  * ClassicEditor
- * 	.create( editorElement, {
+ * 	.create( {
  * 		link:  ... // Link feature configuration.
  * 	} )
  * 	.then( ... )
@@ -35,7 +35,7 @@ export interface LinkConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
 	 * 		link: {
 	 * 			defaultProtocol: 'http://'
 	 * 		}
@@ -49,12 +49,53 @@ export interface LinkConfig {
 	defaultProtocol?: string;
 
 	/**
+	 * This is a protocols whitelist that can be used in links, defined as an array of strings.
+	 * When not set, the editor will use a default list of allowed protocols.
+	 *
+	 * **Note:** Use this with caution and at your own risk - adding unsafe protocols like `javascript:`
+	 * can result in serious security vulnerabilities!
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( {
+	 * 		link: {
+	 * 			allowedProtocols: [ 'http', 'https', 'ftp', 'tel', 'mailto', 'ssh' ]
+	 * 		}
+	 * 	} )
+	 * 	.then( ... )
+	 * 	.catch( ... );
+	 * ```
+	 *
+	 */
+	allowedProtocols?: Array<string>;
+
+	/**
+	 * When set to `true`, the form will accept an empty value in the URL field, creating a link with an empty `href` (`<a href="">`).
+	 *
+	 * ```ts
+	 * ClassicEditor
+	 * 	.create( {
+	 * 		link: {
+	 * 			allowCreatingEmptyLinks: true
+	 * 		}
+	 * 	} )
+	 * 	.then( ... )
+	 * 	.catch( ... );
+	 * ```
+	 *
+	 * **NOTE:** This option only adds form validation. If a link with an empty `href` is loaded into the editor, it will be left as-is.
+	 *
+	 * @default false
+	 */
+	allowCreatingEmptyLinks?: boolean;
+
+	/**
 	 * When set to `true`, the `target="blank"` and `rel="noopener noreferrer"` attributes are automatically added to all external links
 	 * in the editor. "External links" are all links in the editor content starting with `http`, `https`, or `//`.
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
 	 * 		link: {
 	 * 			addTargetToExternalLinks: true
 	 * 		}
@@ -70,6 +111,10 @@ export interface LinkConfig {
 	 * {@link module:link/linkconfig~LinkDecoratorManualDefinition manual} decorator must be defined in the
 	 * {@link module:link/linkconfig~LinkConfig#decorators `config.link.decorators`} array. In such scenario,
 	 * the `config.link.addTargetToExternalLinks` option should remain `undefined` or `false` to not interfere with the manual decorator.
+	 *
+	 * **Note**: If a manual decorator that handles the `target` attribute is already defined in the
+	 * {@link module:link/linkconfig~LinkConfig#decorators `config.link.decorators`} array, the automatic decorator
+	 * will be overridden by the manual decorator, but only when the manual decorator is activated for the given link.
 	 *
 	 * It is possible to add other {@link module:link/linkconfig~LinkDecoratorAutomaticDefinition automatic}
 	 * or {@link module:link/linkconfig~LinkDecoratorManualDefinition manual} link decorators when this option is active.
@@ -98,7 +143,7 @@ export interface LinkConfig {
 	 *
 	 * ```ts
 	 * ClassicEditor
-	 * 	.create( editorElement, {
+	 * 	.create( {
 	 * 		link: {
 	 * 			decorators: {
 	 * 				isExternal: {
@@ -139,6 +184,35 @@ export interface LinkConfig {
 	 * See also the {@glink features/link#custom-link-attributes-decorators link feature guide} for more information.
 	 */
 	decorators?: Record<string, LinkDecoratorDefinition>;
+
+	/**
+	 * Items to be placed in the link contextual toolbar.
+	 *
+	 * Assuming that you use the {@link module:link/linkui~LinkUI} feature, the following toolbar items will be available
+	 * in {@link module:ui/componentfactory~ComponentFactory}:
+	 *
+	 * * `'linkPreview'`,
+	 * * `'editLink'`,
+	 * * `'linkProperties'`
+	 * * `'unlink'`.
+	 *
+	 * The default configuration for link toolbar is:
+	 *
+	 * ```ts
+	 * const linkConfig = {
+	 * 	toolbar: [ 'linkPreview', '|', 'editLink', 'linkProperties', 'unlink' ]
+	 * };
+	 * ```
+	 *
+	 * The `linkProperties` toolbar item is only available when at least one manual decorator is defined in the
+	 * {@link module:link/linkconfig~LinkConfig#decorators decorators configuration}.
+	 *
+	 * Of course, the same buttons can also be used in the
+	 * {@link module:core/editor/editorconfig~EditorConfig#toolbar main editor toolbar}.
+	 *
+	 * Read more about configuring the toolbar in {@link module:core/editor/editorconfig~EditorConfig#toolbar}.
+	 */
+	toolbar?: Array<string>;
 }
 
 /**
@@ -172,6 +246,10 @@ export type LinkDecoratorDefinition = LinkDecoratorAutomaticDefinition | LinkDec
  * }
  * ```
  *
+ * **Note**: If there is a conflict between the active manual decorator and automatic decorator
+ * (e.g. both try to manage the same attribute), the manual decorator takes precedence and the automatic
+ * one is ignored. It's also highly discouraged to have multiple automatic decorators managing the same attribute.
+ *
  * **Note**: Since the `target` attribute management for external links is a common use case, there is a predefined automatic decorator
  * dedicated for that purpose that can be enabled by turning a single option on. Check out the
  * {@link module:link/linkconfig~LinkConfig#addTargetToExternalLinks `config.link.addTargetToExternalLinks`}
@@ -192,21 +270,21 @@ export interface LinkDecoratorAutomaticDefinition {
 	/**
 	 * Key-value pairs used as link attributes added to the output during the
 	 * {@glink framework/architecture/editing-engine#conversion downcasting}.
-	 * Attributes should follow the {@link module:engine/view/elementdefinition~ElementDefinition} syntax.
+	 * Attributes should follow the {@link module:engine/view/elementdefinition~ViewElementDefinition} syntax.
 	 */
 	attributes?: Record<string, string>;
 
 	/**
 	 * Key-value pairs used as link styles added to the output during the
 	 * {@glink framework/architecture/editing-engine#conversion downcasting}.
-	 * Styles should follow the {@link module:engine/view/elementdefinition~ElementDefinition} syntax.
+	 * Styles should follow the {@link module:engine/view/elementdefinition~ViewElementDefinition} syntax.
 	 */
 	styles?: Record<string, string>;
 
 	/**
 	 * Class names used as link classes added to the output during the
 	 * {@glink framework/architecture/editing-engine#conversion downcasting}.
-	 * Classes should follow the {@link module:engine/view/elementdefinition~ElementDefinition} syntax.
+	 * Classes should follow the {@link module:engine/view/elementdefinition~ViewElementDefinition} syntax.
  	 */
 	classes?: ArrayOrItem<string>;
 }
@@ -246,21 +324,21 @@ export interface LinkDecoratorManualDefinition {
 	/**
 	 * Key-value pairs used as link attributes added to the output during the
 	 * {@glink framework/architecture/editing-engine#conversion downcasting}.
-	 * Attributes should follow the {@link module:engine/view/elementdefinition~ElementDefinition} syntax.
+	 * Attributes should follow the {@link module:engine/view/elementdefinition~ViewElementDefinition} syntax.
 	 */
 	attributes?: Record<string, string>;
 
 	/**
 	 * Key-value pairs used as link styles added to the output during the
 	 * {@glink framework/architecture/editing-engine#conversion downcasting}.
-	 * Styles should follow the {@link module:engine/view/elementdefinition~ElementDefinition} syntax.
+	 * Styles should follow the {@link module:engine/view/elementdefinition~ViewElementDefinition} syntax.
 	 */
 	styles?: Record<string, string>;
 
 	/**
 	 * Class names used as link classes added to the output during the
 	 * {@glink framework/architecture/editing-engine#conversion downcasting}.
-	 * Classes should follow the {@link module:engine/view/elementdefinition~ElementDefinition} syntax.
+	 * Classes should follow the {@link module:engine/view/elementdefinition~ViewElementDefinition} syntax.
 	 */
 	classes?: ArrayOrItem<string>;
 

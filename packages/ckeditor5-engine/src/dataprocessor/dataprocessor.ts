@@ -1,20 +1,21 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module engine/dataprocessor/dataprocessor
  */
 
-import type ViewDocumentFragment from '../view/documentfragment';
-import type { MatcherPattern } from '../view/matcher';
+import { type ViewDocumentFragment } from '../view/documentfragment.js';
+import type { MatcherPattern } from '../view/matcher.js';
 
 /**
  * The data processor interface. It should be implemented by actual data processors.
  *
  * Each data processor implements a certain format of the data. For example, {@glink features/markdown Markdown data processor}
- * will convert the data (a Markdown string) to a {@link module:engine/view/documentfragment~DocumentFragment document fragment} and back.
+ * will convert the data (a Markdown string) to a {@link module:engine/view/documentfragment~ViewDocumentFragment document fragment}
+ * and back.
  *
  * **Note:** While the CKEditor 5 architecture supports changing the data format, in most scenarios we do recommend sticking to
  * the default format which is HTML (supported by the {@link module:engine/dataprocessor/htmldataprocessor~HtmlDataProcessor}).
@@ -23,17 +24,17 @@ import type { MatcherPattern } from '../view/matcher';
  * And please do remember – using Markdown [does not automatically make your
  * application/website secure](https://github.com/ckeditor/ckeditor5-markdown-gfm/issues/16#issuecomment-375752994).
  */
-export default interface DataProcessor {
+export interface DataProcessor {
 
 	/**
-	 * Converts a {@link module:engine/view/documentfragment~DocumentFragment document fragment} to data.
+	 * Converts a {@link module:engine/view/documentfragment~ViewDocumentFragment document fragment} to data.
 	 *
 	 * @param viewFragment The document fragment to be processed.
 	 */
 	toData( viewFragment: ViewDocumentFragment ): string;
 
 	/**
-	 * Converts the data to a {@link module:engine/view/documentfragment~DocumentFragment document fragment}.
+	 * Converts the data to a {@link module:engine/view/documentfragment~ViewDocumentFragment document fragment}.
 	 *
 	 * @param data The data to be processed.
 	 */
@@ -42,7 +43,7 @@ export default interface DataProcessor {
 	/**
 	 * Registers a {@link module:engine/view/matcher~MatcherPattern} for view elements whose content should be treated as raw data
 	 * and its content should be converted to a
-	 * {@link module:engine/view/element~Element#getCustomProperty custom property of a view element} called `"$rawContent"` while
+	 * {@link module:engine/view/element~ViewElement#getCustomProperty custom property of a view element} called `"$rawContent"` while
 	 * converting {@link #toView to view}.
 	 *
 	 * @param pattern Pattern matching all view elements whose content should be treated as plain text.
@@ -66,4 +67,10 @@ export default interface DataProcessor {
 	 * If `false`, comment nodes will be converted to `$comment`. Otherwise comment nodes are ignored.
 	 */
 	skipComments?: boolean;
+
+	/**
+	 * If `false`, processing instruction nodes (for example `<?target data?>`) will be converted.
+	 * Otherwise, processing instruction nodes are ignored.
+	 */
+	skipProcessingInstructions?: boolean;
 }

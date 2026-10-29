@@ -1,6 +1,6 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
@@ -16,7 +16,7 @@ import {
 } from '@ckeditor/ckeditor5-utils';
 import {
 	BubblingEventInfo,
-	DomEventData,
+	ViewDocumentDomEventData,
 	Observer,
 	type BubblingEvent,
 	type ViewDocumentInputEvent,
@@ -25,7 +25,7 @@ import {
 	type ViewDocumentSelection,
 	type ViewSelection,
 	type ViewRange,
-	type View
+	type EditingView
 } from '@ckeditor/ckeditor5-engine';
 
 const DELETE_CHARACTER = 'character';
@@ -125,13 +125,15 @@ const DELETE_EVENT_TYPES: Record<string, DeleteEventSpec> = {
 };
 
 /**
- * Delete observer introduces the {@link module:engine/view/document~Document#event:delete} event.
+ * Delete observer introduces the {@link module:engine/view/document~ViewDocument#event:delete} event.
+ *
+ * @internal
  */
-export default class DeleteObserver extends Observer {
+export class DeleteObserver extends Observer {
 	/**
 	 * @inheritDoc
 	 */
-	constructor( view: View ) {
+	constructor( view: EditingView ) {
 		super( view );
 
 		const document = view.document;
@@ -191,7 +193,7 @@ export default class DeleteObserver extends Observer {
 
 			const eventInfo = new BubblingEventInfo( document, 'delete', targetRanges[ 0 ] );
 
-			document.fire( eventInfo, new DomEventData( view, domEvent, deleteData ) );
+			document.fire( eventInfo, new ViewDocumentDomEventData( view, domEvent, deleteData ) );
 
 			// Stop the beforeinput event if `delete` event was stopped.
 			// https://github.com/ckeditor/ckeditor5/issues/753
@@ -223,7 +225,7 @@ export default class DeleteObserver extends Observer {
  * Note: This event is fired by the {@link module:typing/deleteobserver~DeleteObserver delete observer}
  * (usually registered by the {@link module:typing/delete~Delete delete feature}).
  *
- * @eventName module:engine/view/document~Document#delete
+ * @eventName module:engine/view/document~ViewDocument#delete
  * @param data The event data.
  */
 export type ViewDocumentDeleteEvent = BubblingEvent<{
@@ -231,7 +233,7 @@ export type ViewDocumentDeleteEvent = BubblingEvent<{
 	args: [ data: DeleteEventData ];
 }>;
 
-export interface DeleteEventData extends DomEventData<InputEvent> {
+export interface DeleteEventData extends ViewDocumentDomEventData<InputEvent> {
 
 	/**
 	 * The direction in which the deletion should happen.
@@ -290,7 +292,7 @@ function enableChromeWorkaround( observer: DeleteObserver ) {
 				selectionToRemove: selection
 			};
 
-			document.fire( eventInfo, new DomEventData( view, domEvent, deleteData ) );
+			document.fire( eventInfo, new ViewDocumentDomEventData( view, domEvent, deleteData ) );
 		}
 	} );
 
@@ -342,11 +344,8 @@ function shouldUseTargetRanges( targetRanges: Array<ViewRange> ): boolean {
 
 	let count = 0;
 
-	for ( const { nextPosition } of walker ) {
-		// There is some element in the range so count it as a single character.
-		if ( !nextPosition.parent.is( '$text' ) ) {
-			count++;
-		} else {
+	for ( const { nextPosition, item } of walker ) {
+		if ( nextPosition.parent.is( '$text' ) ) {
 			const data = nextPosition.parent.data;
 			const offset = nextPosition.offset;
 
@@ -359,6 +358,8 @@ function shouldUseTargetRanges( targetRanges: Array<ViewRange> ): boolean {
 				continue;
 			}
 
+			count++;
+		} else if ( item.is( 'containerElement' ) || item.is( 'emptyElement' ) ) {
 			count++;
 		}
 

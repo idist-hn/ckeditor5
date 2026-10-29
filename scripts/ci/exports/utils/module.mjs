@@ -1,0 +1,851 @@
+/**
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
+ */
+
+import parser from '@babel/parser';
+import traverse from '@babel/traverse';
+import fs from 'node:fs';
+import upath from 'upath';
+import { Export } from './export.mjs';
+import { Import } from './import.mjs';
+import { Declaration } from './declaration.mjs';
+import { ExternalModule } from './externalmodule.mjs';
+import { isInternalNode, packageNameFromFileName } from './misc.mjs';
+import { createExportResolutionError } from './errorutils.mjs';
+import { globSync } from 'glob';
+import { CKEDITOR5_ROOT_PATH } from '../../../constants.mjs';
+import { PACKAGES_DIRECTORY } from '../../../release/utils/constants.mjs';
+
+// The trailing `/` is important to mark the end of a package name.
+const PUBLIC_PACKAGES = globSync( `${ PACKAGES_DIRECTORY }/*/`, {
+	cwd: CKEDITOR5_ROOT_PATH,
+	mark: true,
+	absolute: true
+} ).map( upath.normalize );
+
+export class Module {
+	static load( fileName, errorCollector ) {
+		const data = fs.readFileSync( fileName, 'utf8' );
+
+		const ast = parser.parse( data, {
+			sourceType: 'module',
+			sourceFilename: fileName,
+			ranges: true,
+			plugins: [ 'typescript' ]
+		} );
+
+		return new Module( fileName, ast, {
+			publicApiTag: data.includes( ' * @publicApi' )
+		}, errorCollector );
+	}
+
+	constructor( fileName, ast, { publicApiTag }, errorCollector ) {
+		this.fileName = fileName.replace( /\.d\.ts$/, '.ts' );
+		this.isPublicPackage = this._isFromPublicPackages( fileName );
+		this.isPublicApi = this.isPublicPackage || this.relativeFileName === 'index.ts' ? true : publicApiTag;
+		this.exports = [];
+		this.imports = [];
+		this.declarations = [];
+		this.augmentations = [];
+		this.errorCollector = errorCollector;
+
+		// Collecting all generic type parameters in the module as a shortcut to ignore them later.
+		// If we don't do this, we will have to check every time if the reference is a type parameter.
+		// It is a bit of a shortcut as type parameters exist in the given declaration context only.
+		const typeParameters = [];
+
+		traverse.default( ast, {
+			ExportNamedDeclaration: ( { node } ) => {
+				if ( node.declaration ) {
+					// Ignore TSDeclareFunction for now as it is a different signature of the same function from FunctionDeclaration.
+					if ( node.declaration.type === 'TSDeclareFunction' ) {
+						return;
+					}
+
+					if ( node.declaration.id ) {
+						this.exports.push( Export.create( {
+							name: node.declaration.id.name,
+							localName: node.declaration.id.name,
+							node,
+							fileName
+						} ) );
+					}
+					else if ( node.declaration.type === 'VariableDeclaration' ) {
+						for ( const declaration of node.declaration.declarations ) {
+							this.exports.push( Export.create( {
+								name: declaration.id.name,
+								localName: declaration.id.name,
+								node, // TODO more specific node?
+								fileName
+							} ) );
+						}
+					}
+					else {
+						throw new Error( 'Unknown AST export node' );
+					}
+				} else {
+					// export type { Marker };
+					// export { Marker, Foo as bar, Baz as default };
+					// or when `source` is set:
+					// export ... from ...; export * as ... from ...;
+					for ( const specifier of node.specifiers ) {
+						this.exports.push( Export.create( {
+							name: specifier.exported.name,
+							localName: specifier.local ? specifier.local.name : '*',
+							exportKind: node.exportKind === 'type' ? 'type' : specifier.exportKind,
+							node,
+							type: specifier.local?.type === 'Identifier' ? 'identifier' : '',
+							fileName,
+							importFrom: node.source ? node.source.value : undefined
+						} ) );
+					}
+				}
+			},
+
+			ExportDefaultDeclaration: ( { node } ) => {
+				// Ignore TSDeclareFunction for now as it is a different signature of the same function from FunctionDeclaration.
+				if ( node.declaration.type === 'TSDeclareFunction' ) {
+					return;
+				}
+
+				if ( node.declaration.id ) {
+					// export default class foo {}
+					// export default function foo() {}
+					this.exports.push( Export.create( {
+						name: 'default',
+						localName: node.declaration.id.name,
+						node,
+						fileName
+					} ) );
+				} else {
+					// export default foo;
+					// export default class {}
+					// export default { foo: 2 }
+					this.exports.push( Export.create( {
+						name: 'default',
+						localName: node.declaration.name || '<default>',
+						node,
+						fileName
+					} ) );
+
+					if ( !node.declaration.name ) {
+						this.declarations.push( Declaration.create( {
+							localName: '<default>',
+							type: '',
+							node
+						} ) );
+					}
+				}
+			},
+
+			ExportAllDeclaration: ( { node } ) => {
+				this.exports.push( Export.create( {
+					name: '*',
+					localName: '',
+					node,
+					fileName,
+					importFrom: node.source ? node.source.value : undefined
+				} ) );
+			},
+
+			ImportDeclaration: ( { node } ) => {
+				// import '../theme/blockquote.css'
+				// if ( node.specifiers.length === 0 && !node.source.value.endsWith( '.css' ) ) {
+				// 	// TODO fix augmentation.ts files to import only from index.ts
+				// 	// TODO remove unnecessary: import './mediaembedconfig.js'; etc
+				// 	console.warn( 'Specifier not found ' + node.source.value + ' ' + this.relativeFileName + '#' + node.loc.start.line );
+				// }
+
+				for ( const specifier of node.specifiers ) {
+					// import ViewText from './text.js'
+					if ( specifier.type === 'ImportDefaultSpecifier' ) {
+						this.imports.push( Import.create( {
+							name: 'default',
+							localName: specifier.local.name,
+							importFrom: node.source.value,
+							importKind: specifier.importKind,
+							// node.assertions ???
+							node,
+							fileName
+						} ) );
+					}
+					else if ( specifier.type === 'ImportSpecifier' ) {
+						// import { default as Matcher, type MatcherPattern } from './matcher.js';
+						if ( specifier.imported.type === 'Identifier' ) {
+							this.imports.push( Import.create( {
+								name: specifier.imported.name,
+								localName: specifier.local.name,
+								importKind: specifier.importKind,
+								importFrom: node.source.value,
+								// node.assertions ???
+								node,
+								fileName
+							} ) );
+						}
+						else {
+							throw new Error( 'Unknown AST import specifier:' + specifier.imported );
+						}
+					}
+					else if ( specifier.type === 'ImportNamespaceSpecifier' ) {
+						// import * as foo from './bar.js'
+						this.imports.push( Import.create( {
+							name: '*',
+							localName: specifier.local.name,
+							importKind: specifier.importKind,
+							importFrom: node.source.value,
+							// node.assertions ???
+							node,
+							fileName
+						} ) );
+					}
+					else {
+						throw new Error( 'Unknown AST import specifier:' + specifier.type + ' ' +
+							this.relativeFileName + '#' + node.loc.start.line
+						);
+					}
+				}
+			},
+
+			// Ignore body-s of functions, methods, etc.
+			BlockStatement: path => {
+				path.skip();
+			},
+
+			'ClassMethod|ClassProperty': path => {
+				if ( path.node.accessibility === 'private' ) {
+					path.skip();
+				}
+			},
+
+			TSTypeParameter: ( { node } ) => {
+				typeParameters.push( node.name );
+			},
+
+			Declaration: path => {
+				const { node } = path;
+
+				// Handled separately.
+				if ( path.isExportDeclaration() || path.isImportDeclaration() ) {
+					return;
+				}
+
+				// Skip `declare module '...' { ... }` and `declare global { ... }`
+				// except for augmentations for '@ckeditor/ckeditor5-core'.
+				// as it currently does not affect export results.
+				if ( path.isTSModuleDeclaration() ) {
+					// Process module declarations, specifically handling augmentations for @ckeditor/ckeditor5-core.
+					if ( node.id.type === 'StringLiteral' && node.id.value === '@ckeditor/ckeditor5-core' ) {
+						// Process declarations inside the module augmentation.
+						path.traverse( {
+							TSInterfaceDeclaration: interfacePath => {
+								// Add the augmented interface itself to augmentations and declarations.
+								const declaration = Declaration.create( {
+									localName: interfacePath.node.id.name,
+									type: 'TSInterfaceDeclaration',
+									node: interfacePath.node,
+									internal: false
+								} );
+
+								declaration.isAugmentation = true;
+								this.augmentations.push( declaration );
+								this.declarations.push( declaration );
+							}
+						} );
+					} else {
+						// Skip other module declarations (declare global, etc.).
+						path.skip();
+					}
+					return;
+				}
+
+				if ( path.isVariableDeclaration() ) {
+					if ( path.parentPath.isProgram() || path.parentPath.isExportDeclaration() ) {
+						for ( const declarator of path.node.declarations ) {
+							this.declarations.push( Declaration.create( {
+								localName: declarator.id.name,
+								type: 'var',
+								node,
+								mixinBaseHelperCandidate: isMixinBaseHelperCandidate( declarator )
+							} ) );
+						}
+					} else if ( !path.parentPath.isBlockParent() ) {
+						// Ignore variable declarations in the body of functions, classes, for-of loops, etc. but warn about other cases.
+						console.warn( 'Ignored variable declaration', node.loc.filename, node.loc.start.line );
+					}
+
+					return;
+				}
+
+				if ( node.id.type !== 'Identifier' ) {
+					console.warn( 'No node identifier', node.loc.start.line, node.loc.start.column );
+					return;
+				}
+
+				const declaration = Declaration.create( {
+					localName: node.id.name,
+					type: node.type,
+					internal: !this.isPublicApi || !!path.findParent( path => isInternalNode( path.node ) ),
+					node
+				} );
+
+				this.declarations.push( declaration );
+
+				// As the declaration is traversed before its type parameters.
+				if ( node.typeParameters ) {
+					path.traverse( {
+						TSTypeParameter: ( { node } ) => {
+							typeParameters.push( node.name );
+						}
+					} );
+				}
+
+				// For class.
+				if ( node.superClass ) {
+					const superClassPath = path.get( 'superClass' );
+					const baseClasses = [];
+
+					if ( superClassPath.isIdentifier() ) {
+						const superClassName = superClassPath.node.name;
+
+						baseClasses.push( superClassName );
+						declaration.addReference( superClassName, typeParameters );
+					} else {
+						superClassPath.traverse( {
+							Identifier: path => {
+								const superClassName = path.node.name;
+
+								baseClasses.push( superClassName );
+								declaration.addReference( superClassName, typeParameters );
+							}
+						} );
+					}
+
+					// Store the base classes chain.
+					declaration.baseClasses = baseClasses;
+				}
+
+				// For class.
+				if ( node.implements ) {
+					path.get( 'implements' ).forEach( item => item.traverse( {
+						TSTypeReference: path => {
+							declaration.addReference( path.node.typeName.name, typeParameters );
+							path.skip();
+						},
+						Identifier: path => {
+							declaration.addReference( path.node.name, typeParameters );
+						}
+					} ) );
+				}
+
+				// For class.
+				//
+				// `static get requires()` leaks plugin dependencies into generated declaration files as
+				// `readonly [ typeof Foo, ... ]`. If `Foo` is marked as `@internal`, declaration emit with
+				// `stripInternal` removes `Foo` and breaks downstream type checking.
+				if ( path.isClassDeclaration() ) {
+					this._collectClassRequiresReferences( path, declaration, typeParameters );
+				}
+
+				// For interface.
+				if ( node.extends ) {
+					path.get( 'extends' ).forEach( item => item.traverse( {
+						Identifier: path => {
+							declaration.addReference( path.node.name, typeParameters );
+						}
+					} ) );
+				}
+			},
+
+			TSTypeReference: path => {
+				const { node } = path;
+
+				// Ignore references from internal nodes.
+				if ( path.findParent( path => isInternalNode( path.node ) ) ) {
+					return;
+				}
+
+				// Attribution failures below throw immediately instead of going through `errorCollector`,
+				// because continuing on an incomplete reference graph would produce misleading downstream errors.
+				if ( node.typeName.type === 'Identifier' || node.typeName.type === 'TSQualifiedName' ) {
+					const parentPath = path.findParent( path => path.isDeclaration() || path.isVariableDeclarator() );
+					let declarationName;
+
+					if ( parentPath ) {
+						if ( parentPath.node.id && parentPath.node.id.type !== 'Identifier' ) {
+							throw createTypeReferenceOwnerError( {
+								fileName: this.fileName,
+								node,
+								reason: `The owning declaration uses an unsupported ${ parentPath.node.id.type } identifier.`
+							} );
+						}
+
+						declarationName = parentPath.node.id ? parentPath.node.id.name : '<default>';
+					} else {
+						declarationName = getAssignedDeclarationName( path );
+					}
+
+					const declaration = this.declarations.find( ( { localName } ) => localName === declarationName );
+
+					if ( !declaration ) {
+						const reason = declarationName ?
+							`The inferred owner was "${ declarationName }", but no matching module-level declaration was found.` :
+							'The type reference is not inside a supported declaration or property assignment.';
+
+						throw createTypeReferenceOwnerError( { fileName: this.fileName, node, reason } );
+					}
+
+					declaration.addReference( node.typeName, typeParameters );
+				} else {
+					throw new Error(
+						`Unsupported ${ node.typeName.type } type reference at ` +
+						`${ this.fileName }:${ node.loc.start.line }:${ node.loc.start.column }.`
+					);
+				}
+			}
+		} );
+
+		this._markMixinBaseHelpers();
+	}
+
+	_markMixinBaseHelpers() {
+		for ( const declaration of this.declarations.filter( declaration => declaration.mixinBaseHelperCandidate ) ) {
+			const references = this.declarations
+				.filter( item => item !== declaration )
+				.flatMap( item => item.references )
+				.filter( reference => reference === declaration.localName );
+
+			const extendingClasses = this.declarations
+				.filter( item => item.type === 'class' )
+				.filter( item => item.baseClasses.includes( declaration.localName ) );
+
+			declaration.isMixinBaseHelper = references.length === 1 && extendingClasses.length === 1;
+		}
+	}
+
+	_collectClassRequiresReferences( classPath, declaration, typeParameters ) {
+		for ( const memberPath of classPath.get( 'body.body' ) ) {
+			if ( !memberPath.node.static || !isRequiresClassMember( memberPath.node ) ) {
+				continue;
+			}
+
+			if ( memberPath.isClassMethod() ) {
+				if ( memberPath.node.kind !== 'get' ) {
+					continue;
+				}
+
+				this._collectReferencedIdentifiers( {
+					path: memberPath.get( 'body' ),
+					declaration,
+					typeParameters,
+					localScope: memberPath.scope
+				} );
+			}
+
+			if ( memberPath.isClassProperty() && memberPath.get( 'value' ).node ) {
+				this._collectReferencedIdentifiers( {
+					path: memberPath.get( 'value' ),
+					declaration,
+					typeParameters,
+					localScope: memberPath.scope
+				} );
+			}
+		}
+	}
+
+	_collectReferencedIdentifiers( { path, declaration, typeParameters, localScope } ) {
+		path.traverse( {
+			Identifier: identifierPath => {
+				if ( !identifierPath.isReferencedIdentifier() ) {
+					return;
+				}
+
+				const identifierName = identifierPath.node.name;
+				const binding = identifierPath.scope.getBinding( identifierName );
+
+				// Ignore globals and names scoped inside the current class member.
+				if ( !binding || binding.scope === localScope ) {
+					return;
+				}
+
+				declaration.addReference( identifierName, typeParameters );
+			}
+		} );
+	}
+
+	_isFromPublicPackages( fileName ) {
+		// Checking if the file belongs to the public package.
+		return PUBLIC_PACKAGES.some( publicPackagePath => fileName.startsWith( publicPackagePath ) );
+	}
+
+	resolveImportsExports( packages, modules ) {
+		// Resolve modules referenced by `import x from y` and `export x from y`.
+		const resolveModuleImport = item => {
+			if ( typeof item.importFrom == 'string' ) {
+				const importFrom = this.resolvePath( item.importFrom, packages );
+
+				const otherModule = importFrom ?
+					modules.find( module => module.fileName === importFrom ) :
+					new ExternalModule( item.importFrom );
+
+				return item.resolveImport( otherModule );
+			} else {
+				return [ item ];
+			}
+		};
+
+		this.exports = this.exports.flatMap( resolveModuleImport );
+		this.imports = this.imports.flatMap( resolveModuleImport );
+	}
+
+	resolveReferences() {
+		// Import references.
+		for ( const importItem of this.imports ) {
+			importItem.references = this._findImportReference( importItem.importFrom, importItem.name );
+		}
+
+		for ( const declarationItem of this.declarations ) {
+			declarationItem.references = [
+				// Replace names of references with objects.
+				...declarationItem.references.flatMap( referenceName => this._findReference( referenceName ) ),
+
+				// Find exports related to the given declaration as it could be referenced by other declarations in the same module.
+				...this.exports.filter( exportItem => exportItem.localName === declarationItem.localName )
+			];
+
+			// Recursively resolve base classes.
+			const resolveBaseClasses = ( declaration, visited = new Set() ) => {
+				if ( !declaration.baseClasses || visited.has( declaration ) ) {
+					return [];
+				}
+
+				visited.add( declaration );
+				const allBaseClasses = [ ...declaration.baseClasses ];
+
+				for ( const baseClassName of declaration.baseClasses ) {
+					// Find the base class declaration through references.
+					for ( const ref of declaration.references ) {
+						let targetDeclaration;
+
+						if ( ref instanceof Import ) {
+							// If it's an import, follow its references to find the target declaration.
+							for ( const exportRef of ref.references || [] ) {
+								for ( const declRef of exportRef.references || [] ) {
+									if ( declRef instanceof Declaration && declRef.localName === baseClassName ) {
+										targetDeclaration = declRef;
+										break;
+									}
+								}
+								if ( targetDeclaration ) {
+									break;
+								}
+							}
+						} else if ( ref instanceof Declaration ) {
+							targetDeclaration = ref;
+						}
+
+						if ( targetDeclaration && targetDeclaration.localName === baseClassName ) {
+							// Recursively get base classes of the base class.
+							const inheritedBaseClasses = resolveBaseClasses( targetDeclaration, visited );
+
+							allBaseClasses.push( ...inheritedBaseClasses );
+							break;
+						}
+					}
+				}
+
+				return allBaseClasses;
+			};
+
+			// Update baseClasses with all inherited base classes.
+			if ( declarationItem.baseClasses ) {
+				declarationItem.baseClasses = resolveBaseClasses( declarationItem );
+			}
+		}
+
+		// Link exports with declarations of exported stuff.
+		for ( const exportItem of this.exports ) {
+			const references = exportItem.importFrom ?
+				this._findImportReference( exportItem.importFrom, exportItem.localName ) :
+				this._findReference( exportItem.localName );
+
+			if ( !references || !references.length ) {
+				const context = {
+					fileName: this.fileName,
+					exportName: exportItem.name,
+					isExternalModule: exportItem.importFrom instanceof ExternalModule,
+					exportKind: exportItem.exportKind
+				};
+
+				const exportResolutionError = createExportResolutionError( context );
+
+				this.errorCollector.addError( exportResolutionError );
+			}
+
+			exportItem.references = references;
+		}
+	}
+
+	_findReference( referenceName ) {
+		const reference =
+			this.declarations.find( declaration => declaration.localName === referenceName ) ||
+			this.imports.find( importItem => importItem.localName === referenceName );
+
+		if ( !reference ) {
+			if ( Module.ignoredStdTypes.includes( referenceName ) ) {
+				return [];
+			}
+
+			// Collect unknown type references to add later to Module.ignoredStdTypes list if confirmed that are global declarations.
+			Module.unknownReferences.add( referenceName );
+
+			return [];
+		}
+
+		return [ reference ];
+	}
+
+	_findImportReference( importFrom, referenceName ) {
+		if ( !importFrom ) {
+			return [];
+		}
+
+		if ( importFrom instanceof ExternalModule ) {
+			return [];
+		}
+
+		// For `export * as ... from ...`;
+		if ( referenceName === '*' ) {
+			return importFrom.exports;
+		}
+
+		const reference = importFrom.exports.find( exportItem => exportItem.name === referenceName );
+
+		if ( !reference ) {
+			const context = {
+				fileName: this.fileName,
+				exportName: referenceName,
+				isExternalModule: false,
+				exportKind: importFrom.exportKind
+			};
+
+			const importReferenceError = createExportResolutionError( context );
+
+			this.errorCollector.addError( importReferenceError );
+
+			return [];
+		}
+
+		return [ reference ];
+	}
+
+	get packageName() {
+		const packageName = packageNameFromFileName( this.fileName );
+
+		if ( !packageName ) {
+			throw new Error( `Cannot determine package name for: ${ this.fileName }` );
+		}
+
+		return packageName;
+	}
+
+	get relativeFileName() {
+		return this.fileName.replace( /.+\/src\//, '' );
+	}
+
+	resolvePath( fileName, packages ) {
+		if ( fileName.startsWith( '/' ) ) {
+			return fileName;
+		}
+
+		if ( fileName.startsWith( '.' ) ) {
+			return upath.join( upath.dirname( this.fileName ), fileName.replace( /\.js$/, '.ts' ) );
+		}
+
+		for ( const pkg of packages.values() ) {
+			if ( normalizeModuleAlias( fileName ) === pkg.packageName ) {
+				return upath.join( pkg.dirName, '/src/index.ts' );
+			}
+		}
+
+		return null;
+	}
+
+	static ignoredStdTypes = [
+		'AbortController',
+		'AbortSignal',
+		'Array',
+		'ArrayBuffer',
+		'ArrayLike',
+		'Blob',
+		'Buffer',
+		'CSSRule',
+		'CSSStyleDeclaration',
+		'CSSStyleSheet',
+		'CanvasRenderingContext2D',
+		'ClipboardEvent',
+		'Comment',
+		'CompositionEvent',
+		'ConstructorParameters',
+		'CustomElementConstructor',
+		'DOMException',
+		'DOMParser',
+		'DOMRect',
+		'DOMRectList',
+		'Date',
+		'Document',
+		'DocumentFragment',
+		'DragEvent',
+		'Element',
+		'Error',
+		'ErrorEvent',
+		'Event',
+		'EventTarget',
+		'Exclude',
+		'File',
+		'FileList',
+		'FileReader',
+		'FocusEvent',
+		'FormData',
+		'Function',
+		'Generator',
+		'HTMLBRElement',
+		'HTMLBodyElement',
+		'HTMLButtonElement',
+		'HTMLDivElement',
+		'HTMLElement',
+		'HTMLElementEventMap',
+		'HTMLElementTagNameMap',
+		'HTMLIFrameElement',
+		'HTMLImageElement',
+		'HTMLInputElement',
+		'HTMLSpanElement',
+		'HTMLTextAreaElement',
+		'HTMLUListElement',
+		'HeadersInit',
+		'InputEvent',
+		'InstanceType',
+		'Iterable',
+		'IterableIterator',
+		'Iterator',
+		'IteratorResult',
+		'IteratorYieldResult',
+		'KeyboardEvent',
+		'Map',
+		'MouseEvent',
+		'Node',
+		'NodeList',
+		'NonNullable',
+		'Omit',
+		'Parameters',
+		'Partial',
+		'Pick',
+		'ProgressEvent',
+		'Promise',
+		'PropertyKey',
+		'Range',
+		'Readonly',
+		'ReadonlyArray',
+		'Record',
+		'RegExp',
+		'RegExpExecArray',
+		'RegExpMatchArray',
+		'Required',
+		'ResizeObserverEntry',
+		'ReturnType',
+		'SVGElementTagNameMap',
+		'Selection',
+		'Set',
+		'StaticRange',
+		'Text',
+		'ThisType',
+		'TouchEvent',
+		'URL',
+		'Uint8Array',
+		'VoidFunction',
+		'WeakSet',
+		'Window',
+		'WindowEventMap',
+		'XMLHttpRequest',
+		'const'
+	];
+
+	static unknownReferences = new Set();
+}
+
+function normalizeModuleAlias( name ) {
+	return name.replace( /^ckeditor5(?:-collaboration)?\/src\/(.*)\.js$/, '@ckeditor/ckeditor5-$1' );
+}
+
+function getAssignedDeclarationName( typeReferencePath ) {
+	const assignmentPath = typeReferencePath.findParent( path => path.isAssignmentExpression() );
+
+	if ( !assignmentPath || assignmentPath.node.left.type !== 'MemberExpression' ) {
+		return null;
+	}
+
+	let object = assignmentPath.node.left.object;
+
+	while ( object.type === 'MemberExpression' ) {
+		object = object.object;
+	}
+
+	return object.type === 'Identifier' ? object.name : null;
+}
+
+function createTypeReferenceOwnerError( { fileName, node, reason } ) {
+	return new Error(
+		`Could not associate type reference "${ getTypeReferenceName( node.typeName ) }" with a declaration at ` +
+		`${ fileName }:${ node.loc.start.line }:${ node.loc.start.column }. ${ reason }`
+	);
+}
+
+function getTypeReferenceName( node ) {
+	if ( node.type === 'Identifier' ) {
+		return node.name;
+	}
+
+	return `${ getTypeReferenceName( node.left ) }.${ getTypeReferenceName( node.right ) }`;
+}
+
+function isMixinBaseHelperCandidate( declarator ) {
+	if ( declarator.id.type !== 'Identifier' || !declarator.id.name.endsWith( 'Base' ) ) {
+		return false;
+	}
+
+	if ( !declarator.id.typeAnnotation || !declarator.init ) {
+		return false;
+	}
+
+	return isMixinConstructorType( declarator.id.typeAnnotation.typeAnnotation ) && isMixinCall( declarator.init );
+}
+
+function isMixinConstructorType( typeAnnotation ) {
+	if ( typeAnnotation.type !== 'TSTypeReference' || typeAnnotation.typeName.type !== 'Identifier' ) {
+		return false;
+	}
+
+	return typeAnnotation.typeName.name.endsWith( 'MixinConstructor' );
+}
+
+function isMixinCall( node ) {
+	return node.type === 'CallExpression' &&
+		node.callee.type === 'Identifier' &&
+		node.callee.name.endsWith( 'Mixin' );
+}
+
+function isRequiresClassMember( classMemberNode ) {
+	if ( !classMemberNode.key ) {
+		return false;
+	}
+
+	if ( classMemberNode.key.type === 'Identifier' ) {
+		return classMemberNode.key.name === 'requires';
+	}
+
+	if ( classMemberNode.key.type === 'StringLiteral' ) {
+		return classMemberNode.key.value === 'requires';
+	}
+
+	return false;
+}

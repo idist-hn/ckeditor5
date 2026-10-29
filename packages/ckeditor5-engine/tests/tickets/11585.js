@@ -1,38 +1,36 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import Model from '../../src/model/model';
-import Element from '../../src/model/element';
-import Text from '../../src/model/text';
-import Position from '../../src/model/position';
-import LiveRange from '../../src/model/liverange';
-import testUtils from '@ckeditor/ckeditor5-core/tests/_utils/utils';
-import { setData } from '../../src/dev-utils/model';
+import { Model } from '../../src/model/model.js';
+import { ModelElement } from '../../src/model/element.js';
+import { ModelText } from '../../src/model/text.js';
+import { ModelPosition } from '../../src/model/position.js';
+import { ModelLiveRange } from '../../src/model/liverange.js';
+import { _setModelData } from '../../src/dev-utils/model.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { stringifyBlocks } from '../model/_utils/utils';
+import { stringifyBlocks } from '../model/_utils/utils.js';
 
 describe( '#11585', () => {
 	let model, doc, root, liveRange;
-
-	testUtils.createSinonSandbox();
 
 	beforeEach( () => {
 		model = new Model();
 		doc = model.document;
 		root = doc.createRoot();
 		root._appendChild( [
-			new Element( 'p' ),
-			new Element( 'p' ),
-			new Element( 'p', [], new Text( 'foobar' ) ),
-			new Element( 'p' ),
-			new Element( 'p' ),
-			new Element( 'p' ),
-			new Element( 'p', [], new Text( 'foobar' ) )
+			new ModelElement( 'p' ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p', [], new ModelText( 'foobar' ) ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p' ),
+			new ModelElement( 'p', [], new ModelText( 'foobar' ) )
 		] );
 
-		liveRange = new LiveRange( new Position( root, [ 0 ] ), new Position( root, [ 1 ] ) );
+		liveRange = new ModelLiveRange( new ModelPosition( root, [ 0 ] ), new ModelPosition( root, [ 1 ] ) );
 
 		model.schema.register( 'p', { inheritAllFrom: '$block' } );
 		model.schema.register( 'h', { inheritAllFrom: '$block' } );
@@ -63,38 +61,38 @@ describe( '#11585', () => {
 	} );
 
 	it( 'does not return the first block if none of its contents is selected', () => {
-		setData( model, '<p>a[</p><p>b</p><p>c]</p>' );
+		_setModelData( model, '<p>a[</p><p>b</p><p>c]</p>' );
 
-		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).to.deep.equal( [ 'p#b', 'p#c' ] );
+		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).toEqual( [ 'p#b', 'p#c' ] );
 	} );
 
 	it( 'returns the first block if at least one of its child nodes is selected', () => {
-		setData( model, '<p>a[<imageBlock></imageBlock></p><p>b</p><p>c]</p>' );
+		_setModelData( model, '<p>a[<imageBlock></imageBlock></p><p>b</p><p>c]</p>' );
 
-		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).to.deep.equal( [ 'p#a', 'p#b', 'p#c' ] );
+		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).toEqual( [ 'p#a', 'p#b', 'p#c' ] );
 	} );
 
 	it( 'returns the block if it has a collapsed selection at the beginning', () => {
-		setData( model, '<p>[]a</p><p>b</p>' );
+		_setModelData( model, '<p>[]a</p><p>b</p>' );
 
-		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).to.deep.equal( [ 'p#a' ] );
+		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).toEqual( [ 'p#a' ] );
 	} );
 
 	it( 'returns the block if it has a collapsed selection at the end', () => {
-		setData( model, '<p>a[]</p><p>b</p>' );
+		_setModelData( model, '<p>a[]</p><p>b</p>' );
 
-		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).to.deep.equal( [ 'p#a' ] );
+		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).toEqual( [ 'p#a' ] );
 	} );
 
 	it( 'does not return first and last blocks if no content is selected', () => {
-		setData( model, '<p>a[</p><p>]b</p>' );
+		_setModelData( model, '<p>a[</p><p>]b</p>' );
 
-		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).to.deep.equal( [] );
+		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).toEqual( [] );
 	} );
 
 	it( 'returns the first and last blocks if no content is selected but both blocks are empty', () => {
-		setData( model, '<p>[</p><p>]</p>' );
+		_setModelData( model, '<p>[</p><p>]</p>' );
 
-		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).to.deep.equal( [ 'p', 'p' ] );
+		expect( stringifyBlocks( doc.selection.getSelectedBlocks() ) ).toEqual( [ 'p', 'p' ] );
 	} );
 } );

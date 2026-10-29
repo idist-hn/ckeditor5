@@ -1,27 +1,34 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module find-and-replace/findandreplaceutils
  */
 
-import type { Element, Item, Marker, Model, Range } from 'ckeditor5/src/engine';
-import { Plugin } from 'ckeditor5/src/core';
-import { Collection, uid } from 'ckeditor5/src/utils';
-import { escapeRegExp } from 'lodash-es';
-import type { ResultType } from './findandreplace';
+import type { ModelElement, ModelItem, Marker, Model, ModelRange } from '@ckeditor/ckeditor5-engine';
+import { Plugin } from '@ckeditor/ckeditor5-core';
+import { Collection, uid } from '@ckeditor/ckeditor5-utils';
+import { escapeRegExp } from 'es-toolkit/compat';
+import type { FindResultType } from './findandreplace.js';
 
 /**
  * A set of helpers related to find and replace.
  */
-export default class FindAndReplaceUtils extends Plugin {
+export class FindAndReplaceUtils extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
 	public static get pluginName() {
 		return 'FindAndReplaceUtils' as const;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static override get isOfficialPlugin(): true {
+		return true;
 	}
 
 	/**
@@ -45,51 +52,69 @@ export default class FindAndReplaceUtils extends Plugin {
 	 * ```
 	 */
 	public updateFindResultFromRange(
-		range: Range,
+		range: ModelRange,
 		model: Model,
-		findCallback: ( { item, text }: { item: Item; text: string } ) => Array<ResultType>,
-		startResults: Collection<ResultType> | null
-	): Collection<ResultType> {
+		findCallback: ( { item, text }: { item: ModelItem; text: string } ) => Array<FindResultType> | { results: Array<FindResultType> },
+		startResults: Collection<FindResultType> | null
+	): Collection<FindResultType> {
 		const results = startResults || new Collection();
 
+		const checkIfResultAlreadyOnList = ( marker: Marker ) => results.find(
+			markerItem => {
+				const { marker: resultsMarker } = markerItem;
+
+				const resultRange = resultsMarker!.getRange();
+				const markerRange = marker.getRange();
+
+				return resultRange.isEqual( markerRange );
+			}
+		);
+
 		model.change( writer => {
-			[ ...range ].forEach( ( { type, item } ) => {
-				if ( type === 'elementStart' ) {
-					if ( model.schema.checkChild( item, '$text' ) ) {
-						const foundItems = findCallback( {
-							item,
-							text: this.rangeToText( model.createRangeIn( item as Element ) )
-						} );
+			const processTextContainer = ( item: ModelElement ) => {
+				let foundItems = findCallback( {
+					item,
+					text: this.rangeToText( model.createRangeIn( item ) )
+				} );
 
-						if ( !foundItems ) {
-							return;
-						}
-
-						foundItems.forEach( foundItem => {
-							const resultId = `findResult:${ uid() }`;
-							const marker = writer.addMarker( resultId, {
-								usingOperation: false,
-								affectsData: false,
-								range: writer.createRange(
-									writer.createPositionAt( item, foundItem.start ),
-									writer.createPositionAt( item, foundItem.end )
-								)
-							} );
-
-							const index = findInsertIndex( results, marker );
-
-							results.add(
-								{
-									id: resultId,
-									label: foundItem.label,
-									marker
-								},
-								index
-							);
-						} );
-					}
+				if ( !foundItems ) {
+					return;
 				}
-			} );
+
+				if ( 'results' in foundItems ) {
+					foundItems = foundItems.results;
+				}
+
+				foundItems.forEach( foundItem => {
+					const resultId = `findResult:${ uid() }`;
+					const marker = writer.addMarker( resultId, {
+						usingOperation: false,
+						affectsData: false,
+						range: writer.createRange(
+							writer.createPositionAt( item, foundItem.start ),
+							writer.createPositionAt( item, foundItem.end )
+						)
+					} );
+
+					const index = findInsertIndex( results, marker );
+
+					if ( !checkIfResultAlreadyOnList( marker ) ) {
+						results.add( { id: resultId, label: foundItem.label, marker }, index );
+					}
+				} );
+			};
+
+			const rangeContainer = range.start.parent as ModelElement;
+
+			if ( model.schema.checkChild( rangeContainer, '$text' ) && model.schema.isLimit( rangeContainer ) ) {
+				processTextContainer( rangeContainer );
+			} else {
+				[ ...range ].forEach( ( { type, item } ) => {
+					if ( type === 'elementStart' && model.schema.checkChild( item, '$text' ) ) {
+						processTextContainer( item as ModelElement );
+					}
+				} );
+			}
 		} );
 
 		return results;
@@ -102,8 +127,8 @@ export default class FindAndReplaceUtils extends Plugin {
 	 * @param range The model range.
 	 * @returns The text content of the provided range.
 	 */
-	public rangeToText( range: Range ): string {
-		return Array.from( range.getItems() ).reduce( ( rangeText, node ) => {
+	public rangeToText( range: ModelRange ): string {
+		return Array.from( range.getItems( { shallow: true } ) ).reduce( ( rangeText, node ) => {
 			// Trim text to a last occurrence of an inline element and update range start.
 			if ( !( node.is( '$text' ) || node.is( '$textProxy' ) ) ) {
 				// Editor has only one inline element defined in schema: `<softBreak>` which is treated as new line character in blocks.
@@ -126,7 +151,7 @@ export default class FindAndReplaceUtils extends Plugin {
 	public findByTextCallback(
 		searchTerm: string,
 		options: { matchCase?: boolean; wholeWords?: boolean }
-	): ( { item, text }: { item: Item; text: string } ) => Array<ResultType> {
+	): ( { item, text }: { item: ModelItem; text: string } ) => Array<FindResultType> {
 		let flags = 'gu';
 
 		if ( !options.matchCase ) {
@@ -171,7 +196,7 @@ function findInsertIndex( resultsList: Collection<any>, markerToInsert: Marker )
 /**
  *  Maps RegExp match result to find result.
  */
-function regexpMatchToFindResult( matchResult: RegExpMatchArray ): ResultType {
+function regexpMatchToFindResult( matchResult: RegExpMatchArray ): FindResultType {
 	const lastGroupIndex = matchResult.length - 1;
 
 	let startOffset = matchResult.index!;

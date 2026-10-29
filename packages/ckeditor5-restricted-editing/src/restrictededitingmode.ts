@@ -1,18 +1,16 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module restricted-editing/restrictededitingmode
  */
 
-import { Plugin } from 'ckeditor5/src/core';
+import { Plugin, type PluginDependenciesOf } from '@ckeditor/ckeditor5-core';
 
-import RestrictedEditingModeEditing from './restrictededitingmodeediting';
-import RestrictedEditingModeUI from './restrictededitingmodeui';
-
-import '../theme/restrictedediting.css';
+import { RestrictedEditingModeEditing } from './restrictededitingmodeediting.js';
+import { RestrictedEditingModeUI } from './restrictededitingmodeui.js';
 
 /**
  * The restricted editing mode plugin.
@@ -22,7 +20,7 @@ import '../theme/restrictedediting.css';
  * * The {@link module:restricted-editing/restrictededitingmodeediting~RestrictedEditingModeEditing restricted mode editing feature}.
  * * The {@link module:restricted-editing/restrictededitingmodeui~RestrictedEditingModeUI restricted mode UI feature}.
  */
-export default class RestrictedEditingMode extends Plugin {
+export class RestrictedEditingMode extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
@@ -33,7 +31,14 @@ export default class RestrictedEditingMode extends Plugin {
 	/**
 	 * @inheritDoc
 	 */
-	public static get requires() {
-		return [ RestrictedEditingModeEditing, RestrictedEditingModeUI ] as const;
+	public static override get isOfficialPlugin(): true {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public static get requires(): PluginDependenciesOf<[ RestrictedEditingModeEditing, RestrictedEditingModeUI ]> {
+		return [ RestrictedEditingModeEditing, RestrictedEditingModeUI ];
 	}
 }

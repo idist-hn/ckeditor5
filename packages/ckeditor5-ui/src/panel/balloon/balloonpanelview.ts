@@ -1,33 +1,38 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
 /**
  * @module ui/panel/balloon/balloonpanelview
  */
 
-import View from '../../view';
-import type ViewCollection from '../../viewcollection';
+import { View } from '../../view.js';
+import { type ViewCollection } from '../../viewcollection.js';
 
 import {
+	containsNode,
 	getOptimalPosition,
+	getParentElement,
 	global,
 	isRange,
 	toUnit,
+	isVisible,
+	isText,
+	ResizeObserver,
+	getEventRoots,
+	DomTargetsListener,
 	type Locale,
 	type ObservableChangeEvent,
-	type Position,
-	type PositionOptions,
-	type PositioningFunction,
-	type Rect
+	type DomPoint,
+	type DomOptimalPositionOptions,
+	Rect,
+	type PositioningFunction
 } from '@ckeditor/ckeditor5-utils';
 
-import { isElement } from 'lodash-es';
-import '../../../theme/components/panel/balloonpanel.css';
+import { isElement } from 'es-toolkit/compat';
 
-const toPx = toUnit( 'px' );
-const defaultLimiterElement = global.document.body;
+const toPx = /* #__PURE__ */ toUnit( 'px' );
 
 // A static balloon panel positioning function that moves the balloon far off the viewport.
 // It is used as a fallback when there is no way to position the balloon using provided
@@ -37,7 +42,7 @@ const defaultLimiterElement = global.document.body;
 // It prevents the balloon from being attached to the void and possible degradation of the UX.
 // At the same time, it keeps the balloon physically visible in the DOM so the focus remains
 // uninterrupted.
-const POSITION_OFF_SCREEN: Position = {
+const POSITION_OFF_SCREEN: DomPoint = {
 	top: -99999,
 	left: -99999,
 	name: 'arrowless',
@@ -51,7 +56,7 @@ const POSITION_OFF_SCREEN: Position = {
  *
  * A floating container which can
  * {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView#pin pin} to any
- * {@link module:utils/dom/position~Options#target target} in the DOM and remain in that position
+ * {@link module:utils/dom/position~DomOptimalPositionOptions#target target} in the DOM and remain in that position
  * e.g. when the web page is scrolled.
  *
  * The balloon panel can be used to display contextual, non-blocking UI like forms, toolbars and
@@ -62,7 +67,7 @@ const POSITION_OFF_SCREEN: Position = {
  * that the balloon can use, automatically switching from one to another when the viewport space becomes
  * scarce to keep the balloon visible to the user as long as it is possible. The balloon will also
  * accept any custom position set provided by the user compatible with the
- * {@link module:utils/dom/position~Options options}.
+ * {@link module:utils/dom/position~DomOptimalPositionOptions options}.
  *
  * ```ts
  * const panel = new BalloonPanelView( locale );
@@ -85,7 +90,7 @@ const POSITION_OFF_SCREEN: Position = {
  * } );
  * ```
  */
-export default class BalloonPanelView extends View {
+export class BalloonPanelView extends View {
 	/**
 	 * A collection of the child views that creates the balloon panel contents.
 	 */
@@ -156,6 +161,21 @@ export default class BalloonPanelView extends View {
 	private _pinWhenIsVisibleCallback: ( () => void ) | null;
 
 	/**
+	 * An instance of resize observer used to detect if target element is still visible.
+	 */
+	private _resizeObserver: ResizeObserver | null;
+
+	/**
+	 * Keeps the `scroll` listener of the currently pinned panel on `document` and on every event root of
+	 * the positioning target or the limiter. Stopped by {@link #_stopPinning}.
+	 *
+	 * A single `document` listener is not enough, because `scroll` is not `composed` — its event path ends at
+	 * the shadow root it originated in, so not even a capturing listener on `document` sees a scrollable
+	 * container living inside a shadow root.
+	 */
+	private _scrollListener: DomTargetsListener | null = null;
+
+	/**
 	 * @inheritDoc
 	 */
 	constructor( locale?: Locale ) {
@@ -171,6 +191,8 @@ export default class BalloonPanelView extends View {
 		this.set( 'class', undefined );
 
 		this._pinWhenIsVisibleCallback = null;
+		this._resizeObserver = null;
+
 		this.content = this.createCollection();
 
 		this.setTemplate( {
@@ -196,6 +218,14 @@ export default class BalloonPanelView extends View {
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public override destroy(): void {
+		this.hide();
+		super.destroy();
+	}
+
+	/**
 	 * Shows the panel.
 	 *
 	 * See {@link #isVisible}.
@@ -214,11 +244,11 @@ export default class BalloonPanelView extends View {
 	}
 
 	/**
-	 * Attaches the panel to a specified {@link module:utils/dom/position~Options#target} with a
+	 * Attaches the panel to a specified {@link module:utils/dom/position~DomOptimalPositionOptions#target} with a
 	 * smart positioning heuristics that chooses from available positions to make sure the panel
 	 * is visible to the user i.e. within the limits of the viewport.
 	 *
-	 * This method accepts configuration {@link module:utils/dom/position~Options options}
+	 * This method accepts configuration {@link module:utils/dom/position~DomOptimalPositionOptions options}
 	 * to set the `target`, optional `limiter` and `positions` the balloon should choose from.
 	 *
 	 * ```ts
@@ -244,8 +274,16 @@ export default class BalloonPanelView extends View {
 	 *
 	 * @param options Positioning options compatible with {@link module:utils/dom/position~getOptimalPosition}.
 	 * Default `positions` array is {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.defaultPositions}.
+	 * @returns Whether the balloon was shown and successfully attached or not. Attaching can fail if the target
+	 * provided in the options is invisible (e.g. element detached from DOM).
 	 */
-	public attachTo( options: Partial<PositionOptions> ): void {
+	public attachTo( options: Partial<DomOptimalPositionOptions> ): boolean {
+		const target = getDomElement( options.target );
+
+		if ( target && !isVisible( target ) ) {
+			return false;
+		}
+
 		this.show();
 
 		const defaultPositions = BalloonPanelView.defaultPositions;
@@ -264,9 +302,9 @@ export default class BalloonPanelView extends View {
 				defaultPositions.northArrowSouthEast,
 				defaultPositions.viewportStickyNorth
 			],
-			limiter: defaultLimiterElement,
+			limiter: global.document.body,
 			fitInViewport: true
-		}, options ) as PositionOptions;
+		}, options ) as DomOptimalPositionOptions;
 
 		const optimalPosition = BalloonPanelView._getOptimalPosition( positionOptions ) || POSITION_OFF_SCREEN;
 
@@ -283,17 +321,19 @@ export default class BalloonPanelView extends View {
 		this.left = left;
 		this.position = position;
 		this.withArrow = withArrow;
+
+		return true;
 	}
 
 	/**
 	 * Works the same way as the {@link #attachTo} method except that the position of the panel is
 	 * continuously updated when:
 	 *
-	 * * any ancestor of the {@link module:utils/dom/position~Options#target}
-	 * or {@link module:utils/dom/position~Options#limiter} is scrolled,
+	 * * any ancestor of the {@link module:utils/dom/position~DomOptimalPositionOptions#target}
+	 * or {@link module:utils/dom/position~DomOptimalPositionOptions#limiter} is scrolled,
 	 * * the browser window gets resized or scrolled.
 	 *
-	 * Thanks to that, the panel always sticks to the {@link module:utils/dom/position~Options#target}
+	 * Thanks to that, the panel always sticks to the {@link module:utils/dom/position~DomOptimalPositionOptions#target}
 	 * and is immune to the changing environment.
 	 *
 	 * ```ts
@@ -319,8 +359,12 @@ export default class BalloonPanelView extends View {
 	 * @param options Positioning options compatible with {@link module:utils/dom/position~getOptimalPosition}.
 	 * Default `positions` array is {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.defaultPositions}.
 	 */
-	public pin( options: Partial<PositionOptions> ): void {
+	public pin( options: Partial<DomOptimalPositionOptions> ): void {
 		this.unpin();
+
+		if ( !this._startPinning( options ) ) {
+			return;
+		}
 
 		this._pinWhenIsVisibleCallback = () => {
 			if ( this.isVisible ) {
@@ -329,8 +373,6 @@ export default class BalloonPanelView extends View {
 				this._stopPinning();
 			}
 		};
-
-		this._startPinning( options );
 
 		// Control the state of the listeners depending on whether the panel is visible
 		// or not.
@@ -360,42 +402,421 @@ export default class BalloonPanelView extends View {
 	 * Starts managing the pinned state of the panel. See {@link #pin}.
 	 *
 	 * @param options Positioning options compatible with {@link module:utils/dom/position~getOptimalPosition}.
+	 * @returns Whether the balloon was shown and successfully attached or not. Attaching can fail if the target
+	 * provided in the options is invisible (e.g. element detached from DOM).
 	 */
-	private _startPinning( options: Partial<PositionOptions> ) {
-		this.attachTo( options );
+	private _startPinning( options: Partial<DomOptimalPositionOptions> ): boolean {
+		if ( !this.attachTo( options ) ) {
+			return false;
+		}
 
-		const targetElement = getDomElement( options.target );
-		const limiterElement = options.limiter ? getDomElement( options.limiter ) : defaultLimiterElement;
+		let targetElement = getDomElement( options.target );
+		const limiterElement = options.limiter ? getDomElement( options.limiter ) : global.document.body;
 
 		// Then we need to listen on scroll event of eny element in the document.
-		this.listenTo( global.document, 'scroll', ( evt, domEvt ) => {
-			const scrollTarget = domEvt.target as Element;
+		this._scrollListener = new DomTargetsListener( () => [
+			global.document,
+			...getEventRoots( targetElement ),
+			...getEventRoots( limiterElement )
+		], {
+			emitter: this,
+			event: 'scroll',
+			listenerOptions: { useCapture: true },
+			callback: ( evt, domEvt ) => {
+				const scrollTarget = domEvt.target as Element;
 
-			// The position needs to be updated if the positioning target is within the scrolled element.
-			const isWithinScrollTarget = targetElement && scrollTarget.contains( targetElement );
+				// The position needs to be updated if the positioning target is within the scrolled element.
+				const isWithinScrollTarget = targetElement && containsNode( scrollTarget, targetElement );
 
-			// The position needs to be updated if the positioning limiter is within the scrolled element.
-			const isLimiterWithinScrollTarget = limiterElement && scrollTarget.contains( limiterElement );
+				// The position needs to be updated if the positioning limiter is within the scrolled element.
+				const isLimiterWithinScrollTarget = limiterElement && containsNode( scrollTarget, limiterElement );
 
-			// The positioning target and/or limiter can be a Rect, object etc..
-			// There's no way to optimize the listener then.
-			if ( isWithinScrollTarget || isLimiterWithinScrollTarget || !targetElement || !limiterElement ) {
-				this.attachTo( options );
+				// The positioning target and/or limiter can be a Rect, object etc..
+				// There's no way to optimize the listener then.
+				if ( isWithinScrollTarget || isLimiterWithinScrollTarget || !targetElement || !limiterElement ) {
+					this.attachTo( options );
+				}
 			}
-		}, { useCapture: true } );
+		} );
 
 		// We need to listen on window resize event and update position.
 		this.listenTo( global.window, 'resize', () => {
 			this.attachTo( options );
 		} );
+
+		// Hide the panel if the target element is no longer visible.
+		if ( !this._resizeObserver ) {
+			// If the target element is a text node, we need to check the parent element.
+			// It's because `ResizeObserver` accept only elements, not text nodes.
+			if ( targetElement && isText( targetElement ) ) {
+				targetElement = getParentElement( targetElement ) as HTMLElement | null;
+			}
+
+			if ( targetElement ) {
+				const checkVisibility = () => {
+					// If the target element is no longer visible, hide the panel.
+					if ( !isVisible( targetElement ) ) {
+						this.unpin();
+					}
+				};
+
+				// Element is being resized to 0x0 after it's parent became hidden,
+				// so we need to check size in order to determine if it's visible or not.
+				this._resizeObserver = new ResizeObserver( targetElement, checkVisibility );
+			}
+		}
+
+		return true;
 	}
 
 	/**
 	 * Stops managing the pinned state of the panel. See {@link #pin}.
 	 */
 	private _stopPinning(): void {
-		this.stopListening( global.document, 'scroll' );
+		if ( this._scrollListener ) {
+			this._scrollListener.destroy();
+			this._scrollListener = null;
+		}
+
 		this.stopListening( global.window, 'resize' );
+
+		if ( this._resizeObserver ) {
+			this._resizeObserver.destroy();
+			this._resizeObserver = null;
+		}
+	}
+
+	/**
+	 * Returns available {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView}
+	 * {@link module:utils/dom/position~PositioningFunction positioning functions} adjusted by the specific offsets.
+	 *
+	 * @internal
+	 * @param options Options to generate positions. If not specified, this helper will simply return
+	 * {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.defaultPositions}.
+	 * @param options.sideOffset A custom side offset (in pixels) of each position. If
+	 * not specified, {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.arrowSideOffset the default value}
+	 * will be used.
+	 * @param options.heightOffset A custom height offset (in pixels) of each position. If
+	 * not specified, {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.arrowHeightOffset the default value}
+	 * will be used.
+	 * @param options.stickyVerticalOffset A custom offset (in pixels) of the `viewportStickyNorth` positioning function.
+	 * If not specified, {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.stickyVerticalOffset the default value}
+	 * will be used.
+	 * @param options.config Additional configuration of the balloon balloon panel view.
+	 * Currently only {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView#withArrow} is supported. Learn more
+	 * about {@link module:utils/dom/position~PositioningFunction positioning functions}.
+	 */
+	public static generatePositions( options: {
+		sideOffset?: number;
+		heightOffset?: number;
+		stickyVerticalOffset?: number;
+		config?: object;
+	} = {} ): Record<string, PositioningFunction> {
+		const {
+			sideOffset = BalloonPanelView.arrowSideOffset,
+			heightOffset = BalloonPanelView.arrowHeightOffset,
+			stickyVerticalOffset = BalloonPanelView.stickyVerticalOffset,
+			config
+		} = options;
+
+		return {
+			// ------- North west
+
+			northWestArrowSouthWest: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left - sideOffset,
+				name: 'arrow_sw',
+				...( config && { config } )
+			} ),
+
+			northWestArrowSouthMiddleWest: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left - ( balloonRect.width * .25 ) - sideOffset,
+				name: 'arrow_smw',
+				...( config && { config } )
+			} ),
+
+			northWestArrowSouth: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left - balloonRect.width / 2,
+				name: 'arrow_s',
+				...( config && { config } )
+			} ),
+
+			northWestArrowSouthMiddleEast: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left - ( balloonRect.width * .75 ) + sideOffset,
+				name: 'arrow_sme',
+				...( config && { config } )
+			} ),
+
+			northWestArrowSouthEast: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left - balloonRect.width + sideOffset,
+				name: 'arrow_se',
+				...( config && { config } )
+			} ),
+
+			// ------- North
+
+			northArrowSouthWest: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left + targetRect.width / 2 - sideOffset,
+				name: 'arrow_sw',
+				...( config && { config } )
+			} ),
+
+			northArrowSouthMiddleWest: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * .25 ) - sideOffset,
+				name: 'arrow_smw',
+				...( config && { config } )
+			} ),
+
+			northArrowSouth: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left + targetRect.width / 2 - balloonRect.width / 2,
+				name: 'arrow_s',
+				...( config && { config } )
+			} ),
+
+			northArrowSouthMiddleEast: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * .75 ) + sideOffset,
+				name: 'arrow_sme',
+				...( config && { config } )
+			} ),
+
+			northArrowSouthEast: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.left + targetRect.width / 2 - balloonRect.width + sideOffset,
+				name: 'arrow_se',
+				...( config && { config } )
+			} ),
+
+			// ------- North east
+
+			northEastArrowSouthWest: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.right - sideOffset,
+				name: 'arrow_sw',
+				...( config && { config } )
+			} ),
+
+			northEastArrowSouthMiddleWest: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.right - ( balloonRect.width * .25 ) - sideOffset,
+				name: 'arrow_smw',
+				...( config && { config } )
+			} ),
+
+			northEastArrowSouth: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.right - balloonRect.width / 2,
+				name: 'arrow_s',
+				...( config && { config } )
+			} ),
+
+			northEastArrowSouthMiddleEast: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.right - ( balloonRect.width * .75 ) + sideOffset,
+				name: 'arrow_sme',
+				...( config && { config } )
+			} ),
+
+			northEastArrowSouthEast: ( targetRect, balloonRect ) => ( {
+				top: getNorthTop( targetRect, balloonRect ),
+				left: targetRect.right - balloonRect.width + sideOffset,
+				name: 'arrow_se',
+				...( config && { config } )
+			} ),
+
+			// ------- South west
+
+			southWestArrowNorthWest: targetRect => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left - sideOffset,
+				name: 'arrow_nw',
+				...( config && { config } )
+			} ),
+
+			southWestArrowNorthMiddleWest: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left - ( balloonRect.width * .25 ) - sideOffset,
+				name: 'arrow_nmw',
+				...( config && { config } )
+			} ),
+
+			southWestArrowNorth: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left - balloonRect.width / 2,
+				name: 'arrow_n',
+				...( config && { config } )
+			} ),
+
+			southWestArrowNorthMiddleEast: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left - ( balloonRect.width * .75 ) + sideOffset,
+				name: 'arrow_nme',
+				...( config && { config } )
+			} ),
+
+			southWestArrowNorthEast: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left - balloonRect.width + sideOffset,
+				name: 'arrow_ne',
+				...( config && { config } )
+			} ),
+
+			// ------- South
+
+			southArrowNorthWest: targetRect => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left + targetRect.width / 2 - sideOffset,
+				name: 'arrow_nw',
+				...( config && { config } )
+			} ),
+
+			southArrowNorthMiddleWest: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * 0.25 ) - sideOffset,
+				name: 'arrow_nmw',
+				...( config && { config } )
+			} ),
+
+			southArrowNorth: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left + targetRect.width / 2 - balloonRect.width / 2,
+				name: 'arrow_n',
+				...( config && { config } )
+			} ),
+
+			southArrowNorthMiddleEast: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * 0.75 ) + sideOffset,
+				name: 'arrow_nme',
+				...( config && { config } )
+			} ),
+
+			southArrowNorthEast: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.left + targetRect.width / 2 - balloonRect.width + sideOffset,
+				name: 'arrow_ne',
+				...( config && { config } )
+			} ),
+
+			// ------- South east
+
+			southEastArrowNorthWest: targetRect => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.right - sideOffset,
+				name: 'arrow_nw',
+				...( config && { config } )
+			} ),
+
+			southEastArrowNorthMiddleWest: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.right - ( balloonRect.width * .25 ) - sideOffset,
+				name: 'arrow_nmw',
+				...( config && { config } )
+			} ),
+
+			southEastArrowNorth: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.right - balloonRect.width / 2,
+				name: 'arrow_n',
+				...( config && { config } )
+			} ),
+
+			southEastArrowNorthMiddleEast: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.right - ( balloonRect.width * .75 ) + sideOffset,
+				name: 'arrow_nme',
+				...( config && { config } )
+			} ),
+
+			southEastArrowNorthEast: ( targetRect, balloonRect ) => ( {
+				top: getSouthTop( targetRect ),
+				left: targetRect.right - balloonRect.width + sideOffset,
+				name: 'arrow_ne',
+				...( config && { config } )
+			} ),
+
+			// ------- West
+
+			westArrowEast: ( targetRect, balloonRect ) => ( {
+				top: targetRect.top + targetRect.height / 2 - balloonRect.height / 2,
+				left: targetRect.left - balloonRect.width - heightOffset,
+				name: 'arrow_e',
+				...( config && { config } )
+			} ),
+
+			// ------- East
+
+			eastArrowWest: ( targetRect, balloonRect ) => ( {
+				top: targetRect.top + targetRect.height / 2 - balloonRect.height / 2,
+				left: targetRect.right + heightOffset,
+				name: 'arrow_w',
+				...( config && { config } )
+			} ),
+
+			// ------- Sticky
+
+			viewportStickyNorth: ( targetRect, balloonRect, viewportRect ) => {
+				// Get the intersection of the viewport and the document body.
+				const boundaryRect = new Rect( global.document.body ).getIntersection( viewportRect.getVisible()! );
+
+				if ( !boundaryRect ) {
+					return null;
+				}
+
+				// Get the visible intersection of the boundary and the document body.
+				const visibleBoundaryRect = boundaryRect.getVisible()!;
+
+				// Check if the target is in the boundary.
+				if ( !targetRect.getIntersection( visibleBoundaryRect ) ) {
+					return null;
+				}
+
+				// Checks if there is enough space to put the balloon on the top or bottom of the target.
+				// If not, makes the balloon sticky.
+				if ( !(
+					visibleBoundaryRect.top - targetRect.top - stickyVerticalOffset < balloonRect.height &&
+					visibleBoundaryRect.bottom - targetRect.bottom < balloonRect.height
+				) ) {
+					return null;
+				}
+
+				return {
+					top: visibleBoundaryRect.top + stickyVerticalOffset,
+					left: targetRect.left + targetRect.width / 2 - balloonRect.width / 2,
+					name: 'arrowless',
+					config: {
+						withArrow: false,
+						...config
+					}
+				};
+			}
+		};
+
+		/**
+		 * Returns the top coordinate for positions starting with `north*`.
+		 *
+		 * @param targetRect A rect of the target.
+		 * @param balloonRect A rect of the balloon.
+		 */
+		function getNorthTop( targetRect: Rect, balloonRect: Rect ) {
+			return targetRect.top - balloonRect.height - heightOffset;
+		}
+
+		/**
+		 * Returns the top coordinate for positions starting with `south*`.
+		 *
+		 * @param targetRect A rect of the target.
+		 */
+		function getSouthTop( targetRect: Rect ) {
+			return targetRect.bottom + heightOffset;
+		}
 	}
 
 	/**
@@ -841,15 +1262,15 @@ export default class BalloonPanelView extends View {
 	 *
 	 * See {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView#attachTo}.
 	 *
-	 * Positioning functions must be compatible with {@link module:utils/dom/position~Position}.
+	 * Positioning functions must be compatible with {@link module:utils/dom/position~DomPoint}.
 	 *
 	 * Default positioning functions with customized offsets can be generated using
-	 * {@link module:ui/panel/balloon/balloonpanelview~generatePositions}.
+	 * {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.generatePositions}.
 	 *
 	 * The name that the position function returns will be reflected in the balloon panel's class that
 	 * controls the placement of the "arrow". See {@link #position} to learn more.
 	 */
-	public static defaultPositions = generatePositions();
+	public static defaultPositions: Record<string, PositioningFunction> = /* #__PURE__ */ BalloonPanelView.generatePositions();
 }
 
 /**
@@ -870,325 +1291,4 @@ function getDomElement( object: any ): HTMLElement | null {
 	}
 
 	return null;
-}
-
-/**
- * Returns available {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView}
- * {@link module:utils/dom/position~PositioningFunction positioning functions} adjusted by the specific offsets.
- *
- * @internal
- * @param options Options to generate positions. If not specified, this helper will simply return
- * {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.defaultPositions}.
- * @param options.sideOffset A custom side offset (in pixels) of each position. If
- * not specified, {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.arrowSideOffset the default value}
- * will be used.
- * @param options.heightOffset A custom height offset (in pixels) of each position. If
- * not specified, {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.arrowHeightOffset the default value}
- * will be used.
- * @param options.stickyVerticalOffset A custom offset (in pixels) of the `viewportStickyNorth` positioning function.
- * If not specified, {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView.stickyVerticalOffset the default value}
- * will be used.
- * @param options.config Additional configuration of the balloon balloon panel view.
- * Currently only {@link module:ui/panel/balloon/balloonpanelview~BalloonPanelView#withArrow} is supported. Learn more
- * about {@link module:utils/dom/position~PositioningFunction positioning functions}.
- */
-export function generatePositions( options: {
-	sideOffset?: number;
-	heightOffset?: number;
-	stickyVerticalOffset?: number;
-	config?: object;
-} = {} ): Record<string, PositioningFunction> {
-	const {
-		sideOffset = BalloonPanelView.arrowSideOffset,
-		heightOffset = BalloonPanelView.arrowHeightOffset,
-		stickyVerticalOffset = BalloonPanelView.stickyVerticalOffset,
-		config
-	} = options;
-
-	return {
-		// ------- North west
-
-		northWestArrowSouthWest: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left - sideOffset,
-			name: 'arrow_sw',
-			...( config && { config } )
-		} ),
-
-		northWestArrowSouthMiddleWest: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left - ( balloonRect.width * .25 ) - sideOffset,
-			name: 'arrow_smw',
-			...( config && { config } )
-		} ),
-
-		northWestArrowSouth: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left - balloonRect.width / 2,
-			name: 'arrow_s',
-			...( config && { config } )
-		} ),
-
-		northWestArrowSouthMiddleEast: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left - ( balloonRect.width * .75 ) + sideOffset,
-			name: 'arrow_sme',
-			...( config && { config } )
-		} ),
-
-		northWestArrowSouthEast: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left - balloonRect.width + sideOffset,
-			name: 'arrow_se',
-			...( config && { config } )
-		} ),
-
-		// ------- North
-
-		northArrowSouthWest: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left + targetRect.width / 2 - sideOffset,
-			name: 'arrow_sw',
-			...( config && { config } )
-		} ),
-
-		northArrowSouthMiddleWest: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * .25 ) - sideOffset,
-			name: 'arrow_smw',
-			...( config && { config } )
-		} ),
-
-		northArrowSouth: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left + targetRect.width / 2 - balloonRect.width / 2,
-			name: 'arrow_s',
-			...( config && { config } )
-		} ),
-
-		northArrowSouthMiddleEast: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * .75 ) + sideOffset,
-			name: 'arrow_sme',
-			...( config && { config } )
-		} ),
-
-		northArrowSouthEast: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.left + targetRect.width / 2 - balloonRect.width + sideOffset,
-			name: 'arrow_se',
-			...( config && { config } )
-		} ),
-
-		// ------- North east
-
-		northEastArrowSouthWest: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.right - sideOffset,
-			name: 'arrow_sw',
-			...( config && { config } )
-		} ),
-
-		northEastArrowSouthMiddleWest: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.right - ( balloonRect.width * .25 ) - sideOffset,
-			name: 'arrow_smw',
-			...( config && { config } )
-		} ),
-
-		northEastArrowSouth: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.right - balloonRect.width / 2,
-			name: 'arrow_s',
-			...( config && { config } )
-		} ),
-
-		northEastArrowSouthMiddleEast: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.right - ( balloonRect.width * .75 ) + sideOffset,
-			name: 'arrow_sme',
-			...( config && { config } )
-		} ),
-
-		northEastArrowSouthEast: ( targetRect, balloonRect ) => ( {
-			top: getNorthTop( targetRect, balloonRect ),
-			left: targetRect.right - balloonRect.width + sideOffset,
-			name: 'arrow_se',
-			...( config && { config } )
-		} ),
-
-		// ------- South west
-
-		southWestArrowNorthWest: targetRect => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left - sideOffset,
-			name: 'arrow_nw',
-			...( config && { config } )
-		} ),
-
-		southWestArrowNorthMiddleWest: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left - ( balloonRect.width * .25 ) - sideOffset,
-			name: 'arrow_nmw',
-			...( config && { config } )
-		} ),
-
-		southWestArrowNorth: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left - balloonRect.width / 2,
-			name: 'arrow_n',
-			...( config && { config } )
-		} ),
-
-		southWestArrowNorthMiddleEast: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left - ( balloonRect.width * .75 ) + sideOffset,
-			name: 'arrow_nme',
-			...( config && { config } )
-		} ),
-
-		southWestArrowNorthEast: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left - balloonRect.width + sideOffset,
-			name: 'arrow_ne',
-			...( config && { config } )
-		} ),
-
-		// ------- South
-
-		southArrowNorthWest: targetRect => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left + targetRect.width / 2 - sideOffset,
-			name: 'arrow_nw',
-			...( config && { config } )
-		} ),
-
-		southArrowNorthMiddleWest: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * 0.25 ) - sideOffset,
-			name: 'arrow_nmw',
-			...( config && { config } )
-		} ),
-
-		southArrowNorth: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left + targetRect.width / 2 - balloonRect.width / 2,
-			name: 'arrow_n',
-			...( config && { config } )
-		} ),
-
-		southArrowNorthMiddleEast: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left + targetRect.width / 2 - ( balloonRect.width * 0.75 ) + sideOffset,
-			name: 'arrow_nme',
-			...( config && { config } )
-		} ),
-
-		southArrowNorthEast: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.left + targetRect.width / 2 - balloonRect.width + sideOffset,
-			name: 'arrow_ne',
-			...( config && { config } )
-		} ),
-
-		// ------- South east
-
-		southEastArrowNorthWest: targetRect => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.right - sideOffset,
-			name: 'arrow_nw',
-			...( config && { config } )
-		} ),
-
-		southEastArrowNorthMiddleWest: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.right - ( balloonRect.width * .25 ) - sideOffset,
-			name: 'arrow_nmw',
-			...( config && { config } )
-		} ),
-
-		southEastArrowNorth: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.right - balloonRect.width / 2,
-			name: 'arrow_n',
-			...( config && { config } )
-		} ),
-
-		southEastArrowNorthMiddleEast: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.right - ( balloonRect.width * .75 ) + sideOffset,
-			name: 'arrow_nme',
-			...( config && { config } )
-		} ),
-
-		southEastArrowNorthEast: ( targetRect, balloonRect ) => ( {
-			top: getSouthTop( targetRect ),
-			left: targetRect.right - balloonRect.width + sideOffset,
-			name: 'arrow_ne',
-			...( config && { config } )
-		} ),
-
-		// ------- West
-
-		westArrowEast: ( targetRect, balloonRect ) => ( {
-			top: targetRect.top + targetRect.height / 2 - balloonRect.height / 2,
-			left: targetRect.left - balloonRect.width - heightOffset,
-			name: 'arrow_e',
-			...( config && { config } )
-		} ),
-
-		// ------- East
-
-		eastArrowWest: ( targetRect, balloonRect ) => ( {
-			top: targetRect.top + targetRect.height / 2 - balloonRect.height / 2,
-			left: targetRect.right + heightOffset,
-			name: 'arrow_w',
-			...( config && { config } )
-		} ),
-
-		// ------- Sticky
-
-		viewportStickyNorth: ( targetRect, balloonRect, viewportRect, limiterRect ) => {
-			const boundaryRect = limiterRect || viewportRect;
-
-			if ( !targetRect.getIntersection( boundaryRect ) ) {
-				return null;
-			}
-
-			// Engage when the target top and bottom edges are close or off the boundary.
-			// By close, it means there's not enough space for the balloon arrow (offset).
-			if ( boundaryRect.height - targetRect.height > stickyVerticalOffset ) {
-				return null;
-			}
-
-			return {
-				top: boundaryRect.top + stickyVerticalOffset,
-				left: targetRect.left + targetRect.width / 2 - balloonRect.width / 2,
-				name: 'arrowless',
-				config: {
-					withArrow: false,
-					...config
-				}
-			};
-		}
-	};
-
-	/**
-	 * Returns the top coordinate for positions starting with `north*`.
-	 *
-	 * @param targetRect A rect of the target.
-	 * @param balloonRect A rect of the balloon.
-	 */
-	function getNorthTop( targetRect: Rect, balloonRect: Rect ) {
-		return targetRect.top - balloonRect.height - heightOffset;
-	}
-
-	/**
-	 * Returns the top coordinate for positions starting with `south*`.
-	 *
-	 * @param targetRect A rect of the target.
-	 */
-	function getSouthTop( targetRect: Rect ) {
-		return targetRect.bottom + heightOffset;
-	}
 }

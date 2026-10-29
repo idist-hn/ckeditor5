@@ -4,8 +4,6 @@ category: api-reference
 
 # CKEditor&nbsp;5 paragraph feature
 
-[![npm version](https://badge.fury.io/js/%40ckeditor%2Fckeditor5-paragraph.svg)](https://www.npmjs.com/package/@ckeditor/ckeditor5-paragraph)
-
 This package implements paragraph support for CKEditor&nbsp;5.
 
 ## Documentation
@@ -14,8 +12,10 @@ See the {@link module:paragraph/paragraph~Paragraph} and {@link module:paragraph
 
 ## Installation
 
+This package is part of our open-source aggregate package.
+
 ```bash
-npm install --save @ckeditor/ckeditor5-paragraph
+npm install ckeditor5
 ```
 
 ## Contribute

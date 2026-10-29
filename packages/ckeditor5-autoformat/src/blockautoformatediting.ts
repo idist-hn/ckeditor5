@@ -1,22 +1,7 @@
 /**
- * @license Copyright (c) 2003-2023, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
-
-import type { Command, Editor } from 'ckeditor5/src/core';
-
-import {
-	LiveRange,
-	type DocumentChangeEvent,
-	type Item,
-	type Text
-} from 'ckeditor5/src/engine';
-
-import { first } from 'ckeditor5/src/utils';
-
-import type Autoformat from './autoformat';
-
-import type { Delete } from 'ckeditor5/src/typing';
 
 /**
  * The block autoformatting engine. It allows to format various block patterns. For example,
@@ -33,8 +18,26 @@ import type { Delete } from 'ckeditor5/src/typing';
  * @module autoformat/blockautoformatediting
  */
 
+import type { Command, Editor } from '@ckeditor/ckeditor5-core';
+
+import {
+	ModelLiveRange,
+	ModelSchemaContext,
+	type ModelDocumentChangeEvent,
+	type ModelItem,
+	type ModelText,
+	type ModelWriter,
+	type ModelDocumentSelection
+} from '@ckeditor/ckeditor5-engine';
+
+import { first } from '@ckeditor/ckeditor5-utils';
+
+import { type Autoformat } from './autoformat.js';
+
+import type { Delete } from '@ckeditor/ckeditor5-typing';
+
 /**
- * Creates a listener triggered on {@link module:engine/model/document~Document#event:change:data `change:data`} event in the document.
+ * Creates a listener triggered on {@link module:engine/model/document~ModelDocument#event:change:data `change:data`} event in the document.
  * Calls the callback when inserted text matches the regular expression or the command name
  * if provided instead of the callback.
  *
@@ -67,7 +70,7 @@ import type { Delete } from 'ckeditor5/src/typing';
  * In case of providing the callback, it receives the following parameter:
  * * match RegExp.exec() result of matching the pattern to inserted text.
  */
-export default function blockAutoformatEditing(
+export function blockAutoformatEditing(
 	editor: Editor,
 	plugin: Autoformat,
 	pattern: RegExp,
@@ -87,7 +90,7 @@ export default function blockAutoformatEditing(
 		};
 	}
 
-	editor.model.document.on<DocumentChangeEvent>( 'change:data', ( evt, batch ) => {
+	editor.model.document.on<ModelDocumentChangeEvent>( 'change:data', ( evt, batch ) => {
 		if ( command && !command.isEnabled || !plugin.isEnabled ) {
 			return;
 		}
@@ -112,7 +115,7 @@ export default function blockAutoformatEditing(
 
 		const blockToFormat = entry.position.parent;
 
-		// Block formatting should be disabled in codeBlocks (#5800).
+		// Block formatting should be disabled in codeBlocks (https://github.com/ckeditor/ckeditor5/issues/5800).
 		if ( blockToFormat.is( 'element', 'codeBlock' ) ) {
 			return;
 		}
@@ -131,7 +134,7 @@ export default function blockAutoformatEditing(
 			return;
 		}
 
-		const firstNode = blockToFormat.getChild( 0 ) as Text;
+		const firstNode = blockToFormat.getChild( 0 ) as ModelText;
 
 		const firstNodeRange = editor.model.createRangeOn( firstNode );
 
@@ -149,25 +152,33 @@ export default function blockAutoformatEditing(
 
 		// Use enqueueChange to create new batch to separate typing batch from the auto-format changes.
 		editor.model.enqueueChange( writer => {
+			const selection = editor.model.document.selection;
+
 			// Matched range.
 			const start = writer.createPositionAt( blockToFormat, 0 );
 			const end = writer.createPositionAt( blockToFormat, match[ 0 ].length );
-			const range = new LiveRange( start, end );
+			const range = new ModelLiveRange( start, end );
 
 			const wasChanged = callback( { match } );
 
 			// Remove matched text.
 			if ( wasChanged !== false ) {
+				// Store selection attributes to restore them after matched text removed.
+				const selectionAttributes = Array.from( selection.getAttributes() );
+
 				writer.remove( range );
 
-				const selectionRange = editor.model.document.selection.getFirstRange()!;
+				const selectionRange = selection.getFirstRange()!;
 				const blockRange = writer.createRangeIn( blockToFormat );
 
 				// If the block is empty and the document selection has been moved when
 				// applying formatting (e.g. is now in newly created block).
 				if ( blockToFormat.isEmpty && !blockRange.isEqual( selectionRange ) && !blockRange.containsRange( selectionRange, true ) ) {
-					writer.remove( blockToFormat as Item );
+					writer.remove( blockToFormat as ModelItem );
 				}
+
+				// Restore selection attributes.
+				restoreSelectionAttributes( writer, selection, selectionAttributes );
 			}
 			range.detach();
 
@@ -178,4 +189,27 @@ export default function blockAutoformatEditing(
 			} );
 		} );
 	} );
+}
+
+/**
+ * Restore allowed selection attributes.
+ */
+function restoreSelectionAttributes(
+	writer: ModelWriter,
+	selection: ModelDocumentSelection,
+	selectionAttributes: Array<[ string, unknown ]>
+): void {
+	const schema = writer.model.schema;
+	const selectionPosition = selection.getFirstPosition()!;
+	let selectionSchemaContext = new ModelSchemaContext( selectionPosition );
+
+	if ( schema.checkChild( selectionSchemaContext, '$text' ) ) {
+		selectionSchemaContext = selectionSchemaContext.push( '$text' );
+	}
+
+	for ( const [ attributeName, attributeValue ] of selectionAttributes ) {
+		if ( schema.checkAttribute( selectionSchemaContext, attributeName ) ) {
+			writer.setSelectionAttribute( attributeName, attributeValue );
+		}
+	}
 }
